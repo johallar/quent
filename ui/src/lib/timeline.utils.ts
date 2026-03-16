@@ -49,6 +49,21 @@ export interface ViewportSec {
   end: number;
 }
 
+/**
+ *
+ * Was getting worried about FE performance, claude benchmark results for 800 bins for n timelines
+ * slicing it for the viewport provided
+ * n timelines	mean per batch	per-timeline cost
+ * 1	0.0013 ms
+ * 10	0.0122 ms
+ * 25	0.0301 ms
+ * 50	0.0602 ms
+ * 100	0.1203 ms
+ * 250	0.2996 ms
+ * 500	0.5997 ms
+ * Verdict: you're not going to have a performance problem here. Even 500 timelines costs under 0.6 ms.
+ * A 60 fps frame budget is 16.6 ms — you'd need ~13,000 timelines before this broke a frame.
+ */
 export function buildBinnedTimelineSeries(
   data: ResourceTimeline,
   config: BinnedSpanSec,
@@ -124,40 +139,60 @@ export function buildBinnedTimelineSeries(
     };
   }
 
-  // Slice to viewport so we display only bins overlapping [viewportSec.start, viewportSec.end]
   if (viewportSec != null) {
-    const startTimeMs = nanosToMs(startTime);
-    const viewportStartMs = startTimeMs + viewportSec.start * 1_000;
-    const viewportEndMs = startTimeMs + viewportSec.end * 1_000;
-    const startIdx = Math.max(0, Math.floor((viewportStartMs - firstBinMs) / binDurationMs));
-    const endIdx = Math.min(
-      numBinsNumber - 1,
-      Math.ceil((viewportEndMs - firstBinMs) / binDurationMs)
+    return sliceToViewport(
+      { timestamps, series },
+      firstBinMs,
+      binDurationMs,
+      numBinsNumber,
+      startTime,
+      viewportSec
     );
-    if (startIdx > endIdx) {
-      return {
-        timestamps: [],
-        series: Object.fromEntries(
-          Object.entries(series).map(([k, s]) => [k, { ...s, values: [] as number[] }])
-        ),
-      };
-    }
-    const len = endIdx - startIdx + 1;
-    const slicedTimestamps = new Array<number>(len);
-    for (let i = 0; i < len; i++) {
-      slicedTimestamps[i] = timestamps[startIdx + i];
-    }
-    const slicedSeries: TimelineSeries = {};
-    for (const [name, s] of Object.entries(series)) {
-      slicedSeries[name] = {
-        ...s,
-        values: s.values.slice(startIdx, endIdx + 1),
-      };
-    }
-    return { timestamps: slicedTimestamps, series: slicedSeries };
   }
 
   return { timestamps, series };
+}
+
+/**
+ * Clips a fully-built timeline result to only the bins that overlap
+ * [viewportSec.start, viewportSec.end], measured in seconds from startTime.
+ */
+export function sliceToViewport(
+  result: { timestamps: number[]; series: TimelineSeries },
+  firstBinMs: number,
+  binDurationMs: number,
+  numBins: number,
+  startTime: bigint,
+  viewportSec: ViewportSec
+): { timestamps: number[]; series: TimelineSeries } {
+  const { timestamps, series } = result;
+  const startTimeMs = nanosToMs(startTime);
+  const viewportStartMs = startTimeMs + viewportSec.start * 1_000;
+  const viewportEndMs = startTimeMs + viewportSec.end * 1_000;
+  const startIdx = Math.max(0, Math.floor((viewportStartMs - firstBinMs) / binDurationMs));
+  const endIdx = Math.min(numBins - 1, Math.ceil((viewportEndMs - firstBinMs) / binDurationMs));
+
+  if (startIdx > endIdx) {
+    return {
+      timestamps: [],
+      series: Object.fromEntries(
+        Object.entries(series).map(([k, s]) => [k, { ...s, values: [] as number[] }])
+      ),
+    };
+  }
+
+  const len = endIdx - startIdx + 1;
+  const slicedTimestamps = new Array<number>(len);
+  for (let i = 0; i < len; i++) {
+    slicedTimestamps[i] = timestamps[startIdx + i];
+  }
+
+  const slicedSeries: TimelineSeries = {};
+  for (const [name, s] of Object.entries(series)) {
+    slicedSeries[name] = { ...s, values: s.values.slice(startIdx, endIdx + 1) };
+  }
+
+  return { timestamps: slicedTimestamps, series: slicedSeries };
 }
 
 /** Extract the config from a SingleTimelineResponse */

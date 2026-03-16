@@ -27,6 +27,7 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
+      '~quent/types': path.resolve(__dirname, '../examples/simulator/server/ts-bindings'),
     },
   },
 });
