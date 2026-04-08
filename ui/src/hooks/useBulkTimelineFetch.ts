@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { useEffect, useMemo } from 'react';
-import { keepPreviousData, useQuery } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { useStore } from 'jotai';
 import { fetchBulkTimelines, DEFAULT_STALE_TIME } from '@/services/api';
 import type { ZoomRange } from '@/components/timeline/TimelineController';
@@ -118,7 +118,7 @@ export function useBulkTimelineFetch({
     requestKey,
   } = useMemo(() => buildMergedBulkEntries(entries, operatorId), [entries, operatorId]);
 
-  const { data } = useQuery<BulkTimelinesResponse>({
+  const query = useQuery<BulkTimelinesResponse>({
     queryKey: ['bulkTimelines', engineId, queryId, debouncedZoomRange, requestKey],
     queryFn: () =>
       fetchBulkTimelines(engineId, {
@@ -127,13 +127,14 @@ export function useBulkTimelineFetch({
       }),
     staleTime: DEFAULT_STALE_TIME,
     enabled,
-    placeholderData: keepPreviousData,
   });
+
+  const { data } = query;
 
   useEffect(() => {
     if (!data) return;
     applyBulkTimelineResponse(data, idToMeta, store);
   }, [data, store, idToMeta]);
 
-  return data;
+  return query;
 }

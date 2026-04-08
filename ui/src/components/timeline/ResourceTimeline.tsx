@@ -14,7 +14,7 @@ import {
 import { selectedNodeIdsAtom, selectedOperatorLabelAtom } from '@/atoms/dag';
 import { useDeferredReady } from '@/hooks/useDeferredReady';
 import { TimelineSkeleton } from './TimelineSkeleton';
-import { useMemo, lazy, Suspense } from 'react';
+import { useEffect, useMemo, lazy, Suspense } from 'react';
 import {
   buildBinnedTimelineSeries,
   buildTimelineMarks,
@@ -34,6 +34,12 @@ import type { TaskFilter } from '~quent/types/TaskFilter';
 import type { CapacityDecl } from '~quent/types/CapacityDecl';
 import type { QuantitySpec } from '~quent/types/QuantitySpec';
 const Timeline = lazy(() => import('./Timeline').then(mod => ({ default: mod.Timeline })));
+const TIMELINE_DEBUG_KEY = 'quent:timeline-debug';
+
+function isTimelineDebugEnabled(): boolean {
+  if (!import.meta.env.DEV || typeof window === 'undefined') return false;
+  return window.localStorage.getItem(TIMELINE_DEBUG_KEY) === '1';
+}
 
 type ResourceTimelineProps = {
   engineId: string;
@@ -100,6 +106,8 @@ export function ResourceTimeline({
   });
   const operatorTimelineData = useAtomValue(timelineDataAtom(operatorCacheKey));
   const overlayPreloadedData = operatorId ? operatorTimelineData : undefined;
+  const shouldFetchSingle = deferredReady && !preloadedData && bulkInitialized;
+  const debugEnabled = isTimelineDebugEnabled();
 
   const {
     data: fetchedData,
@@ -151,9 +159,33 @@ export function ResourceTimeline({
       return fetchSingleTimeline(engineId, request, durationSeconds);
     },
     staleTime: DEFAULT_STALE_TIME,
-    enabled: deferredReady && !preloadedData && bulkInitialized,
+    enabled: shouldFetchSingle,
     placeholderData: keepPreviousData,
   });
+
+  useEffect(() => {
+    if (!debugEnabled) return;
+    console.warn('[timeline/single-gate]', {
+      queryId,
+      resourceId,
+      operatorId,
+      deferredReady,
+      bulkInitialized,
+      hasPreloadedData: Boolean(preloadedData),
+      enabled: shouldFetchSingle,
+      hasOverlayPreloadedData: Boolean(overlayPreloadedData),
+    });
+  }, [
+    debugEnabled,
+    queryId,
+    resourceId,
+    operatorId,
+    deferredReady,
+    bulkInitialized,
+    preloadedData,
+    shouldFetchSingle,
+    overlayPreloadedData,
+  ]);
 
   const { timestamps, series, marks } = useMemo<{
     timestamps: number[];
@@ -161,8 +193,7 @@ export function ResourceTimeline({
     marks?: TimelineMark[];
   }>(() => {
     const data = preloadedData ?? fetchedData;
-    if (!data || (operatorId != null && !overlayPreloadedData))
-      return { timestamps: [], series: EMPTY_TIMELINE_SERIES };
+    if (!data) return { timestamps: [], series: EMPTY_TIMELINE_SERIES };
 
     const base = buildBinnedTimelineSeries(
       data.data,
@@ -202,7 +233,6 @@ export function ResourceTimeline({
   }, [
     preloadedData,
     fetchedData,
-    operatorId,
     overlayPreloadedData,
     startTime,
     capacities,
