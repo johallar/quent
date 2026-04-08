@@ -375,6 +375,8 @@ export const connectChart = (
   chartGroup: string = CHART_GROUP,
   activateBrushSelect = true
 ) => {
+  registerChartInGroup(instance, chartGroup);
+
   // Apply current zoom to this chart without replacing its dataZoom components.
   // setOption({ dataZoom: [zoomState] }) would replace the array and break slider/inside config.
   const zoomState = getChartGroupZoomState(chartGroup);
