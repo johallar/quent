@@ -6,6 +6,7 @@ import { useCallback, useEffect, useMemo } from 'react';
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { useAtom } from 'jotai';
 import { useHydrateAtoms } from 'jotai/utils';
+import { useNavigate } from '@tanstack/react-router';
 import { useHighlightedItemIds } from '@/hooks/useHighlightedItemIds';
 import { ResourceTree } from '~quent/types/ResourceTree';
 import { TimelineController } from './timeline/TimelineController';
@@ -32,6 +33,8 @@ import {
   rootResourceTypeAtom,
 } from '@/atoms/resourceTree';
 import { TimelineToolbar } from './timeline/TimelineToolbar';
+import { encodeTreeState } from '@/lib/treeStateParam';
+import type { TreeState } from '@/lib/treeStateParam';
 import {
   OperatorGanttChart,
   OPERATOR_TIMELINE_ROW_TYPE,
@@ -78,13 +81,20 @@ function injectOperatorTimelineRows(item: TreeTableItem, workerIds: Set<string>)
 interface QueryResourceTreeProps {
   engineId: string;
   queryBundle: QueryBundle<EntityRef>;
+  initialZoom?: { start: number; end: number };
+  initialTreeState?: TreeState | null;
 }
 
 export function QueryResourceTree(props: QueryResourceTreeProps) {
   return <QueryResourceTreeContent {...props} />;
 }
 
-function QueryResourceTreeContent({ queryBundle, engineId }: QueryResourceTreeProps) {
+function QueryResourceTreeContent({
+  queryBundle,
+  engineId,
+  initialZoom,
+  initialTreeState,
+}: QueryResourceTreeProps) {
   const { entities, resource_tree: resourceTree } = queryBundle;
 
   const startTime = queryBundle.start_time_unix_ns;
@@ -96,15 +106,38 @@ function QueryResourceTreeContent({ queryBundle, engineId }: QueryResourceTreePr
     [resourceTree, entities]
   );
 
-  const zoomInit = { start: 0, end: durationSeconds };
+  const zoomInit = initialZoom ?? { start: 0, end: durationSeconds };
+
+  const initialExpandedIds = useMemo(
+    () =>
+      initialTreeState ? new Set(initialTreeState.expandedIds) : new Set<string>([rootItem.id]),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    []
+  );
+  const initialSelectedTypes = useMemo(
+    () =>
+      initialTreeState
+        ? new Map(Object.entries(initialTreeState.selectedTypes))
+        : new Map<string, string>(),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    []
+  );
+  const initialSelectedFsmTypes = useMemo(
+    () =>
+      initialTreeState
+        ? new Map(Object.entries(initialTreeState.selectedFsmTypes))
+        : new Map<string, string | null>(),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    []
+  );
 
   useHydrateAtoms([
     [zoomRangeAtom, zoomInit],
     [debouncedZoomRangeAtom, zoomInit],
     [startTimeMsAtom, startTimeMs],
-    [expandedIdsAtom, new Set<string>([rootItem.id])],
-    [selectedTypesAtom, new Map<string, string>()],
-    [selectedFsmTypesAtom, new Map<string, string | null>()],
+    [expandedIdsAtom, initialExpandedIds],
+    [selectedTypesAtom, initialSelectedTypes],
+    [selectedFsmTypesAtom, initialSelectedFsmTypes],
   ]);
 
   const [selectedTypes, setSelectedTypes] = useAtom(selectedTypesAtom);
@@ -154,6 +187,19 @@ function QueryResourceTreeContent({ queryBundle, engineId }: QueryResourceTreePr
     },
     [handleExpandChange, handleExpand]
   );
+
+  const navigate = useNavigate({ from: '/profile/engine/$engineId/query/$queryId/timeline' });
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      const encoded = encodeTreeState({ expandedIds, selectedTypes, selectedFsmTypes });
+      void navigate({
+        search: prev => ({ ...prev, treeState: encoded }),
+        replace: true,
+      });
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [expandedIds, selectedTypes, selectedFsmTypes, navigate]);
 
   const { data: fetchedRootTimeline } = useQuery({
     queryKey: [

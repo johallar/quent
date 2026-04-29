@@ -15,6 +15,7 @@ export interface QueryIndexSearch {
   zoomStart?: number;
   zoomEnd?: number;
   hideTasks?: boolean;
+  treeState?: string;
 }
 
 /**
@@ -46,7 +47,7 @@ export function useUrlStateSync(search: QueryIndexSearch) {
 
   // Scoping navigate to this route gives TanStack Router the search type context it needs
   // to type-check the search updater function correctly.
-  const navigate = useNavigate({ from: '/profile/engine/$engineId/query/$queryId/' });
+  const navigate = useNavigate({ from: '/profile/engine/$engineId/query/$queryId' });
 
   useEffect(() => {
     // zoomRange stays at { start: 0, end: 0 } until QueryResourceTree's useHydrateAtoms
