@@ -42,6 +42,8 @@ type TreeRenderItemParams<T extends TreeDataItem = TreeDataItem> = {
 type TreeProps<T extends TreeDataItem = TreeDataItem> = React.HTMLAttributes<HTMLDivElement> & {
   data: T[] | T;
   initialSelectedItemId?: string;
+  /** Controlled selected item id. When provided, overrides internal selection state. */
+  selectedItemId?: string;
   onSelectChange?: (item: T | undefined) => void;
   expandAll?: boolean;
   defaultNodeIcon?: React.ComponentType<{ className?: string }>;
@@ -53,6 +55,7 @@ type TreeProps<T extends TreeDataItem = TreeDataItem> = React.HTMLAttributes<HTM
 function TreeView<T extends TreeDataItem = TreeDataItem>({
   data,
   initialSelectedItemId,
+  selectedItemId: controlledSelectedItemId,
   onSelectChange,
   expandAll,
   defaultLeafIcon,
@@ -63,14 +66,16 @@ function TreeView<T extends TreeDataItem = TreeDataItem>({
   ...props
 }: TreeProps<T>) {
   const [selectedItemId, setSelectedItemId] = React.useState<string | undefined>(
-    initialSelectedItemId
+    controlledSelectedItemId ?? initialSelectedItemId
   );
 
-  // Keep internal selection in sync with prop changes (e.g. when URL state is restored
-  // after the component has already mounted with an empty initial value).
   React.useEffect(() => {
+    if (controlledSelectedItemId !== undefined) {
+      setSelectedItemId(controlledSelectedItemId);
+      return;
+    }
     setSelectedItemId(initialSelectedItemId);
-  }, [initialSelectedItemId]);
+  }, [controlledSelectedItemId, initialSelectedItemId]);
 
   const [draggedItem, setDraggedItem] = React.useState<T | null>(null);
 
@@ -98,8 +103,10 @@ function TreeView<T extends TreeDataItem = TreeDataItem>({
     [draggedItem, onDocumentDrag]
   );
 
+  const activeSelectedItemId = controlledSelectedItemId ?? initialSelectedItemId;
+
   const expandedItemIds = React.useMemo(() => {
-    if (!initialSelectedItemId) {
+    if (!activeSelectedItemId) {
       return [] as string[];
     }
 
@@ -121,9 +128,9 @@ function TreeView<T extends TreeDataItem = TreeDataItem>({
       }
     }
 
-    walkTreeItems(data, initialSelectedItemId);
+    walkTreeItems(data, activeSelectedItemId);
     return ids;
-  }, [data, expandAll, initialSelectedItemId]);
+  }, [data, expandAll, activeSelectedItemId]);
 
   return (
     <div className={cn('overflow-hidden relative', className)}>
