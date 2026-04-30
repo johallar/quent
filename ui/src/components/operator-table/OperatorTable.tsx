@@ -19,6 +19,7 @@ import { getSchemaStatNames } from '../pivot-table/utils';
 import { PivotTableToolbar } from '../pivot-table/PivotTableToolbar';
 import { useStatGroupTableControls } from '../pivot-table/useStatGroupTableControls';
 import { getOperatorColor } from '@/services/query-plan/operationTypes';
+import { OPERATOR_TABLE_PERSIST_KEY } from '@/atoms/statGroupTable';
 import type { OperatorTableRow } from './types';
 import { buildOperatorRows, buildItemIdIndex } from './utils';
 
@@ -178,7 +179,7 @@ export function OperatorTable({ queryBundle }: OperatorTableProps) {
       return [...duration, ...inputs, ...outputs];
     },
     filterIndexOrder,
-    persistKey: 'operatorTable',
+    persistKey: OPERATOR_TABLE_PERSIST_KEY,
     rows,
     getRowIndexId: (row, key) => OPERATOR_SCHEMA.groups[key].id(row),
   });

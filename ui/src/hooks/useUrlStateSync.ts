@@ -19,7 +19,25 @@ import {
 } from '@/atoms/dag';
 import { expandedIdsAtom, selectedFsmTypesAtom, selectedTypesAtom } from '@/atoms/resourceTree';
 import { debouncedZoomRangeAtom, hideTasksAtom } from '@/atoms/timeline';
-import { encodeTreeState, decodeTreeState } from '@/lib/treeStateParam';
+import {
+  decodeDagState,
+  decodeLegacyCombinedTreeState,
+  decodeOperatorsState,
+  decodeTreeState,
+  encodeDagState,
+  encodeOperatorsState,
+  encodeTreeState,
+} from '@/lib/treeStateParam';
+import {
+  OPERATOR_TABLE_PERSIST_KEY,
+  aggModeAtomFamily,
+  appliedDefaultKeyAtomFamily,
+  enabledIndicesAtomFamily,
+  indexOrderAtomFamily,
+  selectedStatsAtomFamily,
+  sortingAtomFamily,
+  statOrderAtomFamily,
+} from '@/atoms/statGroupTable';
 
 export interface QueryIndexSearch {
   planId?: string;
@@ -29,6 +47,8 @@ export interface QueryIndexSearch {
   zoomEnd?: number;
   hideTasks?: boolean;
   treeState?: string;
+  dagState?: string;
+  operatorsState?: string;
 }
 
 /**
@@ -39,28 +59,84 @@ export interface QueryIndexSearch {
  * browser history stack is not polluted on every zoom gesture or plan selection.
  */
 export function useUrlStateSync(search: QueryIndexSearch) {
-  const decodedState = search.treeState ? decodeTreeState(search.treeState) : null;
+  const decodedTreeState = search.treeState ? decodeTreeState(search.treeState) : null;
+  const decodedDagState = search.dagState ? decodeDagState(search.dagState) : null;
+  const legacyCombinedState =
+    !decodedDagState && search.treeState ? decodeLegacyCombinedTreeState(search.treeState) : null;
+  const decodedOperatorsState = search.operatorsState
+    ? decodeOperatorsState(search.operatorsState)
+    : null;
+
   useHydrateAtoms([
-    [selectedPlanIdAtom, decodedState?.planId ?? search.planId ?? ''],
+    [
+      selectedPlanIdAtom,
+      decodedDagState?.planId ?? legacyCombinedState?.planId ?? search.planId ?? '',
+    ],
     [
       selectedNodeIdsAtom,
-      decodedState?.operatorId
-        ? new Set([decodedState.operatorId])
-        : search.operatorId
-          ? new Set([search.operatorId])
-          : new Set<string>(),
+      decodedDagState?.operatorId
+        ? new Set([decodedDagState.operatorId])
+        : legacyCombinedState?.operatorId
+          ? new Set([legacyCombinedState.operatorId])
+          : search.operatorId
+            ? new Set([search.operatorId])
+            : new Set<string>(),
     ],
-    [selectedOperatorLabelAtom, decodedState?.operatorLabel ?? search.operatorLabel ?? null],
-    [hideTasksAtom, decodedState?.hideTasks ?? search.hideTasks ?? false],
-    [selectedColorField, decodedState?.dagColorField ?? null],
-    [selectedEdgeWidthFieldAtom, decodedState?.dagEdgeWidthField ?? null],
-    [selectedEdgeColorFieldAtom, decodedState?.dagEdgeColorField ?? null],
-    [selectedNodeLabelFieldAtom, decodedState?.dagNodeLabelField ?? NODE_LABEL_FIELD.NAME],
-    [nodeColorPaletteAtom, decodedState?.dagNodePalette ?? 'blue'],
-    [edgeColorPaletteAtom, decodedState?.dagEdgePalette ?? 'teal'],
-    [selectedTypesAtom, new Map(Object.entries(decodedState?.selectedTypes ?? {}))],
-    [selectedFsmTypesAtom, new Map(Object.entries(decodedState?.selectedFsmTypes ?? {}))],
-    [expandedIdsAtom, new Set(decodedState?.expandedIds ?? [])],
+    [
+      selectedOperatorLabelAtom,
+      decodedDagState?.operatorLabel ??
+        legacyCombinedState?.operatorLabel ??
+        search.operatorLabel ??
+        null,
+    ],
+    [hideTasksAtom, decodedTreeState?.hideTasks ?? search.hideTasks ?? false],
+    [
+      selectedColorField,
+      decodedDagState?.dagColorField ?? legacyCombinedState?.dagColorField ?? null,
+    ],
+    [
+      selectedEdgeWidthFieldAtom,
+      decodedDagState?.dagEdgeWidthField ?? legacyCombinedState?.dagEdgeWidthField ?? null,
+    ],
+    [
+      selectedEdgeColorFieldAtom,
+      decodedDagState?.dagEdgeColorField ?? legacyCombinedState?.dagEdgeColorField ?? null,
+    ],
+    [
+      selectedNodeLabelFieldAtom,
+      decodedDagState?.dagNodeLabelField ??
+        legacyCombinedState?.dagNodeLabelField ??
+        NODE_LABEL_FIELD.NAME,
+    ],
+    [
+      nodeColorPaletteAtom,
+      decodedDagState?.dagNodePalette ?? legacyCombinedState?.dagNodePalette ?? 'blue',
+    ],
+    [
+      edgeColorPaletteAtom,
+      decodedDagState?.dagEdgePalette ?? legacyCombinedState?.dagEdgePalette ?? 'teal',
+    ],
+    [selectedTypesAtom, new Map(Object.entries(decodedTreeState?.selectedTypes ?? {}))],
+    [selectedFsmTypesAtom, new Map(Object.entries(decodedTreeState?.selectedFsmTypes ?? {}))],
+    [expandedIdsAtom, new Set(decodedTreeState?.expandedIds ?? [])],
+    [indexOrderAtomFamily(OPERATOR_TABLE_PERSIST_KEY), decodedOperatorsState?.indexOrder ?? null],
+    [
+      enabledIndicesAtomFamily(OPERATOR_TABLE_PERSIST_KEY),
+      decodedOperatorsState?.enabledIndices ?? null,
+    ],
+    [
+      selectedStatsAtomFamily(OPERATOR_TABLE_PERSIST_KEY),
+      decodedOperatorsState?.selectedStats != null
+        ? new Set(decodedOperatorsState.selectedStats)
+        : null,
+    ],
+    [statOrderAtomFamily(OPERATOR_TABLE_PERSIST_KEY), decodedOperatorsState?.statOrder ?? null],
+    [
+      appliedDefaultKeyAtomFamily(OPERATOR_TABLE_PERSIST_KEY),
+      decodedOperatorsState?.appliedDefaultKey ?? null,
+    ],
+    [aggModeAtomFamily(OPERATOR_TABLE_PERSIST_KEY), decodedOperatorsState?.aggMode ?? null],
+    [sortingAtomFamily(OPERATOR_TABLE_PERSIST_KEY), decodedOperatorsState?.sorting ?? null],
   ]);
 
   const planId = useAtomValue(selectedPlanIdAtom);
@@ -77,6 +153,15 @@ export function useUrlStateSync(search: QueryIndexSearch) {
   const dagNodeLabelField = useAtomValue(selectedNodeLabelFieldAtom);
   const dagNodePalette = useAtomValue(nodeColorPaletteAtom);
   const dagEdgePalette = useAtomValue(edgeColorPaletteAtom);
+  const operatorIndexOrder = useAtomValue(indexOrderAtomFamily(OPERATOR_TABLE_PERSIST_KEY));
+  const operatorEnabledIndices = useAtomValue(enabledIndicesAtomFamily(OPERATOR_TABLE_PERSIST_KEY));
+  const operatorSelectedStats = useAtomValue(selectedStatsAtomFamily(OPERATOR_TABLE_PERSIST_KEY));
+  const operatorStatOrder = useAtomValue(statOrderAtomFamily(OPERATOR_TABLE_PERSIST_KEY));
+  const operatorAppliedDefaultKey = useAtomValue(
+    appliedDefaultKeyAtomFamily(OPERATOR_TABLE_PERSIST_KEY)
+  );
+  const operatorAggMode = useAtomValue(aggModeAtomFamily(OPERATOR_TABLE_PERSIST_KEY));
+  const operatorSorting = useAtomValue(sortingAtomFamily(OPERATOR_TABLE_PERSIST_KEY));
 
   const operatorId = selectedNodeIds.size > 0 ? [...selectedNodeIds][0] : undefined;
 
@@ -86,26 +171,42 @@ export function useUrlStateSync(search: QueryIndexSearch) {
   const { pathname } = useLocation();
 
   useEffect(() => {
-    // zoomRange stays at { start: 0, end: 0 } until QueryResourceTree's useHydrateAtoms
-    // runs during its render. Skip URL writes until zoom is properly initialized.
-    if (zoomRange.end === 0) return;
+    const isTimelineRoute = pathname.endsWith('/timeline');
+    const isOperatorsRoute = pathname.endsWith('/operators');
 
-    const encoded = encodeTreeState({
-      expandedIds,
-      selectedTypes,
-      selectedFsmTypes,
+    // zoomRange stays at { start: 0, end: 0 } until QueryResourceTree's useHydrateAtoms
+    // runs during its render. Skip timeline writes until zoom is properly initialized.
+    if (isTimelineRoute && zoomRange.end === 0) return;
+
+    const encodedDagState = encodeDagState({
       planId: planId || undefined,
       operatorId,
       operatorLabel: operatorLabel ?? null,
-      zoomStart: zoomRange.start,
-      zoomEnd: zoomRange.end,
-      hideTasks,
       dagColorField,
       dagEdgeWidthField,
       dagEdgeColorField,
       dagNodeLabelField,
       dagNodePalette,
       dagEdgePalette,
+    });
+
+    const encodedTreeState = encodeTreeState({
+      expandedIds,
+      selectedTypes,
+      selectedFsmTypes,
+      zoomStart: zoomRange.start,
+      zoomEnd: zoomRange.end,
+      hideTasks,
+    });
+
+    const encodedOperatorsState = encodeOperatorsState({
+      indexOrder: operatorIndexOrder ?? undefined,
+      enabledIndices: operatorEnabledIndices ?? undefined,
+      selectedStats: operatorSelectedStats ? [...operatorSelectedStats] : operatorSelectedStats,
+      statOrder: operatorStatOrder ?? undefined,
+      appliedDefaultKey: operatorAppliedDefaultKey ?? undefined,
+      aggMode: operatorAggMode ?? undefined,
+      sorting: operatorSorting ?? undefined,
     });
 
     void navigate({
@@ -118,7 +219,9 @@ export function useUrlStateSync(search: QueryIndexSearch) {
         zoomStart: undefined,
         zoomEnd: undefined,
         hideTasks: undefined,
-        treeState: encoded,
+        dagState: encodedDagState,
+        treeState: isTimelineRoute ? encodedTreeState : undefined,
+        operatorsState: isOperatorsRoute ? encodedOperatorsState : undefined,
       }),
       replace: true,
     });
@@ -138,6 +241,13 @@ export function useUrlStateSync(search: QueryIndexSearch) {
     dagNodeLabelField,
     dagNodePalette,
     dagEdgePalette,
+    operatorIndexOrder,
+    operatorEnabledIndices,
+    operatorSelectedStats,
+    operatorStatOrder,
+    operatorAppliedDefaultKey,
+    operatorAggMode,
+    operatorSorting,
     pathname,
     navigate,
   ]);

@@ -14,6 +14,8 @@ import type { AggMode } from '@/components/pivot-table/types';
  * fallback.
  */
 
+export const OPERATOR_TABLE_PERSIST_KEY = 'operatorTable';
+
 export const indexOrderAtomFamily = atomFamily(() => atom<string[] | null>(null));
 export const enabledIndicesAtomFamily = atomFamily(() =>
   atom<Record<string, boolean> | null>(null)

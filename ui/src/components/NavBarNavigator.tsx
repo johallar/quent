@@ -121,6 +121,8 @@ export function NavBarNavigator() {
             zoomEnd: undefined,
             hideTasks: undefined,
             treeState: undefined,
+            dagState: undefined,
+            operatorsState: undefined,
           },
         });
       }
@@ -149,6 +151,8 @@ export function NavBarNavigator() {
             zoomEnd: undefined,
             hideTasks: undefined,
             treeState: undefined,
+            dagState: undefined,
+            operatorsState: undefined,
           },
         });
       }
@@ -170,6 +174,8 @@ export function NavBarNavigator() {
         zoomEnd: undefined,
         hideTasks: undefined,
         treeState: undefined,
+        dagState: undefined,
+        operatorsState: undefined,
       },
     });
   };

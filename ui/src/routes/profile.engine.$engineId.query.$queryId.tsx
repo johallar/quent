@@ -19,6 +19,8 @@ export const Route = createFileRoute('/profile/engine/$engineId/query/$queryId')
     hideTasks:
       search.hideTasks === 'true' ? true : search.hideTasks === 'false' ? false : undefined,
     treeState: typeof search.treeState === 'string' ? search.treeState : undefined,
+    dagState: typeof search.dagState === 'string' ? search.dagState : undefined,
+    operatorsState: typeof search.operatorsState === 'string' ? search.operatorsState : undefined,
   }),
   component: QueryLayout,
   loader: async ({ params }): Promise<QueryBundle<EntityRef>> => {

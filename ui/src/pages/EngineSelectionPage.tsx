@@ -60,6 +60,8 @@ export function EngineSelectionPage() {
           zoomEnd: undefined,
           hideTasks: undefined,
           treeState: undefined,
+          dagState: undefined,
+          operatorsState: undefined,
         },
       });
     }
