@@ -759,82 +759,91 @@ export function TreeTable<I extends TreeTableDataItem>({
             isLayoutReady ? 'overflow-x-auto' : 'overflow-x-hidden'
           )}
         >
-          <div style={{ minWidth: `${effectiveWidth}px` }}>
-            {/* Sticky header container */}
-            <div
-              className="bg-background"
-              style={{
-                width: `${effectiveWidth}px`,
-                minWidth: `${effectiveWidth}px`,
-                position: 'sticky',
-                top: 0,
-                zIndex: 10,
-              }}
-            >
-              {/* Header row */}
+          {/*
+            Defer rendering of all rows + subheader content until the container
+            has been measured (`isLayoutReady`). Otherwise children mount with
+            `effectiveWidth === 0`, which causes ECharts to log:
+              "Can't get DOM width or height. ... should not be 0."
+          */}
+          {isLayoutReady && (
+            <div style={{ minWidth: `${effectiveWidth}px` }}>
+              {/* Sticky header container */}
               <div
-                className="bg-secondary/70 text-xs text-muted-foreground flex items-center border-b border-border"
-                style={{ width: `${effectiveWidth}px`, minWidth: `${effectiveWidth}px` }}
+                className="bg-background"
+                style={{
+                  width: `${effectiveWidth}px`,
+                  minWidth: `${effectiveWidth}px`,
+                  position: 'sticky',
+                  top: 0,
+                  zIndex: 10,
+                }}
               >
-                <div className="shrink-0" style={{ width: `${leftSpacing}px` }} />
-                <div className="shrink-0" style={{ width: `${chevronSpace}px` }} />
-                {columns.map((column, index) => {
-                  const columnWidth = columnLayoutWidths[column.widthIndex];
-                  const isAutoColumn = columnWidth === 'auto';
-
-                  return (
-                    <div
-                      key={column.key}
-                      className={cn(
-                        'relative flex items-center px-3 py-1 text-xs font-semibold text-muted-foreground',
-                        !isAutoColumn && 'shrink-0'
-                      )}
-                      style={isAutoColumn ? { flex: 1, minWidth: 0 } : { width: columnWidth }}
-                    >
-                      <span>{column.label}</span>
-                      {index < columns.length - 1 && !isAutoColumn && (
-                        <div
-                          className="absolute top-1/2 flex h-4 w-4 -translate-y-1/2 cursor-col-resize items-center justify-center group/resize"
-                          style={{
-                            right: index === columns.length - 1 ? `${finalDividerInset}px` : '-2px',
-                          }}
-                          onMouseDown={e => handleColumnResizeStart(index, e)}
-                        >
-                          <div className="h-4 w-0.5 rounded-full bg-muted-foreground/40 transition-all group-hover/resize:h-5 group-hover/resize:bg-muted-foreground/80" />
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-              {/* Sub-header row for controller/additional content */}
-              {columns.some(col => col.subHeaderContent) && (
+                {/* Header row */}
                 <div
-                  className="flex bg-background"
+                  className="bg-secondary/70 text-xs text-muted-foreground flex items-center border-b border-border"
                   style={{ width: `${effectiveWidth}px`, minWidth: `${effectiveWidth}px` }}
                 >
                   <div className="shrink-0" style={{ width: `${leftSpacing}px` }} />
                   <div className="shrink-0" style={{ width: `${chevronSpace}px` }} />
-                  {columns.map(column => {
+                  {columns.map((column, index) => {
                     const columnWidth = columnLayoutWidths[column.widthIndex];
                     const isAutoColumn = columnWidth === 'auto';
+
                     return (
                       <div
-                        className={cn('overflow-hidden', !isAutoColumn && 'shrink-0')}
-                        key={`subheader-${column.key}`}
+                        key={column.key}
+                        className={cn(
+                          'relative flex items-center px-3 py-1 text-xs font-semibold text-muted-foreground',
+                          !isAutoColumn && 'shrink-0'
+                        )}
                         style={isAutoColumn ? { flex: 1, minWidth: 0 } : { width: columnWidth }}
                       >
-                        {column.subHeaderContent}
+                        <span>{column.label}</span>
+                        {index < columns.length - 1 && !isAutoColumn && (
+                          <div
+                            className="absolute top-1/2 flex h-4 w-4 -translate-y-1/2 cursor-col-resize items-center justify-center group/resize"
+                            style={{
+                              right:
+                                index === columns.length - 1 ? `${finalDividerInset}px` : '-2px',
+                            }}
+                            onMouseDown={e => handleColumnResizeStart(index, e)}
+                          >
+                            <div className="h-4 w-0.5 rounded-full bg-muted-foreground/40 transition-all group-hover/resize:h-5 group-hover/resize:bg-muted-foreground/80" />
+                          </div>
+                        )}
                       </div>
                     );
                   })}
                 </div>
-              )}
+                {/* Sub-header row for controller/additional content */}
+                {columns.some(col => col.subHeaderContent) && (
+                  <div
+                    className="flex bg-background"
+                    style={{ width: `${effectiveWidth}px`, minWidth: `${effectiveWidth}px` }}
+                  >
+                    <div className="shrink-0" style={{ width: `${leftSpacing}px` }} />
+                    <div className="shrink-0" style={{ width: `${chevronSpace}px` }} />
+                    {columns.map(column => {
+                      const columnWidth = columnLayoutWidths[column.widthIndex];
+                      const isAutoColumn = columnWidth === 'auto';
+                      return (
+                        <div
+                          className={cn('overflow-hidden', !isAutoColumn && 'shrink-0')}
+                          key={`subheader-${column.key}`}
+                          style={isAutoColumn ? { flex: 1, minWidth: 0 } : { width: columnWidth }}
+                        >
+                          {column.subHeaderContent}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+              <div style={{ width: `${effectiveWidth}px`, minWidth: `${effectiveWidth}px` }}>
+                <TreeView data={treeData} renderItem={renderItem} {...treeViewProps} />
+              </div>
             </div>
-            <div style={{ width: `${effectiveWidth}px`, minWidth: `${effectiveWidth}px` }}>
-              <TreeView data={treeData} renderItem={renderItem} {...treeViewProps} />
-            </div>
-          </div>
+          )}
         </div>
       </div>
     </div>
