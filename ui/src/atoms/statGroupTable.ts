@@ -23,5 +23,4 @@ export const enabledIndicesAtomFamily = atomFamily(() =>
 export const selectedStatsAtomFamily = atomFamily(() => atom<Set<string> | null>(null));
 export const statOrderAtomFamily = atomFamily(() => atom<string[] | null>(null));
 export const aggModeAtomFamily = atomFamily(() => atom<AggMode | null>(null));
-export const appliedDefaultKeyAtomFamily = atomFamily(() => atom<string | null>(null));
 export const sortingAtomFamily = atomFamily(() => atom<SortingState | null>(null));

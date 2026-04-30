@@ -31,7 +31,6 @@ import {
 import {
   OPERATOR_TABLE_PERSIST_KEY,
   aggModeAtomFamily,
-  appliedDefaultKeyAtomFamily,
   enabledIndicesAtomFamily,
   indexOrderAtomFamily,
   selectedStatsAtomFamily,
@@ -131,10 +130,6 @@ export function useUrlStateSync(search: QueryIndexSearch) {
         : null,
     ],
     [statOrderAtomFamily(OPERATOR_TABLE_PERSIST_KEY), decodedOperatorsState?.statOrder ?? null],
-    [
-      appliedDefaultKeyAtomFamily(OPERATOR_TABLE_PERSIST_KEY),
-      decodedOperatorsState?.appliedDefaultKey ?? null,
-    ],
     [aggModeAtomFamily(OPERATOR_TABLE_PERSIST_KEY), decodedOperatorsState?.aggMode ?? null],
     [sortingAtomFamily(OPERATOR_TABLE_PERSIST_KEY), decodedOperatorsState?.sorting ?? null],
   ]);
@@ -157,9 +152,6 @@ export function useUrlStateSync(search: QueryIndexSearch) {
   const operatorEnabledIndices = useAtomValue(enabledIndicesAtomFamily(OPERATOR_TABLE_PERSIST_KEY));
   const operatorSelectedStats = useAtomValue(selectedStatsAtomFamily(OPERATOR_TABLE_PERSIST_KEY));
   const operatorStatOrder = useAtomValue(statOrderAtomFamily(OPERATOR_TABLE_PERSIST_KEY));
-  const operatorAppliedDefaultKey = useAtomValue(
-    appliedDefaultKeyAtomFamily(OPERATOR_TABLE_PERSIST_KEY)
-  );
   const operatorAggMode = useAtomValue(aggModeAtomFamily(OPERATOR_TABLE_PERSIST_KEY));
   const operatorSorting = useAtomValue(sortingAtomFamily(OPERATOR_TABLE_PERSIST_KEY));
 
@@ -204,7 +196,6 @@ export function useUrlStateSync(search: QueryIndexSearch) {
       enabledIndices: operatorEnabledIndices ?? undefined,
       selectedStats: operatorSelectedStats ? [...operatorSelectedStats] : operatorSelectedStats,
       statOrder: operatorStatOrder ?? undefined,
-      appliedDefaultKey: operatorAppliedDefaultKey ?? undefined,
       aggMode: operatorAggMode ?? undefined,
       sorting: operatorSorting ?? undefined,
     });
@@ -245,7 +236,6 @@ export function useUrlStateSync(search: QueryIndexSearch) {
     operatorEnabledIndices,
     operatorSelectedStats,
     operatorStatOrder,
-    operatorAppliedDefaultKey,
     operatorAggMode,
     operatorSorting,
     pathname,

@@ -10,7 +10,6 @@ import {
   selectedStatsAtomFamily,
   statOrderAtomFamily,
   aggModeAtomFamily,
-  appliedDefaultKeyAtomFamily,
   sortingAtomFamily,
 } from '@/atoms/statGroupTable';
 import type { AggMode } from './types';
@@ -63,7 +62,6 @@ export function useStatGroupTableControls<TIndexKey extends string, TRow = unkno
   const [selectedStats, setSelectedStats] = useAtom(selectedStatsAtomFamily(key));
   const [statOrder, setStatOrder] = useAtom(statOrderAtomFamily(key));
   const [aggModeRaw, setAggMode] = useAtom(aggModeAtomFamily(key));
-  const [appliedDefaultKey, setAppliedDefaultKey] = useAtom(appliedDefaultKeyAtomFamily(key));
   const [sortingRaw, setSortingRaw] = useAtom(sortingAtomFamily(key));
 
   const indexOrder = (indexOrderRaw as TIndexKey[] | null) ?? baseIndexOrder;
@@ -91,27 +89,21 @@ export function useStatGroupTableControls<TIndexKey extends string, TRow = unkno
 
   useEffect(() => {
     if (allStatNames.length === 0) return;
-    const allStatsKey = allStatNames.join('\0');
-    if (appliedDefaultKey === allStatsKey) return;
-    setAppliedDefaultKey(allStatsKey);
+    // Only seed defaults when state is truly virgin (never set in this
+    // session and not hydrated from URL). Once either selectedStats or
+    // statOrder has been set, treat that as the source of truth so URL
+    // hydration is preserved on refresh.
+    if (selectedStats !== null || statOrder !== null) return;
 
     const selectedByDefault = defaultStatSelectorRef.current?.(allStatNames);
-    if (!selectedByDefault || selectedByDefault.length === 0) {
-      setSelectedStats(null);
-      setStatOrder(null);
-      return;
-    }
+    if (!selectedByDefault || selectedByDefault.length === 0) return;
     const defaults = new Set(selectedByDefault.filter(stat => allStatNames.includes(stat)));
-    if (defaults.size === 0) {
-      setSelectedStats(null);
-      setStatOrder(null);
-      return;
-    }
+    if (defaults.size === 0) return;
     setSelectedStats(defaults);
     const orderedDefaults = allStatNames.filter(stat => defaults.has(stat));
     const rest = allStatNames.filter(stat => !defaults.has(stat));
     setStatOrder([...orderedDefaults, ...rest]);
-  }, [allStatNames, appliedDefaultKey, setAppliedDefaultKey, setSelectedStats, setStatOrder]);
+  }, [allStatNames, selectedStats, statOrder, setSelectedStats, setStatOrder]);
 
   const orderedStatNames = useMemo(() => {
     if (!statOrder) return allStatNames;

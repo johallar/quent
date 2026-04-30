@@ -36,7 +36,6 @@ const operatorsStateSchema = z.object({
   enabledIndices: z.record(z.string(), z.boolean()).optional(),
   selectedStats: z.array(z.string()).nullable().optional(),
   statOrder: z.array(z.string()).nullable().optional(),
-  appliedDefaultKey: z.string().nullable().optional(),
   aggMode: z.enum(['value', 'sum', 'mean', 'min', 'max', 'stdev']).optional(),
   sorting: z
     .array(
@@ -84,7 +83,6 @@ export interface OperatorsStateInput {
   enabledIndices?: Record<string, boolean>;
   selectedStats?: string[] | null;
   statOrder?: string[] | null;
-  appliedDefaultKey?: string | null;
   aggMode?: 'value' | 'sum' | 'mean' | 'min' | 'max' | 'stdev';
   sorting?: Array<{ id: string; desc: boolean }>;
 }
