@@ -14,11 +14,14 @@ function TimelineTab() {
   const { engineId } = Route.useParams();
   const queryBundle = QueryRoute.useLoaderData();
   const search = QueryRoute.useSearch();
+  const decodedState = search.treeState ? decodeTreeState(search.treeState) : null;
   const initialZoom =
-    search.zoomStart !== undefined && search.zoomEnd !== undefined
-      ? { start: search.zoomStart, end: search.zoomEnd }
-      : undefined;
-  const initialTreeState = search.treeState ? decodeTreeState(search.treeState) : null;
+    decodedState?.zoomStart !== undefined && decodedState?.zoomEnd !== undefined
+      ? { start: decodedState.zoomStart, end: decodedState.zoomEnd }
+      : search.zoomStart !== undefined && search.zoomEnd !== undefined
+        ? { start: search.zoomStart, end: search.zoomEnd }
+        : undefined;
+  const initialTreeState = decodedState;
 
   return (
     <div className="flex items-center justify-center w-full h-full min-h-[200px]">
