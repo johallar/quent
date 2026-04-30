@@ -5,23 +5,32 @@ import { createFileRoute, Link, Outlet } from '@tanstack/react-router';
 import { queryBundleQueryOptions } from '@/hooks/useQueryBundle';
 import { queryClient } from '@/lib/queryClient';
 import { useUrlStateSync } from '@/hooks/useUrlStateSync';
+import { ErrorBoundary } from '@/components/ErrorBoundary';
+import { safeRun } from '@/lib/safeUrlState';
 import type { QueryBundle } from '~quent/types/QueryBundle';
 import type { EntityRef } from '~quent/types/EntityRef';
 import { cn } from '@/lib/utils';
+import type { QueryIndexSearch } from '@/hooks/useUrlStateSync';
 
 export const Route = createFileRoute('/profile/engine/$engineId/query/$queryId')({
-  validateSearch: (search: Record<string, unknown>) => ({
-    planId: typeof search.planId === 'string' ? search.planId : undefined,
-    operatorId: typeof search.operatorId === 'string' ? search.operatorId : undefined,
-    operatorLabel: typeof search.operatorLabel === 'string' ? search.operatorLabel : undefined,
-    zoomStart: Number.isFinite(Number(search.zoomStart)) ? Number(search.zoomStart) : undefined,
-    zoomEnd: Number.isFinite(Number(search.zoomEnd)) ? Number(search.zoomEnd) : undefined,
-    hideTasks:
-      search.hideTasks === 'true' ? true : search.hideTasks === 'false' ? false : undefined,
-    treeState: typeof search.treeState === 'string' ? search.treeState : undefined,
-    dagState: typeof search.dagState === 'string' ? search.dagState : undefined,
-    operatorsState: typeof search.operatorsState === 'string' ? search.operatorsState : undefined,
-  }),
+  validateSearch: (search: Record<string, unknown>): QueryIndexSearch =>
+    safeRun<QueryIndexSearch>(
+      'validate-search',
+      () => ({
+        planId: typeof search.planId === 'string' ? search.planId : undefined,
+        operatorId: typeof search.operatorId === 'string' ? search.operatorId : undefined,
+        operatorLabel: typeof search.operatorLabel === 'string' ? search.operatorLabel : undefined,
+        zoomStart: Number.isFinite(Number(search.zoomStart)) ? Number(search.zoomStart) : undefined,
+        zoomEnd: Number.isFinite(Number(search.zoomEnd)) ? Number(search.zoomEnd) : undefined,
+        hideTasks:
+          search.hideTasks === 'true' ? true : search.hideTasks === 'false' ? false : undefined,
+        treeState: typeof search.treeState === 'string' ? search.treeState : undefined,
+        dagState: typeof search.dagState === 'string' ? search.dagState : undefined,
+        operatorsState:
+          typeof search.operatorsState === 'string' ? search.operatorsState : undefined,
+      }),
+      {}
+    ),
   component: QueryLayout,
   loader: async ({ params }): Promise<QueryBundle<EntityRef>> => {
     const { engineId, queryId } = params;
@@ -37,13 +46,20 @@ const tabClass = cn(
 
 const activeTabClass = cn(tabClass, 'text-foreground font-semibold bg-muted shadow');
 
+function UrlStateSync({ search }: { search: QueryIndexSearch }) {
+  useUrlStateSync(search);
+  return null;
+}
+
 function QueryLayout() {
   const { engineId, queryId } = Route.useParams();
   const search = Route.useSearch();
-  useUrlStateSync(search);
 
   return (
     <div className="flex flex-col h-full w-full">
+      <ErrorBoundary label="useUrlStateSync">
+        <UrlStateSync search={search} />
+      </ErrorBoundary>
       <div className="shrink-0 border-b">
         <div className="inline-flex h-9 w-full items-center justify-center p-1 text-muted-foreground gap-0">
           <Link

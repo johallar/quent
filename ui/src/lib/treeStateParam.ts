@@ -4,6 +4,7 @@
 import { compressToEncodedURIComponent, decompressFromEncodedURIComponent } from 'lz-string';
 import { z } from 'zod';
 import { CONTINUOUS_PALETTES, type ContinuousPaletteName } from '@/services/colors';
+import { safeRun } from '@/lib/safeUrlState';
 
 const continuousPaletteNames = Object.keys(CONTINUOUS_PALETTES) as [
   ContinuousPaletteName,
@@ -88,34 +89,50 @@ export interface OperatorsStateInput {
 }
 
 export function encodeTreeState(state: TreeStateInput): string {
-  const raw = {
-    expandedIds: [...state.expandedIds],
-    selectedTypes: Object.fromEntries(state.selectedTypes),
-    selectedFsmTypes: Object.fromEntries(state.selectedFsmTypes),
-    zoomStart: state.zoomStart,
-    zoomEnd: state.zoomEnd,
-    hideTasks: state.hideTasks,
-  };
-  return compressToEncodedURIComponent(JSON.stringify(raw));
+  return safeRun(
+    'encode-tree',
+    () => {
+      const raw = {
+        expandedIds: [...state.expandedIds],
+        selectedTypes: Object.fromEntries(state.selectedTypes),
+        selectedFsmTypes: Object.fromEntries(state.selectedFsmTypes),
+        zoomStart: state.zoomStart,
+        zoomEnd: state.zoomEnd,
+        hideTasks: state.hideTasks,
+      };
+      return compressToEncodedURIComponent(JSON.stringify(raw));
+    },
+    ''
+  );
 }
 
 export function encodeDagState(state: DagStateInput): string {
-  const raw = {
-    planId: state.planId,
-    operatorId: state.operatorId,
-    operatorLabel: state.operatorLabel ?? null,
-    dagColorField: state.dagColorField ?? null,
-    dagEdgeWidthField: state.dagEdgeWidthField ?? null,
-    dagEdgeColorField: state.dagEdgeColorField ?? null,
-    dagNodeLabelField: state.dagNodeLabelField,
-    dagNodePalette: state.dagNodePalette,
-    dagEdgePalette: state.dagEdgePalette,
-  };
-  return compressToEncodedURIComponent(JSON.stringify(raw));
+  return safeRun(
+    'encode-dag',
+    () => {
+      const raw = {
+        planId: state.planId,
+        operatorId: state.operatorId,
+        operatorLabel: state.operatorLabel ?? null,
+        dagColorField: state.dagColorField ?? null,
+        dagEdgeWidthField: state.dagEdgeWidthField ?? null,
+        dagEdgeColorField: state.dagEdgeColorField ?? null,
+        dagNodeLabelField: state.dagNodeLabelField,
+        dagNodePalette: state.dagNodePalette,
+        dagEdgePalette: state.dagEdgePalette,
+      };
+      return compressToEncodedURIComponent(JSON.stringify(raw));
+    },
+    ''
+  );
 }
 
 export function encodeOperatorsState(state: OperatorsStateInput): string {
-  return compressToEncodedURIComponent(JSON.stringify(state));
+  return safeRun(
+    'encode-operators',
+    () => compressToEncodedURIComponent(JSON.stringify(state)),
+    ''
+  );
 }
 
 export function decodeTreeState(param: string): TreeState | null {
@@ -124,8 +141,13 @@ export function decodeTreeState(param: string): TreeState | null {
     if (!decompressed) return null;
     const parsed: unknown = JSON.parse(decompressed);
     const result = treeStateSchema.safeParse(parsed);
-    return result.success ? result.data : null;
-  } catch {
+    if (!result.success) {
+      console.warn('[url-state/decode-tree]', result.error);
+      return null;
+    }
+    return result.data;
+  } catch (err) {
+    console.warn('[url-state/decode-tree]', err);
     return null;
   }
 }
@@ -136,8 +158,13 @@ export function decodeDagState(param: string): DagState | null {
     if (!decompressed) return null;
     const parsed: unknown = JSON.parse(decompressed);
     const result = dagStateSchema.safeParse(parsed);
-    return result.success ? result.data : null;
-  } catch {
+    if (!result.success) {
+      console.warn('[url-state/decode-dag]', result.error);
+      return null;
+    }
+    return result.data;
+  } catch (err) {
+    console.warn('[url-state/decode-dag]', err);
     return null;
   }
 }
@@ -148,8 +175,13 @@ export function decodeOperatorsState(param: string): OperatorsState | null {
     if (!decompressed) return null;
     const parsed: unknown = JSON.parse(decompressed);
     const result = operatorsStateSchema.safeParse(parsed);
-    return result.success ? result.data : null;
-  } catch {
+    if (!result.success) {
+      console.warn('[url-state/decode-operators]', result.error);
+      return null;
+    }
+    return result.data;
+  } catch (err) {
+    console.warn('[url-state/decode-operators]', err);
     return null;
   }
 }
@@ -160,8 +192,13 @@ export function decodeLegacyCombinedTreeState(param: string): (TreeState & DagSt
     if (!decompressed) return null;
     const parsed: unknown = JSON.parse(decompressed);
     const result = legacyCombinedTreeStateSchema.safeParse(parsed);
-    return result.success ? result.data : null;
-  } catch {
+    if (!result.success) {
+      console.warn('[url-state/decode-legacy]', result.error);
+      return null;
+    }
+    return result.data;
+  } catch (err) {
+    console.warn('[url-state/decode-legacy]', err);
     return null;
   }
 }

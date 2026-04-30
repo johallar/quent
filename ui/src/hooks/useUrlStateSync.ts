@@ -28,6 +28,7 @@ import {
   encodeOperatorsState,
   encodeTreeState,
 } from '@/lib/treeStateParam';
+import { safeRun } from '@/lib/safeUrlState';
 import {
   OPERATOR_TABLE_PERSIST_KEY,
   aggModeAtomFamily,
@@ -66,72 +67,97 @@ export function useUrlStateSync(search: QueryIndexSearch) {
     ? decodeOperatorsState(search.operatorsState)
     : null;
 
-  useHydrateAtoms([
-    [
-      selectedPlanIdAtom,
-      decodedDagState?.planId ?? legacyCombinedState?.planId ?? search.planId ?? '',
-    ],
-    [
-      selectedNodeIdsAtom,
-      decodedDagState?.operatorId
-        ? new Set([decodedDagState.operatorId])
-        : legacyCombinedState?.operatorId
-          ? new Set([legacyCombinedState.operatorId])
-          : search.operatorId
-            ? new Set([search.operatorId])
-            : new Set<string>(),
-    ],
-    [
-      selectedOperatorLabelAtom,
-      decodedDagState?.operatorLabel ??
-        legacyCombinedState?.operatorLabel ??
-        search.operatorLabel ??
-        null,
-    ],
-    [hideTasksAtom, decodedTreeState?.hideTasks ?? search.hideTasks ?? false],
-    [
-      selectedColorField,
-      decodedDagState?.dagColorField ?? legacyCombinedState?.dagColorField ?? null,
-    ],
-    [
-      selectedEdgeWidthFieldAtom,
-      decodedDagState?.dagEdgeWidthField ?? legacyCombinedState?.dagEdgeWidthField ?? null,
-    ],
-    [
-      selectedEdgeColorFieldAtom,
-      decodedDagState?.dagEdgeColorField ?? legacyCombinedState?.dagEdgeColorField ?? null,
-    ],
-    [
-      selectedNodeLabelFieldAtom,
-      decodedDagState?.dagNodeLabelField ??
-        legacyCombinedState?.dagNodeLabelField ??
-        NODE_LABEL_FIELD.NAME,
-    ],
-    [
-      nodeColorPaletteAtom,
-      decodedDagState?.dagNodePalette ?? legacyCombinedState?.dagNodePalette ?? 'blue',
-    ],
-    [
-      edgeColorPaletteAtom,
-      decodedDagState?.dagEdgePalette ?? legacyCombinedState?.dagEdgePalette ?? 'teal',
-    ],
-    [selectedTypesAtom, new Map(Object.entries(decodedTreeState?.selectedTypes ?? {}))],
-    [selectedFsmTypesAtom, new Map(Object.entries(decodedTreeState?.selectedFsmTypes ?? {}))],
-    [expandedIdsAtom, new Set(decodedTreeState?.expandedIds ?? [])],
-    [indexOrderAtomFamily(OPERATOR_TABLE_PERSIST_KEY), decodedOperatorsState?.indexOrder ?? null],
-    [
-      enabledIndicesAtomFamily(OPERATOR_TABLE_PERSIST_KEY),
-      decodedOperatorsState?.enabledIndices ?? null,
-    ],
-    [
-      selectedStatsAtomFamily(OPERATOR_TABLE_PERSIST_KEY),
+  // A non-empty URL param that failed to decode (and where no fallback decoder
+  // succeeded) is "bad" — we strip it from the URL on the next write so users
+  // don't stay stuck on a poisoned link.
+  const hadBadTreeState =
+    !!search.treeState && decodedTreeState === null && legacyCombinedState === null;
+  const hadBadDagState =
+    !!search.dagState && decodedDagState === null && legacyCombinedState === null;
+  const hadBadOperatorsState = !!search.operatorsState && decodedOperatorsState === null;
+
+  // Build hydration values inside guards so a malformed payload (e.g. a
+  // non-iterable `expandedIds`) cannot throw out of the hook.
+  const hydratedPlanId =
+    decodedDagState?.planId ?? legacyCombinedState?.planId ?? search.planId ?? '';
+  const hydratedNodeIds = safeRun(
+    'hydrate-selectedNodeIds',
+    () => {
+      const id =
+        decodedDagState?.operatorId ?? legacyCombinedState?.operatorId ?? search.operatorId;
+      return id ? new Set([id]) : new Set<string>();
+    },
+    new Set<string>()
+  );
+  const hydratedOperatorLabel =
+    decodedDagState?.operatorLabel ??
+    legacyCombinedState?.operatorLabel ??
+    search.operatorLabel ??
+    null;
+  const hydratedHideTasks = decodedTreeState?.hideTasks ?? search.hideTasks ?? false;
+  const hydratedColorField =
+    decodedDagState?.dagColorField ?? legacyCombinedState?.dagColorField ?? null;
+  const hydratedEdgeWidthField =
+    decodedDagState?.dagEdgeWidthField ?? legacyCombinedState?.dagEdgeWidthField ?? null;
+  const hydratedEdgeColorField =
+    decodedDagState?.dagEdgeColorField ?? legacyCombinedState?.dagEdgeColorField ?? null;
+  const hydratedNodeLabelField =
+    decodedDagState?.dagNodeLabelField ??
+    legacyCombinedState?.dagNodeLabelField ??
+    NODE_LABEL_FIELD.NAME;
+  const hydratedNodePalette =
+    decodedDagState?.dagNodePalette ?? legacyCombinedState?.dagNodePalette ?? 'blue';
+  const hydratedEdgePalette =
+    decodedDagState?.dagEdgePalette ?? legacyCombinedState?.dagEdgePalette ?? 'teal';
+  const hydratedSelectedTypes = safeRun(
+    'hydrate-selectedTypes',
+    () => new Map(Object.entries(decodedTreeState?.selectedTypes ?? {})),
+    new Map<string, string>()
+  );
+  const hydratedSelectedFsmTypes = safeRun(
+    'hydrate-selectedFsmTypes',
+    () => new Map(Object.entries(decodedTreeState?.selectedFsmTypes ?? {})),
+    new Map<string, string | null>()
+  );
+  const hydratedExpandedIds = safeRun(
+    'hydrate-expandedIds',
+    () => new Set(decodedTreeState?.expandedIds ?? []),
+    new Set<string>()
+  );
+  const hydratedIndexOrder = decodedOperatorsState?.indexOrder ?? null;
+  const hydratedEnabledIndices = decodedOperatorsState?.enabledIndices ?? null;
+  const hydratedSelectedStats = safeRun(
+    'hydrate-selectedStats',
+    () =>
       decodedOperatorsState?.selectedStats != null
         ? new Set(decodedOperatorsState.selectedStats)
         : null,
-    ],
-    [statOrderAtomFamily(OPERATOR_TABLE_PERSIST_KEY), decodedOperatorsState?.statOrder ?? null],
-    [aggModeAtomFamily(OPERATOR_TABLE_PERSIST_KEY), decodedOperatorsState?.aggMode ?? null],
-    [sortingAtomFamily(OPERATOR_TABLE_PERSIST_KEY), decodedOperatorsState?.sorting ?? null],
+    null as Set<string> | null
+  );
+  const hydratedStatOrder = decodedOperatorsState?.statOrder ?? null;
+  const hydratedAggMode = decodedOperatorsState?.aggMode ?? null;
+  const hydratedSorting = decodedOperatorsState?.sorting ?? null;
+
+  useHydrateAtoms([
+    [selectedPlanIdAtom, hydratedPlanId],
+    [selectedNodeIdsAtom, hydratedNodeIds],
+    [selectedOperatorLabelAtom, hydratedOperatorLabel],
+    [hideTasksAtom, hydratedHideTasks],
+    [selectedColorField, hydratedColorField],
+    [selectedEdgeWidthFieldAtom, hydratedEdgeWidthField],
+    [selectedEdgeColorFieldAtom, hydratedEdgeColorField],
+    [selectedNodeLabelFieldAtom, hydratedNodeLabelField],
+    [nodeColorPaletteAtom, hydratedNodePalette],
+    [edgeColorPaletteAtom, hydratedEdgePalette],
+    [selectedTypesAtom, hydratedSelectedTypes],
+    [selectedFsmTypesAtom, hydratedSelectedFsmTypes],
+    [expandedIdsAtom, hydratedExpandedIds],
+    [indexOrderAtomFamily(OPERATOR_TABLE_PERSIST_KEY), hydratedIndexOrder],
+    [enabledIndicesAtomFamily(OPERATOR_TABLE_PERSIST_KEY), hydratedEnabledIndices],
+    [selectedStatsAtomFamily(OPERATOR_TABLE_PERSIST_KEY), hydratedSelectedStats],
+    [statOrderAtomFamily(OPERATOR_TABLE_PERSIST_KEY), hydratedStatOrder],
+    [aggModeAtomFamily(OPERATOR_TABLE_PERSIST_KEY), hydratedAggMode],
+    [sortingAtomFamily(OPERATOR_TABLE_PERSIST_KEY), hydratedSorting],
   ]);
 
   const planId = useAtomValue(selectedPlanIdAtom);
@@ -163,59 +189,85 @@ export function useUrlStateSync(search: QueryIndexSearch) {
   const { pathname } = useLocation();
 
   useEffect(() => {
-    const isTimelineRoute = pathname.endsWith('/timeline');
-    const isOperatorsRoute = pathname.endsWith('/operators');
+    safeRun(
+      'write-effect',
+      () => {
+        const isTimelineRoute = pathname.endsWith('/timeline');
+        const isOperatorsRoute = pathname.endsWith('/operators');
 
-    // zoomRange stays at { start: 0, end: 0 } until QueryResourceTree's useHydrateAtoms
-    // runs during its render. Skip timeline writes until zoom is properly initialized.
-    if (isTimelineRoute && zoomRange.end === 0) return;
+        // zoomRange stays at { start: 0, end: 0 } until QueryResourceTree's useHydrateAtoms
+        // runs during its render. Skip timeline writes until zoom is properly initialized.
+        if (isTimelineRoute && zoomRange.end === 0) return;
 
-    const encodedDagState = encodeDagState({
-      planId: planId || undefined,
-      operatorId,
-      operatorLabel: operatorLabel ?? null,
-      dagColorField,
-      dagEdgeWidthField,
-      dagEdgeColorField,
-      dagNodeLabelField,
-      dagNodePalette,
-      dagEdgePalette,
-    });
+        const encodedDagState = encodeDagState({
+          planId: planId || undefined,
+          operatorId,
+          operatorLabel: operatorLabel ?? null,
+          dagColorField,
+          dagEdgeWidthField,
+          dagEdgeColorField,
+          dagNodeLabelField,
+          dagNodePalette,
+          dagEdgePalette,
+        });
 
-    const encodedTreeState = encodeTreeState({
-      expandedIds,
-      selectedTypes,
-      selectedFsmTypes,
-      zoomStart: zoomRange.start,
-      zoomEnd: zoomRange.end,
-      hideTasks,
-    });
+        const encodedTreeState = encodeTreeState({
+          expandedIds,
+          selectedTypes,
+          selectedFsmTypes,
+          zoomStart: zoomRange.start,
+          zoomEnd: zoomRange.end,
+          hideTasks,
+        });
 
-    const encodedOperatorsState = encodeOperatorsState({
-      indexOrder: operatorIndexOrder ?? undefined,
-      enabledIndices: operatorEnabledIndices ?? undefined,
-      selectedStats: operatorSelectedStats ? [...operatorSelectedStats] : operatorSelectedStats,
-      statOrder: operatorStatOrder ?? undefined,
-      aggMode: operatorAggMode ?? undefined,
-      sorting: operatorSorting ?? undefined,
-    });
+        const encodedOperatorsState = encodeOperatorsState({
+          indexOrder: operatorIndexOrder ?? undefined,
+          enabledIndices: operatorEnabledIndices ?? undefined,
+          selectedStats: operatorSelectedStats ? [...operatorSelectedStats] : operatorSelectedStats,
+          statOrder: operatorStatOrder ?? undefined,
+          aggMode: operatorAggMode ?? undefined,
+          sorting: operatorSorting ?? undefined,
+        });
 
-    void navigate({
-      to: pathname,
-      search: prev => ({
-        ...prev,
-        planId: undefined,
-        operatorId: undefined,
-        operatorLabel: undefined,
-        zoomStart: undefined,
-        zoomEnd: undefined,
-        hideTasks: undefined,
-        dagState: encodedDagState,
-        treeState: isTimelineRoute ? encodedTreeState : undefined,
-        operatorsState: isOperatorsRoute ? encodedOperatorsState : undefined,
-      }),
-      replace: true,
-    });
+        // Empty string from a failed encode -> drop the param entirely. A bad
+        // incoming param is also force-cleared so a corrupted link self-heals.
+        const dagParam = hadBadDagState ? undefined : encodedDagState || undefined;
+        const treeParam = isTimelineRoute
+          ? hadBadTreeState
+            ? undefined
+            : encodedTreeState || undefined
+          : undefined;
+        const opsParam = isOperatorsRoute
+          ? hadBadOperatorsState
+            ? undefined
+            : encodedOperatorsState || undefined
+          : undefined;
+
+        safeRun(
+          'navigate',
+          () => {
+            void navigate({
+              to: pathname,
+              search: prev => ({
+                ...prev,
+                planId: undefined,
+                operatorId: undefined,
+                operatorLabel: undefined,
+                zoomStart: undefined,
+                zoomEnd: undefined,
+                hideTasks: undefined,
+                dagState: dagParam,
+                treeState: treeParam,
+                operatorsState: opsParam,
+              }),
+              replace: true,
+            });
+          },
+          undefined
+        );
+      },
+      undefined
+    );
   }, [
     expandedIds,
     selectedTypes,
@@ -240,5 +292,8 @@ export function useUrlStateSync(search: QueryIndexSearch) {
     operatorSorting,
     pathname,
     navigate,
+    hadBadTreeState,
+    hadBadDagState,
+    hadBadOperatorsState,
   ]);
 }
