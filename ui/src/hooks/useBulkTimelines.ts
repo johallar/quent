@@ -34,13 +34,6 @@ import {
 } from './useBulkTimelineFetch';
 
 const ZOOM_DEBOUNCE_MS = 150;
-const TIMELINE_DEBUG_KEY = 'quent:timeline-debug';
-
-function isTimelineDebugEnabled(): boolean {
-  return true;
-  // if (!import.meta.env.DEV || typeof window === 'undefined') return false;
-  // return window.localStorage.getItem(TIMELINE_DEBUG_KEY) === '1';
-}
 
 // useBulkTimelines — manages bulk fetching via Jotai atoms + TanStack Query
 export function useBulkTimelines({
@@ -115,40 +108,6 @@ export function useBulkTimelines({
     entries: baseVisibleEntries,
     operatorId,
   });
-  const debugEnabled = isTimelineDebugEnabled();
-
-  useEffect(() => {
-    if (!debugEnabled) return;
-    console.warn('[timeline/bulk-reset]', {
-      queryId,
-      operatorId,
-      visibleEntryCount: Object.keys(baseVisibleEntries).length,
-    });
-  }, [debugEnabled, queryId, operatorId, baseVisibleEntries]);
-
-  useEffect(() => {
-    if (!debugEnabled) return;
-    console.warn('[timeline/bulk-query]', {
-      queryId,
-      operatorId,
-      status: bulkQuery.status,
-      fetchStatus: bulkQuery.fetchStatus,
-      isFetching: bulkQuery.isFetching,
-      isFetched: bulkQuery.isFetched,
-      hasData: Boolean(bulkQuery.data),
-      visibleEntryCount: Object.keys(baseVisibleEntries).length,
-    });
-  }, [
-    debugEnabled,
-    queryId,
-    operatorId,
-    bulkQuery.status,
-    bulkQuery.fetchStatus,
-    bulkQuery.isFetching,
-    bulkQuery.isFetched,
-    bulkQuery.data,
-    baseVisibleEntries,
-  ]);
 
   useEffect(() => {
     // Mark initialization complete only after this query's bulk request has settled.
@@ -156,24 +115,8 @@ export function useBulkTimelines({
     // prematurely unlock /single fallback requests for every visible timeline row.
     if (bulkQuery.isFetched) {
       store.set(bulkInitializedAtom, true);
-      if (debugEnabled) {
-        console.warn('[timeline/bulk-initialized]', {
-          queryId,
-          operatorId,
-          hasData: Boolean(bulkQuery.data),
-          visibleEntryCount: Object.keys(baseVisibleEntries).length,
-        });
-      }
     }
-  }, [
-    bulkQuery.isFetched,
-    bulkQuery.data,
-    store,
-    debugEnabled,
-    queryId,
-    operatorId,
-    baseVisibleEntries,
-  ]);
+  }, [bulkQuery.isFetched, store]);
 
   // Zoom change handler — stable, uses store imperatively
   const handleZoomChange = useCallback(

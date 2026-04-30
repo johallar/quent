@@ -14,7 +14,7 @@ import {
 import { selectedNodeIdsAtom, selectedOperatorLabelAtom } from '@/atoms/dag';
 import { useDeferredReady } from '@/hooks/useDeferredReady';
 import { TimelineSkeleton } from './TimelineSkeleton';
-import { useEffect, useMemo, lazy, Suspense } from 'react';
+import { useMemo, lazy, Suspense } from 'react';
 import {
   buildBinnedTimelineSeries,
   buildTimelineMarks,
@@ -35,12 +35,6 @@ import type { CapacityDecl } from '~quent/types/CapacityDecl';
 import type { QuantitySpec } from '~quent/types/QuantitySpec';
 import type { FsmTypeDecl } from '~quent/types/FsmTypeDecl';
 const Timeline = lazy(() => import('./Timeline').then(mod => ({ default: mod.Timeline })));
-const TIMELINE_DEBUG_KEY = 'quent:timeline-debug';
-
-function isTimelineDebugEnabled(): boolean {
-  if (!import.meta.env.DEV || typeof window === 'undefined') return false;
-  return window.localStorage.getItem(TIMELINE_DEBUG_KEY) === '1';
-}
 
 type ResourceTimelineProps = {
   engineId: string;
@@ -110,7 +104,6 @@ export function ResourceTimeline({
   const operatorTimelineData = useAtomValue(timelineDataAtom(operatorCacheKey));
   const overlayPreloadedData = operatorId ? operatorTimelineData : undefined;
   const shouldFetchSingle = deferredReady && !preloadedData && bulkInitialized;
-  const debugEnabled = isTimelineDebugEnabled();
 
   const {
     data: fetchedData,
@@ -165,30 +158,6 @@ export function ResourceTimeline({
     enabled: shouldFetchSingle,
     placeholderData: keepPreviousData,
   });
-
-  useEffect(() => {
-    if (!debugEnabled) return;
-    console.warn('[timeline/single-gate]', {
-      queryId,
-      resourceId,
-      operatorId,
-      deferredReady,
-      bulkInitialized,
-      hasPreloadedData: Boolean(preloadedData),
-      enabled: shouldFetchSingle,
-      hasOverlayPreloadedData: Boolean(overlayPreloadedData),
-    });
-  }, [
-    debugEnabled,
-    queryId,
-    resourceId,
-    operatorId,
-    deferredReady,
-    bulkInitialized,
-    preloadedData,
-    shouldFetchSingle,
-    overlayPreloadedData,
-  ]);
 
   const { timestamps, series, marks } = useMemo<{
     timestamps: number[];
