@@ -10,12 +10,10 @@ import type { CustomSeriesOption } from 'echarts/charts';
 import { useAtomValue, useSetAtom } from 'jotai';
 import {
   nanosToMs,
-  connectChart,
   registerAxisPointerSync,
   unregisterAxisPointerSync,
 } from '@/lib/timeline.utils';
 import { echarts } from '@/lib/echarts';
-import { CHART_GROUP } from '@/components/timeline/Timeline';
 import { useTimelineEchartsTheme } from '@/components/timeline/timelineEchartsTheme';
 import {
   selectedNodeIdsAtom,
@@ -303,32 +301,13 @@ export function OperatorGanttChart({
                 width: Y_SCROLLBAR_WIDTH,
                 start: 0,
                 end: yAxisZoomEnd,
+                // Dont show values at end of scroll bar
                 showDetail: false,
                 backgroundColor: 'rgba(107, 114, 128, 0.35)',
                 fillerColor: 'rgba(107, 114, 128, 0.65)',
-                // borderColor: 'rgba(107, 114, 128, 0.5)',
-                dataBackground: {
-                  lineStyle: { opacity: 0 },
-                  areaStyle: { opacity: 0 },
-                },
+                borderColor: 'rgba(107, 114, 128, 0.5)',
                 showDataShadow: false,
                 zoomLock: true,
-                handleSize: 0,
-                handleIcon: 'path://',
-                handleStyle: {
-                  opacity: 0,
-                  color: 'transparent',
-                  borderColor: 'transparent',
-                },
-                moveHandleSize: 0,
-                moveHandleIcon: 'path://',
-                moveHandleStyle: {
-                  width: 0,
-                  height: 0,
-                  opacity: 0,
-                  color: 'transparent',
-                  borderColor: 'transparent',
-                },
                 brushSelect: false,
                 filterMode: 'none' as const,
               },
@@ -385,10 +364,8 @@ export function OperatorGanttChart({
 
   const handleChartReady = useCallback((instance: EChartsInstance) => {
     instanceRef.current = instance;
-    // Join timeline-sync-group for frame-rate-level x-axis zoom sync via ECharts connect().
-    // The y-axis dataZoom (index 3, when present) has a unique component ID and does not
-    // propagate to resource timelines that have no matching component.
-    connectChart(instance, CHART_GROUP, false);
+    // Keep axis-pointer sync only; do not set a shared ECharts group to
+    // prevent any dataZoom propagation into timeline charts.
     registerAxisPointerSync(instance, 0, { receiveShowTip: false });
     const dom = instance.getDom();
     dom.addEventListener(

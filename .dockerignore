@@ -1,4 +1,13 @@
 target/
 server/data/*.ndjson
 data/
-ui/node_modules
+**/node_modules
+
+# Local package manager/cache data
+.pnpm-store/
+
+# Local agent/worktree artifacts
+.claude/
+
+# VCS metadata
+.git/
