@@ -35,9 +35,11 @@ import { TIMELINE_SPACING, TIMELINE_X_AXIS_ANIMATION } from '@/components/timeli
 import { useTheme, THEME_DARK } from '@/contexts/ThemeContext';
 
 const DEFAULT_HEIGHT = 75;
-const MAX_VISIBLE_ROWS = 10;
+const MAX_HEIGHT = 100;
 const BAR_FONT_SIZE = 10;
 const BAR_HEIGHT = 16;
+const BAR_GAP = 2;
+const Y_SCROLLBAR_WIDTH = 8;
 
 function getOperatorBarColors(typeName: string | undefined): { fill: string; stroke: string } {
   const key = typeName?.toLowerCase().replace(/\s+/g, '') ?? 'other';
@@ -82,6 +84,9 @@ export function OperatorGanttChart({
       rowCount: maxRow + 1,
     };
   }, [operators]);
+  const contentHeight = rowCount * BAR_HEIGHT;
+  const chartHeight = Math.min(MAX_HEIGHT, Math.max(height, contentHeight));
+  const maxVisibleRows = Math.max(1, Math.floor(chartHeight / BAR_HEIGHT));
 
   const customSeriesData = useMemo(
     () =>
@@ -117,8 +122,8 @@ export function OperatorGanttChart({
     }
     return styles;
   }, [operators, nodeColoring, nodePalette, isDarkMode]);
-  const showYScroll = rowCount > MAX_VISIBLE_ROWS;
-  const yAxisZoomEnd = showYScroll ? (MAX_VISIBLE_ROWS / rowCount) * 100 : 100;
+  const showYScroll = rowCount > maxVisibleRows;
+  const yAxisZoomEnd = showYScroll ? (maxVisibleRows / rowCount) * 100 : 100;
   type RenderItem = NonNullable<CustomSeriesOption['renderItem']>;
 
   const renderItem: RenderItem = useCallback(
@@ -131,7 +136,7 @@ export function OperatorGanttChart({
       const endPoint = api.coord([endMs, rowIndex]);
 
       // Full band height
-      const barHeight = Math.max(BAR_FONT_SIZE + 4, BAR_HEIGHT);
+      const barHeight = Math.max(1, BAR_HEIGHT - BAR_GAP);
       const y = startPoint[1] - barHeight / 2;
       const width = Math.max(1, endPoint[0] - startPoint[0]);
 
@@ -272,6 +277,7 @@ export function OperatorGanttChart({
           type: 'inside',
           zoomLock: true,
           zoomOnMouseWheel: false,
+          moveOnMouseWheel: false,
           throttle: 30,
           filterMode: 'none',
           xAxisIndex: [0],
@@ -287,6 +293,45 @@ export function OperatorGanttChart({
         },
         ...(showYScroll
           ? [
+              {
+                type: 'slider' as const,
+                show: true,
+                yAxisIndex: [0],
+                left: TIMELINE_SPACING.left - Y_SCROLLBAR_WIDTH - 8,
+                top: 0,
+                bottom: 0,
+                width: Y_SCROLLBAR_WIDTH,
+                start: 0,
+                end: yAxisZoomEnd,
+                showDetail: false,
+                backgroundColor: 'rgba(107, 114, 128, 0.35)',
+                fillerColor: 'rgba(107, 114, 128, 0.65)',
+                // borderColor: 'rgba(107, 114, 128, 0.5)',
+                dataBackground: {
+                  lineStyle: { opacity: 0 },
+                  areaStyle: { opacity: 0 },
+                },
+                showDataShadow: false,
+                zoomLock: true,
+                handleSize: 0,
+                handleIcon: 'path://',
+                handleStyle: {
+                  opacity: 0,
+                  color: 'transparent',
+                  borderColor: 'transparent',
+                },
+                moveHandleSize: 0,
+                moveHandleIcon: 'path://',
+                moveHandleStyle: {
+                  width: 0,
+                  height: 0,
+                  opacity: 0,
+                  color: 'transparent',
+                  borderColor: 'transparent',
+                },
+                brushSelect: false,
+                filterMode: 'none' as const,
+              },
               {
                 type: 'inside' as const,
                 yAxisIndex: [0],
@@ -368,7 +413,7 @@ export function OperatorGanttChart({
     return (
       <div
         className="flex items-center justify-center text-muted-foreground text-sm"
-        style={{ height }}
+        style={{ height: chartHeight }}
       >
         No operator active spans
       </div>
@@ -380,7 +425,7 @@ export function OperatorGanttChart({
       echarts={echarts}
       theme={themeName}
       option={option}
-      style={{ height }}
+      style={{ height: chartHeight }}
       onChartReady={handleChartReady}
       onEvents={handleClick}
       notMerge={false}
