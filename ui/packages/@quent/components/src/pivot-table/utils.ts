@@ -292,25 +292,36 @@ export function buildPivotedRows(
   }
 
   // Cluster rows along the group-key hierarchy without re-sorting them into
-  // an alien order. For each column we assign every distinct id a rank equal
-  // to its first-appearance index among rows seen so far; then we stably sort
-  // by the tuple of those ranks. Equal ids share a rank (so their rows end
-  // up adjacent and `computeRowSpans` can collapse them), and novel ids keep
-  // the order the caller produced — preserving pipeline/execution order for
-  // operator panels while fixing interleaved-group datasets.
+  // an alien order. For every column we assign each distinct ancestor-path
+  // prefix (col 0 id, then col-0+col-1 ids joined, ...) a rank equal to its
+  // first-appearance index among rows seen so far; then we stably sort by
+  // the tuple of those ranks. Ranks are scoped by full prefix rather than
+  // bare id so within-parent order is preserved even when a child value
+  // reappears across parents (e.g. `Sort` shows up in multiple plans but
+  // each plan's pipeline order stays intact). For inputs that are already
+  // clustered — which is the common case for operator-panel data feeding
+  // rows in `partition → item_type → item` order — the stable sort runs
+  // over monotonically non-decreasing ranks and is a no-op.
   if (activeIndices.length > 0 && result.length > 1) {
+    const pathKey = (row: PivotedRow, c: number): string => {
+      let out = row.groupKeys[0].id;
+      for (let i = 1; i <= c; i++) {
+        out += '\0' + row.groupKeys[i].id;
+      }
+      return out;
+    };
     const rankByCol: Array<Map<string, number>> = activeIndices.map(() => new Map());
     for (const row of result) {
       for (let c = 0; c < row.groupKeys.length; c++) {
         const ranks = rankByCol[c];
-        const id = row.groupKeys[c].id;
-        if (!ranks.has(id)) ranks.set(id, ranks.size);
+        const k = pathKey(row, c);
+        if (!ranks.has(k)) ranks.set(k, ranks.size);
       }
     }
     result.sort((a, b) => {
       for (let c = 0; c < a.groupKeys.length; c++) {
-        const ra = rankByCol[c].get(a.groupKeys[c].id)!;
-        const rb = rankByCol[c].get(b.groupKeys[c].id)!;
+        const ra = rankByCol[c].get(pathKey(a, c))!;
+        const rb = rankByCol[c].get(pathKey(b, c))!;
         if (ra !== rb) return ra - rb;
       }
       return 0;

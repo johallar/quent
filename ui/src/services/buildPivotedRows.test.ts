@@ -144,9 +144,10 @@ describe('buildPivotedRows row clustering', () => {
   });
 
   it('still clusters when aggregating', () => {
-    // Aggregation dedupes by group key (multiple input rows → one output row)
-    // so the ordering contract is especially important here — computeRowSpans
-    // is the only way a user can tell two partitions apart visually.
+    // In aggregation mode multiple input rows per (brand, fuel) collapse into
+    // one output row carrying the summed stats. Clustering still needs to
+    // group Ford rows contiguously so `computeRowSpans` can merge the Ford
+    // cell over its fuel sub-rows.
     const rows: StatGroupExpandedRow[] = [
       expanded({ brand: { id: 'Ford' }, fuel: { id: 'Hybrid' } }, 'car-1', 'price', 30000),
       expanded({ brand: { id: 'Hyundai' }, fuel: { id: 'Electric' } }, 'car-2', 'price', 55000),
@@ -154,8 +155,12 @@ describe('buildPivotedRows row clustering', () => {
       expanded({ brand: { id: 'Ford' }, fuel: { id: 'Petrol' } }, 'car-4', 'price', 56000),
     ];
     const out = buildPivotedRows(rows, [brandIdx, fuelIdx], true);
-    const brandOrder = out.map(r => r.groupKeys[0].id);
-    expect(brandOrder).toEqual(['Ford', 'Ford', 'Hyundai']);
+    const pairs = out.map(r => [r.groupKeys[0].id, r.groupKeys[1].id] as const);
+    expect(pairs).toEqual([
+      ['Ford', 'Hybrid'],
+      ['Ford', 'Petrol'],
+      ['Hyundai', 'Electric'],
+    ]);
     const fordHybrid = out.find(
       r => r.groupKeys[0].id === 'Ford' && r.groupKeys[1].id === 'Hybrid'
     );
@@ -164,6 +169,9 @@ describe('buildPivotedRows row clustering', () => {
   });
 
   it('preserves first-appearance order across both columns of the hierarchy', () => {
+    // `buildPivotedRows` merges rows that share a full group-key path, so
+    // duplicate (brand, fuel) pairs collapse to one output row. What we
+    // verify here is the ordering of the remaining distinct pairs.
     const rows: StatGroupExpandedRow[] = [
       expanded({ brand: { id: 'Ford' }, fuel: { id: 'Hybrid' } }, 'c1', 'x', 1),
       expanded({ brand: { id: 'Ford' }, fuel: { id: 'Petrol' } }, 'c2', 'x', 1),
@@ -174,18 +182,18 @@ describe('buildPivotedRows row clustering', () => {
     ];
     const out = buildPivotedRows(rows, [brandIdx, fuelIdx], false);
     const pairs = out.map(r => [r.groupKeys[0].id, r.groupKeys[1].id] as const);
-    // Within Ford: Hybrid appeared before Petrol. Within BMW: Diesel before Petrol.
     expect(pairs).toEqual([
       ['Ford', 'Hybrid'],
-      ['Ford', 'Hybrid'],
       ['Ford', 'Petrol'],
-      ['BMW', 'Diesel'],
       ['BMW', 'Diesel'],
       ['BMW', 'Petrol'],
     ]);
   });
 
   it('handles the single-column case', () => {
+    // Without a second dimension every row with the same brand collapses into
+    // one output row — we're really just verifying distinct brands end up in
+    // first-appearance order.
     const rows: StatGroupExpandedRow[] = [
       expanded({ brand: { id: 'Ford' } }, 'c1', 'x', 1),
       expanded({ brand: { id: 'BMW' } }, 'c2', 'x', 1),
@@ -193,7 +201,38 @@ describe('buildPivotedRows row clustering', () => {
       expanded({ brand: { id: 'BMW' } }, 'c4', 'x', 1),
     ];
     const out = buildPivotedRows(rows, [brandIdx], false);
-    expect(out.map(r => r.groupKeys[0].id)).toEqual(['Ford', 'Ford', 'BMW', 'BMW']);
+    expect(out.map(r => r.groupKeys[0].id)).toEqual(['Ford', 'BMW']);
+  });
+
+  it('preserves child order when the same child id appears under multiple parents', () => {
+    // Regression guard: a naive "rank by bare id" implementation would put
+    // plan-b's `Sort` before `Project` because `Sort` was seen earlier under
+    // plan-a, even though under plan-b the pipeline ran Project → Sort.
+    // Ranks must be scoped by full parent path for pipeline order to survive.
+    const partitionIdx: GroupIndexDef = {
+      key: 'partition',
+      getId: r => r.groups.partition.id,
+      getLabel: r => r.groups.partition.label,
+    };
+    const typeIdx: GroupIndexDef = {
+      key: 'item_type',
+      getId: r => r.groups.item_type.id,
+      getLabel: r => r.groups.item_type.label,
+    };
+    const rows: StatGroupExpandedRow[] = [
+      expanded({ partition: { id: 'plan-a' }, item_type: { id: 'Sort' } }, 'a1', 'x', 1),
+      expanded({ partition: { id: 'plan-a' }, item_type: { id: 'Project' } }, 'a2', 'x', 1),
+      expanded({ partition: { id: 'plan-b' }, item_type: { id: 'Project' } }, 'b1', 'x', 1),
+      expanded({ partition: { id: 'plan-b' }, item_type: { id: 'Sort' } }, 'b2', 'x', 1),
+    ];
+    const out = buildPivotedRows(rows, [partitionIdx, typeIdx], false);
+    const pairs = out.map(r => [r.groupKeys[0].id, r.groupKeys[1].id] as const);
+    expect(pairs).toEqual([
+      ['plan-a', 'Sort'],
+      ['plan-a', 'Project'],
+      ['plan-b', 'Project'],
+      ['plan-b', 'Sort'],
+    ]);
   });
 
   it('tolerates zero active indices', () => {
