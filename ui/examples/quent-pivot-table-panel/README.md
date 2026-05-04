@@ -77,9 +77,10 @@ by the same plugin to show the label overrides in action:
 
 This example is **opt-in**: the root `ui/pnpm-workspace.yaml` deliberately
 excludes `examples/*`, so `pnpm install` from `ui/` does not pull in
-`@grafana/*` or build the panel. Work on the example from inside its own folder,
-where a nested `pnpm-workspace.yaml` re-references `../../packages/@quent/*` (so
-`workspace:*` still resolves to live source):
+`@grafana/*` or build the panel. Work on the example from inside its own folder
+— its `package.json` references the workspace `@quent/*` packages via
+`link:../../packages/@quent/<pkg>` so any edit under `ui/packages/@quent/*/src/`
+is picked up by the next `pnpm dev` reload without a publish step:
 
 ```sh
 cd ui/examples/quent-pivot-table-panel
@@ -90,6 +91,11 @@ pnpm install
 # 2. build the panel in watch mode
 pnpm dev
 ```
+
+> **Outside this repo?** A real Grafana plugin built on `@quent/*` would
+> simply `pnpm add @quent/components @quent/hooks @quent/utils …` from the npm
+> registry instead of the in-repo `link:` shape — everything else
+> (`webpack.config.cjs`, `module.ts`, the panel component) is identical.
 
 In a second terminal, boot Grafana with the plugin and demo dashboard mounted:
 

@@ -3,36 +3,92 @@
 
 # examples/ — Agent Instructions
 
-This directory holds **consumer apps** built on top of the `@quent/*` workspace packages:
-custom web apps, Grafana panel plugins, Superset visualization plugins, and similar.
+This directory holds **consumer apps** built on top of the published `@quent/*`
+packages: custom web apps, Grafana panel plugins, Superset visualization plugins,
+and similar.
 
 Read `ui/AGENTS.md` first for workspace-wide conventions, then read this file before
 creating or modifying anything under `examples/`.
 
-## When to add an example here
+## How a real consumer installs `@quent/*`
 
-Add a new folder under `ui/examples/` when you need to:
+The `@quent/*` packages are designed to be **published to npm** and installed
+the normal way. A real downstream consumer (in their own repo) does:
 
-- Demonstrate how to embed a `@quent/components` visualization in a host environment
-  (Grafana, Superset, Streamlit, plain HTML, etc.).
-- Build a focused single-purpose app (e.g. a kiosk dashboard) that reuses the packages
-  but is not part of the main Quent UI.
-- Validate that the packages work as a portable library, not just inside the main app.
+```sh
+pnpm add @quent/components @quent/hooks @quent/client @quent/utils \
+        @tanstack/react-query @xyflow/react echarts echarts-for-react jotai \
+        react react-dom
+```
 
-Each example is a **self-contained, opt-in workspace** that re-references the `@quent/*`
-packages via a *nested* `pnpm-workspace.yaml`. The root `ui/pnpm-workspace.yaml`
-intentionally **does not** include `examples/*`, so:
+…and then imports from the package roots:
+
+```tsx
+import { QuentProvider, DAGChart } from '@quent/components';
+```
+
+Everything in this AGENTS.md and in the example folders below is written from
+that consumer's point of view — assume `pnpm add @quent/components` (or the
+equivalent npm/yarn command) has run and that `node_modules/@quent/*` contains
+the published tarball.
+
+## How the in-repo examples differ
+
+The examples under `ui/examples/` exist to **validate** that the packages work as
+a portable library and to give each host environment (Grafana, Superset, etc.) a
+copy-pasteable starting point. Because they live next to the source they need
+one workspace-internal trick that real consumers do not:
+
+- Each example references `@quent/*` via **`link:../../packages/@quent/<pkg>`**
+  in its `package.json` instead of a semver range.
+- That `link:` reference makes pnpm symlink straight at the source dir (no
+  publish step, no tarball), so a change in `ui/packages/@quent/components/src/…`
+  is picked up by the next `pnpm dev` / `pnpm build` in the example.
+- For an external consumer the equivalent line is just
+  `"@quent/components": "^0.x.y"` and `pnpm add` does the rest.
+
+Otherwise the package.json shape is identical between in-repo examples and
+external consumers, and every code snippet below works unchanged in both.
+
+### Workspace boundary rules
+
+Each in-repo example is a **self-contained, opt-in workspace**. The root
+`ui/pnpm-workspace.yaml` intentionally **does not** include `examples/*`, so:
 
 - `cd ui && pnpm install` does **not** install example dependencies.
-- `cd ui && pnpm ci:check` / `pnpm build` do **not** lint, typecheck, test, or build
-  any example.
-- `cd ui/examples/<name> && pnpm install` (or `pnpm dev`, `pnpm build`, etc.) is the
-  only entry point for working on an example. The nested workspace makes
-  `"workspace:*"` deps resolve to the live `@quent/*` source.
+- `cd ui && pnpm ci:check` / `pnpm build` do **not** lint, typecheck, test, or
+  build any example.
+- `cd ui/examples/<name> && pnpm install` (or `pnpm dev`, `pnpm build`, etc.)
+  is the only entry point for working on an example.
 
-Examples therefore behave as fully isolated downstream consumers: their host
-toolchains (Grafana's webpack, Superset's chart bundler, etc.) must not be assumed to
-be available in the main UI install.
+The example's nested `pnpm-workspace.yaml` lists ONLY the example itself
+(`packages: [.]`) and never re-references `../../packages/@quent/*`. The
+`link:` deps must NOT appear as workspace members — see "Why `link:` and not
+`workspace:*`" below for why this matters.
+
+### Why `link:` and not `workspace:*` (in-repo only)
+
+An earlier shape of these examples used a nested `pnpm-workspace.yaml` that
+re-referenced `../../packages/@quent/*`, with the example's own `package.json`
+declaring `"@quent/components": "workspace:*"`. That made the `@quent/*` packages
+workspace members of *both* the root `ui/` workspace and the example's nested
+workspace. Each `pnpm install` would re-resolve their peer deps (React,
+`@tanstack/*`, `@xyflow/react`, etc.) and write fresh symlinks into
+`ui/packages/@quent/*/node_modules/`. Because the example pins React 18
+(Grafana 12) while the root workspace pins React 19, the example install would
+silently overwrite the root install's React-19 symlinks with React-18 ones —
+breaking `pnpm typecheck` from `ui/` until you nuked
+`ui/packages/@quent/*/node_modules/` and re-ran a root install.
+
+`link:` sidesteps this entirely: pnpm just creates a symlink to the source dir
+and never inspects, installs, or touches anything under
+`ui/packages/@quent/*/`. The example's bundler still resolves `@quent/*`
+imports through the symlink (with `resolve.symlinks: true`, the default), and
+React/`@grafana/*` are externalized at bundle time so the React-version
+mismatch between source and host doesn't matter at runtime.
+
+External consumers don't hit any of this — they install published tarballs,
+which carry their own resolved peer deps and never touch the source workspace.
 
 ## Folder layout
 
@@ -43,7 +99,7 @@ ui/examples/
 │   ├── AGENTS.md             # per-example agent notes (always required)
 │   ├── README.md             # human-facing setup + run instructions
 │   ├── package.json          # name: "@quent-examples/<name>"
-│   ├── pnpm-workspace.yaml   # nested workspace; references ../../packages/@quent/*
+│   ├── pnpm-workspace.yaml   # one-line nested workspace: `packages: [.]`
 │   └── src/                  # entry + glue code
 └── ...
 ```
@@ -128,17 +184,18 @@ Use this when there is no host application — you are shipping a standalone SPA
    ```
    Move the result under `ui/examples/<name>/`.
 
-2. **package.json** — set the name and add workspace deps:
+2. **package.json** — set the name and add the `@quent/*` packages plus their
+   peer deps. For an external consumer:
    ```jsonc
    {
-     "name": "@quent-examples/<name>",
+     "name": "<your-app>",
      "private": true,
      "type": "module",
      "dependencies": {
-       "@quent/components": "workspace:*",
-       "@quent/client":     "workspace:*",
-       "@quent/hooks":      "workspace:*",
-       "@quent/utils":      "workspace:*",
+       "@quent/components": "^0.1.0",
+       "@quent/client":     "^0.1.0",
+       "@quent/hooks":      "^0.1.0",
+       "@quent/utils":      "^0.1.0",
        "@tanstack/react-query": "^5.90.0",
        "@xyflow/react":         "^12.10.0",
        "echarts":               "^5.6.0",
@@ -149,26 +206,65 @@ Use this when there is no host application — you are shipping a standalone SPA
      }
    }
    ```
-   Match the versions the main app uses (`ui/package.json`) to keep `pnpm dedupe` happy.
+   Match the versions the main app uses (`ui/package.json`) to keep `pnpm dedupe`
+   happy.
+
+   **In-repo example only:** swap each `@quent/*` semver range for the
+   `link:` form so changes in `ui/packages/@quent/*/src/` are picked up
+   without a publish step, name the package `@quent-examples/<name>`, and add a
+   one-liner nested `pnpm-workspace.yaml`:
+   ```jsonc
+   // package.json (in-repo only diff)
+   "name": "@quent-examples/<name>",
+   "dependencies": {
+     "@quent/components": "link:../../packages/@quent/components",
+     "@quent/client":     "link:../../packages/@quent/client",
+     "@quent/hooks":      "link:../../packages/@quent/hooks",
+     "@quent/utils":      "link:../../packages/@quent/utils",
+     // …rest unchanged
+   }
+   ```
+   ```yaml
+   # pnpm-workspace.yaml (in-repo only)
+   packages:
+     - .
+   ```
 
 3. **Vite config** — copy the relevant bits from `ui/vite.config.ts`:
    - `dedupe: ['react', 'react-dom', 'jotai', '@tanstack/react-query']`
-   - `optimizeDeps.exclude: ['@quent/components', '@quent/hooks', '@quent/client', '@quent/utils']`
-     so Vite serves workspace source on-demand and HMR works across packages.
    - `optimizeDeps.include: ['echarts-for-react']` (it is CJS and needs ESM conversion).
    - If you use the DAG, alias `elkjs` to `'elkjs/lib/elk.bundled.js'`.
    - Add `tailwindcss()` from `@tailwindcss/vite` if you want Tailwind classes to apply
      to the components.
 
-4. **Tailwind** — copy `ui/src/index.css` (the `@import 'tailwindcss'` + CSS variables +
-   `@source "../../packages/@quent/**/*.{ts,tsx}"` directive). Without the `@source`
-   directive Tailwind will not scan the workspace packages and component styles will be
-   missing.
+   **In-repo example only:** also add
+   `optimizeDeps.exclude: ['@quent/components', '@quent/hooks', '@quent/client', '@quent/utils']`
+   so Vite serves the linked TypeScript source on-demand and HMR works across
+   packages. External consumers can omit this — they import the published
+   tarball's pre-built JS through pnpm's normal resolution.
+
+4. **Tailwind** — copy `ui/src/index.css` (the `@import 'tailwindcss'` + CSS
+   variables + an `@source` directive pointing at the `@quent/*` packages).
+   Without the `@source` directive Tailwind will not scan the package source
+   and component styles will be missing.
+
+   - External consumer: `@source "node_modules/@quent/**/*.{ts,tsx}";`
+   - In-repo example: `@source "../../packages/@quent/**/*.{ts,tsx}";`
+     (matches the `link:` symlink target)
 
 5. **Entry point** (`src/main.tsx`) — wrap your app in the providers from "What every
    consumer needs" above and render your visualizations.
 
-6. **Run from the example folder** (not the workspace root): `cd ui/examples/<name> && pnpm install && pnpm dev`. The nested `pnpm-workspace.yaml` re-references `../../packages/@quent/*` so `workspace:*` resolves to source. The root `ui/pnpm-workspace.yaml` is intentionally unaware of examples so the main UI install stays slim.
+6. **Run from the example folder** (not the workspace root):
+   `cd ui/examples/<name> && pnpm install && pnpm dev`. The `link:` deps make
+   `pnpm install` symlink straight at the live source dirs, so a change in
+   `ui/packages/@quent/*/src/` is picked up by the next reload. The root
+   `ui/pnpm-workspace.yaml` is intentionally unaware of examples so the main UI
+   install stays slim.
+
+   For an external consumer (no in-repo source), this step is just
+   `cd <your-app> && pnpm install && pnpm dev` — pnpm pulls the published
+   `@quent/*` tarballs from the registry.
 
 ### B. Grafana panel plugin
 
@@ -205,13 +301,19 @@ Extend the `@grafana/create-plugin` webpack config to:
 - Mark `react`, `react-dom`, `@grafana/ui`, `@grafana/data`, `@grafana/runtime` as
   externals (already handled by the template).
 - Add an alias for `elkjs` → `elkjs/lib/elk.bundled.js` if you use the DAG.
-- Tell webpack to follow symlinks into `node_modules/@quent/*` so the workspace source
-  is resolved (`resolve.symlinks: true`, default in Grafana's config).
+- Make sure webpack follows symlinks into `node_modules/@quent/*`
+  (`resolve.symlinks: true`, default in Grafana's config). Required for
+  in-repo examples where `@quent/*` is a `link:` symlink to source; harmless
+  for external consumers where it just resolves the published package.
 
-Workspace packages ship **TypeScript source** as `main`. Grafana's webpack/SWC config
-already transpiles TS, so no extra loader is needed — just make sure `transpileOnly`
-is true in `ts-loader` (the template default) so cross-package types are not re-checked
-inside the plugin build.
+Out-of-the-box `@quent/*` packages publish a **`tsup`-built `dist/`** as their
+`main`, so external consumers' webpack/SWC just consumes pre-compiled JS. The
+in-repo `link:` shape instead points `main` at `src/index.ts`, so Grafana's
+`swc-loader` (or `ts-loader`) ends up transpiling the TypeScript on the fly —
+make sure the loader rule does NOT exclude `node_modules/@quent/*` (e.g.
+`exclude: /node_modules\/(?!@quent\/)/` as in this repo's
+`quent-pivot-table-panel/webpack.config.cjs`). Keep `transpileOnly: true`
+either way so cross-package types are not re-checked inside the plugin build.
 
 #### Styles
 
