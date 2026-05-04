@@ -13,6 +13,8 @@ import type {
   PivotedRow,
   PivotedStatTableSchema,
   GroupedDataTableGroupKeyEntry,
+  PivotTableInteractionConfig,
+  PivotTableRenderConfig,
 } from '@quent/components';
 import {
   useSelectedPlanId,
@@ -282,6 +284,32 @@ export function OperatorTable({ queryBundle }: OperatorTableProps) {
     );
   }, [setHoveredStat, setHighlightState]);
 
+  const interactionConfig = useMemo(
+    (): PivotTableInteractionConfig<PivotedRow> => ({
+      hoveredStat,
+      setHoveredStat,
+      hoveredItemId: dagHoveredOperatorId,
+      selectedItemIds: selectedNodeIds,
+      onTableMouseLeave: handleTableMouseLeave,
+      groupCellHandlers: getGroupCellHandlers,
+    }),
+    [
+      hoveredStat,
+      setHoveredStat,
+      dagHoveredOperatorId,
+      selectedNodeIds,
+      handleTableMouseLeave,
+      getGroupCellHandlers,
+    ]
+  );
+
+  const renderConfig = useMemo(
+    (): PivotTableRenderConfig => ({
+      getGroupTypeColor: getOperatorGroupTypeColor,
+    }),
+    []
+  );
+
   if (!selectedPlanId) {
     return (
       <div className="flex items-center justify-center h-full text-muted-foreground text-sm">
@@ -326,14 +354,9 @@ export function OperatorTable({ queryBundle }: OperatorTableProps) {
           aggMode={aggMode}
           indexLabels={indexLabels}
           isDark={isDark}
-          selectedItemIds={selectedNodeIds}
-          hoveredItemId={dagHoveredOperatorId}
-          hoveredStat={hoveredStat}
-          onHoverStat={setHoveredStat}
-          onTableMouseLeave={handleTableMouseLeave}
+          interaction={interactionConfig}
+          renderConfig={renderConfig}
           virtualization={VIRTUALIZATION_CONFIG}
-          getGroupTypeColor={getOperatorGroupTypeColor}
-          getGroupCellHandlers={getGroupCellHandlers}
           sorting={sorting}
           onSortingChange={setSorting}
         />

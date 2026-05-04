@@ -5,6 +5,7 @@ import { Panel } from '@xyflow/react';
 import { Pin } from 'lucide-react';
 import { useSelectedNodeIds, useHoveredNodeData, useSelectedNodeData } from '@quent/hooks';
 import { DataText } from '../ui/data-text';
+import { inferFieldFormatter } from '../services/query-plan/dagFieldProcessing';
 
 /**
  * Floating panel anchored to the DAG canvas that surfaces details for the
@@ -57,7 +58,11 @@ export const DAGNodeInfoPanel = () => {
                   ) : (
                     <div className="flex items-center justify-between">
                       <DataText className="capitalize">{key.replace(/_/g, ' ')}:</DataText>
-                      <DataText className="text-muted-foreground ml-1">{String(value)}</DataText>
+                      <DataText className="text-muted-foreground ml-1">
+                        {typeof value === 'number'
+                          ? inferFieldFormatter(key)(value)
+                          : String(value)}
+                      </DataText>
                     </div>
                   )}
                 </div>

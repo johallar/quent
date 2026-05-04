@@ -198,6 +198,11 @@ export type {
   GroupKeyEntry,
   PivotedRowAgg,
   PivotedRow,
+  PivotTableInteractionConfig,
+  PivotTableRenderConfig,
+  PivotTableDisplayConfig,
+  PivotTableDnDConfig,
+  PivotTableGroupCellHoverHandlers,
 } from './pivot-table/types';
 export {
   buildPivotedRows,
