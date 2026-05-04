@@ -75,11 +75,11 @@ by the same plugin to show the label overrides in action:
 
 ## Running locally
 
-This example is **opt-in**: the root `ui/pnpm-workspace.yaml` deliberately excludes
-`examples/*`, so `pnpm install` from `ui/` does not pull in `@grafana/*` or build
-the panel. Work on the example from inside its own folder, where a nested
-`pnpm-workspace.yaml` re-references `../../packages/@quent/*` (so `workspace:*`
-still resolves to live source):
+This example is **opt-in**: the root `ui/pnpm-workspace.yaml` deliberately
+excludes `examples/*`, so `pnpm install` from `ui/` does not pull in
+`@grafana/*` or build the panel. Work on the example from inside its own folder,
+where a nested `pnpm-workspace.yaml` re-references `../../packages/@quent/*` (so
+`workspace:*` still resolves to live source):
 
 ```sh
 cd ui/examples/quent-pivot-table-panel
@@ -111,7 +111,7 @@ Examples** folder at `/d/quent-pivot-demo`.
 
 ## How it consumes `@quent/*`
 
-```
+```text
 src/QuentPivotTablePanel.tsx
 ├─ JotaiProvider                     ← per-panel store, isolates state
 ├─ QueryClientProvider               ← per-panel TanStack Query cache
