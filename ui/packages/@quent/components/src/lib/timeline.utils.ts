@@ -6,6 +6,7 @@ import { TreeTableItem } from '../resource-tree/types';
 import {
   formatQuantity,
   getColorForKey,
+  type PaletteTheme,
   WHITE,
   withOpacity,
   createCapacitiesColorFn,
@@ -71,6 +72,7 @@ export function buildBinnedTimelineSeries(
   data: ResourceTimeline,
   config: BinnedSpanSec,
   startTime: bigint,
+  theme: PaletteTheme,
   capacities?: CapacityDecl[],
   quantitySpecs?: { [key in string]?: QuantitySpec },
   fsmTypes?: { [key in string]?: FsmTypeDecl }
@@ -106,7 +108,7 @@ export function buildBinnedTimelineSeries(
     // ResourceTimelineBinned: capacities_values (flat: capacity → values)
     const { capacities_values } = data.Binned;
     const capacityKeys = Object.keys(capacities_values).sort();
-    const colorCapacity = createCapacitiesColorFn(capacityKeys);
+    const colorCapacity = createCapacitiesColorFn(capacityKeys, theme);
     for (const [capacity, values] of Object.entries(capacities_values)) {
       const formatter = getFormatter(capacity);
       series[capacity] = {
@@ -118,7 +120,7 @@ export function buildBinnedTimelineSeries(
     }
   } else if ('BinnedByState' in data) {
     const { capacities_states_values } = data.BinnedByState;
-    const colorFsm = createFsmTypeColorFn(fsmTypes ?? {});
+    const colorFsm = createFsmTypeColorFn(fsmTypes ?? {}, theme);
     for (const capacityType of Object.keys(capacities_states_values)) {
       const capacityStateValues = capacities_states_values[capacityType] ?? {};
       for (const [state, values] of Object.entries(capacityStateValues)) {
@@ -169,6 +171,7 @@ export function getLongFsms(data: ResourceTimeline): FiniteStateMachine[] {
 export function buildTimelineMarks(
   longFsms: FiniteStateMachine[],
   startTime: bigint,
+  theme: PaletteTheme,
   resourceIdsForFilter?: Set<string> | null,
   fsmTypes?: { [key in string]?: FsmTypeDecl },
   /** When provided, marks whose FSM is in this set are highlighted; others are dimmed. */
@@ -178,7 +181,7 @@ export function buildTimelineMarks(
   if (longFsms.length === 0) return undefined;
 
   const startTimeMs = nanosToMs(startTime);
-  const colorFsm = createFsmTypeColorFn(fsmTypes ?? {});
+  const colorFsm = createFsmTypeColorFn(fsmTypes ?? {}, theme);
 
   const marks = longFsms.flatMap(fsm => {
     const label = fsm.instance_name || fsm.id;

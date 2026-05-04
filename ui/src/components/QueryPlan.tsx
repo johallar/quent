@@ -44,9 +44,9 @@ export function QueryPlan({ queryId, engineId }: { queryId: string; engineId: st
 
   const { dagData, treeData, error: dagError } = useQueryPlanVisualization(queryBundle, planId);
 
-  useDagNodeColoring(dagData.nodes, computeNodeColoring);
+  useDagNodeColoring(dagData.nodes, computeNodeColoring, isDark);
   useDagEdgeWidthConfig(dagData.edges, computeEdgeWidthConfig);
-  useDagEdgeColoring(dagData.edges, computeEdgeColoring);
+  useDagEdgeColoring(dagData.edges, computeEdgeColoring, isDark);
   const operatorStatFields = useOperatorStatFields(dagData.nodes, parseCustomStatistics);
   const portStatFields = usePortStatFields(dagData.edges);
 

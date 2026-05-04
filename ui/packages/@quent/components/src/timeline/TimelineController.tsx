@@ -22,6 +22,7 @@ import {
 import { TIMELINE_X_AXIS_ANIMATION, TIMELINE_SPACING } from './types';
 import type { SingleTimelineResponse } from '@quent/utils';
 import { useTimelineEchartsTheme } from './timelineEchartsTheme';
+import type { PaletteTheme } from '@quent/utils';
 
 const CONTROLLER_HEIGHT = 50;
 const CONTROLLER_TOP_HEADROOM_RATIO = 0.2;
@@ -51,6 +52,7 @@ export function TimelineController({
   isDark,
 }: TimelineControllerProps) {
   const { themeName, controllerGridBackgroundColor } = useTimelineEchartsTheme(isDark);
+  const paletteTheme: PaletteTheme = isDark ? 'dark' : 'light';
 
   const startTimeMillis = useMemo(() => nanosToMs(startTime), [startTime]);
 
@@ -59,7 +61,8 @@ export function TimelineController({
       const { timestamps: ts, series } = buildBinnedTimelineSeries(
         timelineData.data,
         timelineData.config,
-        startTime
+        startTime,
+        paletteTheme
       );
       const entries = Object.entries(series);
       const values = entries.length > 0 ? entries[0][1].values : null;
@@ -70,7 +73,7 @@ export function TimelineController({
       const ts = Array.from({ length: numBins }, (_, i) => startTimeMillis + i * binDurationMs);
       return { timestamps: ts, seriesData: null };
     }
-  }, [timelineData, startTime, startTimeMillis, durationSeconds]);
+  }, [timelineData, startTime, startTimeMillis, durationSeconds, paletteTheme]);
 
   const hasSeriesData = useMemo(() => Boolean(seriesData && seriesData.length > 0), [seriesData]);
 

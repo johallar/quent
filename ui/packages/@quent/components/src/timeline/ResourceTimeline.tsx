@@ -27,7 +27,7 @@ import {
 } from '../lib/timeline.utils';
 import { TimelineSeries, TimelineMark } from './types';
 import { EntityTypeKey } from '@quent/utils';
-import { WHITE, withOpacity } from '@quent/utils';
+import { WHITE, withOpacity, type PaletteTheme } from '@quent/utils';
 import type {
   SingleTimelineResponse,
   SingleTimelineRequest,
@@ -84,6 +84,7 @@ export function ResourceTimeline({
   fsmTypes,
   isDark,
 }: ResourceTimelineProps) {
+  const paletteTheme: PaletteTheme = isDark ? 'dark' : 'light';
   const deferredReady = useDeferredReady();
   const zoomRange = useDebouncedZoomRange();
   const bulkInitialized = useBulkInitialized();
@@ -188,6 +189,7 @@ export function ResourceTimeline({
       data.data,
       data.config,
       startTime,
+      paletteTheme,
       capacities,
       quantitySpecs,
       fsmTypes
@@ -196,7 +198,13 @@ export function ResourceTimeline({
     const filterSet =
       resourceType === EntityTypeKey.Resource ? new Set([resourceId]) : new Set<string>();
 
-    const timelineMarks = buildTimelineMarks(longFsms, startTime, filterSet, fsmTypes);
+    const timelineMarks = buildTimelineMarks(
+      longFsms,
+      startTime,
+      paletteTheme,
+      filterSet,
+      fsmTypes
+    );
 
     if (operatorId && operatorLabel) {
       if (overlayPreloadedData) {
@@ -208,6 +216,7 @@ export function ResourceTimeline({
             overlayPreloadedData.data,
             overlayPreloadedData.config,
             startTime,
+            paletteTheme,
             capacities,
             quantitySpecs,
             fsmTypes
@@ -219,6 +228,7 @@ export function ResourceTimeline({
             marks: buildTimelineMarks(
               longFsms,
               startTime,
+              paletteTheme,
               filterSet,
               fsmTypes,
               opLongFsmIds,
@@ -251,6 +261,7 @@ export function ResourceTimeline({
     resourceType,
     resourceId,
     operatorLabel,
+    paletteTheme,
   ]);
 
   if (!preloadedData && (!deferredReady || isLoading)) {

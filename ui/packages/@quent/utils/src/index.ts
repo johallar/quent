@@ -27,7 +27,7 @@ export {
   continuousColor,
   getLegendGradientStops,
 } from './colors';
-export type { PaletteName, ChartColor, ContinuousPaletteName } from './colors';
+export type { PaletteName, PaletteTheme, ChartColor, ContinuousPaletteName } from './colors';
 
 // Formatter utilities
 export {
