@@ -2,20 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { describe, it, expect } from 'vitest';
-import {
-  buildPivotedRows,
-  computeRowSpans,
-  type GroupIndexDef,
-  type StatGroupExpandedRow,
-} from '@quent/components';
-
-/**
- * These tests live under `ui/src/` rather than inside `@quent/components/` so
- * the root vitest runner (which matches `src/**\/*.test.ts`) picks them up
- * without extra configuration. The function under test is a pure reducer
- * with no React dependencies, so cross-boundary testing is fine here —
- * same pattern as `api.test.ts` testing `@quent/utils`.
- */
+import { buildPivotedRows, computeRowSpans, type GroupIndexDef } from './utils';
+import type { StatGroupExpandedRow } from './types';
 
 function expanded(
   groups: Record<string, { id: string; label?: string }>,

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { describe, it, expect } from 'vitest';
-import { parseJsonWithBigInt } from '@quent/utils';
+import { parseJsonWithBigInt } from './parseJsonWithBigInt';
 
 // A bunch of AI tests for good measure, while we're using this function to parse the response JSON -> javascript object with BigInt support.
 describe('parseJsonWithBigInt', () => {
