@@ -54,23 +54,43 @@ Naming: use `kebab-case` directory names and `@quent-examples/<name>` for the pa
 ## What every consumer needs
 
 Regardless of the host environment, every consumer of `@quent/components` must wire up
-the same five things:
+the same three things:
 
 1. **React 19 + react-dom 19** — peer dep of `@quent/components`. If the host pins an
    older React (Grafana 11 still ships React 18), see "React-version mismatches" below.
-2. **`QueryClientProvider`** from `@tanstack/react-query` — required by `@quent/client`
-   hooks.
-3. **`<Provider>`** from `jotai` — required by `@quent/hooks`. Wrap each isolated
-   visualization in its own provider so atom state does not leak between instances
-   (this matters in Grafana, where one dashboard may render many panels).
-4. **`setApiBaseUrl(url)`** from `@quent/client` — must be called once before any data
-   hook fires. In hosts without Vite env vars, derive this from the host's settings or
-   datasource config.
-5. **`isDark` boolean** — every visualization accepts it as a prop. Resolve it from the
+2. **`<QuentProvider>`** from `@quent/components` (re-exported from `@quent/hooks`) —
+   bundles `QueryClientProvider` + `JotaiProvider` and (optionally) calls
+   `setApiBaseUrl` for you. Each instance creates its own QueryClient and Jotai store
+   by default, so dashboards with multiple Quent panels do not cross-talk on
+   sort/zoom/selection state. Pass `queryClient` / `jotaiStore` to opt into shared
+   instances.
+3. **`isDark` boolean** — every visualization accepts it as a prop. Resolve it from the
    host's theme system (`useTheme2()` in Grafana, `useTheme()` in Superset, Tailwind
    `dark` class in plain web apps).
 
 The minimum viable shell for any consumer:
+
+```tsx
+import { QuentProvider, DAGChart } from '@quent/components';
+
+export function QuentRoot({ isDark, children }: { isDark: boolean; children: React.ReactNode }) {
+  return (
+    <QuentProvider apiBaseUrl="https://my-quent-server/api">
+      {children}
+    </QuentProvider>
+  );
+}
+```
+
+Need to override defaults? `QuentProvider` accepts:
+
+- `apiBaseUrl?: string` — applied via `setApiBaseUrl` synchronously during render.
+- `queryClient?: QueryClient` — replace the default per-instance client.
+- `jotaiStore?: JotaiStore` — replace the default per-instance Jotai store.
+
+If you have to wire the providers yourself (e.g. you need a custom devtools placement
+or you are sharing a `QueryClient` with non-Quent code), the equivalent low-level
+setup looks like this:
 
 ```tsx
 import { Provider as JotaiProvider } from 'jotai';
@@ -83,7 +103,7 @@ const queryClient = new QueryClient({
 
 setApiBaseUrl('https://my-quent-server/api');
 
-export function QuentRoot({ isDark, children }: { isDark: boolean; children: React.ReactNode }) {
+export function QuentRoot({ children }: { children: React.ReactNode }) {
   return (
     <JotaiProvider>
       <QueryClientProvider client={queryClient}>
@@ -221,32 +241,20 @@ export const plugin = new PanelPlugin(QuentPanel);
 
 ```tsx
 // src/QuentPanel.tsx
-import { useMemo } from 'react';
 import { PanelProps } from '@grafana/data';
 import { useTheme2 } from '@grafana/ui';
-import { Provider as JotaiProvider } from 'jotai';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { setApiBaseUrl, DEFAULT_STALE_TIME } from '@quent/client';
-import { Timeline } from '@quent/components';
+import { QuentProvider, Timeline } from '@quent/components';
 
 export function QuentPanel({ data, width, height, options }: PanelProps) {
   const theme = useTheme2();
-  // One QueryClient + Jotai store *per panel instance* so dashboards with
-  // multiple Quent panels do not share zoom/selection state.
-  const queryClient = useMemo(
-    () => new QueryClient({ defaultOptions: { queries: { staleTime: DEFAULT_STALE_TIME } } }),
-    []
-  );
-  setApiBaseUrl(options.apiBaseUrl ?? '/api');
-
+  // QuentProvider creates a per-instance QueryClient + Jotai store, so two
+  // Quent panels in one dashboard do not share zoom/selection state.
   return (
-    <JotaiProvider>
-      <QueryClientProvider client={queryClient}>
-        <div style={{ width, height }} className={theme.isDark ? 'dark' : ''}>
-          <Timeline {...buildPropsFromGrafanaData(data)} isDark={theme.isDark} />
-        </div>
-      </QueryClientProvider>
-    </JotaiProvider>
+    <QuentProvider apiBaseUrl={options.apiBaseUrl ?? '/api'}>
+      <div style={{ width, height }} className={theme.isDark ? 'dark' : ''}>
+        <Timeline {...buildPropsFromGrafanaData(data)} isDark={theme.isDark} />
+      </div>
+    </QuentProvider>
   );
 }
 ```

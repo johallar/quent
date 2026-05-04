@@ -1,6 +1,12 @@
 // SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 // SPDX-License-Identifier: Apache-2.0
 
+// ─── Provider ─────────────────────────────────────────────────────────────────
+// Re-exported from @quent/hooks so consumers using only @quent/components have
+// a single import for the runtime providers (QueryClientProvider + JotaiProvider).
+export { QuentProvider } from '@quent/hooks';
+export type { QuentProviderProps } from '@quent/hooks';
+
 // ─── UI primitives ────────────────────────────────────────────────────────────
 export { Button, buttonVariants } from './ui/button';
 export type { ButtonProps } from './ui/button';

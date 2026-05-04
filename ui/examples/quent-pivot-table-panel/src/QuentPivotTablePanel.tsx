@@ -1,15 +1,14 @@
 // SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useMemo } from 'react';
 import type { PanelProps } from '@grafana/data';
 import { useTheme2 } from '@grafana/ui';
-import { Provider as JotaiProvider } from 'jotai';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import type { StatValue } from '@quent/utils';
 import {
   PivotedStatTable,
   PivotTableToolbar,
+  QuentProvider,
   getOperatorColor,
   getSchemaStatNames,
 } from '@quent/components';
@@ -268,9 +267,9 @@ function PivotTableBody({
 }
 
 /**
- * Top-level Grafana panel component. One QueryClient + Jotai store *per
- * panel instance* so dashboards with multiple Quent panels don't share
- * sort/visibility state.
+ * Top-level Grafana panel component. `QuentProvider` gives each panel
+ * instance its own QueryClient + Jotai store so dashboards with multiple
+ * Quent panels don't share sort/visibility state.
  *
  * Data plane: the panel reads `props.data.series` (Grafana `DataFrame[]`)
  * and adapts it to `OperatorRow[]`. Any datasource that produces the
@@ -287,15 +286,6 @@ export function QuentPivotTablePanel({
   const theme = useTheme2();
   const isDark =
     options.themeMode === 'dark' ? true : options.themeMode === 'light' ? false : theme.isDark;
-
-  const [queryClient] = useState(
-    () =>
-      new QueryClient({
-        defaultOptions: {
-          queries: { staleTime: 60_000, refetchOnWindowFocus: false },
-        },
-      })
-  );
 
   const rows = useMemo(() => frameToOperatorRows(data?.series), [data?.series]);
 
@@ -335,23 +325,19 @@ export function QuentPivotTablePanel({
   const persistKey = `quent-pivot-panel-${id}`;
 
   return (
-    <JotaiProvider>
-      <QueryClientProvider client={queryClient}>
-        <div
-          style={{ width, height }}
-          className={
-            isDark ? 'dark bg-background text-foreground' : 'bg-background text-foreground'
-          }
-        >
-          <PivotTableBody
-            rows={rows}
-            isDark={isDark}
-            persistKey={persistKey}
-            indexLabels={indexLabels}
-            extraGroupColumns={extraGroupColumns}
-          />
-        </div>
-      </QueryClientProvider>
-    </JotaiProvider>
+    <QuentProvider>
+      <div
+        style={{ width, height }}
+        className={isDark ? 'dark bg-background text-foreground' : 'bg-background text-foreground'}
+      >
+        <PivotTableBody
+          rows={rows}
+          isDark={isDark}
+          persistKey={persistKey}
+          indexLabels={indexLabels}
+          extraGroupColumns={extraGroupColumns}
+        />
+      </div>
+    </QuentProvider>
   );
 }

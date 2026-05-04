@@ -1,6 +1,10 @@
 // SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 // SPDX-License-Identifier: Apache-2.0
 
+// Provider — wraps QueryClientProvider + JotaiProvider in one component
+export { QuentProvider } from './QuentProvider';
+export type { QuentProviderProps } from './QuentProvider';
+
 // DAG hooks
 export { useSelectedNodeIds, useSetSelectedNodeIds } from './dag/useSelectedNodeIds';
 export {
