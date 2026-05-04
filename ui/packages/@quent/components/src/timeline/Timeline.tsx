@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-import { useCallback, useMemo, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import ReactEChartsComponent from 'echarts-for-react';
 import { echarts } from '../lib/echarts';
@@ -31,6 +31,17 @@ import { connectChart, MIN_ZOOM_WINDOW_S, nanosToMs } from '../lib/timeline.util
 
 export const CHART_GROUP = 'timeline-sync-group';
 const DIMMED_OPACITY = 0.25;
+
+// Tracks which Timeline's DOM the pointer is currently inside. We use this
+// to gate tooltip-content rendering: ECharts' `connect()` group mirrors
+// `showTip` across every chart in the group, which causes the formatter to
+// fire on non-hovered charts and produce duplicate tooltips. By rendering
+// content only for the chart whose DOM the pointer is actually inside, the
+// crosshair stays synced (axis-pointer is independent of formatter output)
+// while only one tooltip ever shows.
+let activeTimelineId = 0;
+let __timelineIdSeq = 0;
+
 /** Stacked-area timeline chart backed by ECharts, with zoom sync and optional tooltip. */
 export function Timeline({
   startTime,
@@ -59,6 +70,11 @@ export function Timeline({
   const zoomRange = useZoomRange();
   const windowMsRef = useRef(0);
   windowMsRef.current = (zoomRange.end - zoomRange.start) * 1000;
+
+  const timelineIdRef = useRef(0);
+  if (timelineIdRef.current === 0) {
+    timelineIdRef.current = ++__timelineIdSeq;
+  }
 
   const maxMarkCountRef = useRef(0);
 
@@ -244,6 +260,11 @@ export function Timeline({
         confine: true,
         appendToBody: true,
         formatter: function (hoveredSeries: unknown) {
+          // ECharts' connect() group mirrors showTip across every chart, so
+          // this formatter is invoked on charts the pointer is NOT over.
+          // Suppress those renders so only the directly hovered chart shows
+          // tooltip content. Crosshair sync (axis pointer) is unaffected.
+          if (activeTimelineId !== timelineIdRef.current) return '';
           if (isDraggingRef.current) return '';
           if (!Array.isArray(hoveredSeries) || hoveredSeries.length === 0) return '';
           const timestamp = Number(hoveredSeries[0].axisValue);
@@ -330,16 +351,39 @@ export function Timeline({
   const isDraggingRef = useRef(false);
 
   const handleChartReady = useCallback((instance: EChartsInstance) => {
+    const id = timelineIdRef.current;
     instanceRef.current = instance;
     connectChart(instance, CHART_GROUP, false);
+
+    const safeHideTip = () => {
+      if (instance.isDisposed?.()) return;
+      try {
+        instance.dispatchAction({ type: 'hideTip' });
+      } catch {
+        // Instance disposed mid-dispatch; nothing to do.
+      }
+    };
 
     const dom = instance.getDom();
     dom.addEventListener('pointerdown', () => {
       isDraggingRef.current = true;
-      instance.dispatchAction({ type: 'hideTip' });
+      safeHideTip();
     });
     dom.addEventListener('pointerup', () => {
       isDraggingRef.current = false;
+    });
+    // Track which chart's DOM the pointer is over so the tooltip formatter
+    // can render content only for the directly hovered chart (see comment
+    // at activeTimelineId).
+    dom.addEventListener('pointerenter', () => {
+      activeTimelineId = id;
+    });
+    // Fast pointer transitions between adjacent timeline rows can outrun
+    // ECharts' internal globalout, leaving the tooltip showing. Hide it
+    // explicitly when the pointer leaves this chart's DOM.
+    dom.addEventListener('pointerleave', () => {
+      if (activeTimelineId === id) activeTimelineId = 0;
+      safeHideTip();
     });
 
     // Update atZoomLimitRef from ECharts' datazoom event, which fires synchronously
@@ -377,6 +421,25 @@ export function Timeline({
       },
       { passive: false }
     );
+  }, []);
+
+  // If the chart is unmounted (e.g. ResourceTimeline swaps to a skeleton on
+  // refetch, or the tree row is reordered/virtualized) while the user is
+  // hovering, the per-DOM pointerleave above never fires and the tooltip,
+  // which lives on document.body via appendToBody, can be orphaned. Hide it
+  // synchronously before ReactECharts disposes the instance.
+  useEffect(() => {
+    return () => {
+      const instance = instanceRef.current;
+      const id = timelineIdRef.current;
+      if (activeTimelineId === id) activeTimelineId = 0;
+      if (!instance || instance.isDisposed?.()) return;
+      try {
+        instance.dispatchAction({ type: 'hideTip' });
+      } catch {
+        // Instance may already be in teardown; nothing to do.
+      }
+    };
   }, []);
 
   return (
