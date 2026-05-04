@@ -1,9 +1,4 @@
 target/
 server/data/*.ndjson
 data/
-
-# Node / pnpm artifacts (root, packages, examples, and any nested workspace)
-**/node_modules/
-**/.pnpm-store/
-**/.pnpm/
-.pnpm-store/
+ui/node_modules
