@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+// SPDX-License-Identifier: Apache-2.0
+
 export type { Attribute } from '../../../../../../examples/simulator/server/ts-bindings/Attribute';
 export type { BinnedSpanSec } from '../../../../../../examples/simulator/server/ts-bindings/BinnedSpanSec';
 export type { BulkTimelineRequest } from '../../../../../../examples/simulator/server/ts-bindings/BulkTimelineRequest';
