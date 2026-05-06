@@ -8,6 +8,7 @@ import {
   zoomRangeAtom,
   debouncedZoomRangeAtom,
   hoveredTimelineIdAtom,
+  timelineHoverAtom,
   startTimeMsAtom,
   bulkInitializedAtom,
   visibleEntriesAtom,
@@ -33,6 +34,8 @@ export const useDebouncedZoomRange = () => useAtomValue(debouncedZoomRangeAtom);
 export const useSetDebouncedZoomRange = () => useSetAtom(debouncedZoomRangeAtom);
 export const useHoveredTimelineId = () => useAtomValue(hoveredTimelineIdAtom);
 export const useSetHoveredTimelineId = () => useSetAtom(hoveredTimelineIdAtom);
+export const useTimelineHover = () => useAtomValue(timelineHoverAtom);
+export const useSetTimelineHover = () => useSetAtom(timelineHoverAtom);
 export const useStartTimeMs = () => useAtomValue(startTimeMsAtom);
 export const useSetStartTimeMs = () => useSetAtom(startTimeMsAtom);
 export const useBulkInitialized = () => useAtomValue(bulkInitializedAtom);

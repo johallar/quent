@@ -1,15 +1,14 @@
 // SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-import { useCallback, useEffect, useMemo, useRef } from 'react';
-import { renderToStaticMarkup } from 'react-dom/server';
+import { useCallback, useEffect, useId, useMemo, useRef } from 'react';
 import ReactEChartsComponent from 'echarts-for-react';
 import { echarts } from '../lib/echarts';
 import type { EChartsOption } from '../lib/echarts';
 import type { LineSeriesOption } from 'echarts/charts';
 import type { EChartsInstance } from 'echarts-for-react';
-import { useZoomRange } from '@quent/hooks';
-import { TooltipContent } from './TimelineTooltip';
+import { useSetTimelineHover } from '@quent/hooks';
+import { TimelineTooltipPortal } from './TimelineTooltipPortal';
 import { withOpacity } from '@quent/utils';
 import type { TimelineSeriesEntry } from './types';
 import {
@@ -31,16 +30,6 @@ import { connectChart, MIN_ZOOM_WINDOW_S, nanosToMs } from '../lib/timeline.util
 
 export const CHART_GROUP = 'timeline-sync-group';
 const DIMMED_OPACITY = 0.25;
-
-// Tracks which Timeline's DOM the pointer is currently inside. We use this
-// to gate tooltip-content rendering: ECharts' `connect()` group mirrors
-// `showTip` across every chart in the group, which causes the formatter to
-// fire on non-hovered charts and produce duplicate tooltips. By rendering
-// content only for the chart whose DOM the pointer is actually inside, the
-// crosshair stays synced (axis-pointer is independent of formatter output)
-// while only one tooltip ever shows.
-let activeTimelineId = 0;
-let __timelineIdSeq = 0;
 
 /** Stacked-area timeline chart backed by ECharts, with zoom sync and optional tooltip. */
 export function Timeline({
@@ -66,15 +55,11 @@ export function Timeline({
   isDark: boolean;
 }) {
   const { themeName } = useTimelineEchartsTheme(isDark);
-
-  const zoomRange = useZoomRange();
-  const windowMsRef = useRef(0);
-  windowMsRef.current = (zoomRange.end - zoomRange.start) * 1000;
-
-  const timelineIdRef = useRef(0);
-  if (timelineIdRef.current === 0) {
-    timelineIdRef.current = ++__timelineIdSeq;
-  }
+  const setHover = useSetTimelineHover();
+  // Stable per-instance id from React. Replaces the previous module-level
+  // monotonic counter; identity comes from the framework instead of a hand-
+  // rolled `let` we have to reset on dispose.
+  const ownerId = useId();
 
   const maxMarkCountRef = useRef(0);
 
@@ -245,58 +230,21 @@ export function Timeline({
   minZoomSpanPctRef.current = minZoomSpanPct;
   const atZoomLimitRef = useRef(false);
 
+  // ECharts' built-in tooltip is reduced to crosshair only (`showContent: false`).
+  // Tooltip content is rendered by `<TimelineTooltipPortal>` below, driven by a
+  // shared Jotai atom written to in `handleChartReady`. This sidesteps the
+  // duplicate-tooltip problem that `connect()` causes by mirroring `showTip`
+  // across every chart in the group: with `showContent: false`, mirrored
+  // showTips render only the crosshair (which is what we want for sync) and
+  // never tooltip DOM (which is what caused duplicates).
   const eChartOptions: EChartsOption = useMemo(() => {
     return {
       animation: false,
       tooltip: {
         show: true,
-        showContent: showTooltip,
+        showContent: false,
         trigger: 'axis',
         transitionDuration: 0,
-        backgroundColor: 'transparent',
-        borderWidth: 0,
-        padding: 0,
-        textStyle: {},
-        confine: true,
-        appendToBody: true,
-        formatter: function (hoveredSeries: unknown) {
-          // ECharts' connect() group mirrors showTip across every chart, so
-          // this formatter is invoked on charts the pointer is NOT over.
-          // Suppress those renders so only the directly hovered chart shows
-          // tooltip content. Crosshair sync (axis pointer) is unaffected.
-          if (activeTimelineId !== timelineIdRef.current) return '';
-          if (isDraggingRef.current) return '';
-          if (!Array.isArray(hoveredSeries) || hoveredSeries.length === 0) return '';
-          const timestamp = Number(hoveredSeries[0].axisValue);
-          const seriesValues = hoveredSeries
-            .filter(
-              (p: { seriesName: string; data?: number[] }) =>
-                !p.seriesName.startsWith('__mark_') && p.data != null
-            )
-            .map((p: { color: string; seriesName: string; data: number[] }) => {
-              return {
-                color: p.color,
-                name: p.seriesName,
-                value: p.data[1],
-                isOverlay: series[p.seriesName]?.isOverlay ?? false,
-                isDimmed: series[p.seriesName]?.isDimmed ?? false,
-              };
-            });
-          const activeMarks = marks
-            ?.filter(m => timestamp >= m.xStart && timestamp <= m.xEnd)
-            .map(m => ({ label: m.label, stateName: m.stateName, color: m.color }));
-          const fmt = Object.values(series)[0]?.formatter;
-          return renderToStaticMarkup(
-            <TooltipContent
-              timestamp={timestamp}
-              series={seriesValues}
-              startTime={startTime}
-              fmt={fmt}
-              windowMs={windowMsRef.current}
-              activeMarks={activeMarks && activeMarks.length > 0 ? activeMarks : undefined}
-            />
-          );
-        },
       },
       title: {
         left: 'center',
@@ -335,123 +283,134 @@ export function Timeline({
         },
       ],
     } as EChartsOption;
-  }, [
-    showTooltip,
-    gridOptions,
-    minZoomSpanPct,
-    xAxisOptions,
-    yAxisOptions,
-    seriesOptions,
-    startTime,
-    series,
-    marks,
-  ]);
+  }, [gridOptions, minZoomSpanPct, xAxisOptions, yAxisOptions, seriesOptions]);
 
   const instanceRef = useRef<EChartsInstance | null>(null);
   const isDraggingRef = useRef(false);
+  // `handleChartReady` runs exactly once per chart instance, so the listeners
+  // it attaches close over the initial `showTooltip` value. Use a ref so the
+  // gate inside `writeHover` always sees the current prop value without
+  // re-binding listeners on every render.
+  const showTooltipRef = useRef(showTooltip);
+  showTooltipRef.current = showTooltip;
 
-  const handleChartReady = useCallback((instance: EChartsInstance) => {
-    const id = timelineIdRef.current;
-    instanceRef.current = instance;
-    connectChart(instance, CHART_GROUP, false);
+  const handleChartReady = useCallback(
+    (instance: EChartsInstance) => {
+      instanceRef.current = instance;
+      connectChart(instance, CHART_GROUP, false);
 
-    const safeHideTip = () => {
-      if (instance.isDisposed?.()) return;
-      try {
-        instance.dispatchAction({ type: 'hideTip' });
-      } catch {
-        // Instance disposed mid-dispatch; nothing to do.
-      }
-    };
+      const dom = instance.getDom();
 
-    const dom = instance.getDom();
-    dom.addEventListener('pointerdown', () => {
-      isDraggingRef.current = true;
-      safeHideTip();
-    });
-    dom.addEventListener('pointerup', () => {
-      isDraggingRef.current = false;
-    });
-    // Track which chart's DOM the pointer is over so the tooltip formatter
-    // can render content only for the directly hovered chart (see comment
-    // at activeTimelineId).
-    dom.addEventListener('pointerenter', () => {
-      activeTimelineId = id;
-    });
-    // Fast pointer transitions between adjacent timeline rows can outrun
-    // ECharts' internal globalout, leaving the tooltip showing. Hide it
-    // explicitly when the pointer leaves this chart's DOM.
-    dom.addEventListener('pointerleave', () => {
-      if (activeTimelineId === id) activeTimelineId = 0;
-      safeHideTip();
-    });
-
-    // Update atZoomLimitRef from ECharts' datazoom event, which fires synchronously
-    // within the same dispatch tick as the wheel handler — no React render-cycle lag.
-    instance.on('datazoom', () => {
-      const opt = instance.getOption() as { dataZoom?: Array<{ start?: number; end?: number }> };
-      const dz = opt.dataZoom?.[0];
-      if (dz != null) {
-        const spanPct = (dz.end ?? 100) - (dz.start ?? 0);
-        atZoomLimitRef.current = spanPct <= minZoomSpanPctRef.current * 1.01;
-      }
-    });
-
-    // Pass non-shift wheel events through to the page for normal scrolling.
-    // Without this, ECharts' inside dataZoom calls preventDefault on all wheel events.
-    // When at the zoom limit, also block shift+wheel-in before ECharts sees it —
-    // ECharts converts a blocked zoom into a pan, so we must stop it at the source.
-    dom.addEventListener(
-      'wheel',
-      e => {
-        if (!e.shiftKey) {
-          e.stopPropagation();
-        } else if (e.deltaY < 0 && atZoomLimitRef.current) {
-          e.stopPropagation();
+      // Pointer activity drives the shared timelineHoverAtom; the matching
+      // <TimelineTooltipPortal> reads it and renders the only tooltip in the
+      // document. Writes are gated by `showTooltipRef` (the row-hover flag the
+      // tree passes through) and `isDraggingRef` (suppress while panning).
+      const writeHover = (e: PointerEvent) => {
+        if (!showTooltipRef.current) return;
+        if (isDraggingRef.current) return;
+        if (instance.isDisposed?.()) return;
+        const rect = dom.getBoundingClientRect();
+        const offsetX = e.clientX - rect.left;
+        let tsMs: number;
+        try {
+          const v = instance.convertFromPixel({ xAxisIndex: 0 }, offsetX);
+          if (v == null || !isFinite(v as number)) return;
+          tsMs = v as number;
+        } catch {
+          return;
         }
-      },
-      { capture: true, passive: true }
-    );
+        setHover({
+          timestampMs: tsMs,
+          clientX: e.clientX,
+          clientY: e.clientY,
+          sourceId: ownerId,
+        });
+      };
 
-    // Prevent the browser from handling shift+wheel-in when ECharts can't zoom further
-    dom.addEventListener(
-      'wheel',
-      e => {
-        if (e.shiftKey && e.deltaY < 0) e.preventDefault();
-      },
-      { passive: false }
-    );
-  }, []);
+      const clearHoverIfMine = () => {
+        setHover(prev => (prev?.sourceId === ownerId ? null : prev));
+      };
 
-  // If the chart is unmounted (e.g. ResourceTimeline swaps to a skeleton on
-  // refetch, or the tree row is reordered/virtualized) while the user is
-  // hovering, the per-DOM pointerleave above never fires and the tooltip,
-  // which lives on document.body via appendToBody, can be orphaned. Hide it
-  // synchronously before ReactECharts disposes the instance.
+      dom.addEventListener('pointermove', writeHover);
+      dom.addEventListener('pointerleave', clearHoverIfMine);
+      dom.addEventListener('pointercancel', clearHoverIfMine);
+      dom.addEventListener('pointerdown', () => {
+        isDraggingRef.current = true;
+        clearHoverIfMine();
+      });
+      dom.addEventListener('pointerup', () => {
+        isDraggingRef.current = false;
+      });
+
+      // Update atZoomLimitRef from ECharts' datazoom event, which fires synchronously
+      // within the same dispatch tick as the wheel handler — no React render-cycle lag.
+      instance.on('datazoom', () => {
+        const opt = instance.getOption() as { dataZoom?: Array<{ start?: number; end?: number }> };
+        const dz = opt.dataZoom?.[0];
+        if (dz != null) {
+          const spanPct = (dz.end ?? 100) - (dz.start ?? 0);
+          atZoomLimitRef.current = spanPct <= minZoomSpanPctRef.current * 1.01;
+        }
+      });
+
+      // Pass non-shift wheel events through to the page for normal scrolling.
+      // Without this, ECharts' inside dataZoom calls preventDefault on all wheel events.
+      // When at the zoom limit, also block shift+wheel-in before ECharts sees it —
+      // ECharts converts a blocked zoom into a pan, so we must stop it at the source.
+      dom.addEventListener(
+        'wheel',
+        e => {
+          if (!e.shiftKey) {
+            e.stopPropagation();
+          } else if (e.deltaY < 0 && atZoomLimitRef.current) {
+            e.stopPropagation();
+          }
+        },
+        { capture: true, passive: true }
+      );
+
+      // Prevent the browser from handling shift+wheel-in when ECharts can't zoom further
+      dom.addEventListener(
+        'wheel',
+        e => {
+          if (e.shiftKey && e.deltaY < 0) e.preventDefault();
+        },
+        { passive: false }
+      );
+    },
+    [ownerId, setHover]
+  );
+
+  // If this Timeline is the current hover owner when it unmounts (e.g. a tree
+  // row is virtualized away mid-hover), clear the atom so no other Timeline's
+  // portal can mistakenly pick up our stale id.
   useEffect(() => {
     return () => {
-      const instance = instanceRef.current;
-      const id = timelineIdRef.current;
-      if (activeTimelineId === id) activeTimelineId = 0;
-      if (!instance || instance.isDisposed?.()) return;
-      try {
-        instance.dispatchAction({ type: 'hideTip' });
-      } catch {
-        // Instance may already be in teardown; nothing to do.
-      }
+      setHover(prev => (prev?.sourceId === ownerId ? null : prev));
     };
-  }, []);
+  }, [ownerId, setHover]);
 
   return (
-    <ReactEChartsComponent
-      echarts={echarts}
-      theme={themeName}
-      option={eChartOptions}
-      style={{ width: '100%', height: `${height}px` }}
-      onChartReady={handleChartReady}
-      notMerge={false}
-      lazyUpdate={false}
-      replaceMerge={['series']}
-    />
+    <>
+      <ReactEChartsComponent
+        echarts={echarts}
+        theme={themeName}
+        option={eChartOptions}
+        style={{ width: '100%', height: `${height}px` }}
+        onChartReady={handleChartReady}
+        notMerge={false}
+        lazyUpdate={false}
+        replaceMerge={['series']}
+      />
+      {showTooltip && (
+        <TimelineTooltipPortal
+          ownerId={ownerId}
+          series={series}
+          timestamps={timestamps}
+          marks={marks}
+          startTime={startTime}
+        />
+      )}
+    </>
   );
 }
