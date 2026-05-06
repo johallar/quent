@@ -47,12 +47,18 @@ export const hoveredTimelineIdAtom = atom<string | null>(null);
  * enter/leave on the table cell wrapper to highlight a tree row): this atom
  * is written by the chart's own pointermove handler and carries enough
  * information to render a tooltip outside ECharts — pointer viewport coords
- * for portal placement, the timestamp under the pointer for series lookup,
- * and the originating Timeline's stable id so only that Timeline renders the
- * tooltip (single-active invariant).
+ * for portal placement, the snapped bin index under the pointer for series
+ * lookup, and the originating Timeline's stable id so only that Timeline
+ * renders the tooltip (single-active invariant).
  */
 export interface TimelineHoverState {
-  /** Timestamp under the pointer, in ms (sub-ms precision). */
+  /** Bin index under the pointer, already snapped to the nearest bin. */
+  dataIndex: number;
+  /**
+   * Raw (un-snapped) x-axis value from `convertFromPixel`, in ms. Carried
+   * alongside `dataIndex` so consumers can validate the snap or display the
+   * exact pointer time independently of the snapped bin.
+   */
   timestampMs: number;
   /** Pointer viewport coords for portal placement. */
   clientX: number;

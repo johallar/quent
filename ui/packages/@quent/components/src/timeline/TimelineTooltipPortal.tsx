@@ -22,9 +22,9 @@ const VIEWPORT_MARGIN = 4;
  *   - No `renderToStaticMarkup` injection — the tooltip is regular React.
  *   - Cleanup is automatic via component unmount; no orphan-tooltip DOM.
  *
- * Series values at the hovered timestamp are resolved by binary-searching the
- * shared `timestamps` array for the nearest bin, mirroring ECharts' axis-trigger
- * snap behavior.
+ * The hover atom carries an already-snapped `dataIndex` (computed in
+ * `Timeline` from uniform-bin spacing in O(1)), so this component just
+ * looks the value up in `timestamps[dataIndex]` — no search.
  */
 export function TimelineTooltipPortal({
   ownerId,
@@ -47,11 +47,15 @@ export function TimelineTooltipPortal({
   if (!isOwned || !hover) return null;
   if (timestamps.length === 0) return null;
 
+  // Defensive clamp: a stale `dataIndex` from a previous render could exceed
+  // the current array length
+  const dataIndex = Math.max(0, Math.min(timestamps.length - 1, hover.dataIndex));
+
   return (
     <PositionedTooltip
       clientX={hover.clientX}
       clientY={hover.clientY}
-      timestampMs={hover.timestampMs}
+      dataIndex={dataIndex}
       series={series}
       timestamps={timestamps}
       marks={marks}
@@ -64,7 +68,7 @@ export function TimelineTooltipPortal({
 function PositionedTooltip({
   clientX,
   clientY,
-  timestampMs,
+  dataIndex,
   series,
   timestamps,
   marks,
@@ -73,23 +77,19 @@ function PositionedTooltip({
 }: {
   clientX: number;
   clientY: number;
-  timestampMs: number;
+  dataIndex: number;
   series: TimelineSeries;
   timestamps: number[];
   marks?: TimelineMark[];
   startTime: bigint;
   windowMs: number;
 }) {
-  // Snap to the nearest bin so values match what the crosshair is pointing at,
-  // matching ECharts' axis-trigger behavior. Then sample each series at that
-  // bin to reproduce the legacy formatter output, but as ordinary React.
   const { snappedTimestamp, tooltipSeries, activeMarks } = useMemo(() => {
-    const idx = findNearestBinIndex(timestamps, timestampMs);
-    const snapped = timestamps[idx] ?? timestampMs;
+    const snapped = timestamps[dataIndex] ?? 0;
     const tooltipSeriesValues = Object.entries(series).map(([name, entry]) => ({
       color: entry.color,
       name,
-      value: entry.values[idx] ?? 0,
+      value: entry.values[dataIndex] ?? 0,
       isOverlay: entry.isOverlay ?? false,
       isDimmed: entry.isDimmed ?? false,
     }));
@@ -101,7 +101,7 @@ function PositionedTooltip({
       tooltipSeries: tooltipSeriesValues,
       activeMarks: activeMarksAtTs && activeMarksAtTs.length > 0 ? activeMarksAtTs : undefined,
     };
-  }, [series, timestamps, marks, timestampMs]);
+  }, [series, timestamps, marks, dataIndex]);
 
   const fmt = useMemo(() => Object.values(series)[0]?.formatter, [series]);
 
@@ -152,22 +152,4 @@ function PositionedTooltip({
     </div>,
     document.body
   );
-}
-
-/** Binary-search the nearest index in a monotone-increasing array. */
-function findNearestBinIndex(timestamps: number[], ts: number): number {
-  if (timestamps.length === 0) return -1;
-  let lo = 0;
-  let hi = timestamps.length - 1;
-  while (lo < hi) {
-    const mid = (lo + hi) >>> 1;
-    if ((timestamps[mid] ?? 0) < ts) lo = mid + 1;
-    else hi = mid;
-  }
-  if (lo > 0) {
-    const a = timestamps[lo - 1] ?? 0;
-    const b = timestamps[lo] ?? 0;
-    if (Math.abs(a - ts) < Math.abs(b - ts)) return lo - 1;
-  }
-  return lo;
 }

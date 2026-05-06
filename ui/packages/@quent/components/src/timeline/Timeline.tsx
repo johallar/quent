@@ -31,12 +31,18 @@ const DIMMED_OPACITY = 0.25;
 
 /**
  * Pointer position over the chart, expressed in coordinates the parent can
- * use to drive a tooltip outside the chart. `timestampMs` is read from the
- * x-axis under the pointer; `clientX/clientY` are viewport-relative for
- * portal placement. `null` (in `onHoverChange`) signals "no longer hovered"
- * (pointerleave, pointercancel, drag start, or unmount).
+ * use to drive a tooltip outside the chart. `dataIndex` is the bin index
+ * under the pointer (already snapped in `Timeline` via O(1) modular
+ * arithmetic on the uniform-bin invariant). `timestampMs` is the raw,
+ * un-snapped x-axis value from `convertFromPixel`, included alongside
+ * `dataIndex` so consumers can sanity-check the snap (binary-search
+ * comparison) and so future tooltips can opt into showing the exact pointer
+ * time. `clientX/clientY` are viewport-relative for portal placement.
+ * `null` (in `onHoverChange`) signals "no longer hovered" (pointerleave,
+ * pointercancel, drag start, or unmount).
  */
 export interface TimelineHoverPosition {
+  dataIndex: number;
   timestampMs: number;
   clientX: number;
   clientY: number;
@@ -293,6 +299,7 @@ export function Timeline({
 
   const instanceRef = useRef<EChartsInstance | null>(null);
   const isDraggingRef = useRef(false);
+
   // `handleChartReady` runs exactly once per chart instance, so its closures
   // capture the initial values of `showTooltip` / `onHoverChange`. Refs let
   // those closures read the current values on every event without re-binding
@@ -301,6 +308,11 @@ export function Timeline({
   showTooltipRef.current = showTooltip;
   const onHoverChangeRef = useRef(onHoverChange);
   onHoverChangeRef.current = onHoverChange;
+  // The listeners attached in `handleChartReady` close over `timestamps` for
+  // bin snapping; mirror it into a ref so they always see the current array
+  // (zoom changes can replace it) without re-binding.
+  const timestampsRef = useRef(timestamps);
+  timestampsRef.current = timestamps;
 
   const handleChartReady = useCallback((instance: EChartsInstance) => {
     instanceRef.current = instance;
@@ -309,7 +321,9 @@ export function Timeline({
     const dom = instance.getDom();
 
     // Pointer activity is reported up via `onHoverChange`. The parent owns
-    // the tooltip-rendering / shared-state concerns
+    // the tooltip-rendering / shared-state concerns; this component only
+    // converts pointer pixels into a snapped bin index so the parent can
+    // sample series data without re-doing the search.
     const reportHover = (e: PointerEvent) => {
       if (!showTooltipRef.current) return;
       if (isDraggingRef.current) return;
@@ -324,7 +338,14 @@ export function Timeline({
       } catch {
         return;
       }
-      onHoverChangeRef.current?.({ timestampMs: tsMs, clientX: e.clientX, clientY: e.clientY });
+      const idx = snapToBinIndex(timestampsRef.current, tsMs);
+      if (idx < 0) return;
+      onHoverChangeRef.current?.({
+        dataIndex: idx,
+        timestampMs: tsMs,
+        clientX: e.clientX,
+        clientY: e.clientY,
+      });
     };
 
     const reportLeave = () => onHoverChangeRef.current?.(null);
@@ -391,6 +412,7 @@ export function Timeline({
     <ReactEChartsComponent
       echarts={echarts}
       theme={themeName}
+      opts={{ renderer: 'svg' }}
       option={eChartOptions}
       style={{ width: '100%', height: `${height}px` }}
       onChartReady={handleChartReady}
@@ -399,4 +421,41 @@ export function Timeline({
       replaceMerge={['series']}
     />
   );
+}
+
+/**
+ * Snap a continuous x-axis time (ms) to the nearest bin index by binary
+ * search.
+ *
+ * We previously did this in O(1) by deriving `step = timestamps[1] -
+ * timestamps[0]` and rounding. That is correct in theory because
+ * `buildBinnedTimelineSeries` builds the array uniformly (`firstBinMs + i *
+ * binDurationMs`) — but at deep zoom the bin width drops below the
+ * floating-point ULP at the timestamp magnitude (epoch-ms is ~1.7e12, ULP
+ * ~2e-4 ms; sub-microsecond zoom puts bin width ≤ ULP). Once that happens,
+ * `timestamps[1] - timestamps[0]` is dominated by rounding noise rather
+ * than the real spacing, and the derived index drifts by several bins.
+ *
+ * Binary search avoids the issue entirely: it never trusts a derived step,
+ * just the stored values themselves. ~log2(numBins) comparisons (~9 at
+ * MAX_TIMELINE_BINS = 400) is negligible compared to the React + Jotai +
+ * portal work on the same pointer-move path.
+ */
+function snapToBinIndex(timestamps: number[], ts: number): number {
+  const n = timestamps.length;
+  if (n === 0) return -1;
+  if (n === 1) return 0;
+  let lo = 0;
+  let hi = n - 1;
+  while (lo < hi) {
+    const mid = (lo + hi) >>> 1;
+    if ((timestamps[mid] ?? 0) < ts) lo = mid + 1;
+    else hi = mid;
+  }
+  if (lo > 0) {
+    const a = timestamps[lo - 1] ?? 0;
+    const b = timestamps[lo] ?? 0;
+    if (Math.abs(a - ts) < Math.abs(b - ts)) return lo - 1;
+  }
+  return lo;
 }
