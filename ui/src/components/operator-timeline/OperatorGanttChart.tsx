@@ -42,7 +42,7 @@ const Y_SCROLLBAR_WIDTH = 8;
 function getOperatorBarColors(typeName: string | undefined): { fill: string; stroke: string } {
   const key = typeName?.toLowerCase().replace(/\s+/g, '') ?? 'other';
   const stroke = OPERATION_TYPE_COLORS[key] ?? DEFAULT_OPERATION_COLOR;
-  return { stroke, fill: withOpacity(stroke, 0.15) };
+  return { stroke, fill: withOpacity(stroke, 0.45) };
 }
 
 export interface OperatorGanttChartProps {
@@ -163,10 +163,8 @@ export function OperatorGanttChart({
         op?.typeName && op.typeName !== op.label
           ? `${op.typeName}: ${op.label}`
           : (op?.label ?? '');
-      const { fill: fallbackFill, stroke: fallbackStroke } = getOperatorBarColors(op?.typeName);
+      const { fill } = getOperatorBarColors(op?.typeName);
       const fieldStyle = op ? operatorFieldStyles.get(op.operatorId) : undefined;
-      const stroke = fieldStyle?.stroke ?? fallbackStroke;
-      const fill = fieldStyle?.stroke ? withOpacity(stroke, 0.15) : fallbackFill;
       const hasSelection = selectedNodeIds.size > 0;
       const isSelected = op != null && selectedNodeIds.has(op.operatorId);
       const fieldDimmed = fieldStyle?.fieldDimmed ?? false;
@@ -177,7 +175,7 @@ export function OperatorGanttChart({
         shape: { ...clippedShape, r: 2 },
         style: {
           fill,
-          stroke,
+          // stroke,
           lineWidth: 1,
           opacity,
         },
