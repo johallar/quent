@@ -356,10 +356,7 @@ export function OperatorGanttChart({
   }
 
   return (
-    <div
-      ref={wrapperRef}
-      style={{ maxHeight: MAX_HEIGHT, overflowY: 'auto', overflowX: 'hidden' }}
-    >
+    <div ref={wrapperRef} style={{ maxHeight: MAX_HEIGHT, overflowY: 'auto', overflowX: 'hidden' }}>
       <ReactEChartsComponent
         echarts={echarts}
         theme={themeName}
