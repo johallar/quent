@@ -31,15 +31,7 @@ const DIMMED_OPACITY = 0.25;
 
 /**
  * Pointer position over the chart, expressed in coordinates the parent can
- * use to drive a tooltip outside the chart. `dataIndex` is the bin index
- * under the pointer (already snapped in `Timeline` via O(1) modular
- * arithmetic on the uniform-bin invariant). `timestampMs` is the raw,
- * un-snapped x-axis value from `convertFromPixel`, included alongside
- * `dataIndex` so consumers can sanity-check the snap (binary-search
- * comparison) and so future tooltips can opt into showing the exact pointer
- * time. `clientX/clientY` are viewport-relative for portal placement.
- * `null` (in `onHoverChange`) signals "no longer hovered" (pointerleave,
- * pointercancel, drag start, or unmount).
+ * use to drive a tooltip outside the chart.
  */
 export interface TimelineHoverPosition {
   dataIndex: number;
@@ -425,21 +417,7 @@ export function Timeline({
 
 /**
  * Snap a continuous x-axis time (ms) to the nearest bin index by binary
- * search.
- *
- * We previously did this in O(1) by deriving `step = timestamps[1] -
- * timestamps[0]` and rounding. That is correct in theory because
- * `buildBinnedTimelineSeries` builds the array uniformly (`firstBinMs + i *
- * binDurationMs`) — but at deep zoom the bin width drops below the
- * floating-point ULP at the timestamp magnitude (epoch-ms is ~1.7e12, ULP
- * ~2e-4 ms; sub-microsecond zoom puts bin width ≤ ULP). Once that happens,
- * `timestamps[1] - timestamps[0]` is dominated by rounding noise rather
- * than the real spacing, and the derived index drifts by several bins.
- *
- * Binary search avoids the issue entirely: it never trusts a derived step,
- * just the stored values themselves. ~log2(numBins) comparisons (~9 at
- * MAX_TIMELINE_BINS = 400) is negligible compared to the React + Jotai +
- * portal work on the same pointer-move path.
+ * search. dataIndex from echarts cannot be trusted at tiny bin sizes.
  */
 function snapToBinIndex(timestamps: number[], ts: number): number {
   const n = timestamps.length;

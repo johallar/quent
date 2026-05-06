@@ -7,7 +7,6 @@ import {
   timelineDataMapAtom,
   zoomRangeAtom,
   debouncedZoomRangeAtom,
-  hoveredTimelineIdAtom,
   timelineHoverAtom,
   startTimeMsAtom,
   bulkInitializedAtom,
@@ -22,18 +21,10 @@ export function useTimelineData(key: string): SingleTimelineResponse | undefined
   return map[key];
 }
 
-// Replacement for isTimelineHoveredAtom(itemId)
-export function useIsTimelineHovered(itemId: string): boolean {
-  const hoveredId = useAtomValue(hoveredTimelineIdAtom);
-  return hoveredId === itemId;
-}
-
 export const useZoomRange = () => useAtomValue(zoomRangeAtom);
 export const useSetZoomRange = () => useSetAtom(zoomRangeAtom);
 export const useDebouncedZoomRange = () => useAtomValue(debouncedZoomRangeAtom);
 export const useSetDebouncedZoomRange = () => useSetAtom(debouncedZoomRangeAtom);
-export const useHoveredTimelineId = () => useAtomValue(hoveredTimelineIdAtom);
-export const useSetHoveredTimelineId = () => useSetAtom(hoveredTimelineIdAtom);
 export const useTimelineHover = () => useAtomValue(timelineHoverAtom);
 export const useSetTimelineHover = () => useSetAtom(timelineHoverAtom);
 export const useStartTimeMs = () => useAtomValue(startTimeMsAtom);

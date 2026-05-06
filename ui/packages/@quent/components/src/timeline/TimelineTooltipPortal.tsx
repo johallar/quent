@@ -14,17 +14,7 @@ const VIEWPORT_MARGIN = 4;
  * Pointer-driven tooltip rendered as a single body-level portal.
  *
  * Each Timeline mounts one of these guarded by `sourceId === ownerId`, so at
- * most one portal ever renders DOM at a time. This replaces ECharts' built-in
- * `tooltip.formatter` + `appendToBody` path:
- *
- *   - No reliance on `connect()` mirroring `showTip` across charts (which
- *     caused duplicate tooltips on every chart in the group).
- *   - No `renderToStaticMarkup` injection — the tooltip is regular React.
- *   - Cleanup is automatic via component unmount; no orphan-tooltip DOM.
- *
- * The hover atom carries an already-snapped `dataIndex` (computed in
- * `Timeline` from uniform-bin spacing in O(1)), so this component just
- * looks the value up in `timestamps[dataIndex]` — no search.
+ * most one portal ever renders DOM at a time.
  */
 export function TimelineTooltipPortal({
   ownerId,

@@ -17,13 +17,10 @@ export { useHoveredWorkerId, useSetHoveredWorkerId } from './dag/useHoveredWorke
 // Timeline hooks
 export {
   useTimelineData,
-  useIsTimelineHovered,
   useZoomRange,
   useSetZoomRange,
   useDebouncedZoomRange,
   useSetDebouncedZoomRange,
-  useHoveredTimelineId,
-  useSetHoveredTimelineId,
   useTimelineHover,
   useSetTimelineHover,
   useStartTimeMs,

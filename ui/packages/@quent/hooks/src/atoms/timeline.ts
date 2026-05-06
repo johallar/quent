@@ -37,19 +37,14 @@ export const zoomRangeAtom = atom<ZoomRange>({ start: 0, end: 0 });
 /** Debounced zoom range — settles after ZOOM_DEBOUNCE_MS, drives the bulk query */
 export const debouncedZoomRangeAtom = atom<ZoomRange>({ start: 0, end: 0 });
 
-/** Which timeline row is currently hovered (for tooltip display) */
-export const hoveredTimelineIdAtom = atom<string | null>(null);
-
 /**
  * Pointer-level hover state used to drive an app-rendered timeline tooltip.
  *
- * Distinct from `hoveredTimelineIdAtom` (which is set by row-level mouse
- * enter/leave on the table cell wrapper to highlight a tree row): this atom
- * is written by the chart's own pointermove handler and carries enough
- * information to render a tooltip outside ECharts — pointer viewport coords
- * for portal placement, the snapped bin index under the pointer for series
- * lookup, and the originating Timeline's stable id so only that Timeline
- * renders the tooltip (single-active invariant).
+ * Written by the chart's own pointermove handler (see `Timeline.tsx`) and
+ * carries enough information for an out-of-chart portal to render a tooltip:
+ * the snapped bin index for series lookup, viewport coords for placement,
+ * and a stable `sourceId` that lets exactly one Timeline take ownership of
+ * the active hover (single-active invariant).
  */
 export interface TimelineHoverState {
   /** Bin index under the pointer, already snapped to the nearest bin. */
