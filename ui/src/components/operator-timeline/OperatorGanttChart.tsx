@@ -9,6 +9,7 @@ import type { EChartsInstance } from 'echarts-for-react';
 import type { CustomSeriesOption } from 'echarts/charts';
 import { useAtomValue, useSetAtom } from 'jotai';
 import {
+  connectChart,
   nanosToMs,
   registerAxisPointerSync,
   unregisterAxisPointerSync,
@@ -31,6 +32,7 @@ import type { OperatorActiveSpanEntry } from './types';
 import { clipRectByRect } from './utils';
 import { TIMELINE_SPACING, TIMELINE_X_AXIS_ANIMATION } from '@/components/timeline/types';
 import { useTheme, THEME_DARK } from '@/contexts/ThemeContext';
+import { CHART_GROUP } from '../timeline/Timeline';
 
 const DEFAULT_HEIGHT = 75;
 const MAX_HEIGHT = 100;
@@ -362,6 +364,7 @@ export function OperatorGanttChart({
 
   const handleChartReady = useCallback((instance: EChartsInstance) => {
     instanceRef.current = instance;
+    connectChart(instance, CHART_GROUP, false);
     // Keep axis-pointer sync only; do not set a shared ECharts group to
     // prevent any dataZoom propagation into timeline charts.
     registerAxisPointerSync(instance, 0, { receiveShowTip: false });
