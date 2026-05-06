@@ -25,6 +25,7 @@ import {
   useTimelineEchartsTheme,
 } from './timelineEchartsTheme';
 import { connectChart, MIN_ZOOM_WINDOW_S, nanosToMs } from '../lib/timeline.utils';
+import { Opts } from 'echarts-for-react/lib/types';
 
 export const CHART_GROUP = 'timeline-sync-group';
 const DIMMED_OPACITY = 0.25;
@@ -399,14 +400,16 @@ export function Timeline({
       onHoverChangeRef.current?.(null);
     };
   }, []);
+  const style = useMemo(() => ({ width: '100%', height: `${height}px` }), [height]);
+  const opts = useMemo(() => ({ renderer: 'svg' } as Opts), []);
 
   return (
     <ReactEChartsComponent
       echarts={echarts}
       theme={themeName}
-      opts={{ renderer: 'svg' }}
+      opts={opts}
       option={eChartOptions}
-      style={{ width: '100%', height: `${height}px` }}
+      style={style}
       onChartReady={handleChartReady}
       notMerge={false}
       lazyUpdate={false}
