@@ -174,7 +174,6 @@ export function OperatorGanttChart({
         shape: { ...clippedShape, r: 2 },
         style: {
           fill,
-          // stroke,
           lineWidth: 1,
           opacity,
         },
