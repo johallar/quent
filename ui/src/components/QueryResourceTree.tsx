@@ -273,7 +273,7 @@ function QueryResourceTreeContent({ queryBundle, engineId }: QueryResourceTreePr
                   operators={operators}
                   startTime={startTime}
                   durationSeconds={durationSeconds}
-                  height={DEFAULT_TIMELINE_HEIGHT * 1.2}
+                  height={DEFAULT_TIMELINE_HEIGHT}
                   isDark={isDark}
                 />
               );
@@ -327,6 +327,8 @@ function QueryResourceTreeContent({ queryBundle, engineId }: QueryResourceTreePr
           highlightedItemIds={highlightedItemIds}
           controlledExpandedIds={controlledExpandedIds}
           virtualized
+          // Estimate for virtualization
+          rowHeight={DEFAULT_TIMELINE_HEIGHT}
         />
       </div>
     </div>
