@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-import { useCallback, useEffect, useMemo, useRef } from 'react';
+import { useCallback, useEffect, useMemo } from 'react';
 import ReactEChartsComponent from 'echarts-for-react';
 
 import type { EChartsOption } from '../lib/echarts';
@@ -9,10 +9,10 @@ import type { EChartsInstance } from 'echarts-for-react';
 import type { CustomSeriesOption } from 'echarts/charts';
 import {
   nanosToMs,
-  connectChart,
   registerAxisPointerSync,
   unregisterAxisPointerSync,
 } from '../lib/timeline.utils';
+import { useChartConnect } from '../lib/useChartConnect';
 import { echarts } from '../lib/echarts';
 import { CHART_GROUP } from '../timeline/Timeline';
 import { useTimelineEchartsTheme } from '../timeline/timelineEchartsTheme';
@@ -23,7 +23,6 @@ import {
   useSetSelectedPlanId,
   useNodeColoringValue,
   useNodeColorPalette,
-  useZoomRange,
 } from '@quent/hooks';
 import { continuousColor, withOpacity } from '@quent/utils';
 import {
@@ -69,15 +68,6 @@ export function OperatorGanttChart({
   const [nodePalette] = useNodeColorPalette();
   const barLabelTextColor = textColor;
   const selectedNodeIds = useSelectedNodeIds();
-  const zoomRange = useZoomRange();
-  // Refs feed the latest persisted zoom into handleChartReady without re-creating
-  // the callback. Reading from refs lets us seed the chart's dataZoom on every
-  // (re)mount — including the simultaneous remount of all charts on a theme
-  // switch — directly from the zoomRangeAtom that React owns.
-  const zoomRangeRef = useRef(zoomRange);
-  zoomRangeRef.current = zoomRange;
-  const durationSecondsRef = useRef(durationSeconds);
-  durationSecondsRef.current = durationSeconds;
   const startTimeMs = useMemo(() => nanosToMs(startTime), [startTime]);
   const xAxisMax = useMemo(
     () => startTimeMs + durationSeconds * 1_000,
@@ -325,8 +315,6 @@ export function OperatorGanttChart({
     ]
   );
 
-  const instanceRef = useRef<EChartsInstance | null>(null);
-
   const handleClick = useMemo(
     () => ({
       click: (params: { dataIndex: number; seriesName?: string }) => {
@@ -348,16 +336,10 @@ export function OperatorGanttChart({
     [operators, selectedNodeIds, setSelectedNodeIds, setSelectedOperatorLabel, setSelectedPlanId]
   );
 
-  const handleChartReady = useCallback((instance: EChartsInstance) => {
-    instanceRef.current = instance;
-    // Join timeline-sync-group for frame-rate-level x-axis zoom sync via ECharts connect().
-    // The y-axis dataZoom (index 3, when present) has a unique component ID and does not
-    // propagate to resource timelines that have no matching component.
-    const dur = durationSecondsRef.current;
-    const range = zoomRangeRef.current;
-    const zoomPct =
-      dur > 0 ? { start: (range.start / dur) * 100, end: (range.end / dur) * 100 } : null;
-    connectChart(instance, CHART_GROUP, false, zoomPct);
+  // Join timeline-sync-group for frame-rate-level x-axis zoom sync via ECharts connect().
+  // The y-axis dataZoom (index 3, when present) has a unique component ID and does not
+  // propagate to resource timelines that have no matching component.
+  const onChartReady = useCallback((instance: EChartsInstance) => {
     registerAxisPointerSync(instance, 0, { receiveShowTip: false });
     const dom = instance.getDom();
     dom.addEventListener(
@@ -368,6 +350,12 @@ export function OperatorGanttChart({
       { capture: true, passive: false }
     );
   }, []);
+
+  const { handleChartReady, instanceRef } = useChartConnect({
+    durationSeconds,
+    chartGroup: CHART_GROUP,
+    onReady: onChartReady,
+  });
 
   useEffect(() => {
     return () => {

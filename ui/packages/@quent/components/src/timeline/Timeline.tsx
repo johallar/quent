@@ -27,7 +27,8 @@ import {
   ROLLUP_TIMELINE_COLOR_LIGHT,
   useTimelineEchartsTheme,
 } from './timelineEchartsTheme';
-import { connectChart, MIN_ZOOM_WINDOW_S, nanosToMs } from '../lib/timeline.utils';
+import { MIN_ZOOM_WINDOW_S, nanosToMs } from '../lib/timeline.utils';
+import { useChartConnect } from '../lib/useChartConnect';
 
 export const CHART_GROUP = 'timeline-sync-group';
 const DIMMED_OPACITY = 0.25;
@@ -59,15 +60,6 @@ export function Timeline({
   const zoomRange = useZoomRange();
   const windowMsRef = useRef(0);
   windowMsRef.current = (zoomRange.end - zoomRange.start) * 1000;
-
-  // Refs feed the latest persisted zoom into handleChartReady without re-creating
-  // the callback. Reading from refs lets us seed the chart's dataZoom on every
-  // (re)mount — including the simultaneous remount of all charts on a theme
-  // switch — directly from the zoomRangeAtom that React owns.
-  const zoomRangeRef = useRef(zoomRange);
-  zoomRangeRef.current = zoomRange;
-  const durationSecondsRef = useRef(durationSeconds);
-  durationSecondsRef.current = durationSeconds;
 
   const maxMarkCountRef = useRef(0);
 
@@ -335,17 +327,9 @@ export function Timeline({
     marks,
   ]);
 
-  const instanceRef = useRef<EChartsInstance | null>(null);
   const isDraggingRef = useRef(false);
 
-  const handleChartReady = useCallback((instance: EChartsInstance) => {
-    instanceRef.current = instance;
-    const dur = durationSecondsRef.current;
-    const range = zoomRangeRef.current;
-    const zoomPct =
-      dur > 0 ? { start: (range.start / dur) * 100, end: (range.end / dur) * 100 } : null;
-    connectChart(instance, CHART_GROUP, false, zoomPct);
-
+  const onChartReady = useCallback((instance: EChartsInstance) => {
     const dom = instance.getDom();
     dom.addEventListener('pointerdown', () => {
       isDraggingRef.current = true;
@@ -391,6 +375,12 @@ export function Timeline({
       { passive: false }
     );
   }, []);
+
+  const { handleChartReady } = useChartConnect({
+    durationSeconds,
+    chartGroup: CHART_GROUP,
+    onReady: onChartReady,
+  });
 
   return (
     <ReactEChartsComponent

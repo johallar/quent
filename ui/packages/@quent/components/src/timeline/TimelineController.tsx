@@ -11,7 +11,6 @@ import { formatDuration } from '@quent/utils';
 import type { ZoomRange } from '@quent/utils';
 import {
   buildBinnedTimelineSeries,
-  connectChart,
   getAdaptiveNumBins,
   getTimelineXAxisIntervalMs,
   MIN_ZOOM_WINDOW_S,
@@ -19,6 +18,7 @@ import {
   registerAxisPointerSync,
   unregisterAxisPointerSync,
 } from '../lib/timeline.utils';
+import { useChartConnect } from '../lib/useChartConnect';
 import { TIMELINE_X_AXIS_ANIMATION, TIMELINE_SPACING } from './types';
 import type { SingleTimelineResponse } from '@quent/utils';
 import { useTimelineEchartsTheme } from './timelineEchartsTheme';
@@ -291,7 +291,6 @@ export function TimelineController({
     };
   }, [onZoomChange, durationSeconds]);
 
-  const instanceRef = useRef<EChartsInstance | null>(null);
   const selfTriggeredRef = useRef(false);
   // Increments on every chart-ready event so the restore effect re-fires when
   // the underlying ECharts instance is recreated (e.g. on theme change, which
@@ -300,10 +299,17 @@ export function TimelineController({
   const [readyTick, setReadyTick] = useState(0);
 
   const zoomRange = useZoomRange();
-  const zoomRangeRef = useRef(zoomRange);
-  zoomRangeRef.current = zoomRange;
-  const durationSecondsRef = useRef(durationSeconds);
-  durationSecondsRef.current = durationSeconds;
+
+  const onChartReady = useCallback((instance: EChartsInstance) => {
+    registerAxisPointerSync(instance, 0);
+    setReadyTick(t => t + 1);
+  }, []);
+
+  const { handleChartReady, instanceRef } = useChartConnect({
+    durationSeconds,
+    activateBrushSelect: true,
+    onReady: onChartReady,
+  });
 
   // Restore the dataZoom slider position from the persisted atom whenever the
   // zoom range changes or a (re)created chart instance becomes ready. The
@@ -331,18 +337,7 @@ export function TimelineController({
       start: startPct,
       end: endPct,
     });
-  }, [readyTick, zoomRange, durationSeconds]);
-
-  const handleChartReady = useCallback((instance: EChartsInstance) => {
-    instanceRef.current = instance;
-    const dur = durationSecondsRef.current;
-    const range = zoomRangeRef.current;
-    const zoomPct =
-      dur > 0 ? { start: (range.start / dur) * 100, end: (range.end / dur) * 100 } : null;
-    connectChart(instance, undefined, true, zoomPct);
-    registerAxisPointerSync(instance, 0);
-    setReadyTick(t => t + 1);
-  }, []);
+  }, [readyTick, zoomRange, durationSeconds, instanceRef]);
 
   useEffect(() => {
     return () => {
@@ -351,7 +346,7 @@ export function TimelineController({
         instanceRef.current = null;
       }
     };
-  }, []);
+  }, [instanceRef]);
 
   return (
     <ReactEChartsComponent
