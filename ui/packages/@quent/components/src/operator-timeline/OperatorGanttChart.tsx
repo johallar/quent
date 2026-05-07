@@ -16,6 +16,7 @@ import {
 import { echarts } from '../lib/echarts';
 import { CHART_GROUP } from '../timeline/Timeline';
 import { useTimelineEchartsTheme } from '../timeline/timelineEchartsTheme';
+import { HiddenScroll } from '../ui/thin-scroll';
 import {
   useSelectedNodeIds,
   useSetSelectedNodeIds,
@@ -356,7 +357,7 @@ export function OperatorGanttChart({
   }
 
   return (
-    <div ref={wrapperRef} style={{ maxHeight: MAX_HEIGHT, overflowY: 'auto', overflowX: 'hidden' }}>
+    <HiddenScroll ref={wrapperRef} style={{ maxHeight: MAX_HEIGHT }}>
       <ReactEChartsComponent
         echarts={echarts}
         theme={themeName}
@@ -368,6 +369,6 @@ export function OperatorGanttChart({
         lazyUpdate={false}
         replaceMerge={['series']}
       />
-    </div>
+    </HiddenScroll>
   );
 }
