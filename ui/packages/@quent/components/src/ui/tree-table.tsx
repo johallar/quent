@@ -427,17 +427,39 @@ type TreeViewProps = React.HTMLAttributes<HTMLDivElement> & {
   defaultLeafIcon?: IconComponent;
   renderItem?: (params: TreeTableRenderItemParams) => React.ReactNode;
   highlightedItemIds?: Set<string>;
+  /**
+   * Required when `virtualized` is true: the scroll container whose `scrollTop`
+   * and `clientHeight` drive the visible row window.
+   */
   scrollContainerRef?: React.RefObject<HTMLDivElement | null>;
   /**
    * When provided, takes over expansion state for the whole tree. Pair with
    * `onExpandChange` to keep this set in sync with user interactions.
    */
   controlledExpandedIds?: Set<string>;
+  /**
+   * When true, the tree renders as a flat virtualized list driven by the
+   * supplied `scrollContainerRef`. When false (default), it renders as a
+   * recursive accordion that mounts every row at once.
+   */
+  virtualized?: boolean;
+  /**
+   * Estimated row height in pixels. Used by the virtualized renderer to
+   * compute the visible window and the spacer heights. Should match the
+   * actual rendered row height as closely as possible.
+   */
+  rowHeight?: number;
+  /**
+   * Number of extra rows to render above and below the visible window so
+   * scrolling doesn't reveal blank space before the next render. Only used
+   * when `virtualized` is true.
+   */
+  overscanRows?: number;
 };
 
 // Timeline rows render at ~75px; keep virtualization estimate aligned with actual row height.
-const TREE_ROW_HEIGHT = 75;
-const TREE_OVERSCAN_ROWS = 4;
+const DEFAULT_TREE_ROW_HEIGHT = 75;
+const DEFAULT_TREE_OVERSCAN_ROWS = 4;
 
 function normalizeTreeData(data: TreeTableDataItem[] | TreeTableDataItem): TreeTableDataItem[] {
   return data instanceof Array ? data : [data];
@@ -495,7 +517,7 @@ function flattenVisibleRows(items: TreeTableDataItem[], expandedIds: Set<string>
   return rows;
 }
 
-const TreeView = React.forwardRef<HTMLDivElement, TreeViewProps>(
+const VirtualizedTreeView = React.forwardRef<HTMLDivElement, TreeViewProps>(
   (
     {
       data,
@@ -510,6 +532,9 @@ const TreeView = React.forwardRef<HTMLDivElement, TreeViewProps>(
       highlightedItemIds,
       scrollContainerRef,
       controlledExpandedIds,
+      virtualized: _virtualized,
+      rowHeight = DEFAULT_TREE_ROW_HEIGHT,
+      overscanRows = DEFAULT_TREE_OVERSCAN_ROWS,
       ...props
     },
     ref
@@ -568,18 +593,16 @@ const TreeView = React.forwardRef<HTMLDivElement, TreeViewProps>(
 
     const { startIndex, endIndex, offsetTop, offsetBottom } = useMemo(() => {
       const totalRows = visibleRows.length;
-      const start = Math.max(Math.floor(scrollTop / TREE_ROW_HEIGHT) - TREE_OVERSCAN_ROWS, 0);
-      const maxVisible = Math.ceil(
-        (viewportHeight || totalRows * TREE_ROW_HEIGHT) / TREE_ROW_HEIGHT
-      );
-      const end = Math.min(totalRows, start + maxVisible + TREE_OVERSCAN_ROWS * 2);
+      const start = Math.max(Math.floor(scrollTop / rowHeight) - overscanRows, 0);
+      const maxVisible = Math.ceil((viewportHeight || totalRows * rowHeight) / rowHeight);
+      const end = Math.min(totalRows, start + maxVisible + overscanRows * 2);
       return {
         startIndex: start,
         endIndex: end,
-        offsetTop: start * TREE_ROW_HEIGHT,
-        offsetBottom: Math.max(0, (totalRows - end) * TREE_ROW_HEIGHT),
+        offsetTop: start * rowHeight,
+        offsetBottom: Math.max(0, (totalRows - end) * rowHeight),
       };
-    }, [visibleRows.length, scrollTop, viewportHeight]);
+    }, [visibleRows.length, scrollTop, viewportHeight, rowHeight, overscanRows]);
 
     const isControlled = controlledExpandedIds !== undefined;
 
@@ -603,7 +626,7 @@ const TreeView = React.forwardRef<HTMLDivElement, TreeViewProps>(
                   isHighlighted && 'bg-primary/10',
                   item.disabled && 'opacity-50 cursor-not-allowed pointer-events-none'
                 )}
-                style={{ minHeight: `${TREE_ROW_HEIGHT}px` }}
+                style={{ minHeight: `${rowHeight}px` }}
                 onClick={() => {
                   if (item.disabled) return;
                   handleSelectChange(item);
@@ -657,6 +680,76 @@ const TreeView = React.forwardRef<HTMLDivElement, TreeViewProps>(
     );
   }
 );
+VirtualizedTreeView.displayName = 'VirtualizedTreeView';
+
+const RecursiveTreeView = React.forwardRef<HTMLDivElement, TreeViewProps>(
+  (
+    {
+      data,
+      initialSelectedItemId,
+      onSelectChange,
+      onExpandChange,
+      expandAll,
+      defaultLeafIcon,
+      defaultNodeIcon,
+      className,
+      renderItem,
+      highlightedItemIds,
+      controlledExpandedIds,
+      // Virtualization-only props are not used here but should not leak onto
+      // the underlying DOM via {...props}.
+      scrollContainerRef: _scrollContainerRef,
+      virtualized: _virtualized,
+      rowHeight: _rowHeight,
+      overscanRows: _overscanRows,
+      ...props
+    },
+    ref
+  ) => {
+    const normalizedData = useMemo(() => normalizeTreeData(data), [data]);
+    const [selectedItemId, setSelectedItemId] = useState<string | undefined>(initialSelectedItemId);
+
+    const expandedItemIdsArray = useMemo(
+      () => Array.from(collectInitialExpandedIds(normalizedData, initialSelectedItemId, expandAll)),
+      [normalizedData, initialSelectedItemId, expandAll]
+    );
+
+    const handleSelectChange = useCallback(
+      (item: TreeTableDataItem | undefined) => {
+        setSelectedItemId(item?.id);
+        onSelectChange?.(item);
+      },
+      [onSelectChange]
+    );
+
+    return (
+      <div className={cn('overflow-hidden relative bg-transparent w-full min-w-0', className)}>
+        <TreeItem
+          ref={ref}
+          data={normalizedData}
+          selectedItemId={selectedItemId}
+          handleSelectChange={handleSelectChange}
+          expandedItemIds={expandedItemIdsArray}
+          controlledExpandedIds={controlledExpandedIds}
+          defaultLeafIcon={defaultLeafIcon}
+          defaultNodeIcon={defaultNodeIcon}
+          renderItem={renderItem}
+          onExpandChange={onExpandChange}
+          highlightedItemIds={highlightedItemIds}
+          {...props}
+        />
+      </div>
+    );
+  }
+);
+RecursiveTreeView.displayName = 'RecursiveTreeView';
+
+const TreeView = React.forwardRef<HTMLDivElement, TreeViewProps>((props, ref) => {
+  if (props.virtualized) {
+    return <VirtualizedTreeView ref={ref} {...props} />;
+  }
+  return <RecursiveTreeView ref={ref} {...props} />;
+});
 TreeView.displayName = 'TreeView';
 
 export type ColumnComponent<I> = ({

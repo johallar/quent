@@ -326,6 +326,7 @@ function QueryResourceTreeContent({ queryBundle, engineId }: QueryResourceTreePr
           onExpandChange={onExpandChange}
           highlightedItemIds={highlightedItemIds}
           controlledExpandedIds={controlledExpandedIds}
+          virtualized
         />
       </div>
     </div>
