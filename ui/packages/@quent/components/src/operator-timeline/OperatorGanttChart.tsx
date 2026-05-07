@@ -23,6 +23,7 @@ import {
   useSetSelectedPlanId,
   useNodeColoringValue,
   useNodeColorPalette,
+  useZoomRange,
 } from '@quent/hooks';
 import { continuousColor, withOpacity } from '@quent/utils';
 import {
@@ -68,6 +69,15 @@ export function OperatorGanttChart({
   const [nodePalette] = useNodeColorPalette();
   const barLabelTextColor = textColor;
   const selectedNodeIds = useSelectedNodeIds();
+  const zoomRange = useZoomRange();
+  // Refs feed the latest persisted zoom into handleChartReady without re-creating
+  // the callback. Reading from refs lets us seed the chart's dataZoom on every
+  // (re)mount — including the simultaneous remount of all charts on a theme
+  // switch — directly from the zoomRangeAtom that React owns.
+  const zoomRangeRef = useRef(zoomRange);
+  zoomRangeRef.current = zoomRange;
+  const durationSecondsRef = useRef(durationSeconds);
+  durationSecondsRef.current = durationSeconds;
   const startTimeMs = useMemo(() => nanosToMs(startTime), [startTime]);
   const xAxisMax = useMemo(
     () => startTimeMs + durationSeconds * 1_000,
@@ -343,7 +353,11 @@ export function OperatorGanttChart({
     // Join timeline-sync-group for frame-rate-level x-axis zoom sync via ECharts connect().
     // The y-axis dataZoom (index 3, when present) has a unique component ID and does not
     // propagate to resource timelines that have no matching component.
-    connectChart(instance, CHART_GROUP, false);
+    const dur = durationSecondsRef.current;
+    const range = zoomRangeRef.current;
+    const zoomPct =
+      dur > 0 ? { start: (range.start / dur) * 100, end: (range.end / dur) * 100 } : null;
+    connectChart(instance, CHART_GROUP, false, zoomPct);
     registerAxisPointerSync(instance, 0, { receiveShowTip: false });
     const dom = instance.getDom();
     dom.addEventListener(

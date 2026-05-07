@@ -98,7 +98,6 @@ export {
   buildTimelineMarks,
   collectVisibleEntries,
   getAdaptiveNumBins,
-  getChartGroupZoomState,
   getFsmTypeName,
   getLongEntitiesThreshold,
   getLongFsms,

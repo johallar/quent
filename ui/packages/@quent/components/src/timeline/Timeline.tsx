@@ -60,6 +60,15 @@ export function Timeline({
   const windowMsRef = useRef(0);
   windowMsRef.current = (zoomRange.end - zoomRange.start) * 1000;
 
+  // Refs feed the latest persisted zoom into handleChartReady without re-creating
+  // the callback. Reading from refs lets us seed the chart's dataZoom on every
+  // (re)mount — including the simultaneous remount of all charts on a theme
+  // switch — directly from the zoomRangeAtom that React owns.
+  const zoomRangeRef = useRef(zoomRange);
+  zoomRangeRef.current = zoomRange;
+  const durationSecondsRef = useRef(durationSeconds);
+  durationSecondsRef.current = durationSeconds;
+
   const maxMarkCountRef = useRef(0);
 
   const seriesOptions = useMemo(() => {
@@ -331,7 +340,11 @@ export function Timeline({
 
   const handleChartReady = useCallback((instance: EChartsInstance) => {
     instanceRef.current = instance;
-    connectChart(instance, CHART_GROUP, false);
+    const dur = durationSecondsRef.current;
+    const range = zoomRangeRef.current;
+    const zoomPct =
+      dur > 0 ? { start: (range.start / dur) * 100, end: (range.end / dur) * 100 } : null;
+    connectChart(instance, CHART_GROUP, false, zoomPct);
 
     const dom = instance.getDom();
     dom.addEventListener('pointerdown', () => {

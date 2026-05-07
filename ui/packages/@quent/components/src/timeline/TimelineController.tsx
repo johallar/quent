@@ -293,17 +293,24 @@ export function TimelineController({
 
   const instanceRef = useRef<EChartsInstance | null>(null);
   const selfTriggeredRef = useRef(false);
-  const [chartReady, setChartReady] = useState(false);
+  // Increments on every chart-ready event so the restore effect re-fires when
+  // the underlying ECharts instance is recreated (e.g. on theme change, which
+  // disposes and re-creates the chart and would otherwise leave the new
+  // instance at its default 0–100% zoom).
+  const [readyTick, setReadyTick] = useState(0);
 
   const zoomRange = useZoomRange();
+  const zoomRangeRef = useRef(zoomRange);
+  zoomRangeRef.current = zoomRange;
+  const durationSecondsRef = useRef(durationSeconds);
+  durationSecondsRef.current = durationSeconds;
 
-  // Restore the dataZoom slider position from the persisted atom whenever
-  // either the zoom range changes or the chart instance becomes ready.
-  // Gating on `chartReady` is required so that on remount (e.g. tab switch
-  // back to /timeline) the saved zoom is re-applied after `handleChartReady`
-  // sets `instanceRef.current`.
+  // Restore the dataZoom slider position from the persisted atom whenever the
+  // zoom range changes or a (re)created chart instance becomes ready. The
+  // `readyTick` dependency ensures recreated instances inherit the saved zoom
+  // even when the atom value itself is unchanged across the remount.
   useEffect(() => {
-    if (!chartReady) return;
+    if (readyTick === 0) return;
     if (selfTriggeredRef.current) {
       selfTriggeredRef.current = false;
       return;
@@ -314,19 +321,27 @@ export function TimelineController({
     const startPct = (zoomRange.start / durationSeconds) * 100;
     const endPct = (zoomRange.end / durationSeconds) * 100;
 
+    // Mute the dataZoom event our own dispatch is about to emit, so the
+    // recreated chart's initial restore doesn't echo back through onZoomChange
+    // and overwrite the atom (which would visibly snap the bounds back).
+    selfTriggeredRef.current = true;
     instance.dispatchAction({
       type: 'dataZoom',
       dataZoomIndex: 0,
       start: startPct,
       end: endPct,
     });
-  }, [chartReady, zoomRange, durationSeconds]);
+  }, [readyTick, zoomRange, durationSeconds]);
 
   const handleChartReady = useCallback((instance: EChartsInstance) => {
     instanceRef.current = instance;
-    connectChart(instance);
+    const dur = durationSecondsRef.current;
+    const range = zoomRangeRef.current;
+    const zoomPct =
+      dur > 0 ? { start: (range.start / dur) * 100, end: (range.end / dur) * 100 } : null;
+    connectChart(instance, undefined, true, zoomPct);
     registerAxisPointerSync(instance, 0);
-    setChartReady(true);
+    setReadyTick(t => t + 1);
   }, []);
 
   useEffect(() => {
