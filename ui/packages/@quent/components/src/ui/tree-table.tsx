@@ -437,7 +437,7 @@ type TreeViewProps = React.HTMLAttributes<HTMLDivElement> & {
 
 // Timeline rows render at ~75px; keep virtualization estimate aligned with actual row height.
 const TREE_ROW_HEIGHT = 75;
-const TREE_OVERSCAN_ROWS = 6;
+const TREE_OVERSCAN_ROWS = 4;
 
 function normalizeTreeData(data: TreeTableDataItem[] | TreeTableDataItem): TreeTableDataItem[] {
   return data instanceof Array ? data : [data];

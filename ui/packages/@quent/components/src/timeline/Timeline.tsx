@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-import { useCallback, useMemo, useRef, useEffect } from 'react';
+import { useCallback, useMemo, useRef, useEffect, useState } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import ReactEChartsComponent from 'echarts-for-react';
 import { echarts } from '../lib/echarts';
@@ -229,6 +229,25 @@ export function Timeline({
   minZoomSpanPctRef.current = minZoomSpanPct;
   const atZoomLimitRef = useRef(false);
 
+  // Seed the chart's dataZoom from the controller on the first option build so
+  // the chart paints already aligned with the active zoom — without this a
+  // freshly-mounted (e.g. just-virtualized-into-view) chart paints at 0/100
+  // and then snaps to the real range once `connectChart` dispatches a zoom
+  // action, which produces a visible "data crammed into a slice" flash.
+  // After mount we omit start/end so chart-group sync (echarts.connect /
+  // controller-driven dispatchAction) is the sole source of truth.
+  const [hasMounted, setHasMounted] = useState(false);
+  useEffect(() => {
+    setHasMounted(true);
+  }, []);
+
+  const initialZoomPct = useMemo(() => {
+    if (hasMounted || durationSeconds <= 0) return null;
+    const start = (zoomRange.start / durationSeconds) * 100;
+    const end = (zoomRange.end / durationSeconds) * 100;
+    return { start, end };
+  }, [hasMounted, durationSeconds, zoomRange]);
+
   const eChartOptions: EChartsOption = useMemo(() => {
     return {
       animation: false,
@@ -294,6 +313,7 @@ export function Timeline({
           realtime: true,
           filterMode: 'none',
           minSpan: minZoomSpanPct,
+          ...(initialZoomPct ?? {}),
         },
         {
           type: 'inside',
@@ -324,6 +344,7 @@ export function Timeline({
     startTime,
     series,
     marks,
+    initialZoomPct,
   ]);
 
   const instanceRef = useRef<EChartsInstance | null>(null);
