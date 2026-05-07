@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import React, { useEffect, useLayoutEffect, useMemo, useRef, useState, useCallback } from 'react';
+import { useVirtualizer } from '@tanstack/react-virtual';
 import * as AccordionPrimitive from '@radix-ui/react-accordion';
 import { ChevronRight } from 'lucide-react';
 import { cva } from 'class-variance-authority';
@@ -544,8 +545,6 @@ const VirtualizedTreeView = React.forwardRef<HTMLDivElement, TreeViewProps>(
     const [expandedIds, setExpandedIds] = useState<Set<string>>(() =>
       collectInitialExpandedIds(normalizedData, initialSelectedItemId, expandAll)
     );
-    const [scrollTop, setScrollTop] = useState(0);
-    const [viewportHeight, setViewportHeight] = useState(0);
 
     const handleSelectChange = useCallback(
       (item: TreeTableDataItem | undefined) => {
@@ -567,50 +566,33 @@ const VirtualizedTreeView = React.forwardRef<HTMLDivElement, TreeViewProps>(
     }, [initialExpandedIds]);
 
     const effectiveExpandedIds = controlledExpandedIds ?? expandedIds;
+    const isControlled = controlledExpandedIds !== undefined;
 
     const visibleRows = useMemo(
       () => flattenVisibleRows(normalizedData, effectiveExpandedIds),
       [normalizedData, effectiveExpandedIds]
     );
 
-    useEffect(() => {
-      const scroller = scrollContainerRef?.current;
-      if (!scroller) return;
+    const rowVirtualizer = useVirtualizer({
+      count: visibleRows.length,
+      getScrollElement: () => scrollContainerRef?.current ?? null,
+      estimateSize: () => rowHeight,
+      overscan: overscanRows,
+    });
 
-      const sync = () => {
-        setScrollTop(scroller.scrollTop);
-        setViewportHeight(scroller.clientHeight);
-      };
-
-      sync();
-      scroller.addEventListener('scroll', sync, { passive: true });
-      window.addEventListener('resize', sync, { passive: true });
-      return () => {
-        scroller.removeEventListener('scroll', sync);
-        window.removeEventListener('resize', sync);
-      };
-    }, [scrollContainerRef]);
-
-    const { startIndex, endIndex, offsetTop, offsetBottom } = useMemo(() => {
-      const totalRows = visibleRows.length;
-      const start = Math.max(Math.floor(scrollTop / rowHeight) - overscanRows, 0);
-      const maxVisible = Math.ceil((viewportHeight || totalRows * rowHeight) / rowHeight);
-      const end = Math.min(totalRows, start + maxVisible + overscanRows * 2);
-      return {
-        startIndex: start,
-        endIndex: end,
-        offsetTop: start * rowHeight,
-        offsetBottom: Math.max(0, (totalRows - end) * rowHeight),
-      };
-    }, [visibleRows.length, scrollTop, viewportHeight, rowHeight, overscanRows]);
-
-    const isControlled = controlledExpandedIds !== undefined;
+    const virtualItems = rowVirtualizer.getVirtualItems();
 
     return (
       <div className={cn('overflow-hidden relative bg-transparent w-full min-w-0', className)}>
-        <div ref={ref} role="tree" {...props}>
-          <div style={{ height: `${offsetTop}px` }} />
-          {visibleRows.slice(startIndex, endIndex).map(({ item, level, hasChildren, isOpen }) => {
+        {/* Total-height sentinel tells the scroll container the real content height */}
+        <div
+          ref={ref}
+          role="tree"
+          style={{ height: `${rowVirtualizer.getTotalSize()}px`, position: 'relative' }}
+          {...props}
+        >
+          {virtualItems.map(virtualRow => {
+            const { item, level, hasChildren, isOpen } = visibleRows[virtualRow.index]!;
             const isSelected = selectedItemId === item.id;
             const isHighlighted = highlightedItemIds?.has(item.id) ?? false;
             const chevronTransform = isOpen ? 'translateY(-50%) rotate(90deg)' : 'translateY(-50%)';
@@ -619,14 +601,25 @@ const VirtualizedTreeView = React.forwardRef<HTMLDivElement, TreeViewProps>(
             return (
               <div
                 key={item.id}
+                data-index={virtualRow.index}
+                ref={rowVirtualizer.measureElement}
                 className={cn(
-                  `relative flex text-left items-center text-foreground w-full min-w-0 px-0 outline-none ${rowSurfaceClasses}`,
+                  `flex text-left items-center text-foreground w-full min-w-0 px-0 outline-none ${rowSurfaceClasses}`,
                   treeVariants(),
                   isSelected && selectedTreeVariants(),
                   isHighlighted && 'bg-primary/10',
                   item.disabled && 'opacity-50 cursor-not-allowed pointer-events-none'
                 )}
-                style={{ minHeight: `${rowHeight}px` }}
+                style={{
+                  // Inline position overrides the `relative` in rowSurfaceClasses
+                  // so Tailwind's stylesheet order cannot flip us back to flow layout.
+                  position: 'absolute',
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  minHeight: `${rowHeight}px`,
+                  transform: `translateY(${virtualRow.start}px)`,
+                }}
                 onClick={() => {
                   if (item.disabled) return;
                   handleSelectChange(item);
@@ -656,7 +649,6 @@ const VirtualizedTreeView = React.forwardRef<HTMLDivElement, TreeViewProps>(
                     }}
                   />
                 ) : (
-                  // Match pre-virtualized leaf spacing: fixed placeholder width, no extra level shift.
                   <div className="w-6 shrink-0" />
                 )}
                 <div className={cn(hasChildren ? 'ml-6' : '', 'flex-1 min-w-0 overflow-hidden')}>
@@ -674,7 +666,6 @@ const VirtualizedTreeView = React.forwardRef<HTMLDivElement, TreeViewProps>(
               </div>
             );
           })}
-          <div style={{ height: `${offsetBottom}px` }} />
         </div>
       </div>
     );
