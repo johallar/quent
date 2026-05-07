@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+// SPDX-License-Identifier: Apache-2.0
+
 //! Exporter sending events to a Collector service
 
 use quent_collector_client::Client;
@@ -6,6 +9,10 @@ use quent_exporter_types::{Exporter, ExporterError, ExporterResult};
 use serde::Serialize;
 use uuid::Uuid;
 
+/// Options for the collector exporter.
+///
+/// Streams events over gRPC to a remote collector service. Use this for
+/// distributed deployments where events are centralized for analysis.
 #[derive(Debug, Default, Clone)]
 pub struct CollectorExporterOptions {
     pub address: String,
@@ -18,7 +25,7 @@ pub struct CollectorExporter<T> {
 
 impl<T> CollectorExporter<T>
 where
-    T: Serialize + Send + std::fmt::Debug + 'static,
+    T: Serialize + Send + 'static,
 {
     pub async fn try_new(
         application_id: Uuid,
@@ -32,7 +39,7 @@ where
 #[async_trait::async_trait]
 impl<T> Exporter<T> for CollectorExporter<T>
 where
-    T: Serialize + Send + std::fmt::Debug + 'static,
+    T: Serialize + Send + 'static,
 {
     async fn push(&self, event: Event<T>) -> ExporterResult<()> {
         self.client

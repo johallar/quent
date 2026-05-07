@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+// SPDX-License-Identifier: Apache-2.0
+
 import { useMatch, useNavigate } from '@tanstack/react-router';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { ChevronDown, ChevronRight } from 'lucide-react';
@@ -6,10 +9,15 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
-import { cn } from '@/lib/utils';
-import { queryBundleQueryOptions } from '@/hooks/useQueryBundle';
-import { fetchListEngines, fetchListCoordinators, fetchListQueries } from '@/services/api';
+} from '@quent/components';
+import { cn } from '@quent/utils';
+import {
+  queryBundleQueryOptions,
+  fetchListEngines,
+  fetchListCoordinators,
+  fetchListQueries,
+} from '@quent/client';
+import { DataText } from '@quent/components';
 
 function BreadcrumbDropdown({
   label,
@@ -26,7 +34,7 @@ function BreadcrumbDropdown({
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <button className="flex items-center gap-0.5 px-1.5 py-0.5 -mx-1.5 rounded-sm hover:text-foreground hover:bg-accent transition-colors cursor-pointer">
-          {label}
+          <DataText>{label}</DataText>
           <ChevronDown className="h-3 w-3 opacity-50" />
         </button>
       </DropdownMenuTrigger>
@@ -37,7 +45,7 @@ function BreadcrumbDropdown({
             onSelect={() => onSelect(item.id)}
             className={cn(item.id === activeId && 'font-semibold bg-accent')}
           >
-            {item.label}
+            <DataText>{item.label}</DataText>
           </DropdownMenuItem>
         ))}
         {(!items || items.length === 0) && <DropdownMenuItem disabled>No items</DropdownMenuItem>}
@@ -50,17 +58,15 @@ export function NavBarNavigator() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
-  const queryIndexMatch = useMatch({
-    from: '/profile/engine/$engineId/query/$queryId/',
-    shouldThrow: false,
-  });
-  const queryNodeMatch = useMatch({
-    from: '/profile/engine/$engineId/query/$queryId/node/$nodeId',
+  // Match the layout route — satisfied by any child route (timeline, operators,
+  // node/$nodeId, index, …) without needing a per-leaf match here.
+  const queryLayoutMatch = useMatch({
+    from: '/profile/engine/$engineId/query/$queryId',
     shouldThrow: false,
   });
 
-  const engineId = queryIndexMatch?.params?.engineId ?? queryNodeMatch?.params?.engineId;
-  const queryId = queryIndexMatch?.params?.queryId ?? queryNodeMatch?.params?.queryId;
+  const engineId = queryLayoutMatch?.params?.engineId;
+  const queryId = queryLayoutMatch?.params?.queryId;
 
   const { data: queryBundle } = useQuery({
     ...queryBundleQueryOptions({ engineId: engineId ?? '', queryId: queryId ?? '' }),

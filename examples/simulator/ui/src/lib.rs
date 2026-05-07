@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+// SPDX-License-Identifier: Apache-2.0
+
 //! Types shared with the UI.
 
 use quent_analyzer::EntityId;
@@ -29,12 +32,12 @@ impl EntityId for EntityRef {
     }
 }
 
-#[derive(TS, Debug, Clone, Serialize, Deserialize)]
+#[derive(TS, Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct TaskFilter {
     pub operator_id: Option<Uuid>,
 }
 
-#[derive(TS, Debug, Clone, Serialize, Deserialize)]
+#[derive(TS, Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct QueryFilter {
     pub query_id: Uuid,
 }

@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+// SPDX-License-Identifier: Apache-2.0
+
 //! Umbrella crate providing unified exporter/importer creation.
 
 use std::sync::Arc;
@@ -74,7 +77,7 @@ pub async fn create_exporter<T>(
     application_id: Uuid,
 ) -> ExporterResult<Arc<dyn Exporter<T>>>
 where
-    T: Serialize + Send + std::fmt::Debug + 'static,
+    T: Serialize + Send + 'static,
 {
     match kind {
         #[cfg(feature = "ndjson")]

@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+// SPDX-License-Identifier: Apache-2.0
+
 //! FSM-related functionality
 
 use quent_attributes::Attribute;
@@ -10,9 +13,10 @@ use ts_rs::TS;
 use crate::{AnalyzerResult, Entity, Span, error::AnalyzerError, resource::Usage};
 
 pub mod collection;
+pub mod events;
 pub mod runtime;
 
-/// Trait for types that represent an [`Fsm`] [`State`] transition.
+/// Trait for types that represent an [`Fsm`] `State` transition.
 pub trait Transition: Timestamp {
     /// Return the unique name of the state this transition leads to.
     fn name(&self) -> &str;
@@ -85,7 +89,7 @@ pub trait FsmUsages<'a>: Fsm {
 
 impl<U> Span for U
 where
-    U: Fsm + std::fmt::Debug,
+    U: Fsm,
 {
     fn span(&self) -> AnalyzerResult<SpanUnixNanoSec> {
         if let Some(start) = self.first().map(|s| s.span().start())
@@ -94,7 +98,9 @@ where
             Ok(SpanUnixNanoSec::try_new(start, end)?)
         } else {
             Err(AnalyzerError::IncompleteEntity(format!(
-                "fsm is incomplete: {self:?}"
+                "fsm '{}' (id={}) is incomplete",
+                self.type_name(),
+                self.id()
             )))
         }
     }

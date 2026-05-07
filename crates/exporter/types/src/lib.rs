@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+// SPDX-License-Identifier: Apache-2.0
+
 //! Basic traits for exporter / importer implementations
 
 use quent_events::Event;
@@ -26,7 +29,7 @@ pub type ExporterResult<T> = std::result::Result<T, ExporterError>;
 pub type ImporterResult<T> = std::result::Result<T, ImporterError>;
 
 #[async_trait::async_trait]
-pub trait Exporter<T>: Send + Sync + std::fmt::Debug
+pub trait Exporter<T>: Send + Sync
 where
     T: Serialize + Send,
 {

@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+// SPDX-License-Identifier: Apache-2.0
+
 use quent_events::Event;
 pub use quent_query_engine_analyzer::QueryEngineModel;
 use quent_query_engine_analyzer::ui::UiAnalyzer;
@@ -29,14 +32,14 @@ use quent_analyzer::{
         ResourceTimelineByKeyBuilder,
     },
 };
-use quent_simulator_events::SimulatorEvent;
+use quent_simulator_instrumentation::SimulatorEvent;
 use quent_simulator_ui::{EntityRef, QueryFilter, TaskFilter};
 use quent_time::{SpanNanoSec, TimeNanoSec, TimeUnixNanoSec, to_nanosecs, to_secs};
 use uuid::Uuid;
 
 use crate::{
     model::{SimulatorModel, SimulatorModelBuilder},
-    task::Task,
+    task::{Task, TaskExt},
 };
 
 pub mod model;
@@ -57,21 +60,19 @@ impl UiAnalyzer for SimulatorUiAnalyzer {
         engine_id: Uuid,
         events: impl Iterator<Item = Event<SimulatorEvent>>,
     ) -> AnalyzerResult<quent_query_engine_ui::Engine> {
-        use quent_query_engine_events::{QueryEngineEvent, engine::EngineEvent};
+        use quent_query_engine_model::engine::EngineEvent;
         for event in events {
-            if let SimulatorEvent::QueryEngineEvent(QueryEngineEvent::Engine(EngineEvent::Init(
-                init,
-            ))) = event.data
-            {
+            if let SimulatorEvent::Engine(EngineEvent::Init(init)) = event.data {
                 return Ok(quent_query_engine_ui::Engine {
                     id: engine_id,
                     start_time_unix_ns: Some(event.timestamp),
                     duration_s: None,
                     instance_name: init.instance_name,
-                    implementation: init
-                        .implementation
-                        .as_ref()
-                        .map(quent_query_engine_ui::EngineImplementationAttributes::from),
+                    implementation: Some(
+                        quent_query_engine_ui::EngineImplementationAttributes::from(
+                            &init.implementation,
+                        ),
+                    ),
                 });
             }
         }
@@ -125,7 +126,13 @@ impl UiAnalyzer for SimulatorUiAnalyzer {
 
         debug!("converting query engine model entities");
         let engine = view.engine()?.to_ui()?;
-        let query_group = view.query_group(query.query_group_id)?.to_ui();
+        let query_group_id = query.query_group_id().ok_or_else(|| {
+            quent_analyzer::AnalyzerError::IncompleteEntity(format!(
+                "query {} has no query_group_id",
+                query_id
+            ))
+        })?;
+        let query_group = view.query_group(query_group_id)?.to_ui();
         let query = query.to_ui()?;
         let workers = view.workers().map(|w| (w.id(), w.to_ui(epoch))).collect();
         let plans = view.plans().map(|p| (p.id(), p.to_ui())).collect();
@@ -133,7 +140,7 @@ impl UiAnalyzer for SimulatorUiAnalyzer {
         let ports = view.ports().map(|p| (p.id(), p.to_ui(epoch))).collect();
         let unique_operator_names = view
             .operators()
-            .filter_map(|v| v.operator_type_name.clone())
+            .filter_map(|v| v.operator_type_name().map(|s| s.to_owned()))
             .collect::<HashSet<_>>()
             .into_iter()
             .collect();
@@ -203,7 +210,7 @@ impl UiAnalyzer for SimulatorUiAnalyzer {
             resource_tree,
             unique_operator_names,
             quantity_specs: [
-                ("bytes".into(), QuantitySpec::bytes()),
+                ("capacity_bytes".into(), QuantitySpec::bytes()),
                 ("unit".into(), QuantitySpec::unit()),
             ]
             .into(),

@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+// SPDX-License-Identifier: Apache-2.0
+
 //! Support for custom attributes defined at run-time.
 
 use serde::{Deserialize, Serialize};
@@ -41,7 +44,7 @@ pub enum Value {
     U16(u16),
     U32(u32),
     U64(u64),
-    I8(u8),
+    I8(i8),
     I16(i16),
     I32(i32),
     I64(i64),
@@ -104,7 +107,7 @@ impl Attribute {
     pub fn i8(key: impl Into<String>, value: i8) -> Self {
         Self {
             key: key.into(),
-            value: Some(Value::I8(value as u8)),
+            value: Some(Value::I8(value)),
         }
     }
 
@@ -170,6 +173,70 @@ impl Attribute {
             key: key.into(),
             value: Some(Value::List(value)),
         }
+    }
+}
+
+/// A collection of custom key-value attributes.
+///
+/// Used in model definitions for fields that carry arbitrary runtime metadata.
+/// The CXX bridge codegen emits this as a shared struct with typed vectors.
+#[derive(Clone, Debug, Default, Deserialize, Serialize, PartialEq)]
+#[serde(transparent)]
+pub struct CustomAttributes(pub Vec<Attribute>);
+
+impl CustomAttributes {
+    pub fn new() -> Self {
+        Self(Vec::new())
+    }
+
+    pub fn add(&mut self, attr: Attribute) {
+        self.0.push(attr);
+    }
+
+    pub fn add_string(&mut self, key: impl Into<String>, value: impl Into<String>) {
+        self.0.push(Attribute::string(key, value));
+    }
+
+    pub fn add_u64(&mut self, key: impl Into<String>, value: u64) {
+        self.0.push(Attribute::u64(key, value));
+    }
+
+    pub fn add_i64(&mut self, key: impl Into<String>, value: i64) {
+        self.0.push(Attribute::i64(key, value));
+    }
+
+    pub fn add_f64(&mut self, key: impl Into<String>, value: f64) {
+        self.0.push(Attribute::f64(key, value));
+    }
+
+    pub fn add_bool(&mut self, key: impl Into<String>, value: bool) {
+        self.0.push(Attribute {
+            key: key.into(),
+            value: Some(if value { Value::U8(1) } else { Value::U8(0) }),
+        });
+    }
+
+    pub fn into_vec(self) -> Vec<Attribute> {
+        self.0
+    }
+}
+
+impl std::ops::Deref for CustomAttributes {
+    type Target = Vec<Attribute>;
+    fn deref(&self) -> &Vec<Attribute> {
+        &self.0
+    }
+}
+
+impl From<Vec<Attribute>> for CustomAttributes {
+    fn from(v: Vec<Attribute>) -> Self {
+        Self(v)
+    }
+}
+
+impl From<CustomAttributes> for Vec<Attribute> {
+    fn from(v: CustomAttributes) -> Self {
+        v.0
     }
 }
 

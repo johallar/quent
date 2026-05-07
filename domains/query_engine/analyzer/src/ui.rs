@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+// SPDX-License-Identifier: Apache-2.0
+
 use quent_analyzer::AnalyzerResult;
 use quent_events::Event;
 use quent_query_engine_ui as ui;
@@ -40,7 +43,7 @@ pub trait UiAnalyzer {
     where
         Self: Sized;
 
-    /// Deliver a UI-friendly [`QueryBundle`] with all high-level yet
+    /// Deliver a UI-friendly `QueryBundle` with all high-level yet
     /// non-volumous information related to this query.
     fn query_bundle(&self, query_id: Uuid) -> AnalyzerResult<ui::QueryBundle<Self::EntityRef>>;
 

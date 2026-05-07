@@ -1,8 +1,11 @@
+// SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+// SPDX-License-Identifier: Apache-2.0
+
 //! Types shared with the UI.
 
 use quent_analyzer::fsm::FsmTypeDecl;
 use quent_attributes::{Attribute, Value};
-use quent_query_engine_events as qe;
+use quent_query_engine_model as qe;
 use quent_time::{SpanSec, TimeSec, TimeUnixNanoSec};
 use quent_ui::{
     Resource, ResourceGroup, ResourceGroupTypeDecl, ResourceTree, ResourceTypeDecl,
@@ -29,7 +32,7 @@ impl From<&qe::engine::EngineImplementationAttributes> for EngineImplementationA
         Self {
             name: value.name.clone(),
             version: value.version.clone(),
-            custom_attributes: value.custom_attributes.clone(),
+            custom_attributes: value.custom_attributes.0.clone(),
         }
     }
 }
@@ -81,7 +84,7 @@ pub struct QueryGroup {
 pub struct Query {
     /// The ID of this [`Query`].
     pub id: Uuid,
-    /// The ID of the [`super::query_group::QueryGroup`] this query is part of.
+    /// The ID of the `QueryGroup` this query is part of.
     pub query_group_id: Uuid,
     /// A name for this [`Query`].
     pub instance_name: Option<String>,
@@ -136,7 +139,7 @@ pub struct Plan {
     pub instance_name: Option<String>,
     /// The ID of the parent [`Plan`], if any.
     pub parent: Option<Uuid>,
-    /// The ID of the [`super::worker::Worker`] that executed this [`Plan`].
+    /// The ID of the `Worker` that executed this [`Plan`].
     ///
     /// If this level of [`Plan`] was not directly executed by a [`Worker`],
     /// then this is set to None.

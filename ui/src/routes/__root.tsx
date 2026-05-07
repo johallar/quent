@@ -1,16 +1,19 @@
+// SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+// SPDX-License-Identifier: Apache-2.0
+
 import { createRootRoute, Link, Outlet, useRouterState } from '@tanstack/react-router';
 import { TanStackRouterDevtools } from '@tanstack/router-devtools';
 import { ThemeProvider } from '@/contexts/ThemeContext';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { NavBarNavigator } from '@/components/NavBarNavigator';
-import { Button } from '@/components/ui/button';
+import { Button } from '@quent/components';
 import {
   NavigationMenu,
   NavigationMenuList,
   NavigationMenuItem,
   NavigationMenuLink,
-} from '@/components/ui/navigation-menu';
-import { cn } from '@/lib/utils';
+} from '@quent/components';
+import { cn } from '@quent/utils';
 
 function RootComponent() {
   const routerState = useRouterState();
@@ -30,8 +33,8 @@ function RootComponent() {
           <nav className="sticky top-0 z-50 w-full border-b bg-card shadow-sm">
             <div className="w-full flex h-16 items-center justify-between px-4 sm:px-6 lg:px-8">
               <div className="flex items-center gap-3">
-                <h1 className="text-2xl font-bold text-primary">
-                  PACHA <span className="font-extralight">UI</span>
+                <h1 className="text-2xl font-semibold text-primary">
+                  QUENT <span className="font-light text-muted-foreground">UI</span>
                 </h1>
               </div>
               <div className="flex-1 flex items-center justify-center">
@@ -65,7 +68,7 @@ function RootComponent() {
           </main>
         </div>
       </ThemeProvider>
-      {import.meta.env.DEV && !import.meta.env.TEST && <TanStackRouterDevtools />}
+      {import.meta.env.VITE_DEBUG && !import.meta.env.TEST && <TanStackRouterDevtools />}
     </>
   );
 }
