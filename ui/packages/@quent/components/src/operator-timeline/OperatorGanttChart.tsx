@@ -8,11 +8,11 @@ import type { EChartsOption } from '../lib/echarts';
 import type { EChartsInstance } from 'echarts-for-react';
 import type { CustomSeriesOption } from 'echarts/charts';
 import {
-  connectChart,
   nanosToMs,
   registerAxisPointerSync,
   unregisterAxisPointerSync,
 } from '../lib/timeline.utils';
+import { useChartConnect } from '../lib/useChartConnect';
 import { echarts } from '../lib/echarts';
 import { CHART_GROUP } from '../timeline/Timeline';
 import { useTimelineEchartsTheme } from '../timeline/timelineEchartsTheme';
@@ -25,11 +25,7 @@ import {
   useNodeColoringValue,
   useNodeColorPalette,
 } from '@quent/hooks';
-import { continuousColor, withOpacity } from '@quent/utils';
-import {
-  OPERATION_TYPE_COLORS,
-  DEFAULT_OPERATION_COLOR,
-} from '../services/query-plan/operationTypes';
+import { continuousColor, withOpacity, getOperationTypeColor } from '@quent/utils';
 import type { OperatorActiveSpanEntry } from './types';
 import { clipRectByRect } from './utils';
 import { TIMELINE_SPACING, TIMELINE_X_AXIS_ANIMATION } from '../timeline/types';
@@ -41,8 +37,8 @@ const BAR_HEIGHT = 16;
 const BAR_GAP = 2;
 
 function getOperatorBarColors(typeName: string | undefined): { fill: string; stroke: string } {
-  const key = typeName?.toLowerCase().replace(/\s+/g, '') ?? 'other';
-  const stroke = OPERATION_TYPE_COLORS[key] ?? DEFAULT_OPERATION_COLOR;
+  const key = typeName?.toLowerCase().replace(/\s+/g, '') ?? '';
+  const stroke = getOperationTypeColor(key);
   return { stroke, fill: withOpacity(stroke, 0.45) };
 }
 
@@ -291,8 +287,6 @@ export function OperatorGanttChart({
     [gridOptions, startTimeMs, xAxisMax, yAxisCategories, customSeriesData, renderItem]
   );
 
-  const instanceRef = useRef<EChartsInstance | null>(null);
-
   const handleClick = useMemo(
     () => ({
       click: (params: { dataIndex: number; seriesName?: string }) => {
@@ -314,11 +308,18 @@ export function OperatorGanttChart({
     [operators, selectedNodeIds, setSelectedNodeIds, setSelectedOperatorLabel, setSelectedPlanId]
   );
 
-  const handleChartReady = useCallback((instance: EChartsInstance) => {
-    instanceRef.current = instance;
-    connectChart(instance, CHART_GROUP, false);
+  // Join timeline-sync-group for frame-rate-level x-axis zoom sync via ECharts connect().
+  // The y-axis dataZoom (index 3, when present) has a unique component ID and does not
+  // propagate to resource timelines that have no matching component.
+  const onChartReady = useCallback((instance: EChartsInstance) => {
     registerAxisPointerSync(instance, 0, { receiveShowTip: false });
   }, []);
+
+  const { handleChartReady, instanceRef } = useChartConnect({
+    durationSeconds,
+    chartGroup: CHART_GROUP,
+    onReady: onChartReady,
+  });
 
   useEffect(() => {
     return () => {

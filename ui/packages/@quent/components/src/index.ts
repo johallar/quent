@@ -105,7 +105,6 @@ export {
   buildTimelineMarks,
   collectVisibleEntries,
   getAdaptiveNumBins,
-  getChartGroupZoomState,
   getFsmTypeName,
   getLongEntitiesThreshold,
   getLongFsms,
@@ -127,11 +126,6 @@ export {
   computeEdgeWidthConfig,
   inferFieldFormatter,
 } from './services/query-plan/dagFieldProcessing';
-export {
-  DEFAULT_OPERATION_COLOR,
-  OPERATION_TYPE_COLORS,
-  getOperatorColor,
-} from './services/query-plan/operationTypes';
 export {
   getPlanDAG,
   getTreeData,

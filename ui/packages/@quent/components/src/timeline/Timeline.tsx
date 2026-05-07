@@ -27,7 +27,8 @@ import {
   ROLLUP_TIMELINE_COLOR_LIGHT,
   useTimelineEchartsTheme,
 } from './timelineEchartsTheme';
-import { connectChart, disconnectChart, MIN_ZOOM_WINDOW_S, nanosToMs } from '../lib/timeline.utils';
+import { MIN_ZOOM_WINDOW_S, nanosToMs } from '../lib/timeline.utils';
+import { useChartConnect } from '../lib/useChartConnect';
 
 export const CHART_GROUP = 'timeline-sync-group';
 const DIMMED_OPACITY = 0.25;
@@ -347,13 +348,9 @@ export function Timeline({
     initialZoomPct,
   ]);
 
-  const instanceRef = useRef<EChartsInstance | null>(null);
   const isDraggingRef = useRef(false);
 
-  const handleChartReady = useCallback((instance: EChartsInstance) => {
-    instanceRef.current = instance;
-    connectChart(instance, CHART_GROUP, false);
-
+  const onChartReady = useCallback((instance: EChartsInstance) => {
     const dom = instance.getDom();
     dom.addEventListener('pointerdown', () => {
       isDraggingRef.current = true;
@@ -400,14 +397,11 @@ export function Timeline({
     );
   }, []);
 
-  useEffect(() => {
-    return () => {
-      if (instanceRef.current) {
-        disconnectChart(instanceRef.current, CHART_GROUP);
-        instanceRef.current = null;
-      }
-    };
-  }, []);
+  const { handleChartReady } = useChartConnect({
+    durationSeconds,
+    chartGroup: CHART_GROUP,
+    onReady: onChartReady,
+  });
 
   return (
     <ReactEChartsComponent
