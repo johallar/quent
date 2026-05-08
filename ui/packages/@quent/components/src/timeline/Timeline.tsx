@@ -25,6 +25,7 @@ import {
   MARK_LABEL_TEXT_COLOR,
   ROLLUP_TIMELINE_COLOR_DARK,
   ROLLUP_TIMELINE_COLOR_LIGHT,
+  TIMELINE_MONO_FONT,
   useTimelineEchartsTheme,
 } from './timelineEchartsTheme';
 import { MIN_ZOOM_WINDOW_S, nanosToMs } from '../lib/timeline.utils';
@@ -55,7 +56,7 @@ export function Timeline({
   /** Whether dark mode is active. Passed explicitly to decouple from ThemeContext. */
   isDark: boolean;
 }) {
-  const { themeName } = useTimelineEchartsTheme(isDark);
+  const { themeName, textColor, labelBackgroundColor } = useTimelineEchartsTheme(isDark);
 
   const zoomRange = useZoomRange();
   const windowMsRef = useRef(0);
@@ -170,10 +171,29 @@ export function Timeline({
     return allSeries;
   }, [series, timestamps, marks]);
 
-  const yAxisFormatter = useMemo(() => {
+  const formatAxisValue = useMemo(() => {
     const firstEntry: TimelineSeriesEntry | undefined = Object.values(series)[0];
-    return (v: number) => firstEntry?.formatter(v, 0) ?? ((v: number) => `${v}`);
+    return (v: number) => firstEntry?.formatter(v, 0) ?? String(v);
   }, [series]);
+
+  const startTimeMs = useMemo(() => nanosToMs(startTime), [startTime]);
+
+  /** Max stacked value across only the bins currently visible in the zoom window. */
+  const maxValue = useMemo(() => {
+    const entries = Object.values(series).filter(e => !e.isDimmed && !e.isOverlay);
+    if (!entries.length || !entries[0]?.values.length) return null;
+    const zoomStartMs = startTimeMs + zoomRange.start * 1000;
+    const zoomEndMs = startTimeMs + zoomRange.end * 1000;
+    const numBins = entries[0].values.length;
+    let max = 0;
+    for (let i = 0; i < numBins; i++) {
+      const t = timestamps[i];
+      if (t === undefined || t < zoomStartMs || t > zoomEndMs) continue;
+      const sum = entries.reduce((acc, e) => acc + (e.values[i] ?? 0), 0);
+      if (sum > max) max = sum;
+    }
+    return max > 0 ? max : null;
+  }, [series, timestamps, zoomRange, startTimeMs]);
 
   const yAxisOptions = useMemo(
     () => [
@@ -194,10 +214,8 @@ export function Timeline({
         gridIndex: 0,
       },
     ],
-    [yAxisFormatter]
+    []
   );
-
-  const startTimeMs = useMemo(() => nanosToMs(startTime), [startTime]);
 
   const xAxisOptions = useMemo(
     () => ({
@@ -383,15 +401,31 @@ export function Timeline({
   });
 
   return (
-    <ReactEChartsComponent
-      echarts={echarts}
-      theme={themeName}
-      option={eChartOptions}
-      style={{ width: '100%', height: `${height}px` }}
-      onChartReady={handleChartReady}
-      notMerge={false}
-      lazyUpdate={false}
-      replaceMerge={['series']}
-    />
+    <div className="relative w-full" style={{ height: `${height}px` }}>
+      {maxValue != null && (
+        <span
+          className="absolute z-10 pointer-events-none text-[10px] leading-none rounded-sm px-1 py-0.5"
+          style={{
+            top: TIMELINE_SPACING.top + 1,
+            left: TIMELINE_SPACING.left + 1,
+            fontFamily: TIMELINE_MONO_FONT,
+            color: textColor,
+            background: labelBackgroundColor,
+          }}
+        >
+          {formatAxisValue(maxValue)}
+        </span>
+      )}
+      <ReactEChartsComponent
+        echarts={echarts}
+        theme={themeName}
+        option={eChartOptions}
+        style={{ width: '100%', height: '100%' }}
+        onChartReady={handleChartReady}
+        notMerge={false}
+        lazyUpdate={false}
+        replaceMerge={['series']}
+      />
+    </div>
   );
 }

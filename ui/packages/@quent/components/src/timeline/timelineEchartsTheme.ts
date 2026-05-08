@@ -137,6 +137,8 @@ export function useTimelineEchartsTheme(isDark: boolean) {
     () => ({
       themeName: isDark ? TIMELINE_THEME_NAME_DARK : TIMELINE_THEME_NAME_LIGHT,
       textColor: isDark ? TEXT_COLOR_DARK : TEXT_COLOR_LIGHT,
+      /** Semi-transparent chip background for DOM labels overlaid on the chart canvas. */
+      labelBackgroundColor: withOpacity(isDark ? BLACK : WHITE, 0.55),
       controllerGridBackgroundColor: withOpacity(
         isDark ? TIMELINE_MARKUP_COLOR_DARK : TIMELINE_MARKUP_COLOR_LIGHT,
         CONTROLLER_GRID_BACKGROUND_OPACITY
