@@ -15,7 +15,6 @@ import type { TimelineSeriesEntry } from './types';
 import {
   TimelineSeries,
   TimelineMark,
-  DEFAULT_TIMELINE_HEIGHT,
   TIMELINE_SPACING,
   TIMELINE_X_AXIS_ANIMATION,
 } from './types';
@@ -39,7 +38,6 @@ export function Timeline({
   durationSeconds,
   series,
   timestamps,
-  height = DEFAULT_TIMELINE_HEIGHT,
   showTooltip = true,
   marks,
   isDark,
@@ -49,7 +47,6 @@ export function Timeline({
   durationSeconds: number;
   series: TimelineSeries;
   timestamps: number[];
-  height?: number;
   showTooltip?: boolean;
   /** Annotation marks rendered as mark areas on the first series */
   marks?: TimelineMark[];
@@ -401,7 +398,7 @@ export function Timeline({
   });
 
   return (
-    <div className="relative w-full" style={{ height: `${height}px` }}>
+    <div className="relative w-full h-full">
       {maxValue != null && (
         <span
           className="absolute z-8 pointer-events-none text-[10px] leading-none rounded-sm px-1 py-0.5"

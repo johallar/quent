@@ -42,11 +42,10 @@ export const ResourceGroupRow = ({
   const hasMetadata = showType || showFsmStatic || showFsmSelector;
 
   return (
-    <div className="my-0.5">
+    <div className="my-1 py-0.5">
       <DataText className="text-xs font-bold leading-none">{group.instance_name}</DataText>
       {hasMetadata && (
-        // Flex-wrap so Type and FSM share one line when short; wrap naturally when long.
-        <div className="flex flex-wrap items-center gap-x-2.5 gap-y-0 mt-0.5">
+        <div className="flex flex-col gap-y-1 mt-1">
           {showType && (
             <InlineSelector
               id={`${id}-resource-type`}

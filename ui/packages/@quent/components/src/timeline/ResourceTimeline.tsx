@@ -270,23 +270,25 @@ export function ResourceTimeline({
 
   if (error) {
     return (
-      <div className="flex items-center justify-center p-8 text-red-400">
+      <div className="flex items-center justify-center h-full text-red-400 text-xs">
         Failed to load timeline
       </div>
     );
   }
 
   return (
-    <Suspense fallback={<TimelineSkeleton />}>
-      <Timeline
-        series={series}
-        timestamps={timestamps ?? []}
-        startTime={startTime}
-        durationSeconds={durationSeconds}
-        showTooltip={showTooltip}
-        marks={hideTasks ? undefined : marks}
-        isDark={isDark}
-      />
-    </Suspense>
+    <div className="h-full w-full">
+      <Suspense fallback={<TimelineSkeleton />}>
+        <Timeline
+          series={series}
+          timestamps={timestamps ?? []}
+          startTime={startTime}
+          durationSeconds={durationSeconds}
+          showTooltip={showTooltip}
+          marks={hideTasks ? undefined : marks}
+          isDark={isDark}
+        />
+      </Suspense>
+    </div>
   );
 }

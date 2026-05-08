@@ -205,10 +205,6 @@ export function OperatorGanttChart({
   const gridOptions = useMemo(
     () => ({
       ...TIMELINE_SPACING,
-      top: 0,
-      bottom: 0,
-      left: TIMELINE_SPACING.left,
-      right: TIMELINE_SPACING.right,
       width: undefined as number | undefined,
       height: undefined as number | undefined,
     }),
