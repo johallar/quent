@@ -37,9 +37,8 @@ export const ResourceGroupRow = ({
   const fsmOptions = hasMultipleFsms ? [FSM_ALL, ...(availableFsmTypes ?? [])] : [];
 
   return (
-    <div>
-      <DataText className="text-sm font-bold">{group.instance_name}</DataText>
-      <div className="flex gap-1.5">
+    <div className="my-1">
+      <DataText className="text-xs font-bold">{group.instance_name}</DataText>
       {hasMultipleChildTypes && selectedType && onTypeChange && availableResourceTypes && (
         <InlineSelector
           id={`${id}-resource-type`}
@@ -63,7 +62,6 @@ export const ResourceGroupRow = ({
             onChange={(_, value) => onFsmChange(id, value === FSM_ALL ? null : value)}
           />
         )}
-      </div>
     </div>
   );
 };

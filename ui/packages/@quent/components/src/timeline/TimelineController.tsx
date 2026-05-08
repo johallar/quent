@@ -108,7 +108,7 @@ export function TimelineController({
       xAxisIndex: 0,
       data: toTimePoints(staticValues ?? []),
       symbol: 'none',
-      lineStyle: { width: 1 },
+      lineStyle: { width: 0 },
       areaStyle: { opacity: 0.8 },
       silent: true,
       emphasis: { disabled: true },
@@ -190,7 +190,7 @@ export function TimelineController({
       ...TIMELINE_SPACING,
       borderWidth: 0,
       // Override the registered theme's grid backgroundColor with the controller-specific tint.
-      backgroundColor: controllerGridBackgroundColor,
+      // backgroundColor: controllerGridBackgroundColor,
     }),
     [controllerGridBackgroundColor]
   );
