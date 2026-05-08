@@ -312,6 +312,17 @@ export function Timeline({
     connectChart(instance, CHART_GROUP, false);
 
     const dom = instance.getDom();
+    const outsideTimelineViz = (e: PointerEvent) => {
+      const rect = dom.getBoundingClientRect();
+      const offsetX = e.clientX - rect.left;
+      const offsetY = e.clientY - rect.top;
+      return (
+        offsetX < TIMELINE_SPACING.left ||
+        offsetX > rect.width - TIMELINE_SPACING.right ||
+        offsetY < TIMELINE_SPACING.top ||
+        offsetY > rect.height - TIMELINE_SPACING.bottom
+      );
+    };
 
     // Pointer activity is reported up via `onHoverChange`. The parent owns
     // the tooltip-rendering / shared-state concerns; this component only
@@ -324,7 +335,7 @@ export function Timeline({
       const rect = dom.getBoundingClientRect();
       const offsetX = e.clientX - rect.left;
       // Don't report hover if the pointer is outside the timeline
-      if (offsetX < TIMELINE_SPACING.left || offsetX > rect.width - TIMELINE_SPACING.right) {
+      if (outsideTimelineViz(e)) {
         onHoverChangeRef.current?.(null);
         return;
       }
@@ -406,7 +417,7 @@ export function Timeline({
     };
   }, []);
   const style = useMemo(() => ({ width: '100%', height: `${height}px` }), [height]);
-  const opts = useMemo(() => ({ renderer: 'svg' } as Opts), []);
+  const opts = useMemo(() => ({ renderer: 'svg' }) as Opts, []);
 
   return (
     <ReactEChartsComponent
