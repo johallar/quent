@@ -231,12 +231,10 @@ export function Timeline({
   const atZoomLimitRef = useRef(false);
 
   // Seed the chart's dataZoom from the controller on the first option build so
-  // the chart paints already aligned with the active zoom — without this a
+  // the chart paints already aligned with the active zoom. Without this a
   // freshly-mounted (e.g. just-virtualized-into-view) chart paints at 0/100
   // and then snaps to the real range once `connectChart` dispatches a zoom
-  // action, which produces a visible "data crammed into a slice" flash.
-  // After mount we omit start/end so chart-group sync (echarts.connect /
-  // controller-driven dispatchAction) is the sole source of truth.
+  // action
   const [hasMounted, setHasMounted] = useState(false);
   useEffect(() => {
     setHasMounted(true);
