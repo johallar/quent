@@ -754,7 +754,7 @@ export function TreeTable<I extends TreeTableDataItem>({
       >
         <div
           className={cn(
-            'w-full overflow-y-auto max-h-full',
+            'w-full overflow-y-auto max-h-full overscroll-none',
             isLayoutReady ? 'overflow-x-auto' : 'overflow-x-hidden'
           )}
         >
