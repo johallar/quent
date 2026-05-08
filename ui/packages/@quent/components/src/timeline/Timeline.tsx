@@ -184,7 +184,7 @@ export function Timeline({
         max: (value: { max: number }) => value.max * 1.1 || 1,
         splitNumber: 1,
         show: true,
-        axisLabel: { formatter: yAxisFormatter },
+        axisLabel: { show: false },
       },
       {
         type: 'value',

@@ -26,13 +26,13 @@ export type TimelineMark = {
   operatorName?: string;
 };
 
-export const DEFAULT_TIMELINE_HEIGHT = 50;
+export const DEFAULT_TIMELINE_HEIGHT = 55;
 
 // left/right spacing needs to be consistent across all timelines
 // so axes line up. top/bottom spacing can be overridden, but defaults still
 // provided here
 export const TIMELINE_SPACING = {
-  left: 50,
+  left: 0,
   right: 10,
   top: 5,
   bottom: 5,

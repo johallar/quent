@@ -132,12 +132,7 @@ export function TimelineController({
       max: endTimeMillis,
       interval,
       axisTick: { show: true },
-      axisLabel: {
-        hideOverlap: false,
-        formatter: (value: number) => {
-          return formatDuration(Number(value) - startTimeMillis);
-        },
-      },
+      axisLabel: { show: false },
       splitLine: { show: true, lineStyle: { type: 'solid' } },
       axisPointer: {
         show: true,
@@ -189,7 +184,7 @@ export function TimelineController({
   const gridOptions = useMemo(
     () => ({
       ...TIMELINE_SPACING,
-      bottom: 20,
+      borderWidth: 0,
       // Override the registered theme's grid backgroundColor with the controller-specific tint.
       backgroundColor: controllerGridBackgroundColor,
     }),

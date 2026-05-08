@@ -50,7 +50,7 @@ export const ResourceGroupRow = ({
         />
       )}
         {hasOneFsm && (
-          <p className="mt-1 text-xs text-muted-foreground">
+          <p className="text-xs text-muted-foreground">
             FSM: <DataText className="text-foreground">{availableFsmTypes![0]}</DataText>
           </p>
         )}
@@ -61,7 +61,6 @@ export const ResourceGroupRow = ({
             value={selectedFsmType ?? FSM_ALL}
             options={fsmOptions}
             onChange={(_, value) => onFsmChange(id, value === FSM_ALL ? null : value)}
-            className="mt-1"
           />
         )}
       </div>
