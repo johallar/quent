@@ -323,6 +323,11 @@ export function Timeline({
       if (instance.isDisposed?.()) return;
       const rect = dom.getBoundingClientRect();
       const offsetX = e.clientX - rect.left;
+      // Don't report hover if the pointer is outside the timeline
+      if (offsetX < TIMELINE_SPACING.left || offsetX > rect.width - TIMELINE_SPACING.right) {
+        onHoverChangeRef.current?.(null);
+        return;
+      }
       let tsMs: number;
       try {
         const v = instance.convertFromPixel({ xAxisIndex: 0 }, offsetX);
