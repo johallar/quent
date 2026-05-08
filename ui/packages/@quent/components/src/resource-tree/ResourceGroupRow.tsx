@@ -39,6 +39,7 @@ export const ResourceGroupRow = ({
   return (
     <div>
       <DataText className="text-sm font-bold">{group.instance_name}</DataText>
+      <div className="flex gap-1.5">
       {hasMultipleChildTypes && selectedType && onTypeChange && availableResourceTypes && (
         <InlineSelector
           id={`${id}-resource-type`}
@@ -48,21 +49,22 @@ export const ResourceGroupRow = ({
           onChange={(_, value) => onTypeChange(id, value)}
         />
       )}
-      {hasOneFsm && (
-        <p className="mt-1 text-xs text-muted-foreground">
-          FSM: <DataText className="text-foreground">{availableFsmTypes![0]}</DataText>
-        </p>
-      )}
-      {hasMultipleFsms && onFsmChange && fsmOptions.length > 0 && (
-        <InlineSelector
-          id={`${id}-fsm`}
-          label="FSM"
-          value={selectedFsmType ?? FSM_ALL}
-          options={fsmOptions}
-          onChange={(_, value) => onFsmChange(id, value === FSM_ALL ? null : value)}
-          className="mt-1"
-        />
-      )}
+        {hasOneFsm && (
+          <p className="mt-1 text-xs text-muted-foreground">
+            FSM: <DataText className="text-foreground">{availableFsmTypes![0]}</DataText>
+          </p>
+        )}
+        {hasMultipleFsms && onFsmChange && fsmOptions.length > 0 && (
+          <InlineSelector
+            id={`${id}-fsm`}
+            label="FSM"
+            value={selectedFsmType ?? FSM_ALL}
+            options={fsmOptions}
+            onChange={(_, value) => onFsmChange(id, value === FSM_ALL ? null : value)}
+            className="mt-1"
+          />
+        )}
+      </div>
     </div>
   );
 };
