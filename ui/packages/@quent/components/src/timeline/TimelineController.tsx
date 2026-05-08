@@ -24,7 +24,7 @@ import type { SingleTimelineResponse } from '@quent/utils';
 import { useTimelineEchartsTheme } from './timelineEchartsTheme';
 import type { PaletteTheme } from '@quent/utils';
 
-const CONTROLLER_HEIGHT = 50;
+const CONTROLLER_HEIGHT = 30;
 const CONTROLLER_TOP_HEADROOM_RATIO = 0.2;
 const CONTROLLER_X_MIN_LABELS = 8;
 
@@ -213,7 +213,7 @@ export function TimelineController({
           filterMode: 'none',
           minSpan: minZoomSpanPct,
           top: 0,
-          height: height - 24,
+          height,
           brushSelect: true,
           // handleStyle, fillerColor, dataBackground, textStyle, etc. come from
           // the registered timeline theme's dataZoom defaults.
