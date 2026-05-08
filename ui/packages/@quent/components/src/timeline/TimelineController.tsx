@@ -21,7 +21,7 @@ import {
 import { useChartConnect } from '../lib/useChartConnect';
 import { TIMELINE_X_AXIS_ANIMATION, TIMELINE_SPACING } from './types';
 import type { SingleTimelineResponse } from '@quent/utils';
-import { useTimelineEchartsTheme } from './timelineEchartsTheme';
+import { TIMELINE_MONO_FONT, useTimelineEchartsTheme } from './timelineEchartsTheme';
 import type { PaletteTheme } from '@quent/utils';
 
 const CONTROLLER_HEIGHT = 30;
@@ -51,7 +51,8 @@ export function TimelineController({
   onZoomChange,
   isDark,
 }: TimelineControllerProps) {
-  const { themeName, controllerGridBackgroundColor } = useTimelineEchartsTheme(isDark);
+  const { themeName, controllerGridBackgroundColor, textColor, labelBackgroundColor } =
+    useTimelineEchartsTheme(isDark);
   const paletteTheme: PaletteTheme = isDark ? 'dark' : 'light';
 
   const startTimeMillis = useMemo(() => nanosToMs(startTime), [startTime]);
@@ -215,12 +216,9 @@ export function TimelineController({
           top: 0,
           height,
           brushSelect: true,
-          // handleStyle, fillerColor, dataBackground, textStyle, etc. come from
-          // the registered timeline theme's dataZoom defaults.
-          textStyle: { opacity: 1 },
-          labelFormatter: (tsMilliseconds: number) => {
-            return formatDuration(Number(tsMilliseconds) - startTimeMillis);
-          },
+          // Handle labels are rendered as DOM elements (see wrapper div below)
+          // to avoid canvas clipping when handles are near the edges.
+          textStyle: { opacity: 0 },
         },
         {
           type: 'inside',
@@ -343,17 +341,43 @@ export function TimelineController({
     };
   }, [instanceRef]);
 
+  const startPct = durationSeconds > 0 ? (zoomRange.start / durationSeconds) * 100 : 0;
+  const endPct = durationSeconds > 0 ? (zoomRange.end / durationSeconds) * 100 : 100;
+
+  const handleLabelStyle: React.CSSProperties = {
+    position: 'absolute',
+    top: '50%',
+    transform: 'translateY(-50%)',
+    zIndex: 20,
+    pointerEvents: 'none',
+    fontSize: 10,
+    lineHeight: 1,
+    borderRadius: 2,
+    padding: '2px 4px',
+    fontFamily: TIMELINE_MONO_FONT,
+    color: textColor,
+    background: labelBackgroundColor,
+  };
+
   return (
-    <ReactEChartsComponent
-      echarts={echarts}
-      theme={themeName}
-      option={eChartOptions}
-      style={{ width: '100%', height: `${height}px` }}
-      onChartReady={handleChartReady}
-      onEvents={handleDataZoom}
-      notMerge={false}
-      lazyUpdate
-      opts={{ renderer: 'canvas' }}
-    />
+    <div style={{ position: 'relative', width: '100%', height: `${height}px` }}>
+      <span style={{ ...handleLabelStyle, left: `${startPct}%`, marginLeft: 4 }}>
+        {formatDuration(zoomRange.start * 1000)}
+      </span>
+      <span style={{ ...handleLabelStyle, right: `${100 - endPct}%`, marginRight: 4 }}>
+        {formatDuration(zoomRange.end * 1000)}
+      </span>
+      <ReactEChartsComponent
+        echarts={echarts}
+        theme={themeName}
+        option={eChartOptions}
+        style={{ width: '100%', height: '100%' }}
+        onChartReady={handleChartReady}
+        onEvents={handleDataZoom}
+        notMerge={false}
+        lazyUpdate
+        opts={{ renderer: 'canvas' }}
+      />
+    </div>
   );
 }
