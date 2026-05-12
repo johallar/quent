@@ -33,6 +33,28 @@ export interface TreeNode {
 
 const ZOOM_DEBOUNCE_MS = 150;
 const MAX_TIMELINE_BINS = 400;
+/** Fraction of the visible window pre-loaded on each side (0.5 = ±50%, total 2x). */
+const PRELOAD_MARGIN_FRACTION = 0.5;
+
+/**
+ * Build a config that requests a wider-than-visible bulk window so the FE has
+ * data on either side of the viewport already cached for instant pan/zoom.
+ * Bin count scales with the window so the visible area keeps the same density.
+ */
+function buildPreloadConfig(
+  visibleStart: number,
+  visibleEnd: number,
+  durationSeconds: number
+): { num_bins: number; start: number; end: number } {
+  const windowSec = Math.max(0, visibleEnd - visibleStart);
+  const margin = windowSec * PRELOAD_MARGIN_FRACTION;
+  const expansion = 1 + 2 * PRELOAD_MARGIN_FRACTION;
+  return {
+    num_bins: Math.round(MAX_TIMELINE_BINS * expansion),
+    start: Math.max(0, visibleStart - margin),
+    end: Math.min(durationSeconds, visibleEnd + margin),
+  };
+}
 
 /**
  * useBulkTimelines — manages bulk fetching via Jotai atoms + TanStack Query.
@@ -48,6 +70,7 @@ export function useBulkTimelines<T extends TreeNode>({
   selectedTypes,
   groupFsmFilters,
   entities,
+  durationSeconds,
   collectVisibleEntriesFn,
   buildBulkParamsFn,
   findItemByIdFn,
@@ -59,6 +82,8 @@ export function useBulkTimelines<T extends TreeNode>({
   selectedTypes: Map<string, string>;
   groupFsmFilters?: Map<string, string | null>;
   entities: QueryEntities;
+  /** Total query duration in seconds — used to clamp the pre-loaded window. */
+  durationSeconds: number;
   collectVisibleEntriesFn: (
     items: T[],
     expandedIds: Set<string>,
@@ -89,13 +114,13 @@ export function useBulkTimelines<T extends TreeNode>({
   }, []);
 
   const debouncedZoomRange = useAtomValue(debouncedZoomRangeAtom);
+  // Pre-load adjacent data for smoother pan/zoom: request a 2x window centered
+  // on the current viewport with 2x bins so the visible area keeps the same
+  // bin density. The display layer (sliceToViewport) clips back to the live
+  // viewport, so panning/zooming within the cushion needs no refetch.
   const bulkConfig = useMemo(
-    () => ({
-      num_bins: MAX_TIMELINE_BINS,
-      start: debouncedZoomRange.start,
-      end: debouncedZoomRange.end,
-    }),
-    [debouncedZoomRange]
+    () => buildPreloadConfig(debouncedZoomRange.start, debouncedZoomRange.end, durationSeconds),
+    [debouncedZoomRange, durationSeconds]
   );
 
   const baseVisibleEntries = useMemo(
@@ -161,11 +186,7 @@ export function useBulkTimelines<T extends TreeNode>({
       if (!item?.children) return;
 
       const zoom = store.get(debouncedZoomRangeAtom);
-      const expandConfig = {
-        num_bins: MAX_TIMELINE_BINS,
-        start: zoom.start,
-        end: zoom.end,
-      };
+      const expandConfig = buildPreloadConfig(zoom.start, zoom.end, durationSeconds);
 
       const newBaseEntries: Record<string, TimelineRequest<TaskFilter>> = {};
       for (const child of item.children as T[]) {
@@ -214,6 +235,7 @@ export function useBulkTimelines<T extends TreeNode>({
       selectedTypes,
       groupFsmFilters,
       entities,
+      durationSeconds,
       queryClient,
       engineId,
       queryId,

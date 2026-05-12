@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+// SPDX-License-Identifier: Apache-2.0
+
 /**
  * Benchmarks for buildBinnedTimelineSeries and sliceToViewport.
  *
@@ -16,12 +19,14 @@
  */
 
 import { bench, describe } from 'vitest';
-import { buildBinnedTimelineSeries, sliceToViewport } from '@/lib/timeline.utils';
-import type { ResourceTimeline } from '~quent/types/ResourceTimeline';
-import type { BinnedSpanSec } from '~quent/types/BinnedSpanSec';
-import type { TimelineSeries } from '@/components/timeline/types';
-import type { ViewportSec } from '@/lib/timeline.utils';
-import { nanosToMs } from '@/lib/timeline.utils';
+import {
+  buildBinnedTimelineSeries,
+  nanosToMs,
+  sliceToViewport,
+  type TimelineSeries,
+  type ViewportSec,
+} from '@quent/components';
+import type { ResourceTimeline, BinnedSpanSec } from '@quent/utils';
 
 // ── Fixture constants ─────────────────────────────────────────────────────────
 
@@ -78,7 +83,7 @@ function makeBuiltTimelines(count: number): Array<{
   series: TimelineSeries;
 }> {
   const api = makeApiTimeline();
-  const base = buildBinnedTimelineSeries(api, CONFIG, START_TIME_NS);
+  const base = buildBinnedTimelineSeries(api, CONFIG, START_TIME_NS, 'dark');
   return Array.from({ length: count }, () => ({
     timestamps: [...base.timestamps],
     series: Object.fromEntries(
@@ -91,18 +96,11 @@ function makeBuiltTimelines(count: number): Array<{
 
 const API_TIMELINE = makeApiTimeline();
 
-describe('buildBinnedTimelineSeries — initial render (800 bins, viewport slicing)', () => {
+describe('buildBinnedTimelineSeries — initial render (800 bins)', () => {
   for (const n of [1, 10, 25, 50, 100, 250, 500]) {
     bench(`${n} timeline${n === 1 ? '' : 's'}`, () => {
       for (let i = 0; i < n; i++) {
-        buildBinnedTimelineSeries(
-          API_TIMELINE,
-          CONFIG,
-          START_TIME_NS,
-          undefined,
-          undefined,
-          VIEWPORTS[i % PAN_STEPS]
-        );
+        buildBinnedTimelineSeries(API_TIMELINE, CONFIG, START_TIME_NS, 'dark');
       }
     });
   }
@@ -120,7 +118,7 @@ describe('sliceToViewport — zoom/pan event across 50 timelines, varying viewpo
   let step = 0;
 
   bench('50 timelines × 1 zoom event (shifting viewport)', () => {
-    const viewport = VIEWPORTS[step % PAN_STEPS];
+    const viewport = VIEWPORTS[step % PAN_STEPS]!;
     step++;
     for (const tl of TIMELINES_50) {
       sliceToViewport(tl, FIRST_BIN_MS, BIN_DURATION_MS, TOTAL_BINS, START_TIME_NS, viewport);
@@ -135,9 +133,9 @@ describe('sliceToViewport — zoom/pan, varying timeline count, shifting viewpor
   let step = 0;
 
   for (const n of [1, 10, 25, 50, 100, 250]) {
-    const timelines = timelinesMap[n];
+    const timelines = timelinesMap[n]!;
     bench(`${n} timeline${n === 1 ? '' : 's'} per zoom event`, () => {
-      const viewport = VIEWPORTS[step % PAN_STEPS];
+      const viewport = VIEWPORTS[step % PAN_STEPS]!;
       step++;
       for (const tl of timelines) {
         sliceToViewport(tl, FIRST_BIN_MS, BIN_DURATION_MS, TOTAL_BINS, START_TIME_NS, viewport);

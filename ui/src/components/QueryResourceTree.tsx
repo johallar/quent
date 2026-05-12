@@ -141,6 +141,7 @@ function QueryResourceTreeContent({ queryBundle, engineId }: QueryResourceTreePr
     selectedTypes,
     groupFsmFilters: selectedFsmTypes,
     entities,
+    durationSeconds,
     collectVisibleEntriesFn: collectVisibleEntries,
     buildBulkParamsFn: buildBulkParamsForItem,
     findItemByIdFn: findItemById,

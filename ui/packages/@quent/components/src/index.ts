@@ -114,10 +114,11 @@ export {
   mergeOverlaySeries,
   setOperatorOnEntries,
   setOperatorOnEntry,
+  sliceToViewport,
   findItemById,
   transformResourceTree,
 } from './lib/timeline.utils';
-export type { AxisPointerSyncOptions } from './lib/timeline.utils';
+export type { AxisPointerSyncOptions, ViewportSec } from './lib/timeline.utils';
 
 // ─── Services – query-plan ────────────────────────────────────────────────────
 export {

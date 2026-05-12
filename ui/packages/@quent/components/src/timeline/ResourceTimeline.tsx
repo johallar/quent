@@ -6,6 +6,7 @@ import { DEFAULT_STALE_TIME, fetchSingleTimeline } from '@quent/client';
 import {
   useBulkInitialized,
   useDebouncedZoomRange,
+  useZoomRange,
   useHideTasks,
   timelineCacheKey,
   useTimelineData,
@@ -27,6 +28,8 @@ import {
   getAdaptiveNumBins,
   getTimelineConfig,
   getLongEntitiesThreshold,
+  nanosToMs,
+  sliceToViewport,
 } from '../lib/timeline.utils';
 import { TimelineSeries, TimelineMark } from './types';
 import { EntityTypeKey } from '@quent/utils';
@@ -71,6 +74,9 @@ const EMPTY_TIMELINE_SERIES: TimelineSeries = {
   },
 };
 
+/** Fraction of the visible window pre-loaded on each side (0.5 = ±50%, total 2x). */
+const SINGLE_PRELOAD_MARGIN_FRACTION = 1;
+
 /** Per-resource timeline with automatic data fetching, zoom sync, and operator overlay. */
 export function ResourceTimeline({
   engineId,
@@ -89,7 +95,10 @@ export function ResourceTimeline({
 }: ResourceTimelineProps) {
   const paletteTheme: PaletteTheme = isDark ? 'dark' : 'light';
   const deferredReady = useDeferredReady();
+  // `zoomRange` is the debounced window — drives data fetches.
+  // `viewportRange` is the live window — drives the per-frame display slice.
   const zoomRange = useDebouncedZoomRange();
+  const viewportRange = useZoomRange();
   const bulkInitialized = useBulkInitialized();
   const operatorLabel = useSelectedOperatorLabel();
   const hideTasks = useHideTasks();
@@ -142,13 +151,20 @@ export function ResourceTimeline({
     ],
     queryFn: () => {
       const isGroup = resourceType === EntityTypeKey.ResourceGroup;
-      const start = zoomRange?.start ?? 0;
-      const end = zoomRange?.end ?? durationSeconds;
-      const windowSeconds = end - start;
+      const visibleStart = zoomRange?.start ?? 0;
+      const visibleEnd = zoomRange?.end ?? durationSeconds;
+      const windowSeconds = visibleEnd - visibleStart;
+      // Pre-load adjacent data for smoother pan/zoom: request a 2x window
+      // centered on the current viewport with 2x bins so the visible area
+      // keeps the same density. The display layer (sliceToViewport) clips
+      // back to the live viewport, so panning within the cushion needs no
+      // refetch and uses already-cached data.
+      const halfMargin = windowSeconds * SINGLE_PRELOAD_MARGIN_FRACTION;
+      const expansion = 1 + 2 * SINGLE_PRELOAD_MARGIN_FRACTION;
       const config = {
-        num_bins: getAdaptiveNumBins(),
-        start,
-        end,
+        num_bins: Math.round(getAdaptiveNumBins() * expansion),
+        start: Math.max(0, visibleStart - halfMargin),
+        end: Math.min(durationSeconds, visibleEnd + halfMargin),
       };
       const request: SingleTimelineRequest<QueryFilter, TaskFilter> = {
         entry: isGroup
@@ -180,13 +196,13 @@ export function ResourceTimeline({
     placeholderData: keepPreviousData,
   });
 
-  const { timestamps, series, marks } = useMemo<{
-    timestamps: number[];
-    series: TimelineSeries;
-    marks?: TimelineMark[];
-  }>(() => {
+  // Heavy build step: turn the API response into per-bin series + marks.
+  // Re-runs only when the underlying data (or theme/capacities) change — NOT
+  // on every pan/zoom event. The viewport-clipping below is done in a separate
+  // memo so panning within the cushion only pays the cheap slicing cost.
+  const built = useMemo(() => {
     const data = preloadedData ?? fetchedData;
-    if (!data) return { timestamps: [], series: EMPTY_TIMELINE_SERIES };
+    if (!data) return null;
 
     const base = buildBinnedTimelineSeries(
       data.data,
@@ -201,57 +217,61 @@ export function ResourceTimeline({
     const filterSet =
       resourceType === EntityTypeKey.Resource ? new Set([resourceId]) : new Set<string>();
 
-    const timelineMarks = buildTimelineMarks(
-      longFsms,
-      startTime,
-      paletteTheme,
-      filterSet,
-      fsmTypes
-    );
+    const baseMarks = buildTimelineMarks(longFsms, startTime, paletteTheme, filterSet, fsmTypes);
 
-    if (operatorId && operatorLabel) {
-      if (overlayPreloadedData) {
-        const baseSpan = getTimelineConfig(data).span;
-        const opSpan = getTimelineConfig(overlayPreloadedData).span;
-        const baseEqualsOpsSpan = baseSpan.start === opSpan.start && baseSpan.end === opSpan.end;
-        if (baseEqualsOpsSpan) {
-          const opResult = buildBinnedTimelineSeries(
-            overlayPreloadedData.data,
-            overlayPreloadedData.config,
+    // Geometry needed by sliceToViewport — derived from the base data.config.
+    const baseFirstBinMs = nanosToMs(startTime) + data.config.span.start * 1_000;
+    const baseBinDurationMs = data.config.bin_duration * 1_000;
+    const baseNumBins = Number(data.config.num_bins);
+
+    let overlay: {
+      result: { timestamps: number[]; series: TimelineSeries };
+      firstBinMs: number;
+      binDurationMs: number;
+      numBins: number;
+      overlayMarks: TimelineMark[] | undefined;
+    } | null = null;
+
+    if (operatorId && operatorLabel && overlayPreloadedData) {
+      const baseSpan = getTimelineConfig(data).span;
+      const opSpan = getTimelineConfig(overlayPreloadedData).span;
+      if (baseSpan.start === opSpan.start && baseSpan.end === opSpan.end) {
+        const opResult = buildBinnedTimelineSeries(
+          overlayPreloadedData.data,
+          overlayPreloadedData.config,
+          startTime,
+          paletteTheme,
+          capacities,
+          quantitySpecs,
+          fsmTypes
+        );
+        const opLongFsmIds = new Set(getLongFsms(overlayPreloadedData.data).map(f => f.id));
+        overlay = {
+          result: opResult,
+          firstBinMs: nanosToMs(startTime) + overlayPreloadedData.config.span.start * 1_000,
+          binDurationMs: overlayPreloadedData.config.bin_duration * 1_000,
+          numBins: Number(overlayPreloadedData.config.num_bins),
+          overlayMarks: buildTimelineMarks(
+            longFsms,
             startTime,
             paletteTheme,
-            capacities,
-            quantitySpecs,
-            fsmTypes
-          );
-          const opLongFsmIds = new Set(getLongFsms(overlayPreloadedData.data).map(f => f.id));
-          return {
-            timestamps: base.timestamps,
-            series: mergeOverlaySeries(base.series, opResult.series, operatorLabel),
-            marks: buildTimelineMarks(
-              longFsms,
-              startTime,
-              paletteTheme,
-              filterSet,
-              fsmTypes,
-              opLongFsmIds,
-              operatorLabel
-            ),
-          };
-        }
+            filterSet,
+            fsmTypes,
+            opLongFsmIds,
+            operatorLabel
+          ),
+        };
       }
-      // Operator is selected but the overlay can't render this frame
-      // (data not yet populated for the new operator, or zoom span mismatch).
-      // Dim the base anyway so the chart never flashes back to full color
-      // between the click and the new overlay arriving.
-      return {
-        timestamps: base.timestamps,
-        series: dimSeries(base.series),
-        marks: timelineMarks,
-      };
     }
 
-    return { ...base, marks: timelineMarks };
+    return {
+      base,
+      baseFirstBinMs,
+      baseBinDurationMs,
+      baseNumBins,
+      baseMarks,
+      overlay,
+    };
   }, [
     preloadedData,
     fetchedData,
@@ -266,6 +286,59 @@ export function ResourceTimeline({
     operatorLabel,
     paletteTheme,
   ]);
+
+  // Cheap per-frame step: clip the built series to the live viewport. This
+  // re-runs on every pan/zoom event but only does an O(visibleBins) slice.
+  const { timestamps, series, marks } = useMemo<{
+    timestamps: number[];
+    series: TimelineSeries;
+    marks?: TimelineMark[];
+  }>(() => {
+    if (!built) return { timestamps: [], series: EMPTY_TIMELINE_SERIES };
+    const hasViewport = viewportRange.end > viewportRange.start;
+
+    const slicedBase = hasViewport
+      ? sliceToViewport(
+          built.base,
+          built.baseFirstBinMs,
+          built.baseBinDurationMs,
+          built.baseNumBins,
+          startTime,
+          viewportRange
+        )
+      : built.base;
+
+    if (operatorId && operatorLabel) {
+      if (built.overlay) {
+        const slicedOverlay = hasViewport
+          ? sliceToViewport(
+              built.overlay.result,
+              built.overlay.firstBinMs,
+              built.overlay.binDurationMs,
+              built.overlay.numBins,
+              startTime,
+              viewportRange
+            )
+          : built.overlay.result;
+        return {
+          timestamps: slicedBase.timestamps,
+          series: mergeOverlaySeries(slicedBase.series, slicedOverlay.series, operatorLabel),
+          marks: built.overlay.overlayMarks,
+        };
+      }
+      // Operator is selected but the overlay can't render this frame
+      // (data not yet populated for the new operator, or zoom span mismatch).
+      // Dim the base anyway so the chart never flashes back to full color
+      // between the click and the new overlay arriving.
+      return {
+        timestamps: slicedBase.timestamps,
+        series: dimSeries(slicedBase.series),
+        marks: built.baseMarks,
+      };
+    }
+
+    return { ...slicedBase, marks: built.baseMarks };
+  }, [built, viewportRange, startTime, operatorId, operatorLabel]);
 
   // Bridge the chart's atom-unaware `onHoverChange` callback into the shared
   // `timelineHoverAtom` that the global tooltip portal subscribes to. The
