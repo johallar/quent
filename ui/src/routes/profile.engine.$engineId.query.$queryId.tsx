@@ -2,14 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { createFileRoute, Link, Outlet } from '@tanstack/react-router';
-import { queryBundleQueryOptions } from '@/hooks/useQueryBundle';
+import { queryBundleQueryOptions } from '@quent/client';
 import { queryClient } from '@/lib/queryClient';
 import { useUrlStateSync } from '@/hooks/useUrlStateSync';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { safeRun } from '@/lib/safeUrlState';
-import type { QueryBundle } from '~quent/types/QueryBundle';
-import type { EntityRef } from '~quent/types/EntityRef';
-import { cn } from '@/lib/utils';
+import type { QueryBundle, EntityRef } from '@quent/utils';
+import { cn } from '@quent/utils';
 import type { QueryIndexSearch } from '@/hooks/useUrlStateSync';
 
 export const Route = createFileRoute('/profile/engine/$engineId/query/$queryId')({

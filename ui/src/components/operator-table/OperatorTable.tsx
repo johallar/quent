@@ -2,24 +2,32 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { useMemo, useCallback } from 'react';
-import { useAtom, useAtomValue } from 'jotai';
-import { QueryToolbar } from '@/components/QueryToolbar';
 import {
-  selectedPlanIdAtom,
-  selectedNodeIdsAtom,
-  hoveredStatAtom,
-  highlightedNodeIdsAtom,
-} from '@/atoms/dag';
-import type { QueryBundle } from '~quent/types/QueryBundle';
-import type { EntityRef } from '~quent/types/EntityRef';
-import type { PivotedRow, PivotedStatTableSchema } from '../pivot-table/types';
-import type { GroupedDataTableGroupKeyEntry } from '../pivot-table/types';
-import { PivotedStatTable } from '../pivot-table/PivotedStatTable';
-import { getSchemaStatNames } from '../pivot-table/utils';
-import { PivotTableToolbar } from '../pivot-table/PivotTableToolbar';
-import { useStatGroupTableControls } from '../pivot-table/useStatGroupTableControls';
-import { getOperatorColor } from '@/services/query-plan/operationTypes';
-import { OPERATOR_TABLE_PERSIST_KEY } from '@/atoms/statGroupTable';
+  QueryToolbar,
+  PivotedStatTable,
+  PivotTableToolbar,
+  getSchemaStatNames,
+} from '@quent/components';
+import { getOperationTypeColor } from '@quent/utils';
+import type {
+  PivotedRow,
+  PivotedStatTableSchema,
+  GroupedDataTableGroupKeyEntry,
+  PivotTableInteractionConfig,
+  PivotTableRenderConfig,
+} from '@quent/components';
+import {
+  useSelectedPlanId,
+  useSelectedNodeIds,
+  useHighlightedNodeIds,
+  useHoveredStat,
+  useStatGroupTableControls,
+} from '@quent/hooks';
+import type { QueryBundle, EntityRef } from '@quent/utils';
+import { useTheme, THEME_DARK } from '@/contexts/ThemeContext';
+
+// Mirrors the constant in @quent/hooks (not re-exported from the package index).
+const OPERATOR_TABLE_PERSIST_KEY = 'operatorTable';
 import type { OperatorTableRow } from './types';
 import { buildOperatorRows, buildItemIdIndex } from './utils';
 
@@ -74,7 +82,7 @@ const DEFAULT_ENABLED: Record<IndexKey, boolean> = {
 // `useStableRenderer` doc comment in PivotedStatTable.
 const getOperatorGroupTypeColor = (key: string, id: string): string | undefined =>
   key === 'item_type' || key === 'parent_item_type'
-    ? getOperatorColor(id?.toLowerCase() ?? '')
+    ? getOperationTypeColor(id?.toLowerCase() ?? '')
     : undefined;
 
 // Same reasoning: an inline `{ enabled: true, overscan: 12 }` would be a
@@ -86,10 +94,12 @@ interface OperatorTableProps {
 }
 
 export function OperatorTable({ queryBundle }: OperatorTableProps) {
-  const selectedPlanId = useAtomValue(selectedPlanIdAtom);
-  const selectedNodeIds = useAtomValue(selectedNodeIdsAtom);
-  const [highlightState, setHighlightState] = useAtom(highlightedNodeIdsAtom);
-  const [hoveredStat, setHoveredStat] = useAtom(hoveredStatAtom);
+  const selectedPlanId = useSelectedPlanId();
+  const selectedNodeIds = useSelectedNodeIds();
+  const [highlightState, setHighlightState] = useHighlightedNodeIds();
+  const [hoveredStat, setHoveredStat] = useHoveredStat();
+  const { theme } = useTheme();
+  const isDark = theme === THEME_DARK;
   const { entities } = queryBundle;
   const dagHoveredOperatorId =
     highlightState.source === 'dag' ? highlightState.primaryOperatorId : null;
@@ -277,6 +287,32 @@ export function OperatorTable({ queryBundle }: OperatorTableProps) {
     );
   }, [setHoveredStat, setHighlightState]);
 
+  const interactionConfig = useMemo(
+    (): PivotTableInteractionConfig<PivotedRow> => ({
+      hoveredStat,
+      setHoveredStat,
+      hoveredItemId: dagHoveredOperatorId,
+      selectedItemIds: selectedNodeIds,
+      onTableMouseLeave: handleTableMouseLeave,
+      groupCellHandlers: getGroupCellHandlers,
+    }),
+    [
+      hoveredStat,
+      setHoveredStat,
+      dagHoveredOperatorId,
+      selectedNodeIds,
+      handleTableMouseLeave,
+      getGroupCellHandlers,
+    ]
+  );
+
+  const renderConfig = useMemo(
+    (): PivotTableRenderConfig => ({
+      getGroupTypeColor: getOperatorGroupTypeColor,
+    }),
+    []
+  );
+
   if (!selectedPlanId) {
     return (
       <div className="flex items-center justify-center h-full text-muted-foreground text-sm">
@@ -320,14 +356,10 @@ export function OperatorTable({ queryBundle }: OperatorTableProps) {
           isAggregating={isAggregating}
           aggMode={aggMode}
           indexLabels={indexLabels}
-          selectedItemIds={selectedNodeIds}
-          hoveredItemId={dagHoveredOperatorId}
-          hoveredStat={hoveredStat}
-          onHoverStat={setHoveredStat}
-          onTableMouseLeave={handleTableMouseLeave}
+          isDark={isDark}
+          interaction={interactionConfig}
+          renderConfig={renderConfig}
           virtualization={VIRTUALIZATION_CONFIG}
-          getGroupTypeColor={getOperatorGroupTypeColor}
-          getGroupCellHandlers={getGroupCellHandlers}
           sorting={sorting}
           onSortingChange={setSorting}
         />

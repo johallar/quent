@@ -1,37 +1,39 @@
 // SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-import { Column, TreeTable } from '@/components/ui/tree-table';
+import { Column, TreeTable } from '@quent/components';
 import { useCallback, useEffect, useMemo } from 'react';
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { useAtom } from 'jotai';
 import { useHydrateAtoms } from 'jotai/utils';
-import { useHighlightedItemIds } from '@/hooks/useHighlightedItemIds';
-import { ResourceTree } from '~quent/types/ResourceTree';
-import { TimelineController } from './timeline/TimelineController';
-import { collectResourceTypesFromTree } from '@/lib/resource.utils';
-import { EntityRefKey } from '@/types';
-import { TreeTableItem } from './resource-tree/types';
-import { ResourceColumn } from './resource-tree/ResourceColumn';
-import { UsageColumn } from './resource-tree/UsageColumn';
-import { DEFAULT_TIMELINE_HEIGHT } from './timeline/types';
-import { QueryBundle } from '~quent/types/QueryBundle';
-import type { EntityRef } from '~quent/types/EntityRef';
-import { fetchSingleTimeline, DEFAULT_STALE_TIME } from '@/services/api';
-import type { SingleTimelineRequest } from '~quent/types/SingleTimelineRequest';
-import type { QueryFilter } from '~quent/types/QueryFilter';
-import type { TaskFilter } from '~quent/types/TaskFilter';
-import { transformResourceTree, getAdaptiveNumBins, nanosToMs } from '@/lib/timeline.utils';
+import { useHighlightedItemIds, useBulkTimelines, useHydrateTimelineAtoms } from '@quent/hooks';
+import { ResourceTree, QueryBundle } from '@quent/utils';
+import type { EntityRef, SingleTimelineRequest, QueryFilter, TaskFilter } from '@quent/utils';
+import { TimelineController } from '@quent/components';
+import { collectResourceTypesFromTree } from '@quent/components';
+import { EntityRefKey } from '@quent/utils';
+import { TreeTableItem } from '@quent/components';
+import { ResourceColumn } from '@quent/components';
+import { UsageColumn } from '@quent/components';
+import { DEFAULT_TIMELINE_HEIGHT } from '@quent/components';
+import { fetchSingleTimeline, DEFAULT_STALE_TIME } from '@quent/client';
+import {
+  transformResourceTree,
+  getAdaptiveNumBins,
+  nanosToMs,
+  collectVisibleEntries,
+  buildBulkParamsForItem,
+  findItemById,
+} from '@quent/components';
 import { useExpandedIds } from '@/hooks/useExpandedIds';
-import { useBulkTimelines } from '@/hooks/useBulkTimelines';
-import { zoomRangeAtom, debouncedZoomRangeAtom, startTimeMsAtom } from '@/atoms/timeline';
 import {
   expandedIdsAtom,
   selectedTypesAtom,
   selectedFsmTypesAtom,
   rootResourceTypeAtom,
 } from '@/atoms/resourceTree';
-import { TimelineToolbar } from './timeline/TimelineToolbar';
+import { TimelineToolbar } from '@quent/components';
+import { useTheme, THEME_DARK } from '@/contexts/ThemeContext';
 import type { TreeState } from '@/lib/treeStateParam';
 import {
   OperatorGanttChart,
@@ -40,7 +42,7 @@ import {
   operatorTimelineRowId,
   operatorsWithActiveSpansForWorker,
   workerIdFromOperatorTimelineRowId,
-} from './operator-timeline';
+} from '@quent/components';
 
 function getRootResourceGroupId(resourceTree: ResourceTree<EntityRef>): string | null {
   if (!('ResourceGroup' in resourceTree)) return null;
@@ -93,6 +95,8 @@ function QueryResourceTreeContent({
   initialZoom,
   initialTreeState,
 }: QueryResourceTreeProps) {
+  const { theme } = useTheme();
+  const isDark = theme === THEME_DARK;
   const { entities, resource_tree: resourceTree } = queryBundle;
 
   const startTime = queryBundle.start_time_unix_ns;
@@ -106,13 +110,13 @@ function QueryResourceTreeContent({
 
   const zoomInit = initialZoom ?? { start: 0, end: durationSeconds };
 
-  const initialExpandedIds = useMemo(
+  const initialExpandedIds = useMemo<Set<string>>(
     () =>
       initialTreeState ? new Set(initialTreeState.expandedIds) : new Set<string>([rootItem.id]),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     []
   );
-  const initialSelectedTypes = useMemo(
+  const initialSelectedTypes = useMemo<Map<string, string>>(
     () =>
       initialTreeState
         ? new Map(Object.entries(initialTreeState.selectedTypes))
@@ -120,7 +124,7 @@ function QueryResourceTreeContent({
     // eslint-disable-next-line react-hooks/exhaustive-deps
     []
   );
-  const initialSelectedFsmTypes = useMemo(
+  const initialSelectedFsmTypes = useMemo<Map<string, string | null>>(
     () =>
       initialTreeState
         ? new Map(Object.entries(initialTreeState.selectedFsmTypes))
@@ -129,13 +133,16 @@ function QueryResourceTreeContent({
     []
   );
 
+  useHydrateTimelineAtoms({
+    zoomRange: zoomInit,
+    debouncedZoomRange: zoomInit,
+    startTimeMs,
+  });
+
   useHydrateAtoms([
-    [zoomRangeAtom, zoomInit],
-    [debouncedZoomRangeAtom, zoomInit],
-    [startTimeMsAtom, startTimeMs],
-    [expandedIdsAtom, initialExpandedIds],
-    [selectedTypesAtom, initialSelectedTypes],
-    [selectedFsmTypesAtom, initialSelectedFsmTypes],
+    [expandedIdsAtom, initialExpandedIds] as const,
+    [selectedTypesAtom, initialSelectedTypes] as const,
+    [selectedFsmTypesAtom, initialSelectedFsmTypes] as const,
   ]);
 
   const [selectedTypes, setSelectedTypes] = useAtom(selectedTypesAtom);
@@ -176,6 +183,9 @@ function QueryResourceTreeContent({
     selectedTypes,
     groupFsmFilters: selectedFsmTypes,
     entities,
+    collectVisibleEntriesFn: collectVisibleEntries,
+    buildBulkParamsFn: buildBulkParamsForItem,
+    findItemByIdFn: findItemById,
   });
 
   const onExpandChange = useCallback(
@@ -290,6 +300,7 @@ function QueryResourceTreeContent({
               durationSeconds={durationSeconds}
               timelineData={fetchedRootTimeline}
               onZoomChange={handleZoomChange}
+              isDark={isDark}
             />
           </div>
         ),
@@ -304,7 +315,8 @@ function QueryResourceTreeContent({
                   operators={operators}
                   startTime={startTime}
                   durationSeconds={durationSeconds}
-                  height={DEFAULT_TIMELINE_HEIGHT * 1.2}
+                  height={DEFAULT_TIMELINE_HEIGHT}
+                  isDark={isDark}
                 />
               );
             }
@@ -318,6 +330,7 @@ function QueryResourceTreeContent({
                   selectedFsmTypes={selectedFsmTypes}
                   startTime={startTime}
                   durationSeconds={durationSeconds}
+                  isDark={isDark}
                 />
               );
             }
@@ -329,6 +342,7 @@ function QueryResourceTreeContent({
     startTime,
     durationSeconds,
     fetchedRootTimeline,
+    isDark,
     selectedTypes,
     setSelectedTypes,
     selectedFsmTypes,
@@ -354,6 +368,9 @@ function QueryResourceTreeContent({
           onExpandChange={onExpandChange}
           highlightedItemIds={highlightedItemIds}
           controlledExpandedIds={controlledExpandedIds}
+          virtualized
+          // Estimate for virtualization
+          rowHeight={DEFAULT_TIMELINE_HEIGHT}
         />
       </div>
     </div>

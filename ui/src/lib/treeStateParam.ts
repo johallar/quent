@@ -3,7 +3,7 @@
 
 import { compressToEncodedURIComponent, decompressFromEncodedURIComponent } from 'lz-string';
 import { z } from 'zod';
-import { CONTINUOUS_PALETTES, type ContinuousPaletteName } from '@/services/colors';
+import { CONTINUOUS_PALETTES, type ContinuousPaletteName } from '@quent/utils';
 import { safeRun } from '@/lib/safeUrlState';
 
 const continuousPaletteNames = Object.keys(CONTINUOUS_PALETTES) as [

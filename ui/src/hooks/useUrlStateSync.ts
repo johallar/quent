@@ -5,6 +5,9 @@ import { useEffect } from 'react';
 import { useAtomValue } from 'jotai';
 import { useHydrateAtoms } from 'jotai/utils';
 import { useLocation, useNavigate } from '@tanstack/react-router';
+// URL ↔ atom synchronization needs direct atom references for `useHydrateAtoms`
+// and `useAtomValue` calls; the package's selector-hook API cannot express those.
+// `@quent/hooks/url-sync` is the documented escape hatch for this layer only.
 import {
   selectedPlanIdAtom,
   selectedNodeIdsAtom,
@@ -15,10 +18,18 @@ import {
   selectedNodeLabelFieldAtom,
   nodeColorPaletteAtom,
   edgeColorPaletteAtom,
-  NODE_LABEL_FIELD,
-} from '@/atoms/dag';
+  debouncedZoomRangeAtom,
+  hideTasksAtom,
+  OPERATOR_TABLE_PERSIST_KEY,
+  aggModeAtomFamily,
+  enabledIndicesAtomFamily,
+  indexOrderAtomFamily,
+  selectedStatsAtomFamily,
+  sortingAtomFamily,
+  statOrderAtomFamily,
+} from '@quent/hooks/url-sync';
+import { NODE_LABEL_FIELD } from '@quent/utils';
 import { expandedIdsAtom, selectedFsmTypesAtom, selectedTypesAtom } from '@/atoms/resourceTree';
-import { debouncedZoomRangeAtom, hideTasksAtom } from '@/atoms/timeline';
 import {
   decodeDagState,
   decodeLegacyCombinedTreeState,
@@ -29,15 +40,6 @@ import {
   encodeTreeState,
 } from '@/lib/treeStateParam';
 import { safeRun } from '@/lib/safeUrlState';
-import {
-  OPERATOR_TABLE_PERSIST_KEY,
-  aggModeAtomFamily,
-  enabledIndicesAtomFamily,
-  indexOrderAtomFamily,
-  selectedStatsAtomFamily,
-  sortingAtomFamily,
-  statOrderAtomFamily,
-} from '@/atoms/statGroupTable';
 
 export interface QueryIndexSearch {
   planId?: string;
