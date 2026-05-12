@@ -111,6 +111,21 @@ function hashString(str: string): number {
   return hash >>> 0; // Convert to unsigned 32-bit integer
 }
 
+/**
+ * Pick a palette index for `key` using hash + linear probe.
+ * Probes forward from the hash index, skipping anything already in `used`,
+ * until it finds a free slot. If `used` is already full (size >= paletteSize)
+ * the bare hash index is returned — duplicates are unavoidable past the
+ * palette size, and the early return prevents an infinite probe loop.
+ */
+function pickPaletteIndex(key: string, paletteSize: number, used: Set<number>): number {
+  const hashIndex = hashString(key) % paletteSize;
+  if (used.size >= paletteSize) return hashIndex;
+  let index = hashIndex;
+  while (used.has(index)) index = (index + 1) % paletteSize;
+  return index;
+}
+
 // Cache: key -> palette index
 const colorAssignments = new Map<string, number>();
 // Track which palette indices are taken
@@ -129,20 +144,7 @@ export function getColorForKey(key: string, theme: PaletteTheme): ChartColor {
     return palette[colorAssignments.get(key)!];
   }
 
-  const hashIndex = hashString(key) % palette.length;
-
-  // If palette is full, just use the hash index
-  if (usedIndices.size >= palette.length) {
-    colorAssignments.set(key, hashIndex);
-    return palette[hashIndex];
-  }
-
-  // Probe forward from hash index to find an unused slot
-  let index = hashIndex;
-  while (usedIndices.has(index)) {
-    index = (index + 1) % palette.length;
-  }
-
+  const index = pickPaletteIndex(key, palette.length, usedIndices);
   colorAssignments.set(key, index);
   usedIndices.add(index);
   return palette[index];
@@ -280,28 +282,37 @@ export function isLightColor(hex: string): boolean {
  * @param operationType - The operation type string (e.g., 'source', 'join', 'aggregate')
  * @returns A CSS color string (Tailwind color name mapped to its standard hex value)
  */
-const OPERATION_TYPE_COLORS: Record<string, string> = {
-  source: '#3b82f6', // blue-500
-  scan: '#3b82f6', // blue-500
-  filesystemscan: '#3b82f6', // blue-500
-  join: '#a855f7', // purple-500
-  joinlocal: '#a855f7', // purple-500
-  joinpartition: '#a855f7', // purple-500
-  aggregate: '#22c55e', // green-500
-  exchange: '#f97316', // orange-500
-  output: '#ef4444', // red-500
-  stage: '#4f46e5', // indigo-600
-  local: '#f59e0b', // amber-500
-  project: '#14b8a6', // teal-500
-  filter: '#06b6d4', // cyan-500
-  sort: '#8b5cf6', // violet-500
-  limit: '#ec4899', // pink-500
-  union: '#10b981', // emerald-500
-  other: '#6b7280', // gray-500
-};
+
+const OPERATOR_PALETTE = [
+  '#3b82f6', // blue-500
+  '#a855f7', // purple-500
+  '#22c55e', // green-500
+  '#f97316', // orange-500
+  '#ef4444', // red-500
+  '#4f46e5', // indigo-600
+  '#f59e0b', // amber-500
+  '#14b8a6', // teal-500
+  '#06b6d4', // cyan-500
+  '#8b5cf6', // violet-500
+  '#ec4899', // pink-500
+  '#10b981', // emerald-500
+];
 
 export function getOperationTypeColor(operationType: string): string {
-  return OPERATION_TYPE_COLORS[operationType.toLowerCase()] ?? OPERATION_TYPE_COLORS.other;
+  const index = hashString(operationType.toLowerCase()) % OPERATOR_PALETTE.length;
+  return OPERATOR_PALETTE[index]!;
+}
+
+export function buildOperatorColorMap(operatorTypes: string[]): Map<string, string> {
+  const sorted = [...new Set(operatorTypes.map(t => t.toLowerCase()))].sort();
+  const used = new Set<number>();
+  const map = new Map<string, string>();
+  for (const type of sorted) {
+    const index = pickPaletteIndex(type, OPERATOR_PALETTE.length, used);
+    used.add(index);
+    map.set(type, OPERATOR_PALETTE[index]!);
+  }
+  return map;
 }
 
 // ---------------------------------------------------------------------------

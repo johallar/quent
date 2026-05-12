@@ -24,7 +24,8 @@ import {
   ROLLUP_TIMELINE_COLOR_LIGHT,
   useTimelineEchartsTheme,
 } from './timelineEchartsTheme';
-import { connectChart, MIN_ZOOM_WINDOW_S, nanosToMs } from '../lib/timeline.utils';
+import { MIN_ZOOM_WINDOW_S, nanosToMs } from '../lib/timeline.utils';
+import { useChartConnect } from '../lib/useChartConnect';
 import { Opts } from 'echarts-for-react/lib/types';
 
 export const CHART_GROUP = 'timeline-sync-group';
@@ -241,7 +242,7 @@ export function Timeline({
   // ECharts' built-in tooltip is reduced to crosshair only (`showContent: false`).
   // Tooltip content is rendered by the parent via `onHoverChange` — keeping
   // `connect()` mirroring `showTip` harmless (only the crosshair paints,
-  // never tooltip DOM
+  // never tooltip DOM.
   const eChartOptions: EChartsOption = useMemo(() => {
     return {
       animation: false,
@@ -290,27 +291,23 @@ export function Timeline({
     } as EChartsOption;
   }, [gridOptions, minZoomSpanPct, xAxisOptions, yAxisOptions, seriesOptions]);
 
-  const instanceRef = useRef<EChartsInstance | null>(null);
   const isDraggingRef = useRef(false);
 
-  // `handleChartReady` runs exactly once per chart instance, so its closures
+  // `onChartReady` runs exactly once per chart instance, so its closures
   // capture the initial values of `showTooltip` / `onHoverChange`. Refs let
   // those closures read the current values on every event without re-binding
-  // listeners or making `handleChartReady` re-run.
+  // listeners or making `onChartReady` re-run.
   const showTooltipRef = useRef(showTooltip);
   showTooltipRef.current = showTooltip;
   const onHoverChangeRef = useRef(onHoverChange);
   onHoverChangeRef.current = onHoverChange;
-  // The listeners attached in `handleChartReady` close over `timestamps` for
+  // The listeners attached in `onChartReady` close over `timestamps` for
   // bin snapping; mirror it into a ref so they always see the current array
   // (zoom changes can replace it) without re-binding.
   const timestampsRef = useRef(timestamps);
   timestampsRef.current = timestamps;
 
-  const handleChartReady = useCallback((instance: EChartsInstance) => {
-    instanceRef.current = instance;
-    connectChart(instance, CHART_GROUP, false);
-
+  const onChartReady = useCallback((instance: EChartsInstance) => {
     const dom = instance.getDom();
     const outsideTimelineViz = (e: PointerEvent) => {
       const rect = dom.getBoundingClientRect();
@@ -416,8 +413,15 @@ export function Timeline({
       onHoverChangeRef.current?.(null);
     };
   }, []);
+
   const style = useMemo(() => ({ width: '100%', height: `${height}px` }), [height]);
   const opts = useMemo(() => ({ renderer: 'svg' }) as Opts, []);
+
+  const { handleChartReady } = useChartConnect({
+    durationSeconds,
+    chartGroup: CHART_GROUP,
+    onReady: onChartReady,
+  });
 
   return (
     <ReactEChartsComponent

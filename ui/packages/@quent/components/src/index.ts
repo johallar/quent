@@ -45,6 +45,13 @@ export { Popover, PopoverTrigger, PopoverContent } from './ui/popover';
 export { ResizablePanelGroup, ResizablePanel, ResizableHandle } from './ui/resizable';
 export { ScrollArea, ScrollBar } from './ui/scroll-area';
 export {
+  ThinScroll,
+  thinScrollbarClass,
+  HiddenScroll,
+  hiddenScrollbarClass,
+} from './ui/thin-scroll';
+export type { ThinScrollProps, HiddenScrollProps } from './ui/thin-scroll';
+export {
   Select,
   SelectGroup,
   SelectValue,
@@ -98,7 +105,6 @@ export {
   buildTimelineMarks,
   collectVisibleEntries,
   getAdaptiveNumBins,
-  getChartGroupZoomState,
   getFsmTypeName,
   getLongEntitiesThreshold,
   getLongFsms,
@@ -120,11 +126,6 @@ export {
   computeEdgeWidthConfig,
   inferFieldFormatter,
 } from './services/query-plan/dagFieldProcessing';
-export {
-  DEFAULT_OPERATION_COLOR,
-  OPERATION_TYPE_COLORS,
-  getOperatorColor,
-} from './services/query-plan/operationTypes';
 export {
   getPlanDAG,
   getTreeData,

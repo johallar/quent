@@ -6,7 +6,7 @@ import { useQueryBundle } from '@quent/client';
 import { useQueryPlanVisualization } from '@/hooks/useQueryPlanVisualization';
 import { TreeView } from '@quent/components';
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@quent/components';
-import { type QueryPlanDataItem } from '@quent/components';
+import { thinScrollbarClass, type QueryPlanDataItem } from '@quent/components';
 import { Network } from 'lucide-react';
 import { useSelectedPlanId, useSetSelectedPlanId, useSetHoveredWorkerId } from '@quent/hooks';
 import { DAGControls } from '@quent/components';
@@ -98,11 +98,7 @@ export function QueryPlan({ queryId, engineId }: { queryId: string; engineId: st
 
   const renderItem = ({ item, hasChildren }: { item: QueryPlanDataItem; hasChildren: boolean }) => {
     return (
-      <div
-        className="flex flex-col items-start py-0.5 pl-1"
-        onMouseEnter={() => item.workerId && setHoveredWorkerId(item.workerId)}
-        onMouseLeave={() => setHoveredWorkerId(null)}
-      >
+      <div className="flex flex-col items-start py-0.5 pl-1">
         {singleQueryPlan ? (
           <span className="text-xs">
             Query: <DataText>{item.queryId}</DataText>
@@ -149,13 +145,14 @@ export function QueryPlan({ queryId, engineId }: { queryId: string; engineId: st
           minSize="10%"
           collapsible
           collapsedSize="0%"
-          className="overflow-y-auto [&::-webkit-scrollbar]:w-0 [scrollbar-width:none] [-ms-overflow-style:none]"
+          className={`overflow-y-auto ${thinScrollbarClass}`}
         >
           <TreeView<QueryPlanDataItem>
             data={treeData}
             initialSelectedItemId={planId}
             selectedItemId={planId}
             onSelectChange={handlePlanSelect}
+            onItemHover={item => setHoveredWorkerId(item?.workerId ?? null)}
             renderItem={renderItem}
           />
         </ResizablePanel>
