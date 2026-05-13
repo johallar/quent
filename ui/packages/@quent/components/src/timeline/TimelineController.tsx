@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import type { CSSProperties } from 'react';
 import ReactEChartsComponent from 'echarts-for-react';
 import { echarts } from '../lib/echarts';
 import type { EChartsOption } from '../lib/echarts';
@@ -21,13 +22,19 @@ import {
 import { useChartConnect } from '../lib/useChartConnect';
 import { TIMELINE_X_AXIS_ANIMATION, TIMELINE_SPACING } from './types';
 import type { SingleTimelineResponse } from '@quent/utils';
-import { useTimelineEchartsTheme } from './timelineEchartsTheme';
+import { TIMELINE_MONO_FONT, useTimelineEchartsTheme } from './timelineEchartsTheme';
 import type { PaletteTheme } from '@quent/utils';
 import { Opts } from 'echarts-for-react/lib/types';
 
 const CONTROLLER_HEIGHT = 50;
 const CONTROLLER_TOP_HEADROOM_RATIO = 0.2;
 const CONTROLLER_X_MIN_LABELS = 8;
+/** Grid `bottom` (px from container bottom) — leaves room for the xAxis labels. */
+const CONTROLLER_GRID_BOTTOM = 20;
+/** Match the registered theme's xAxis axisLabel.fontSize. */
+const CONTROLLER_LABEL_FONT_SIZE = 10;
+/** Match the registered theme's xAxis axisLabel.margin. */
+const CONTROLLER_LABEL_AXIS_MARGIN = 8;
 
 type TimelineControllerProps = {
   /** Start time in nanoseconds (bigint) */
@@ -52,7 +59,8 @@ export function TimelineController({
   onZoomChange,
   isDark,
 }: TimelineControllerProps) {
-  const { themeName, controllerGridBackgroundColor } = useTimelineEchartsTheme(isDark);
+  const { themeName, axisLabelColor, solidLabelBackgroundColor, controllerGridBackgroundColor } =
+    useTimelineEchartsTheme(isDark);
   const paletteTheme: PaletteTheme = isDark ? 'dark' : 'light';
 
   const startTimeMillis = useMemo(() => nanosToMs(startTime), [startTime]);
@@ -190,7 +198,7 @@ export function TimelineController({
   const gridOptions = useMemo(
     () => ({
       ...TIMELINE_SPACING,
-      bottom: 20,
+      bottom: CONTROLLER_GRID_BOTTOM,
       // Override the registered theme's grid backgroundColor with the controller-specific tint.
       backgroundColor: controllerGridBackgroundColor,
     }),
@@ -221,12 +229,11 @@ export function TimelineController({
           top: 0,
           height: height - 24,
           brushSelect: true,
-          // handleStyle, fillerColor, dataBackground, textStyle, etc. come from
-          // the registered timeline theme's dataZoom defaults.
-          textStyle: { opacity: 1 },
-          labelFormatter: (tsMilliseconds: number) => {
-            return formatDuration(Number(tsMilliseconds) - startTimeMillis);
-          },
+          // handleStyle, fillerColor, dataBackground, etc. come from the
+          // registered timeline theme's dataZoom defaults. The built-in
+          // showDetail labels are disabled in favor of custom DOM labels
+          // positioned imperatively to match the xAxis label style/location.
+          showDetail: false,
         },
         {
           type: 'inside',
@@ -260,8 +267,6 @@ export function TimelineController({
     zoomXAxisOptions,
     yAxisOptions,
     seriesOptions,
-    startTimeMillis,
-    endTimeMillis,
   ]);
 
   const handleDataZoom = useMemo(() => {
@@ -301,10 +306,69 @@ export function TimelineController({
 
   const zoomRange = useZoomRange();
 
-  const onChartReady = useCallback((instance: EChartsInstance) => {
-    registerAxisPointerSync(instance, 0);
-    setReadyTick(t => t + 1);
+  // DOM refs for the custom datazoom labels. Positioned imperatively from the
+  // ECharts `datazoom` event so fast drags don't pay a React render tick per
+  // frame. The label text/transform is updated directly via these refs.
+  const startLabelRef = useRef<HTMLDivElement>(null);
+  const endLabelRef = useRef<HTMLDivElement>(null);
+
+  // Live refs for the values the update routine reads so the imperative
+  // listener (registered once in onChartReady) never closes over stale values
+  // after a re-render.
+  const startTimeMillisRef = useRef(startTimeMillis);
+  startTimeMillisRef.current = startTimeMillis;
+  const endTimeMillisRef = useRef(endTimeMillis);
+  endTimeMillisRef.current = endTimeMillis;
+
+  const updateLabelsFromInstance = useCallback((instance: EChartsInstance) => {
+    const t0 = startTimeMillisRef.current;
+    const t1 = endTimeMillisRef.current;
+    const span = t1 - t0;
+    if (span <= 0) return;
+
+    const opt = instance.getOption() as {
+      dataZoom?: Array<{ start?: number; end?: number }>;
+    };
+    const dz = opt.dataZoom?.[0];
+    const startPct = dz?.start ?? 0;
+    const endPct = dz?.end ?? 100;
+
+    const startVal = t0 + (startPct / 100) * span;
+    const endVal = t0 + (endPct / 100) * span;
+
+    // Use the static xAxis (index 0) — its value→pixel mapping always spans
+    // the full duration. xAxisIndex 1 is controlled by the dataZoom so its
+    // visible range shrinks to the zoomed window, which would pin both labels
+    // to the grid edges regardless of handle position.
+    const startX = instance.convertToPixel({ xAxisIndex: 0 }, startVal);
+    const endX = instance.convertToPixel({ xAxisIndex: 0 }, endVal);
+    if (!Number.isFinite(startX) || !Number.isFinite(endX)) return;
+
+    const sl = startLabelRef.current;
+    const el = endLabelRef.current;
+    if (sl) {
+      sl.style.transform = `translate(${startX}px, 0) translateX(-50%)`;
+      sl.textContent = formatDuration(startVal - t0);
+    }
+    if (el) {
+      el.style.transform = `translate(${endX}px, 0) translateX(-50%)`;
+      el.textContent = formatDuration(endVal - t0);
+    }
   }, []);
+
+  const onChartReady = useCallback(
+    (instance: EChartsInstance) => {
+      registerAxisPointerSync(instance, 0);
+      const update = () => updateLabelsFromInstance(instance);
+      // `datazoom` covers drags, brush-select, programmatic dispatchAction.
+      // `finished` covers initial render + resize-driven relayouts. Both are
+      // native ECharts events and bypass React's render cycle entirely.
+      instance.on('datazoom', update);
+      instance.on('finished', update);
+      setReadyTick(t => t + 1);
+    },
+    [updateLabelsFromInstance]
+  );
 
   const { handleChartReady, instanceRef } = useChartConnect({
     durationSeconds,
@@ -350,17 +414,51 @@ export function TimelineController({
   }, [instanceRef]);
 
   const opts = useMemo(() => ({ renderer: 'svg' }) as Opts, []);
+
+  // Reproduce the static xAxis label's vertical position. ECharts places the
+  // axis line at `containerBottom - gridBottom`, then drops the label by
+  // `axisLabel.margin` and renders one line of `fontSize` text below it. The
+  // label's bottom edge is therefore `gridBottom - margin - fontSize` from the
+  // container bottom — exactly the `bottom` value we need for our DOM labels.
+  const labelBottomPx = Math.max(
+    0,
+    CONTROLLER_GRID_BOTTOM - CONTROLLER_LABEL_AXIS_MARGIN - CONTROLLER_LABEL_FONT_SIZE
+  );
+
+  const labelBaseStyle: CSSProperties = {
+    position: 'absolute',
+    bottom: `${labelBottomPx}px`,
+    left: 0,
+    transform: 'translate(-9999px, 0)',
+    pointerEvents: 'none',
+    color: axisLabelColor,
+    fontSize: `${CONTROLLER_LABEL_FONT_SIZE}px`,
+    fontFamily: TIMELINE_MONO_FONT,
+    lineHeight: 1,
+    whiteSpace: 'nowrap',
+    zIndex: 11,
+    willChange: 'transform',
+    backgroundColor: solidLabelBackgroundColor,
+    padding: '1px 4px',
+    border: `1px solid ${axisLabelColor}`,
+    borderRadius: '2px',
+  };
+
   return (
-    <ReactEChartsComponent
-      echarts={echarts}
-      theme={themeName}
-      option={eChartOptions}
-      style={{ width: '100%', height: `${height}px` }}
-      onChartReady={handleChartReady}
-      onEvents={handleDataZoom}
-      notMerge={false}
-      lazyUpdate
-      opts={opts}
-    />
+    <div style={{ position: 'relative', width: '100%', height: `${height}px` }}>
+      <ReactEChartsComponent
+        echarts={echarts}
+        theme={themeName}
+        option={eChartOptions}
+        style={{ width: '100%', height: `${height}px` }}
+        onChartReady={handleChartReady}
+        onEvents={handleDataZoom}
+        notMerge={false}
+        lazyUpdate
+        opts={opts}
+      />
+      <div ref={startLabelRef} style={labelBaseStyle} aria-hidden />
+      <div ref={endLabelRef} style={labelBaseStyle} aria-hidden />
+    </div>
   );
 }

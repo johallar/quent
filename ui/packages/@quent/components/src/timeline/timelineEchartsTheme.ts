@@ -46,8 +46,6 @@ const CONTROLLER_GRID_BACKGROUND_OPACITY = 0.05;
 const DATAZOOM_HANDLE_OPACITY = 0.3;
 const DATAZOOM_FILLER_OPACITY = 0.2;
 const DATAZOOM_EMPHASIS_HANDLE_OPACITY = 0.5;
-const DATAZOOM_LABEL_BACKGROUND_OPACITY = 0.5;
-
 function buildTimelineTheme(isDark: boolean) {
   const timelineMarkupColor = isDark ? TIMELINE_MARKUP_COLOR_DARK : TIMELINE_MARKUP_COLOR_LIGHT;
   const rollupTimelineColor = isDark ? ROLLUP_TIMELINE_COLOR_DARK : ROLLUP_TIMELINE_COLOR_LIGHT;
@@ -55,11 +53,6 @@ function buildTimelineTheme(isDark: boolean) {
   const gridBorderColor = withOpacity(timelineMarkupColor, GRID_BORDER_OPACITY);
   const gridBackgroundColor = withOpacity(timelineMarkupColor, GRID_BACKGROUND_OPACITY);
 
-  const dataZoomTextColor = isDark ? WHITE : BLACK;
-  const dataZoomTextBackgroundColor = withOpacity(
-    isDark ? BLACK : WHITE,
-    DATAZOOM_LABEL_BACKGROUND_OPACITY
-  );
   const dataZoomHandleColor = withOpacity(timelineMarkupColor, DATAZOOM_HANDLE_OPACITY);
   const dataZoomFillerColor = withOpacity(timelineMarkupColor, DATAZOOM_FILLER_OPACITY);
   const dataZoomEmphasisHandleColor = withOpacity(
@@ -107,13 +100,9 @@ function buildTimelineTheme(isDark: boolean) {
       moveHandleSize: 5,
       dataBackground: { lineStyle: { opacity: 0 }, areaStyle: { opacity: 0 } },
       selectedDataBackground: { lineStyle: { opacity: 0 }, areaStyle: { opacity: 0 } },
-      textStyle: {
-        color: dataZoomTextColor,
-        backgroundColor: dataZoomTextBackgroundColor,
-        padding: [2, 4],
-        borderRadius: 2,
-        fontFamily: TIMELINE_MONO_FONT,
-      },
+      // Built-in showDetail labels are disabled on the controller's slider in
+      // favor of custom DOM labels (see TimelineController), so no textStyle
+      // is needed here.
       emphasis: {
         handleStyle: { color: dataZoomEmphasisHandleColor },
       },
@@ -137,8 +126,12 @@ export function useTimelineEchartsTheme(isDark: boolean) {
     () => ({
       themeName: isDark ? TIMELINE_THEME_NAME_DARK : TIMELINE_THEME_NAME_LIGHT,
       textColor: isDark ? TEXT_COLOR_DARK : TEXT_COLOR_LIGHT,
+      /** Color used by xAxis labels in the registered theme; mirror for DOM overlays. */
+      axisLabelColor: isDark ? TIMELINE_MARKUP_COLOR_DARK : TIMELINE_MARKUP_COLOR_LIGHT,
       /** Semi-transparent chip background for DOM labels overlaid on the chart canvas. */
       labelBackgroundColor: withOpacity(isDark ? BLACK : WHITE, 0.55),
+      /** Nearly-opaque chip background — used when the label must obscure what's behind it. */
+      solidLabelBackgroundColor: withOpacity(isDark ? BLACK : WHITE, 0.92),
       controllerGridBackgroundColor: withOpacity(
         isDark ? TIMELINE_MARKUP_COLOR_DARK : TIMELINE_MARKUP_COLOR_LIGHT,
         CONTROLLER_GRID_BACKGROUND_OPACITY
