@@ -153,6 +153,8 @@ export function TimelineController({
       axisTick: { show: true, alignWithLabel: true },
       axisLabel: {
         hideOverlap: false,
+        alignMinLabel: 'left',
+        alignMaxLabel: 'right',
         formatter: (value: number) => {
           return formatDuration(Number(value) - startTimeMillis);
         },
