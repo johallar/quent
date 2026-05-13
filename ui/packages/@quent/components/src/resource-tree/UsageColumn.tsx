@@ -7,7 +7,6 @@ import { DEFAULT_TIMELINE_HEIGHT } from '../timeline/types';
 import type { EntityRef } from '@quent/utils';
 import { TreeTableItem } from './types';
 import { ResourceTimeline } from '../timeline/ResourceTimeline';
-import { useIsTimelineHovered, useSetHoveredTimelineId } from '@quent/hooks';
 
 type UsageColumnProps = {
   item: TreeTableItem;
@@ -32,9 +31,6 @@ export function UsageColumn({
   durationSeconds,
   isDark,
 }: UsageColumnProps): React.ReactNode {
-  const isHovered = useIsTimelineHovered(item.id);
-  const setHoveredId = useSetHoveredTimelineId();
-
   const entity = item?.entity ?? {};
   const entityTypeName = 'type_name' in entity ? (entity.type_name as string) : undefined;
   const selectedType = selectedTypes.get(item.id) || item.availableResourceTypes?.[0] || '';
@@ -53,10 +49,12 @@ export function UsageColumn({
     fsmTypeName = selectedFsmTypes?.get(item.id) ?? undefined;
   }
   const capacities = resourceTypeDecl?.capacities;
+  // Cell wrapper kept (without enter/leave) so click events still don't
+  // propagate to the table-row click handler. Tooltip visibility is driven
+  // by the chart's own pointermove via `timelineHoverAtom` — no row-level
+  // gating needed.
   return (
     <div
-      onMouseEnter={() => setHoveredId(item.id)}
-      onMouseLeave={() => setHoveredId(null)}
       onClick={e => e.stopPropagation()}
       className="h-full w-full"
       style={{ minHeight: DEFAULT_TIMELINE_HEIGHT }}
@@ -70,7 +68,6 @@ export function UsageColumn({
         durationSeconds={durationSeconds}
         fsmTypeName={fsmTypeName}
         resourceTypeName={selectedType}
-        showTooltip={isHovered}
         capacities={capacities}
         quantitySpecs={queryBundle.quantity_specs}
         fsmTypes={queryBundle.entities.fsm_types}
