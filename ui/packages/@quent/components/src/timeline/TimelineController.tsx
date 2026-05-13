@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { createPortal } from 'react-dom';
 import ReactEChartsComponent from 'echarts-for-react';
 import { echarts } from '../lib/echarts';
 import type { EChartsOption } from '../lib/echarts';
@@ -22,18 +21,13 @@ import {
 import { useChartConnect } from '../lib/useChartConnect';
 import { TIMELINE_X_AXIS_ANIMATION, TIMELINE_SPACING } from './types';
 import type { SingleTimelineResponse } from '@quent/utils';
-import { TIMELINE_MONO_FONT, useTimelineEchartsTheme } from './timelineEchartsTheme';
+import { useTimelineEchartsTheme } from './timelineEchartsTheme';
 import type { PaletteTheme } from '@quent/utils';
+import { Opts } from 'echarts-for-react/lib/types';
 
-const CONTROLLER_HEIGHT = 30;
+const CONTROLLER_HEIGHT = 50;
 const CONTROLLER_TOP_HEADROOM_RATIO = 0.2;
 const CONTROLLER_X_MIN_LABELS = 8;
-/** Extra space below the chart reserved for the portal handle labels. */
-const LABEL_MARGIN_PX = 16;
-/** Inner margin before labels shift inward. */
-const LABEL_EDGE_MARGIN_PX = 2;
-/** Min gap between the two handle labels. */
-const LABEL_COLLISION_GAP_PX = 4;
 
 type TimelineControllerProps = {
   /** Start time in nanoseconds (bigint) */
@@ -58,8 +52,7 @@ export function TimelineController({
   onZoomChange,
   isDark,
 }: TimelineControllerProps) {
-  const { themeName, controllerGridBackgroundColor, textColor, labelBackgroundColor } =
-    useTimelineEchartsTheme(isDark);
+  const { themeName, controllerGridBackgroundColor } = useTimelineEchartsTheme(isDark);
   const paletteTheme: PaletteTheme = isDark ? 'dark' : 'light';
 
   const startTimeMillis = useMemo(() => nanosToMs(startTime), [startTime]);
@@ -112,7 +105,7 @@ export function TimelineController({
       xAxisIndex: 0,
       data: toTimePoints(staticValues ?? []),
       symbol: 'none',
-      lineStyle: { width: 0 },
+      lineStyle: { width: 1 },
       areaStyle: { opacity: 0.8 },
       silent: true,
       emphasis: { disabled: true },
@@ -140,7 +133,12 @@ export function TimelineController({
       max: endTimeMillis,
       interval,
       axisTick: { show: true },
-      axisLabel: { show: false },
+      axisLabel: {
+        hideOverlap: false,
+        formatter: (value: number) => {
+          return formatDuration(Number(value) - startTimeMillis);
+        },
+      },
       splitLine: { show: true, lineStyle: { type: 'solid' } },
       axisPointer: {
         show: true,
@@ -192,9 +190,9 @@ export function TimelineController({
   const gridOptions = useMemo(
     () => ({
       ...TIMELINE_SPACING,
-      borderWidth: 0,
+      bottom: 20,
       // Override the registered theme's grid backgroundColor with the controller-specific tint.
-      // backgroundColor: controllerGridBackgroundColor,
+      backgroundColor: controllerGridBackgroundColor,
     }),
     [controllerGridBackgroundColor]
   );
@@ -221,11 +219,14 @@ export function TimelineController({
           filterMode: 'none',
           minSpan: minZoomSpanPct,
           top: 0,
-          height,
+          height: height - 24,
           brushSelect: true,
-          // Handle labels are rendered as DOM elements (see wrapper div below)
-          // to avoid canvas clipping when handles are near the edges.
-          textStyle: { opacity: 0 },
+          // handleStyle, fillerColor, dataBackground, textStyle, etc. come from
+          // the registered timeline theme's dataZoom defaults.
+          textStyle: { opacity: 1 },
+          labelFormatter: (tsMilliseconds: number) => {
+            return formatDuration(Number(tsMilliseconds) - startTimeMillis);
+          },
         },
         {
           type: 'inside',
@@ -300,129 +301,10 @@ export function TimelineController({
 
   const zoomRange = useZoomRange();
 
-  // Stable refs for zero-latency direct DOM updates.
-  const durationSecondsRef = useRef(durationSeconds);
-  durationSecondsRef.current = durationSeconds;
-  const wrapperRef = useRef<HTMLDivElement>(null);
-  const leftLabelRef = useRef<HTMLSpanElement>(null);
-  const rightLabelRef = useRef<HTMLSpanElement>(null);
-
-  /** Compute the fixed top position (px) where labels should sit — just below the chart. */
-  const getLabelTop = useCallback(() => {
-    const rect = wrapperRef.current?.getBoundingClientRect();
-    // Labels sit in the margin area: chart bottom + small gap
-    return rect ? rect.top + height + 4 : -9999;
-  }, [height]);
-
-  /** Position handle labels by center, splitting symmetrically on overlap and clamping to wrapper edges. */
-  const updateLabelPositions = useCallback(
-    (sp: number, ep: number) => {
-      const wrapper = wrapperRef.current;
-      const leftEl = leftLabelRef.current;
-      const rightEl = rightLabelRef.current;
-      if (!wrapper || !leftEl || !rightEl) return;
-
-      const wrapperRect = wrapper.getBoundingClientRect();
-      const top = `${wrapperRect.top + height + 4}px`;
-      const safeLeft = wrapperRect.left + LABEL_EDGE_MARGIN_PX;
-      const safeRight = wrapperRect.right - LABEL_EDGE_MARGIN_PX;
-      const leftHandleX = wrapperRect.left + (sp / 100) * wrapperRect.width;
-      const rightHandleX = wrapperRect.left + (ep / 100) * wrapperRect.width;
-
-      // Place at ideal centers before measuring so widths reflect current text.
-      leftEl.style.left = `${leftHandleX}px`;
-      leftEl.style.top = top;
-      rightEl.style.left = `${rightHandleX}px`;
-      rightEl.style.top = top;
-
-      const leftWidth = leftEl.offsetWidth;
-      const rightWidth = rightEl.offsetWidth;
-      const minSeparation = (leftWidth + rightWidth) / 2 + LABEL_COLLISION_GAP_PX;
-
-      let leftCenter = leftHandleX;
-      let rightCenter = rightHandleX;
-
-      // Symmetric split around the midpoint resolves overlap with minimal bias.
-      if (rightCenter - leftCenter < minSeparation) {
-        const mid = (leftCenter + rightCenter) / 2;
-        leftCenter = mid - minSeparation / 2;
-        rightCenter = mid + minSeparation / 2;
-      }
-
-      // Edge clamps; if a clamp eats the gap, push the other label out to restore it.
-      if (leftCenter - leftWidth / 2 < safeLeft) {
-        leftCenter = safeLeft + leftWidth / 2;
-        if (rightCenter - leftCenter < minSeparation) rightCenter = leftCenter + minSeparation;
-      }
-      if (rightCenter + rightWidth / 2 > safeRight) {
-        rightCenter = safeRight - rightWidth / 2;
-        if (rightCenter - leftCenter < minSeparation) leftCenter = rightCenter - minSeparation;
-      }
-      // Degenerate (labels wider than safe range): pin left edge, let right overflow.
-      if (leftCenter - leftWidth / 2 < safeLeft) leftCenter = safeLeft + leftWidth / 2;
-
-      leftEl.style.left = `${leftCenter}px`;
-      rightEl.style.left = `${rightCenter}px`;
-    },
-    [height]
-  );
-
-  const onChartReady = useCallback(
-    (instance: EChartsInstance) => {
-      registerAxisPointerSync(instance, 0);
-      setReadyTick(t => t + 1);
-
-      // Directly mutate label DOM on every datazoom event, bypassing the React
-      // render cycle so labels track the handles with zero perceptible lag.
-      instance.on('datazoom', () => {
-        const opt = instance.getOption() as { dataZoom?: Array<{ start?: number; end?: number }> };
-        const dz = opt.dataZoom?.[0];
-        if (dz == null) return;
-        const dur = durationSecondsRef.current;
-        const sp = dz.start ?? 0;
-        const ep = dz.end ?? 100;
-        if (leftLabelRef.current) {
-          leftLabelRef.current.textContent = formatDuration((sp / 100) * dur * 1000);
-        }
-        if (rightLabelRef.current) {
-          rightLabelRef.current.textContent = formatDuration((ep / 100) * dur * 1000);
-        }
-        updateLabelPositions(sp, ep);
-      });
-    },
-    [updateLabelPositions]
-  );
-
-  // Sync labels when zoom changes externally (toolbar reset, initial mount).
-  useEffect(() => {
-    if (durationSeconds <= 0) return;
-    const sp = (zoomRange.start / durationSeconds) * 100;
-    const ep = (zoomRange.end / durationSeconds) * 100;
-    if (leftLabelRef.current) {
-      leftLabelRef.current.textContent = formatDuration(zoomRange.start * 1000);
-    }
-    if (rightLabelRef.current) {
-      rightLabelRef.current.textContent = formatDuration(zoomRange.end * 1000);
-    }
-    updateLabelPositions(sp, ep);
-  }, [zoomRange, durationSeconds, updateLabelPositions]);
-
-  // Keep label vertical position in sync when the wrapper moves or resizes.
-  useEffect(() => {
-    const wrapper = wrapperRef.current;
-    if (!wrapper) return;
-    const observer = new ResizeObserver(() => {
-      if (durationSeconds <= 0) return;
-      const sp = (zoomRange.start / durationSeconds) * 100;
-      const ep = (zoomRange.end / durationSeconds) * 100;
-      updateLabelPositions(sp, ep);
-    });
-    observer.observe(wrapper);
-    return () => observer.disconnect();
-    // Intentionally not including zoomRange/durationSeconds — the observer fires
-    // on geometry change; the external zoom useEffect above handles value changes.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [updateLabelPositions]);
+  const onChartReady = useCallback((instance: EChartsInstance) => {
+    registerAxisPointerSync(instance, 0);
+    setReadyTick(t => t + 1);
+  }, []);
 
   const { handleChartReady, instanceRef } = useChartConnect({
     durationSeconds,
@@ -467,53 +349,18 @@ export function TimelineController({
     };
   }, [instanceRef]);
 
-  const portalLabelStyle: React.CSSProperties = {
-    position: 'fixed',
-    // top/left set imperatively via refs; start off-screen until first position update
-    top: getLabelTop(),
-    left: -9999,
-    transform: 'translateX(-50%)',
-    zIndex: 9999,
-    pointerEvents: 'none',
-    fontSize: 10,
-    lineHeight: 1,
-    borderRadius: 2,
-    padding: '2px 4px',
-    fontFamily: TIMELINE_MONO_FONT,
-    color: textColor,
-    background: labelBackgroundColor,
-  };
-
+  const opts = useMemo(() => ({ renderer: 'svg' }) as Opts, []);
   return (
-    <>
-      {/* Extra bottom padding reserves space for the portal labels below the chart. */}
-      <div
-        ref={wrapperRef}
-        style={{ width: '100%', height: `${height + LABEL_MARGIN_PX}px`, paddingBottom: LABEL_MARGIN_PX }}
-      >
-        <ReactEChartsComponent
-          echarts={echarts}
-          theme={themeName}
-          option={eChartOptions}
-          style={{ width: '100%', height: `${height}px` }}
-          onChartReady={handleChartReady}
-          onEvents={handleDataZoom}
-          notMerge={false}
-          lazyUpdate
-          opts={{ renderer: 'canvas' }}
-        />
-      </div>
-      {createPortal(
-        <>
-          <span ref={leftLabelRef} style={portalLabelStyle}>
-            {formatDuration(zoomRange.start * 1000)}
-          </span>
-          <span ref={rightLabelRef} style={{ ...portalLabelStyle, left: -9999 }}>
-            {formatDuration(zoomRange.end * 1000)}
-          </span>
-        </>,
-        document.body
-      )}
-    </>
+    <ReactEChartsComponent
+      echarts={echarts}
+      theme={themeName}
+      option={eChartOptions}
+      style={{ width: '100%', height: `${height}px` }}
+      onChartReady={handleChartReady}
+      onEvents={handleDataZoom}
+      notMerge={false}
+      lazyUpdate
+      opts={opts}
+    />
   );
 }
