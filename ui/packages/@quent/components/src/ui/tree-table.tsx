@@ -573,11 +573,13 @@ const VirtualizedTreeView = React.forwardRef<HTMLDivElement, TreeViewProps>(
       [normalizedData, effectiveExpandedIds]
     );
 
+    // Key measurements by item id so cached sizes survive expand/collapse reorderings.
     const rowVirtualizer = useVirtualizer({
       count: visibleRows.length,
       getScrollElement: () => scrollContainerRef?.current ?? null,
       estimateSize: () => rowHeight,
       overscan: overscanRows,
+      getItemKey: index => visibleRows[index]?.item.id ?? index,
     });
 
     const virtualItems = rowVirtualizer.getVirtualItems();
