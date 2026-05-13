@@ -29,14 +29,16 @@ import { Opts } from 'echarts-for-react/lib/types';
 const CONTROLLER_HEIGHT = 50;
 const CONTROLLER_TOP_HEADROOM_RATIO = 0.2;
 const CONTROLLER_X_MIN_LABELS = 8;
-/** Grid `bottom` (px from container bottom) — leaves room for the xAxis labels. */
-const CONTROLLER_GRID_BOTTOM = 20;
+/** Grid `top` (px from container top) — leaves room for the xAxis labels above. */
+const CONTROLLER_GRID_TOP = 20;
+/** Grid `bottom` (px from container bottom) — only needs a tiny gap below the slider. */
+const CONTROLLER_GRID_BOTTOM = 5;
 /** Match the registered theme's xAxis axisLabel.fontSize. */
 const CONTROLLER_LABEL_FONT_SIZE = 10;
-/** Match the registered theme's xAxis axisLabel.margin. */
-const CONTROLLER_LABEL_AXIS_MARGIN = 8;
 /** 1px padding top+bottom + 1px border top+bottom of the label chip. */
-const CONTROLLER_LABEL_CHIP_VERTICAL_EXTRA = 2;
+const CONTROLLER_LABEL_CHIP_VERTICAL_EXTRA = 4;
+/** Gap (px) between the chart's bottom edge and the top of the datazoom chip. */
+const CONTROLLER_LABEL_BELOW_GAP = 2;
 
 type TimelineControllerProps = {
   /** Start time in nanoseconds (bigint) */
@@ -139,10 +141,16 @@ export function TimelineController({
       boundaryGap: false,
       type: 'value',
       show: true,
+      // Labels render above the chart instead of below.
+      position: 'top',
       min: startTimeMillis,
       max: endTimeMillis,
       interval,
-      axisTick: { show: true },
+      // The registered theme disables ticks on every shared axis; re-enable
+      // them here so each label has a matching mark on the axis line. `inside`
+      // defaults to false for a top axis, which points the ticks upward
+      // toward the labels.
+      axisTick: { show: true, alignWithLabel: true },
       axisLabel: {
         hideOverlap: false,
         formatter: (value: number) => {
@@ -200,6 +208,7 @@ export function TimelineController({
   const gridOptions = useMemo(
     () => ({
       ...TIMELINE_SPACING,
+      top: CONTROLLER_GRID_TOP,
       bottom: CONTROLLER_GRID_BOTTOM,
       // Override the registered theme's grid backgroundColor with the controller-specific tint.
       backgroundColor: controllerGridBackgroundColor,
@@ -228,8 +237,10 @@ export function TimelineController({
           realtime: true,
           filterMode: 'none',
           minSpan: minZoomSpanPct,
-          top: 0,
-          height: height - 24,
+          // Slider sits below the xAxis labels (now positioned at the top)
+          // and fills the rest of the chart down to the grid's bottom edge.
+          top: CONTROLLER_GRID_TOP,
+          height: height - CONTROLLER_GRID_TOP - CONTROLLER_GRID_BOTTOM,
           brushSelect: true,
           // handleStyle, fillerColor, dataBackground, etc. come from the
           // registered timeline theme's dataZoom defaults. The built-in
@@ -326,17 +337,12 @@ export function TimelineController({
   const endTimeMillisRef = useRef(endTimeMillis);
   endTimeMillisRef.current = endTimeMillis;
 
-  // Reproduce the static xAxis label's vertical position. ECharts places the
-  // axis line at `containerBottom - gridBottom`, then drops the label by
-  // `axisLabel.margin` and renders one line of `fontSize` text below it. The
-  // label's bottom edge is therefore `gridBottom - margin - fontSize` from the
-  // container bottom — exactly the offset we need to overlay the datazoom
-  // chips on top of the xAxis labels.
-  const labelBottomPx = Math.max(
-    0,
-    CONTROLLER_GRID_BOTTOM - CONTROLLER_LABEL_AXIS_MARGIN - CONTROLLER_LABEL_FONT_SIZE
-  );
+  // Datazoom chips sit in their own strip immediately below the chart, so
+  // they don't overlap the slider or the top xAxis labels. The wrapper is
+  // grown by exactly that strip's height (gap + chip box) to reserve layout
+  // space so following content isn't covered.
   const labelBoxHeight = CONTROLLER_LABEL_FONT_SIZE + CONTROLLER_LABEL_CHIP_VERTICAL_EXTRA;
+  const labelBelowStripHeight = CONTROLLER_LABEL_BELOW_GAP + labelBoxHeight;
 
   const updateLabelsFromInstance = useCallback((instance: EChartsInstance) => {
     const t0 = startTimeMillisRef.current;
@@ -368,7 +374,7 @@ export function TimelineController({
     const chartDom = instance.getDom() as HTMLElement | null;
     if (!chartDom) return;
     const rect = chartDom.getBoundingClientRect();
-    const labelTopVp = rect.bottom - labelBottomPx - labelBoxHeight;
+    const labelTopVp = rect.bottom + CONTROLLER_LABEL_BELOW_GAP;
 
     const sl = startLabelRef.current;
     const el = endLabelRef.current;
@@ -404,7 +410,7 @@ export function TimelineController({
         el.style.transform = `translateX(calc(-50% - ${overflow}px))`;
       }
     }
-  }, [labelBottomPx, labelBoxHeight]);
+  }, []);
 
   // Refs so the chart-ready callback (which only fires when the instance is
   // (re)created) can attach window-level listeners that clean themselves up
@@ -517,7 +523,11 @@ export function TimelineController({
   return (
     <div
       ref={wrapperRef}
-      style={{ position: 'relative', width: '100%', height: `${height}px` }}
+      style={{
+        position: 'relative',
+        width: '100%',
+        height: `${height + labelBelowStripHeight}px`,
+      }}
     >
       <ReactEChartsComponent
         echarts={echarts}
