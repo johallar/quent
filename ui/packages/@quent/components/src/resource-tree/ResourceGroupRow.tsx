@@ -42,10 +42,10 @@ export const ResourceGroupRow = ({
   const hasMetadata = showType || showFsmStatic || showFsmSelector;
 
   return (
-    <div className="my-1 py-0.5">
+    <div className="my-1">
       <DataText className="text-xs font-bold leading-none">{group.instance_name}</DataText>
       {hasMetadata && (
-        <div className="flex flex-col gap-y-1 mt-1">
+        <div className="flex flex-col gap-y-1">
           {showType && (
             <InlineSelector
               id={`${id}-resource-type`}

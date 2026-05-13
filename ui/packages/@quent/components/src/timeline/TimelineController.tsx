@@ -30,6 +30,10 @@ const CONTROLLER_TOP_HEADROOM_RATIO = 0.2;
 const CONTROLLER_X_MIN_LABELS = 8;
 /** Extra space below the chart reserved for the portal handle labels. */
 const LABEL_MARGIN_PX = 16;
+/** Inner margin before labels shift inward. */
+const LABEL_EDGE_MARGIN_PX = 2;
+/** Min gap between the two handle labels. */
+const LABEL_COLLISION_GAP_PX = 4;
 
 type TimelineControllerProps = {
   /** Start time in nanoseconds (bigint) */
@@ -310,20 +314,55 @@ export function TimelineController({
     return rect ? rect.top + height + 4 : -9999;
   }, [height]);
 
-  /** Reposition both labels horizontally from zoom percentages and vertically from bounding rect. */
+  /** Position handle labels by center, splitting symmetrically on overlap and clamping to wrapper edges. */
   const updateLabelPositions = useCallback(
     (sp: number, ep: number) => {
-      const rect = wrapperRef.current?.getBoundingClientRect();
-      if (!rect) return;
-      const top = `${rect.top + height + 4}px`;
-      if (leftLabelRef.current) {
-        leftLabelRef.current.style.left = `${rect.left + (sp / 100) * rect.width}px`;
-        leftLabelRef.current.style.top = top;
+      const wrapper = wrapperRef.current;
+      const leftEl = leftLabelRef.current;
+      const rightEl = rightLabelRef.current;
+      if (!wrapper || !leftEl || !rightEl) return;
+
+      const wrapperRect = wrapper.getBoundingClientRect();
+      const top = `${wrapperRect.top + height + 4}px`;
+      const safeLeft = wrapperRect.left + LABEL_EDGE_MARGIN_PX;
+      const safeRight = wrapperRect.right - LABEL_EDGE_MARGIN_PX;
+      const leftHandleX = wrapperRect.left + (sp / 100) * wrapperRect.width;
+      const rightHandleX = wrapperRect.left + (ep / 100) * wrapperRect.width;
+
+      // Place at ideal centers before measuring so widths reflect current text.
+      leftEl.style.left = `${leftHandleX}px`;
+      leftEl.style.top = top;
+      rightEl.style.left = `${rightHandleX}px`;
+      rightEl.style.top = top;
+
+      const leftWidth = leftEl.offsetWidth;
+      const rightWidth = rightEl.offsetWidth;
+      const minSeparation = (leftWidth + rightWidth) / 2 + LABEL_COLLISION_GAP_PX;
+
+      let leftCenter = leftHandleX;
+      let rightCenter = rightHandleX;
+
+      // Symmetric split around the midpoint resolves overlap with minimal bias.
+      if (rightCenter - leftCenter < minSeparation) {
+        const mid = (leftCenter + rightCenter) / 2;
+        leftCenter = mid - minSeparation / 2;
+        rightCenter = mid + minSeparation / 2;
       }
-      if (rightLabelRef.current) {
-        rightLabelRef.current.style.left = `${rect.left + (ep / 100) * rect.width}px`;
-        rightLabelRef.current.style.top = top;
+
+      // Edge clamps; if a clamp eats the gap, push the other label out to restore it.
+      if (leftCenter - leftWidth / 2 < safeLeft) {
+        leftCenter = safeLeft + leftWidth / 2;
+        if (rightCenter - leftCenter < minSeparation) rightCenter = leftCenter + minSeparation;
       }
+      if (rightCenter + rightWidth / 2 > safeRight) {
+        rightCenter = safeRight - rightWidth / 2;
+        if (rightCenter - leftCenter < minSeparation) leftCenter = rightCenter - minSeparation;
+      }
+      // Degenerate (labels wider than safe range): pin left edge, let right overflow.
+      if (leftCenter - leftWidth / 2 < safeLeft) leftCenter = safeLeft + leftWidth / 2;
+
+      leftEl.style.left = `${leftCenter}px`;
+      rightEl.style.left = `${rightCenter}px`;
     },
     [height]
   );
