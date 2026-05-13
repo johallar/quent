@@ -390,7 +390,7 @@ export function TimelineController({
       sl.style.transform = 'translateX(-50%)';
       const slRect = sl.getBoundingClientRect();
       const wrapperRect = wrapperRef.current?.getBoundingClientRect();
-      const minLeft = (wrapperRect?.left ?? 0);
+      const minLeft = wrapperRect?.left ?? 0;
       if (slRect.left < minLeft) {
         const overflow = minLeft - slRect.left;
         sl.style.transform = `translateX(calc(-50% + ${overflow}px))`;
@@ -541,6 +541,7 @@ export function TimelineController({
         notMerge={false}
         lazyUpdate
         opts={opts}
+        autoResize={false}
       />
       <div ref={startLabelRef} style={labelBaseStyle} aria-hidden />
       <div ref={endLabelRef} style={labelBaseStyle} aria-hidden />

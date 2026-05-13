@@ -367,6 +367,7 @@ export function OperatorGanttChart({
         notMerge={false}
         lazyUpdate={false}
         replaceMerge={['series']}
+        autoResize={false}
       />
     </HiddenScroll>
   );

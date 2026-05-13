@@ -10,12 +10,7 @@ import type { EChartsInstance } from 'echarts-for-react';
 import { useZoomRange } from '@quent/hooks';
 import { withOpacity } from '@quent/utils';
 import type { TimelineSeriesEntry } from './types';
-import {
-  TimelineSeries,
-  TimelineMark,
-  TIMELINE_SPACING,
-  TIMELINE_X_AXIS_ANIMATION,
-} from './types';
+import { TimelineSeries, TimelineMark, TIMELINE_SPACING, TIMELINE_X_AXIS_ANIMATION } from './types';
 import {
   MARK_AREA_BORDER_OPACITY,
   MARK_AREA_FILL_OPACITY,
@@ -466,6 +461,7 @@ export function Timeline({
         notMerge={false}
         lazyUpdate={false}
         replaceMerge={['series']}
+        autoResize={false}
       />
     </div>
   );
