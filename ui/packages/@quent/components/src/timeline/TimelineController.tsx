@@ -35,6 +35,8 @@ const CONTROLLER_GRID_BOTTOM = 20;
 const CONTROLLER_LABEL_FONT_SIZE = 10;
 /** Match the registered theme's xAxis axisLabel.margin. */
 const CONTROLLER_LABEL_AXIS_MARGIN = 8;
+/** 1px padding top+bottom + 1px border top+bottom of the label chip. */
+const CONTROLLER_LABEL_CHIP_VERTICAL_EXTRA = 2;
 
 type TimelineControllerProps = {
   /** Start time in nanoseconds (bigint) */
@@ -311,6 +313,10 @@ export function TimelineController({
   // frame. The label text/transform is updated directly via these refs.
   const startLabelRef = useRef<HTMLDivElement>(null);
   const endLabelRef = useRef<HTMLDivElement>(null);
+  // Ref to the outer wrapper div — used as the clamp container for the left
+  // label so it bumps against the chart's containing element rather than the
+  // viewport edge.
+  const wrapperRef = useRef<HTMLDivElement>(null);
 
   // Live refs for the values the update routine reads so the imperative
   // listener (registered once in onChartReady) never closes over stale values
@@ -319,6 +325,18 @@ export function TimelineController({
   startTimeMillisRef.current = startTimeMillis;
   const endTimeMillisRef = useRef(endTimeMillis);
   endTimeMillisRef.current = endTimeMillis;
+
+  // Reproduce the static xAxis label's vertical position. ECharts places the
+  // axis line at `containerBottom - gridBottom`, then drops the label by
+  // `axisLabel.margin` and renders one line of `fontSize` text below it. The
+  // label's bottom edge is therefore `gridBottom - margin - fontSize` from the
+  // container bottom — exactly the offset we need to overlay the datazoom
+  // chips on top of the xAxis labels.
+  const labelBottomPx = Math.max(
+    0,
+    CONTROLLER_GRID_BOTTOM - CONTROLLER_LABEL_AXIS_MARGIN - CONTROLLER_LABEL_FONT_SIZE
+  );
+  const labelBoxHeight = CONTROLLER_LABEL_FONT_SIZE + CONTROLLER_LABEL_CHIP_VERTICAL_EXTRA;
 
   const updateLabelsFromInstance = useCallback((instance: EChartsInstance) => {
     const t0 = startTimeMillisRef.current;
@@ -344,17 +362,54 @@ export function TimelineController({
     const endX = instance.convertToPixel({ xAxisIndex: 0 }, endVal);
     if (!Number.isFinite(startX) || !Number.isFinite(endX)) return;
 
+    // Labels use `position: fixed` so they can escape any ancestor's
+    // `overflow: hidden` (e.g. an adjacent resource-tree column). Convert the
+    // chart-local pixel X into viewport coordinates via the chart DOM's rect.
+    const chartDom = instance.getDom() as HTMLElement | null;
+    if (!chartDom) return;
+    const rect = chartDom.getBoundingClientRect();
+    const labelTopVp = rect.bottom - labelBottomPx - labelBoxHeight;
+
     const sl = startLabelRef.current;
     const el = endLabelRef.current;
+
     if (sl) {
-      sl.style.transform = `translate(${startX}px, 0) translateX(-50%)`;
       sl.textContent = formatDuration(startVal - t0);
+      sl.style.top = `${labelTopVp}px`;
+      sl.style.left = `${rect.left + startX}px`;
+      // Tentatively center on the handle, then clamp against the chart
+      // wrapper's left edge — i.e. the containing element, not the page.
+      sl.style.transform = 'translateX(-50%)';
+      const slRect = sl.getBoundingClientRect();
+      const wrapperRect = wrapperRef.current?.getBoundingClientRect();
+      const minLeft = (wrapperRect?.left ?? 0);
+      if (slRect.left < minLeft) {
+        const overflow = minLeft - slRect.left;
+        sl.style.transform = `translateX(calc(-50% + ${overflow}px))`;
+      }
     }
+
     if (el) {
-      el.style.transform = `translate(${endX}px, 0) translateX(-50%)`;
       el.textContent = formatDuration(endVal - t0);
+      el.style.top = `${labelTopVp}px`;
+      el.style.left = `${rect.left + endX}px`;
+      // Tentatively center on the handle, then clamp against the viewport
+      // right edge so the label never overflows the page. Measuring after the
+      // text/position are set picks up the actual rendered width.
+      el.style.transform = 'translateX(-50%)';
+      const elRect = el.getBoundingClientRect();
+      const maxRight = window.innerWidth;
+      if (elRect.right > maxRight) {
+        const overflow = elRect.right - maxRight;
+        el.style.transform = `translateX(calc(-50% - ${overflow}px))`;
+      }
     }
-  }, []);
+  }, [labelBottomPx, labelBoxHeight]);
+
+  // Refs so the chart-ready callback (which only fires when the instance is
+  // (re)created) can attach window-level listeners that clean themselves up
+  // on the next instance creation or on unmount.
+  const windowListenerCleanupRef = useRef<(() => void) | null>(null);
 
   const onChartReady = useCallback(
     (instance: EChartsInstance) => {
@@ -365,9 +420,30 @@ export function TimelineController({
       // native ECharts events and bypass React's render cycle entirely.
       instance.on('datazoom', update);
       instance.on('finished', update);
+
+      // With `position: fixed` labels we must re-anchor to the chart's new
+      // viewport rect on scroll/resize. These run on the browser event tick
+      // and never trigger a React render.
+      windowListenerCleanupRef.current?.();
+      const onWindowChange = () => updateLabelsFromInstance(instance);
+      window.addEventListener('scroll', onWindowChange, { passive: true, capture: true });
+      window.addEventListener('resize', onWindowChange);
+      windowListenerCleanupRef.current = () => {
+        window.removeEventListener('scroll', onWindowChange, { capture: true });
+        window.removeEventListener('resize', onWindowChange);
+      };
+
       setReadyTick(t => t + 1);
     },
     [updateLabelsFromInstance]
+  );
+
+  useEffect(
+    () => () => {
+      windowListenerCleanupRef.current?.();
+      windowListenerCleanupRef.current = null;
+    },
+    []
   );
 
   const { handleChartReady, instanceRef } = useChartConnect({
@@ -415,19 +491,13 @@ export function TimelineController({
 
   const opts = useMemo(() => ({ renderer: 'svg' }) as Opts, []);
 
-  // Reproduce the static xAxis label's vertical position. ECharts places the
-  // axis line at `containerBottom - gridBottom`, then drops the label by
-  // `axisLabel.margin` and renders one line of `fontSize` text below it. The
-  // label's bottom edge is therefore `gridBottom - margin - fontSize` from the
-  // container bottom — exactly the `bottom` value we need for our DOM labels.
-  const labelBottomPx = Math.max(
-    0,
-    CONTROLLER_GRID_BOTTOM - CONTROLLER_LABEL_AXIS_MARGIN - CONTROLLER_LABEL_FONT_SIZE
-  );
-
   const labelBaseStyle: CSSProperties = {
-    position: 'absolute',
-    bottom: `${labelBottomPx}px`,
+    // `fixed` so the chip can spill into adjacent columns (and out past the
+    // viewport edge — though we clamp the right label) regardless of any
+    // ancestor's overflow/stacking context. Coordinates are written
+    // imperatively from `updateLabelsFromInstance`.
+    position: 'fixed',
+    top: 0,
     left: 0,
     transform: 'translate(-9999px, 0)',
     pointerEvents: 'none',
@@ -436,8 +506,8 @@ export function TimelineController({
     fontFamily: TIMELINE_MONO_FONT,
     lineHeight: 1,
     whiteSpace: 'nowrap',
-    zIndex: 11,
-    willChange: 'transform',
+    zIndex: 1000,
+    willChange: 'transform, top, left',
     backgroundColor: solidLabelBackgroundColor,
     padding: '1px 4px',
     border: `1px solid ${axisLabelColor}`,
@@ -445,7 +515,10 @@ export function TimelineController({
   };
 
   return (
-    <div style={{ position: 'relative', width: '100%', height: `${height}px` }}>
+    <div
+      ref={wrapperRef}
+      style={{ position: 'relative', width: '100%', height: `${height}px` }}
+    >
       <ReactEChartsComponent
         echarts={echarts}
         theme={themeName}
