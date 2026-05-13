@@ -29,28 +29,24 @@ import { Opts } from 'echarts-for-react/lib/types';
 const CONTROLLER_HEIGHT = 50;
 const CONTROLLER_TOP_HEADROOM_RATIO = 0.2;
 const CONTROLLER_X_MIN_LABELS = 8;
-/** Grid `top` (px from container top) — leaves room for the xAxis labels above. */
+/** Reserves space for the top-positioned xAxis labels. */
 const CONTROLLER_GRID_TOP = 20;
-/** Grid `bottom` (px from container bottom) — only needs a tiny gap below the slider. */
 const CONTROLLER_GRID_BOTTOM = 5;
-/** Match the registered theme's xAxis axisLabel.fontSize. */
+/** Must match the timeline theme's xAxis axisLabel.fontSize. */
 const CONTROLLER_LABEL_FONT_SIZE = 10;
-/** 1px padding top+bottom + 1px border top+bottom of the label chip. */
+/** 1px padding + 1px border, top and bottom. */
 const CONTROLLER_LABEL_CHIP_VERTICAL_EXTRA = 4;
-/** Gap (px) between the chart's bottom edge and the top of the datazoom chip. */
 const CONTROLLER_LABEL_BELOW_GAP = 2;
 
 type TimelineControllerProps = {
-  /** Start time in nanoseconds (bigint) */
   startTime: bigint;
-  /** Duration in seconds */
   durationSeconds: number;
   height?: number;
-  /** Optional timeline data to render on the static display (e.g. overlay from root resource group) */
+  /** Background data overlaid on the static display (e.g. root resource group rollup). */
   timelineData?: SingleTimelineResponse | null;
-  /** Called when the zoom/pan range changes, with start/end in seconds */
+  /** Emits the new range in seconds. */
   onZoomChange?: (range: ZoomRange) => void;
-  /** Whether dark mode is active. Passed explicitly to decouple from ThemeContext. */
+  /** Decoupled from ThemeContext so consumers control theming explicitly. */
   isDark: boolean;
 };
 
@@ -109,8 +105,7 @@ export function TimelineController({
     const staticValues: number[] | null = hasSeriesData
       ? seriesData
       : Array(timestamps.length).fill(0);
-    // Color comes from the registered timeline theme's color palette
-    // (rollupTimelineColor); areaStyle inherits the line color at 80% opacity.
+    // Color comes from the timeline theme's `rollupTimelineColor` palette entry.
     const staticDisplaySeries = {
       name: 'static-display',
       type: 'line',
@@ -141,15 +136,12 @@ export function TimelineController({
       boundaryGap: false,
       type: 'value',
       show: true,
-      // Labels render above the chart instead of below.
       position: 'top',
       min: startTimeMillis,
       max: endTimeMillis,
       interval,
-      // The registered theme disables ticks on every shared axis; re-enable
-      // them here so each label has a matching mark on the axis line. `inside`
-      // defaults to false for a top axis, which points the ticks upward
-      // toward the labels.
+      // Re-enable ticks the shared theme disables; default `inside: false`
+      // points them up toward the top-positioned labels.
       axisTick: { show: true, alignWithLabel: true },
       axisLabel: {
         hideOverlap: false,
@@ -212,7 +204,6 @@ export function TimelineController({
       ...TIMELINE_SPACING,
       top: CONTROLLER_GRID_TOP,
       bottom: CONTROLLER_GRID_BOTTOM,
-      // Override the registered theme's grid backgroundColor with the controller-specific tint.
       backgroundColor: controllerGridBackgroundColor,
     }),
     [controllerGridBackgroundColor]
@@ -239,15 +230,10 @@ export function TimelineController({
           realtime: true,
           filterMode: 'none',
           minSpan: minZoomSpanPct,
-          // Slider sits below the xAxis labels (now positioned at the top)
-          // and fills the rest of the chart down to the grid's bottom edge.
           top: CONTROLLER_GRID_TOP,
           height: height - CONTROLLER_GRID_TOP - CONTROLLER_GRID_BOTTOM,
           brushSelect: true,
-          // handleStyle, fillerColor, dataBackground, etc. come from the
-          // registered timeline theme's dataZoom defaults. The built-in
-          // showDetail labels are disabled in favor of custom DOM labels
-          // positioned imperatively to match the xAxis label style/location.
+          // Built-in labels disabled — replaced by custom DOM chips below.
           showDetail: false,
         },
         {
@@ -313,36 +299,27 @@ export function TimelineController({
   }, [onZoomChange, durationSeconds]);
 
   const selfTriggeredRef = useRef(false);
-  // Increments on every chart-ready event so the restore effect re-fires when
-  // the underlying ECharts instance is recreated (e.g. on theme change, which
-  // disposes and re-creates the chart and would otherwise leave the new
-  // instance at its default 0–100% zoom).
+  // Bumped on chart-ready so the restore effect re-runs when the instance is
+  // recreated (e.g. theme change disposes and rebuilds the chart at 0–100%).
   const [readyTick, setReadyTick] = useState(0);
 
   const zoomRange = useZoomRange();
 
-  // DOM refs for the custom datazoom labels. Positioned imperatively from the
-  // ECharts `datazoom` event so fast drags don't pay a React render tick per
-  // frame. The label text/transform is updated directly via these refs.
+  // Positioned imperatively from the `datazoom` event so fast drags don't pay
+  // a React render per frame.
   const startLabelRef = useRef<HTMLDivElement>(null);
   const endLabelRef = useRef<HTMLDivElement>(null);
-  // Ref to the outer wrapper div — used as the clamp container for the left
-  // label so it bumps against the chart's containing element rather than the
-  // viewport edge.
+  // Clamp container for the start label so it bumps against the column, not the viewport.
   const wrapperRef = useRef<HTMLDivElement>(null);
 
-  // Live refs for the values the update routine reads so the imperative
-  // listener (registered once in onChartReady) never closes over stale values
-  // after a re-render.
+  // Live refs so the listener registered once in onChartReady never closes
+  // over stale values across re-renders.
   const startTimeMillisRef = useRef(startTimeMillis);
   startTimeMillisRef.current = startTimeMillis;
   const endTimeMillisRef = useRef(endTimeMillis);
   endTimeMillisRef.current = endTimeMillis;
 
-  // Datazoom chips sit in their own strip immediately below the chart, so
-  // they don't overlap the slider or the top xAxis labels. The wrapper is
-  // grown by exactly that strip's height (gap + chip box) to reserve layout
-  // space so following content isn't covered.
+  // Reserve layout space for the chip strip below the chart.
   const labelBoxHeight = CONTROLLER_LABEL_FONT_SIZE + CONTROLLER_LABEL_CHIP_VERTICAL_EXTRA;
   const labelBelowStripHeight = CONTROLLER_LABEL_BELOW_GAP + labelBoxHeight;
 
@@ -362,17 +339,12 @@ export function TimelineController({
     const startVal = t0 + (startPct / 100) * span;
     const endVal = t0 + (endPct / 100) * span;
 
-    // Use the static xAxis (index 0) — its value→pixel mapping always spans
-    // the full duration. xAxisIndex 1 is controlled by the dataZoom so its
-    // visible range shrinks to the zoomed window, which would pin both labels
-    // to the grid edges regardless of handle position.
+    // xAxis 0 always spans the full duration; xAxis 1 is bound to the dataZoom
+    // and would pin both labels to the grid edges.
     const startX = instance.convertToPixel({ xAxisIndex: 0 }, startVal);
     const endX = instance.convertToPixel({ xAxisIndex: 0 }, endVal);
     if (!Number.isFinite(startX) || !Number.isFinite(endX)) return;
 
-    // Labels use `position: fixed` so they can escape any ancestor's
-    // `overflow: hidden` (e.g. an adjacent resource-tree column). Convert the
-    // chart-local pixel X into viewport coordinates via the chart DOM's rect.
     const chartDom = instance.getDom() as HTMLElement | null;
     if (!chartDom) return;
     const rect = chartDom.getBoundingClientRect();
@@ -385,8 +357,7 @@ export function TimelineController({
       sl.textContent = formatDuration(startVal - t0);
       sl.style.top = `${labelTopVp}px`;
       sl.style.left = `${rect.left + startX}px`;
-      // Park the chip outside the handle (right edge flush with handle x),
-      // then clamp against the wrapper's left edge so it can't escape its column.
+      // Right edge flush with the handle, then clamp inside the wrapper column.
       sl.style.transform = 'translateX(-100%)';
       const slRect = sl.getBoundingClientRect();
       const wrapperRect = wrapperRef.current?.getBoundingClientRect();
@@ -401,8 +372,7 @@ export function TimelineController({
       el.textContent = formatDuration(endVal - t0);
       el.style.top = `${labelTopVp}px`;
       el.style.left = `${rect.left + endX}px`;
-      // Park the chip outside the handle (left edge flush with handle x),
-      // then clamp against the viewport right edge so it never overflows the page.
+      // Left edge flush with the handle, then clamp inside the viewport.
       el.style.transform = 'translateX(0)';
       const elRect = el.getBoundingClientRect();
       const maxRight = window.innerWidth;
@@ -413,24 +383,17 @@ export function TimelineController({
     }
   }, []);
 
-  // Refs so the chart-ready callback (which only fires when the instance is
-  // (re)created) can attach window-level listeners that clean themselves up
-  // on the next instance creation or on unmount.
   const windowListenerCleanupRef = useRef<(() => void) | null>(null);
 
   const onChartReady = useCallback(
     (instance: EChartsInstance) => {
       registerAxisPointerSync(instance, 0);
       const update = () => updateLabelsFromInstance(instance);
-      // `datazoom` covers drags, brush-select, programmatic dispatchAction.
-      // `finished` covers initial render + resize-driven relayouts. Both are
-      // native ECharts events and bypass React's render cycle entirely.
+      // `datazoom` for drags/brush/dispatch; `finished` for initial + resize.
       instance.on('datazoom', update);
       instance.on('finished', update);
 
-      // With `position: fixed` labels we must re-anchor to the chart's new
-      // viewport rect on scroll/resize. These run on the browser event tick
-      // and never trigger a React render.
+      // `position: fixed` labels must re-anchor on scroll/resize.
       windowListenerCleanupRef.current?.();
       const onWindowChange = () => updateLabelsFromInstance(instance);
       window.addEventListener('scroll', onWindowChange, { passive: true, capture: true });
@@ -459,10 +422,7 @@ export function TimelineController({
     onReady: onChartReady,
   });
 
-  // Restore the dataZoom slider position from the persisted atom whenever the
-  // zoom range changes or a (re)created chart instance becomes ready. The
-  // `readyTick` dependency ensures recreated instances inherit the saved zoom
-  // even when the atom value itself is unchanged across the remount.
+  // Restore the persisted zoom on range change or instance (re)creation.
   useEffect(() => {
     if (readyTick === 0) return;
     if (selfTriggeredRef.current) {
@@ -475,9 +435,7 @@ export function TimelineController({
     const startPct = (zoomRange.start / durationSeconds) * 100;
     const endPct = (zoomRange.end / durationSeconds) * 100;
 
-    // Mute the dataZoom event our own dispatch is about to emit, so the
-    // recreated chart's initial restore doesn't echo back through onZoomChange
-    // and overwrite the atom (which would visibly snap the bounds back).
+    // Mute our own dispatch so the echoed dataZoom event doesn't overwrite the atom.
     selfTriggeredRef.current = true;
     instance.dispatchAction({
       type: 'dataZoom',
@@ -499,10 +457,7 @@ export function TimelineController({
   const opts = useMemo(() => ({ renderer: 'svg' }) as Opts, []);
 
   const labelBaseStyle: CSSProperties = {
-    // `fixed` so the chip can spill into adjacent columns (and out past the
-    // viewport edge — though we clamp the right label) regardless of any
-    // ancestor's overflow/stacking context. Coordinates are written
-    // imperatively from `updateLabelsFromInstance`.
+    // `fixed` so chips escape ancestor `overflow: hidden` / stacking contexts.
     position: 'fixed',
     top: 0,
     left: 0,
