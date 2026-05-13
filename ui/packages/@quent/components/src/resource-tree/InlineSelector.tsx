@@ -28,7 +28,10 @@ export const InlineSelector = ({
       onClick={e => e.stopPropagation()}
       onMouseDown={e => e.stopPropagation()}
     >
-      <label id={`type-select-label-${id}`} className="text-[11px] leading-none text-muted-foreground shrink-0">
+      <label
+        id={`type-select-label-${id}`}
+        className="text-[11px] leading-none text-muted-foreground shrink-0"
+      >
         {label}:
       </label>
       <Select value={value} onValueChange={value => onChange(id, value)}>

@@ -385,15 +385,15 @@ export function TimelineController({
       sl.textContent = formatDuration(startVal - t0);
       sl.style.top = `${labelTopVp}px`;
       sl.style.left = `${rect.left + startX}px`;
-      // Tentatively center on the handle, then clamp against the chart
-      // wrapper's left edge — i.e. the containing element, not the page.
-      sl.style.transform = 'translateX(-50%)';
+      // Park the chip outside the handle (right edge flush with handle x),
+      // then clamp against the wrapper's left edge so it can't escape its column.
+      sl.style.transform = 'translateX(-100%)';
       const slRect = sl.getBoundingClientRect();
       const wrapperRect = wrapperRef.current?.getBoundingClientRect();
       const minLeft = wrapperRect?.left ?? 0;
       if (slRect.left < minLeft) {
         const overflow = minLeft - slRect.left;
-        sl.style.transform = `translateX(calc(-50% + ${overflow}px))`;
+        sl.style.transform = `translateX(calc(-100% + ${overflow}px))`;
       }
     }
 
@@ -401,15 +401,14 @@ export function TimelineController({
       el.textContent = formatDuration(endVal - t0);
       el.style.top = `${labelTopVp}px`;
       el.style.left = `${rect.left + endX}px`;
-      // Tentatively center on the handle, then clamp against the viewport
-      // right edge so the label never overflows the page. Measuring after the
-      // text/position are set picks up the actual rendered width.
-      el.style.transform = 'translateX(-50%)';
+      // Park the chip outside the handle (left edge flush with handle x),
+      // then clamp against the viewport right edge so it never overflows the page.
+      el.style.transform = 'translateX(0)';
       const elRect = el.getBoundingClientRect();
       const maxRight = window.innerWidth;
       if (elRect.right > maxRight) {
         const overflow = elRect.right - maxRight;
-        el.style.transform = `translateX(calc(-50% - ${overflow}px))`;
+        el.style.transform = `translateX(${-overflow}px)`;
       }
     }
   }, []);
