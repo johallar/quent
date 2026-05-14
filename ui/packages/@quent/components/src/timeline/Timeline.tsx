@@ -126,7 +126,7 @@ export function Timeline({
                 show: !dimmed,
                 formatter: () =>
                   `${m.label}\n${m.stateName}${m.operatorName ? `\n${m.operatorName}` : ''}`,
-                position: [0, -5],
+                position: [0, 0],
                 fontSize: 9,
                 fontWeight: 500,
                 color: MARK_LABEL_TEXT_COLOR,
