@@ -42,7 +42,7 @@ export const ResourceGroupRow = ({
   const hasMetadata = showType || showFsmStatic || showFsmSelector;
 
   return (
-    <div>
+    <div className="pb-1">
       <DataText className="text-xs font-bold leading-none">{group.instance_name}</DataText>
       {hasMetadata && (
         <div className="flex flex-col gap-y-1">

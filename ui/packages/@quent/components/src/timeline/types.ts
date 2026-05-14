@@ -34,8 +34,8 @@ export const DEFAULT_TIMELINE_HEIGHT = 45;
 export const TIMELINE_SPACING = {
   left: 0,
   right: 10,
-  top: 0,
-  bottom: 0,
+  top: 2.5,
+  bottom: 2.5,
 };
 
 // Timeline color constants live in timelineEchartsTheme (canvas-based, theme mirrored in JS).
