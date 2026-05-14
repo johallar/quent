@@ -129,9 +129,9 @@ export function useTimelineEchartsTheme(isDark: boolean) {
       /** Color used by xAxis labels in the registered theme; mirror for DOM overlays. */
       axisLabelColor: isDark ? TIMELINE_MARKUP_COLOR_DARK : TIMELINE_MARKUP_COLOR_LIGHT,
       /** Semi-transparent chip background for DOM labels overlaid on the chart canvas. */
-      labelBackgroundColor: withOpacity(isDark ? BLACK : WHITE, 0.55),
+      labelBackgroundColor: withOpacity(isDark ? BLACK : WHITE, 0.75),
       /** Nearly-opaque chip background — used when the label must obscure what's behind it. */
-      solidLabelBackgroundColor: withOpacity(isDark ? BLACK : WHITE, 0.92),
+      solidLabelBackgroundColor: withOpacity(isDark ? BLACK : WHITE, 0.95),
       controllerGridBackgroundColor: withOpacity(
         isDark ? TIMELINE_MARKUP_COLOR_DARK : TIMELINE_MARKUP_COLOR_LIGHT,
         CONTROLLER_GRID_BACKGROUND_OPACITY
