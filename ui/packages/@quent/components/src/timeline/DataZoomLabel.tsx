@@ -3,7 +3,7 @@
 
 import { forwardRef } from 'react';
 import { TIMELINE_MONO_FONT } from './timelineEchartsTheme';
-import { DATA_ZOOM_LABEL_FONT_SIZE } from './useDataZoomLabels';
+import { LABEL_FONT_SIZE } from './useDataZoomLabels';
 
 interface DataZoomLabelProps {
   color: string;
@@ -24,7 +24,7 @@ export const DataZoomLabel = forwardRef<HTMLDivElement, DataZoomLabelProps>(
         transform: 'translate(-9999px, 0)',
         pointerEvents: 'none',
         color,
-        fontSize: `${DATA_ZOOM_LABEL_FONT_SIZE}px`,
+        fontSize: `${LABEL_FONT_SIZE}px`,
         fontFamily: TIMELINE_MONO_FONT,
         lineHeight: 1,
         whiteSpace: 'nowrap',

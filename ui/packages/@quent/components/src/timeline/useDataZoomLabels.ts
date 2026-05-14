@@ -11,8 +11,6 @@ const LABEL_BELOW_GAP = 2;
 
 export const DATA_ZOOM_LABEL_BELOW_STRIP_HEIGHT =
   LABEL_BELOW_GAP + LABEL_FONT_SIZE + LABEL_CHIP_VERTICAL_EXTRA;
-export const DATA_ZOOM_LABEL_FONT_SIZE = LABEL_FONT_SIZE;
-export const DATA_ZOOM_LABEL_BELOW_GAP = LABEL_BELOW_GAP;
 
 /** How each handle label aligns to its anchor pixel. */
 type LabelAlign = 'left' | 'right' | 'center';
