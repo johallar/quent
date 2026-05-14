@@ -12,7 +12,12 @@ import type {
   ZoomRange,
   SingleTimelineResponse,
 } from '@quent/utils';
-import { getResourceTypeName, getFsmTypeName, setOperatorOnEntry, bulkEntryId } from './timeline.utils';
+import {
+  getResourceTypeName,
+  getFsmTypeName,
+  setOperatorOnEntry,
+  bulkEntryId,
+} from './timeline.utils';
 import { timelineCacheKey, timelineDataMapAtom } from '../atoms/timeline';
 
 /**
