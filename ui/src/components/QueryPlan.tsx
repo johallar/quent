@@ -1,13 +1,12 @@
 // SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-import { useEffect, lazy, Suspense } from 'react';
+import { useEffect, lazy, Suspense, useState } from 'react';
 import { useQueryBundle } from '@quent/client';
 import { useQueryPlanVisualization } from '@/hooks/useQueryPlanVisualization';
 import { TreeView } from '@quent/components';
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@quent/components';
 import { thinScrollbarClass, type QueryPlanDataItem } from '@quent/components';
-import { Network } from 'lucide-react';
 import { useSelectedPlanId, useSetSelectedPlanId, useSetHoveredWorkerId } from '@quent/hooks';
 import { DAGControls } from '@quent/components';
 import {
@@ -25,13 +24,24 @@ import {
 } from '@quent/components';
 import { DataText } from '@quent/components';
 import { useTheme, THEME_DARK } from '@/contexts/ThemeContext';
+import { cn } from '@quent/utils';
 
 // Lazy load DAGChart to split elkjs (~1.6MB) into a separate chunk
 const DAGChart = lazy(() => import('@quent/components').then(mod => ({ default: mod.DAGChart })));
 
+type PlanTab = 'plan' | 'controls';
+
+const tabClass = cn(
+  'inline-flex items-center justify-center whitespace-nowrap rounded-md px-3 py-1',
+  'text-sm font-normal text-muted-foreground transition-all',
+  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2'
+);
+const activeTabClass = cn(tabClass, 'text-foreground font-semibold bg-muted shadow');
+
 export function QueryPlan({ queryId, engineId }: { queryId: string; engineId: string }) {
   const { theme } = useTheme();
   const isDark = theme === THEME_DARK;
+  const [activeTab, setActiveTab] = useState<PlanTab>('plan');
   const planId = useSelectedPlanId();
   const setPlanId = useSetSelectedPlanId();
   const setHoveredWorkerId = useSetHoveredWorkerId();
@@ -129,45 +139,49 @@ export function QueryPlan({ queryId, engineId }: { queryId: string; engineId: st
 
   return (
     <div className="w-full flex flex-col h-[calc(100vh-4rem)]">
-      <div className="flex items-center gap-2 px-4 py-1.5 border-b border-border bg-card flex-shrink-0">
-        <Network className="h-4 w-4 text-primary" />
-        <h3 className="text-xs font-semibold text-foreground">Query Plan Explorer</h3>
-        <div className="text-xs text-muted-foreground">
-          <DataText>{queryBundle.entities.query_group.instance_name}</DataText>
-          {' - '}
-          <DataText>{queryBundle.entities.query.instance_name}</DataText>
-        </div>
-      </div>
-
       <ResizablePanelGroup orientation="vertical" className="flex-1">
         <ResizablePanel
-          defaultSize="20%"
-          minSize="10%"
-          collapsible
-          collapsedSize="0%"
-          className={`overflow-y-auto ${thinScrollbarClass}`}
+          defaultSize="25%"
+          className="flex flex-col"
         >
-          <TreeView<QueryPlanDataItem>
-            data={treeData}
-            initialSelectedItemId={planId}
-            selectedItemId={planId}
-            onSelectChange={handlePlanSelect}
-            onItemHover={item => setHoveredWorkerId(item?.workerId ?? null)}
-            renderItem={renderItem}
-          />
+          <div className="shrink-0 border-b">
+            <div className="inline-flex h-9 w-full items-center justify-start p-1 text-muted-foreground gap-0">
+              <button
+                className={activeTab === 'plan' ? activeTabClass : tabClass}
+                onClick={() => setActiveTab('plan')}
+              >
+                Query Plan
+              </button>
+              <button
+                className={activeTab === 'controls' ? activeTabClass : tabClass}
+                onClick={() => setActiveTab('controls')}
+              >
+                Settings
+              </button>
+            </div>
+          </div>
+          <div className={`flex-1 overflow-y-auto ${thinScrollbarClass}`}>
+            {activeTab === 'plan' ? (
+              <TreeView<QueryPlanDataItem>
+                data={treeData}
+                initialSelectedItemId={planId}
+                selectedItemId={planId}
+                onSelectChange={handlePlanSelect}
+                onItemHover={item => setHoveredWorkerId(item?.workerId ?? null)}
+                renderItem={renderItem}
+              />
+            ) : (
+              <DAGControls
+                operatorStatFields={operatorStatFields}
+                portStatFields={portStatFields}
+                isDark={isDark}
+              />
+            )}
+          </div>
         </ResizablePanel>
 
         <ResizableHandle withHandle data-panel-group-direction="vertical" />
 
-        <div className="border-t border-border">
-          <DAGControls
-            operatorStatFields={operatorStatFields}
-            portStatFields={portStatFields}
-            isDark={isDark}
-          />
-        </div>
-
-        {/* DAG Chart - lazy loaded to split elkjs into separate chunk */}
         <ResizablePanel
           defaultSize="75%"
           minSize="25%"

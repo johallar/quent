@@ -39,7 +39,7 @@ export const DAGControls = ({ operatorStatFields, portStatFields, isDark }: DAGC
   const portOptions: SelectFieldOption[] = portStatFields.map(f => ({ value: f }));
 
   return (
-    <Collapsible open={open} onOpenChange={setOpen} className="border-b bg-card">
+    <Collapsible open={open} onOpenChange={setOpen} className="bg-card">
       <div className="flex items-center justify-between px-4 py-2">
         <CollapsibleTrigger className="flex items-center gap-2 group">
           <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
