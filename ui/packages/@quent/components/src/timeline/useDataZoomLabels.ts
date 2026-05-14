@@ -5,9 +5,9 @@ import { useCallback, useEffect, useRef } from 'react';
 import type { EChartsInstance } from 'echarts-for-react';
 import { formatDuration } from '@quent/utils';
 
-const LABEL_FONT_SIZE = 10;
 const LABEL_CHIP_VERTICAL_EXTRA = 4;
 const LABEL_BELOW_GAP = 2;
+export const LABEL_FONT_SIZE = 10;
 
 export const DATA_ZOOM_LABEL_BELOW_STRIP_HEIGHT =
   LABEL_BELOW_GAP + LABEL_FONT_SIZE + LABEL_CHIP_VERTICAL_EXTRA;
