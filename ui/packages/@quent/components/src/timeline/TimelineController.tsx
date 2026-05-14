@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import type { CSSProperties } from 'react';
 import ReactEChartsComponent from 'echarts-for-react';
 import { echarts } from '../lib/echarts';
 import type { EChartsOption } from '../lib/echarts';
@@ -21,8 +20,10 @@ import {
 } from '../lib/timeline.utils';
 import { useChartConnect } from '../lib/useChartConnect';
 import { TIMELINE_X_AXIS_ANIMATION, TIMELINE_SPACING } from './types';
+import { useDataZoomLabels, DATA_ZOOM_LABEL_BELOW_STRIP_HEIGHT } from './useDataZoomLabels';
+import { DataZoomLabel } from './DataZoomLabel';
 import type { SingleTimelineResponse } from '@quent/utils';
-import { TIMELINE_MONO_FONT, useTimelineEchartsTheme } from './timelineEchartsTheme';
+import { useTimelineEchartsTheme } from './timelineEchartsTheme';
 import type { PaletteTheme } from '@quent/utils';
 import { Opts } from 'echarts-for-react/lib/types';
 
@@ -32,11 +33,6 @@ const CONTROLLER_X_MIN_LABELS = 8;
 /** Reserves space for the top-positioned xAxis labels. */
 const CONTROLLER_GRID_TOP = 20;
 const CONTROLLER_GRID_BOTTOM = 5;
-/** Must match the timeline theme's xAxis axisLabel.fontSize. */
-const CONTROLLER_LABEL_FONT_SIZE = 10;
-/** 1px padding + 1px border, top and bottom. */
-const CONTROLLER_LABEL_CHIP_VERTICAL_EXTRA = 4;
-const CONTROLLER_LABEL_BELOW_GAP = 2;
 
 type TimelineControllerProps = {
   startTime: bigint;
@@ -306,115 +302,18 @@ export function TimelineController({
 
   const zoomRange = useZoomRange();
 
-  // Positioned imperatively from the `datazoom` event so fast drags don't pay
-  // a React render per frame.
-  const startLabelRef = useRef<HTMLDivElement>(null);
-  const endLabelRef = useRef<HTMLDivElement>(null);
-  // Clamp container for the start label so it bumps against the column, not the viewport.
-  const wrapperRef = useRef<HTMLDivElement>(null);
-
-  // Live refs so the listener registered once in onChartReady never closes
-  // over stale values across re-renders.
-  const startTimeMillisRef = useRef(startTimeMillis);
-  startTimeMillisRef.current = startTimeMillis;
-  const endTimeMillisRef = useRef(endTimeMillis);
-  endTimeMillisRef.current = endTimeMillis;
-
-  // Reserve layout space for the chip strip below the chart.
-  const labelBoxHeight = CONTROLLER_LABEL_FONT_SIZE + CONTROLLER_LABEL_CHIP_VERTICAL_EXTRA;
-  const labelBelowStripHeight = CONTROLLER_LABEL_BELOW_GAP + labelBoxHeight;
-
-  const updateLabelsFromInstance = useCallback((instance: EChartsInstance) => {
-    const t0 = startTimeMillisRef.current;
-    const t1 = endTimeMillisRef.current;
-    const span = t1 - t0;
-    if (span <= 0) return;
-
-    const opt = instance.getOption() as {
-      dataZoom?: Array<{ start?: number; end?: number }>;
-    };
-    const dz = opt.dataZoom?.[0];
-    const startPct = dz?.start ?? 0;
-    const endPct = dz?.end ?? 100;
-
-    const startVal = t0 + (startPct / 100) * span;
-    const endVal = t0 + (endPct / 100) * span;
-
-    // xAxis 0 always spans the full duration; xAxis 1 is bound to the dataZoom
-    // and would pin both labels to the grid edges.
-    const startX = instance.convertToPixel({ xAxisIndex: 0 }, startVal);
-    const endX = instance.convertToPixel({ xAxisIndex: 0 }, endVal);
-    if (!Number.isFinite(startX) || !Number.isFinite(endX)) return;
-
-    const chartDom = instance.getDom() as HTMLElement | null;
-    if (!chartDom) return;
-    const rect = chartDom.getBoundingClientRect();
-    const labelTopVp = rect.bottom + CONTROLLER_LABEL_BELOW_GAP;
-
-    const sl = startLabelRef.current;
-    const el = endLabelRef.current;
-
-    if (sl) {
-      sl.textContent = formatDuration(startVal - t0);
-      sl.style.top = `${labelTopVp}px`;
-      sl.style.left = `${rect.left + startX}px`;
-      // Right edge flush with the handle, then clamp inside the wrapper column.
-      sl.style.transform = 'translateX(-100%)';
-      const slRect = sl.getBoundingClientRect();
-      const wrapperRect = wrapperRef.current?.getBoundingClientRect();
-      const minLeft = wrapperRect?.left ?? 0;
-      if (slRect.left < minLeft) {
-        const overflow = minLeft - slRect.left;
-        sl.style.transform = `translateX(calc(-100% + ${overflow}px))`;
-      }
-    }
-
-    if (el) {
-      el.textContent = formatDuration(endVal - t0);
-      el.style.top = `${labelTopVp}px`;
-      el.style.left = `${rect.left + endX}px`;
-      // Left edge flush with the handle, then clamp inside the viewport.
-      el.style.transform = 'translateX(0)';
-      const elRect = el.getBoundingClientRect();
-      const maxRight = window.innerWidth;
-      if (elRect.right > maxRight) {
-        const overflow = elRect.right - maxRight;
-        el.style.transform = `translateX(${-overflow}px)`;
-      }
-    }
-  }, []);
-
-  const windowListenerCleanupRef = useRef<(() => void) | null>(null);
+  const { startLabelRef, endLabelRef, wrapperRef, registerInstance } = useDataZoomLabels(
+    startTimeMillis,
+    endTimeMillis
+  );
 
   const onChartReady = useCallback(
     (instance: EChartsInstance) => {
       registerAxisPointerSync(instance, 0);
-      const update = () => updateLabelsFromInstance(instance);
-      // `datazoom` for drags/brush/dispatch; `finished` for initial + resize.
-      instance.on('datazoom', update);
-      instance.on('finished', update);
-
-      // `position: fixed` labels must re-anchor on scroll/resize.
-      windowListenerCleanupRef.current?.();
-      const onWindowChange = () => updateLabelsFromInstance(instance);
-      window.addEventListener('scroll', onWindowChange, { passive: true, capture: true });
-      window.addEventListener('resize', onWindowChange);
-      windowListenerCleanupRef.current = () => {
-        window.removeEventListener('scroll', onWindowChange, { capture: true });
-        window.removeEventListener('resize', onWindowChange);
-      };
-
+      registerInstance(instance);
       setReadyTick(t => t + 1);
     },
-    [updateLabelsFromInstance]
-  );
-
-  useEffect(
-    () => () => {
-      windowListenerCleanupRef.current?.();
-      windowListenerCleanupRef.current = null;
-    },
-    []
+    [registerInstance]
   );
 
   const { handleChartReady, instanceRef } = useChartConnect({
@@ -457,33 +356,13 @@ export function TimelineController({
 
   const opts = useMemo(() => ({ renderer: 'svg' }) as Opts, []);
 
-  const labelBaseStyle: CSSProperties = {
-    // `fixed` so chips escape ancestor `overflow: hidden` / stacking contexts.
-    position: 'fixed',
-    top: 0,
-    left: 0,
-    transform: 'translate(-9999px, 0)',
-    pointerEvents: 'none',
-    color: axisLabelColor,
-    fontSize: `${CONTROLLER_LABEL_FONT_SIZE}px`,
-    fontFamily: TIMELINE_MONO_FONT,
-    lineHeight: 1,
-    whiteSpace: 'nowrap',
-    zIndex: 1000,
-    willChange: 'transform, top, left',
-    backgroundColor: solidLabelBackgroundColor,
-    padding: '1px 4px',
-    border: `1px solid ${axisLabelColor}`,
-    borderRadius: '2px',
-  };
-
   return (
     <div
       ref={wrapperRef}
       style={{
         position: 'relative',
         width: '100%',
-        height: `${height + labelBelowStripHeight}px`,
+        height: `${height + DATA_ZOOM_LABEL_BELOW_STRIP_HEIGHT}px`,
       }}
     >
       <ReactEChartsComponent
@@ -498,8 +377,8 @@ export function TimelineController({
         opts={opts}
         autoResize={false}
       />
-      <div ref={startLabelRef} style={labelBaseStyle} aria-hidden />
-      <div ref={endLabelRef} style={labelBaseStyle} aria-hidden />
+      <DataZoomLabel ref={startLabelRef} color={axisLabelColor} background={solidLabelBackgroundColor} />
+      <DataZoomLabel ref={endLabelRef} color={axisLabelColor} background={solidLabelBackgroundColor} />
     </div>
   );
 }
