@@ -678,3 +678,22 @@ export function collectVisibleEntries(
   }
   return result;
 }
+
+/** Max stacked value across non-dimmed, non-overlay bins within [zoomStartMs, zoomEndMs]. */
+export function computeVisibleMaxValue(
+  series: TimelineSeries,
+  timestamps: number[],
+  zoomStartMs: number,
+  zoomEndMs: number
+): number | null {
+  const entries = Object.values(series).filter(e => !e.isDimmed && !e.isOverlay);
+  if (!entries.length || !entries[0]?.values.length) return null;
+  let max = 0;
+  for (let i = 0; i < entries[0].values.length; i++) {
+    const t = timestamps[i];
+    if (t === undefined || t < zoomStartMs || t > zoomEndMs) continue;
+    const sum = entries.reduce((acc, e) => acc + (e.values[i] ?? 0), 0);
+    if (sum > max) max = sum;
+  }
+  return max > 0 ? max : null;
+}

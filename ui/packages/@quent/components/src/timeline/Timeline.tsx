@@ -7,7 +7,6 @@ import { echarts } from '../lib/echarts';
 import type { EChartsOption } from '../lib/echarts';
 import type { LineSeriesOption } from 'echarts/charts';
 import type { EChartsInstance } from 'echarts-for-react';
-import { useZoomRange } from '@quent/hooks';
 import { withOpacity } from '@quent/utils';
 import type { TimelineSeriesEntry } from './types';
 import { TimelineSeries, TimelineMark, TIMELINE_SPACING, TIMELINE_X_AXIS_ANIMATION } from './types';
@@ -21,6 +20,7 @@ import {
   useTimelineEchartsTheme,
 } from './timelineEchartsTheme';
 import { MIN_ZOOM_WINDOW_S, nanosToMs } from '../lib/timeline.utils';
+import { useVisibleMaxValue } from './useVisibleMaxValue';
 import { useChartConnect } from '../lib/useChartConnect';
 import { Opts } from 'echarts-for-react/lib/types';
 
@@ -63,8 +63,6 @@ export function Timeline({
   onHoverChange?: (position: TimelineHoverPosition | null) => void;
 }) {
   const { themeName, textColor, labelBackgroundColor } = useTimelineEchartsTheme(isDark);
-  const zoomRange = useZoomRange();
-
   const maxMarkCountRef = useRef(0);
 
   const seriesOptions = useMemo(() => {
@@ -181,22 +179,7 @@ export function Timeline({
 
   const startTimeMs = useMemo(() => nanosToMs(startTime), [startTime]);
 
-  /** Max stacked value across only the bins currently visible in the zoom window. */
-  const maxValue = useMemo(() => {
-    const entries = Object.values(series).filter(e => !e.isDimmed && !e.isOverlay);
-    if (!entries.length || !entries[0]?.values.length) return null;
-    const zoomStartMs = startTimeMs + zoomRange.start * 1000;
-    const zoomEndMs = startTimeMs + zoomRange.end * 1000;
-    const numBins = entries[0].values.length;
-    let max = 0;
-    for (let i = 0; i < numBins; i++) {
-      const t = timestamps[i];
-      if (t === undefined || t < zoomStartMs || t > zoomEndMs) continue;
-      const sum = entries.reduce((acc, e) => acc + (e.values[i] ?? 0), 0);
-      if (sum > max) max = sum;
-    }
-    return max > 0 ? max : null;
-  }, [series, timestamps, zoomRange, startTimeMs]);
+  const maxValue = useVisibleMaxValue(series, timestamps, startTimeMs);
 
   const yAxisOptions = useMemo(
     () => [

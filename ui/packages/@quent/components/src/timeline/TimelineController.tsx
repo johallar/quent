@@ -145,6 +145,7 @@ export function TimelineController({
       axisTick: { show: true, alignWithLabel: true },
       axisLabel: {
         hideOverlap: false,
+        // Keeps min/max axis labels contained within the chart
         alignMinLabel: 'left',
         alignMaxLabel: 'right',
         formatter: (value: number) => {
