@@ -14,12 +14,63 @@ export const DATA_ZOOM_LABEL_BELOW_STRIP_HEIGHT =
 export const DATA_ZOOM_LABEL_FONT_SIZE = LABEL_FONT_SIZE;
 export const DATA_ZOOM_LABEL_BELOW_GAP = LABEL_BELOW_GAP;
 
+/** How each handle label aligns to its anchor pixel. */
+type LabelAlign = 'left' | 'right' | 'center';
+
+/** Clamping boundaries in viewport pixels. */
+interface ClampBounds {
+  minLeft?: number;
+  maxRight?: number;
+}
+
+/**
+ * Positions a label div imperatively at (`vpX`, `vpY`) in viewport coords.
+ * `align` controls which edge of the label touches the anchor:
+ *   - `'right'`  — right edge at vpX (label sits to the left of the handle)
+ *   - `'left'`   — left edge at vpX  (label sits to the right of the handle)
+ *   - `'center'` — centered on vpX
+ * Clamp bounds nudge the label back into view when it would overflow.
+ */
+export function positionLabel(
+  el: HTMLDivElement,
+  vpX: number,
+  vpY: number,
+  text: string,
+  align: LabelAlign,
+  clamp: ClampBounds = {}
+): void {
+  el.textContent = text;
+  el.style.top = `${vpY}px`;
+  el.style.left = `${vpX}px`;
+  const basePct = align === 'right' ? -100 : align === 'center' ? -50 : 0;
+  el.style.transform = `translateX(${basePct}%)`;
+
+  const r = el.getBoundingClientRect();
+  let nudge = 0;
+  if (clamp.minLeft !== undefined && r.left < clamp.minLeft) nudge = clamp.minLeft - r.left;
+  if (clamp.maxRight !== undefined && r.right > clamp.maxRight) nudge = -(r.right - clamp.maxRight);
+  if (nudge !== 0) el.style.transform = `translateX(calc(${basePct}% + ${nudge}px))`;
+}
+
+/** Controls how start/end labels sit relative to their handles. */
+export type DataZoomLabelPlacement = 'outside' | 'inside' | 'center';
+
+const PLACEMENT_ALIGNS: Record<DataZoomLabelPlacement, [LabelAlign, LabelAlign]> = {
+  outside: ['right', 'left'],
+  inside: ['left', 'right'],
+  center: ['center', 'center'],
+};
+
 /**
  * Manages imperative DOM positioning of the start/end zoom handle labels.
  * Returns refs to attach to the label divs and wrapper, plus `registerInstance`
  * to call inside `onChartReady`.
  */
-export function useDataZoomLabels(startTimeMillis: number, endTimeMillis: number) {
+export function useDataZoomLabels(
+  startTimeMillis: number,
+  endTimeMillis: number,
+  placement: DataZoomLabelPlacement = 'outside'
+) {
   const startLabelRef = useRef<HTMLDivElement>(null);
   const endLabelRef = useRef<HTMLDivElement>(null);
   const wrapperRef = useRef<HTMLDivElement>(null);
@@ -32,60 +83,56 @@ export function useDataZoomLabels(startTimeMillis: number, endTimeMillis: number
 
   const windowListenerCleanupRef = useRef<(() => void) | null>(null);
 
-  const updateLabels = useCallback((instance: EChartsInstance) => {
-    const t0 = startTimeMillisRef.current;
-    const t1 = endTimeMillisRef.current;
-    const span = t1 - t0;
-    if (span <= 0) return;
+  const updateLabels = useCallback(
+    (instance: EChartsInstance) => {
+      const t0 = startTimeMillisRef.current;
+      const t1 = endTimeMillisRef.current;
+      const span = t1 - t0;
+      if (span <= 0) return;
 
-    const opt = instance.getOption() as {
-      dataZoom?: Array<{ start?: number; end?: number }>;
-    };
-    const dz = opt.dataZoom?.[0];
-    const startPct = dz?.start ?? 0;
-    const endPct = dz?.end ?? 100;
+      const opt = instance.getOption() as {
+        dataZoom?: Array<{ start?: number; end?: number }>;
+      };
+      const dz = opt.dataZoom?.[0];
+      const startVal = t0 + ((dz?.start ?? 0) / 100) * span;
+      const endVal = t0 + ((dz?.end ?? 100) / 100) * span;
 
-    const startVal = t0 + (startPct / 100) * span;
-    const endVal = t0 + (endPct / 100) * span;
+      // xAxis 0 always spans the full duration; xAxis 1 is bound to the dataZoom
+      // and would pin both labels to the grid edges.
+      const startX = instance.convertToPixel({ xAxisIndex: 0 }, startVal);
+      const endX = instance.convertToPixel({ xAxisIndex: 0 }, endVal);
+      if (!Number.isFinite(startX) || !Number.isFinite(endX)) return;
 
-    // xAxis 0 always spans the full duration; xAxis 1 is bound to the dataZoom
-    // and would pin both labels to the grid edges.
-    const startX = instance.convertToPixel({ xAxisIndex: 0 }, startVal);
-    const endX = instance.convertToPixel({ xAxisIndex: 0 }, endVal);
-    if (!Number.isFinite(startX) || !Number.isFinite(endX)) return;
+      const chartDom = instance.getDom() as HTMLElement | null;
+      if (!chartDom) return;
+      const rect = chartDom.getBoundingClientRect();
+      const labelTopVp = rect.bottom + LABEL_BELOW_GAP;
 
-    const chartDom = instance.getDom() as HTMLElement | null;
-    if (!chartDom) return;
-    const rect = chartDom.getBoundingClientRect();
-    const labelTopVp = rect.bottom + LABEL_BELOW_GAP;
+      const [startAlign, endAlign] = PLACEMENT_ALIGNS[placement];
 
-    const sl = startLabelRef.current;
-    if (sl) {
-      sl.textContent = formatDuration(startVal - t0);
-      sl.style.top = `${labelTopVp}px`;
-      sl.style.left = `${rect.left + startX}px`;
-      // Right edge flush with the handle, then clamp inside the wrapper column.
-      sl.style.transform = 'translateX(-100%)';
-      const slRect = sl.getBoundingClientRect();
-      const minLeft = wrapperRef.current?.getBoundingClientRect().left ?? 0;
-      if (slRect.left < minLeft) {
-        sl.style.transform = `translateX(calc(-100% + ${minLeft - slRect.left}px))`;
+      if (startLabelRef.current) {
+        positionLabel(
+          startLabelRef.current,
+          rect.left + startX,
+          labelTopVp,
+          formatDuration(startVal - t0),
+          startAlign,
+          { minLeft: wrapperRef.current?.getBoundingClientRect().left ?? 0 }
+        );
       }
-    }
-
-    const el = endLabelRef.current;
-    if (el) {
-      el.textContent = formatDuration(endVal - t0);
-      el.style.top = `${labelTopVp}px`;
-      el.style.left = `${rect.left + endX}px`;
-      // Left edge flush with the handle, then clamp inside the viewport.
-      el.style.transform = 'translateX(0)';
-      const elRect = el.getBoundingClientRect();
-      if (elRect.right > window.innerWidth) {
-        el.style.transform = `translateX(${-(elRect.right - window.innerWidth)}px)`;
+      if (endLabelRef.current) {
+        positionLabel(
+          endLabelRef.current,
+          rect.left + endX,
+          labelTopVp,
+          formatDuration(endVal - t0),
+          endAlign,
+          { maxRight: window.innerWidth }
+        );
       }
-    }
-  }, []);
+    },
+    [placement]
+  );
 
   const registerInstance = useCallback(
     (instance: EChartsInstance) => {
