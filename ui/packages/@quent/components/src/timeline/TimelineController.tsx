@@ -38,11 +38,8 @@ type TimelineControllerProps = {
   startTime: bigint;
   durationSeconds: number;
   height?: number;
-  /** Background data overlaid on the static display (e.g. root resource group rollup). */
   timelineData?: SingleTimelineResponse | null;
-  /** Emits the new range in seconds. */
   onZoomChange?: (range: ZoomRange) => void;
-  /** Decoupled from ThemeContext so consumers control theming explicitly. */
   isDark: boolean;
 };
 
@@ -377,8 +374,16 @@ export function TimelineController({
         opts={opts}
         autoResize={false}
       />
-      <DataZoomLabel ref={startLabelRef} color={axisLabelColor} background={solidLabelBackgroundColor} />
-      <DataZoomLabel ref={endLabelRef} color={axisLabelColor} background={solidLabelBackgroundColor} />
+      <DataZoomLabel
+        ref={startLabelRef}
+        color={axisLabelColor}
+        background={solidLabelBackgroundColor}
+      />
+      <DataZoomLabel
+        ref={endLabelRef}
+        color={axisLabelColor}
+        background={solidLabelBackgroundColor}
+      />
     </div>
   );
 }
