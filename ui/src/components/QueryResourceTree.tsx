@@ -122,16 +122,7 @@ function QueryResourceTreeContent({ queryBundle, engineId }: QueryResourceTreePr
   const rootResourceGroupId = useMemo(() => getRootResourceGroupId(resourceTree), [resourceTree]);
 
   const { expandedIds, handleExpandChange } = useExpandedIds(rootItem.id);
-  // `useExpandedIds` updates this set asynchronously after mount, so on the
-  // very first render `controlledExpandedIds` would be empty and the root
-  // would render collapsed. Ensure the root is always considered expanded so
-  // first paint matches the previous uncontrolled behavior.
-  const controlledExpandedIds = useMemo(() => {
-    if (expandedIds.has(rootItem.id)) return expandedIds;
-    const next = new Set(expandedIds);
-    next.add(rootItem.id);
-    return next;
-  }, [expandedIds, rootItem.id]);
+  const controlledExpandedIds = expandedIds;
 
   const { handleZoomChange, handleExpand } = useBulkTimelines({
     engineId,
