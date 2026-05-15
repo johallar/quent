@@ -32,6 +32,8 @@ const CONTROLLER_X_MIN_LABELS = 8;
 const CONTROLLER_GRID_TOP = 20;
 // Balanced with CONTROLLER_GRID_TOP so the chart area is centered in the controller height.
 const CONTROLLER_GRID_BOTTOM = 10;
+// Shifts the datazoom slider up so it overlaps the label row instead of sitting flush with the chart.
+const DATAZOOM_TOP_OFFSET = 5;
 
 type TimelineControllerProps = {
   startTime: bigint;
@@ -222,7 +224,7 @@ export function TimelineController({
           realtime: true,
           filterMode: 'none',
           minSpan: minZoomSpanPct,
-          top: CONTROLLER_GRID_TOP,
+          top: CONTROLLER_GRID_TOP - DATAZOOM_TOP_OFFSET,
           height: height - CONTROLLER_GRID_TOP - CONTROLLER_GRID_BOTTOM,
           brushSelect: true,
           // Built-in labels disabled — replaced by custom DOM chips below.
