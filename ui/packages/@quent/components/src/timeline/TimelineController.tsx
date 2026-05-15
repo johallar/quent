@@ -20,8 +20,6 @@ import {
 } from '../lib/timeline.utils';
 import { useChartConnect } from '../lib/useChartConnect';
 import { TIMELINE_X_AXIS_ANIMATION, TIMELINE_SPACING } from './types';
-import { useDataZoomLabels, DATA_ZOOM_LABEL_BELOW_STRIP_HEIGHT } from './useDataZoomLabels';
-import { DataZoomLabel } from './DataZoomLabel';
 import type { SingleTimelineResponse } from '@quent/utils';
 import { useTimelineEchartsTheme } from './timelineEchartsTheme';
 import type { PaletteTheme } from '@quent/utils';
@@ -52,8 +50,7 @@ export function TimelineController({
   onZoomChange,
   isDark,
 }: TimelineControllerProps) {
-  const { themeName, axisLabelColor, solidLabelBackgroundColor, controllerGridBackgroundColor } =
-    useTimelineEchartsTheme(isDark);
+  const { themeName, controllerGridBackgroundColor } = useTimelineEchartsTheme(isDark);
   const paletteTheme: PaletteTheme = isDark ? 'dark' : 'light';
 
   const startTimeMillis = useMemo(() => nanosToMs(startTime), [startTime]);
@@ -299,19 +296,10 @@ export function TimelineController({
 
   const zoomRange = useZoomRange();
 
-  const { startLabelRef, endLabelRef, wrapperRef, registerInstance } = useDataZoomLabels(
-    startTimeMillis,
-    endTimeMillis
-  );
-
-  const onChartReady = useCallback(
-    (instance: EChartsInstance) => {
-      registerAxisPointerSync(instance, 0);
-      registerInstance(instance);
-      setReadyTick(t => t + 1);
-    },
-    [registerInstance]
-  );
+  const onChartReady = useCallback((instance: EChartsInstance) => {
+    registerAxisPointerSync(instance);
+    setReadyTick(t => t + 1);
+  }, []);
 
   const { handleChartReady, instanceRef } = useChartConnect({
     durationSeconds,
@@ -354,36 +342,17 @@ export function TimelineController({
   const opts = useMemo(() => ({ renderer: 'svg' }) as Opts, []);
 
   return (
-    <div
-      ref={wrapperRef}
-      style={{
-        position: 'relative',
-        width: '100%',
-        height: `${height + DATA_ZOOM_LABEL_BELOW_STRIP_HEIGHT}px`,
-      }}
-    >
-      <ReactEChartsComponent
-        echarts={echarts}
-        theme={themeName}
-        option={eChartOptions}
-        style={{ width: '100%', height: `${height}px` }}
-        onChartReady={handleChartReady}
-        onEvents={handleDataZoom}
-        notMerge={false}
-        lazyUpdate
-        opts={opts}
-        autoResize={false}
-      />
-      <DataZoomLabel
-        ref={startLabelRef}
-        color={axisLabelColor}
-        background={solidLabelBackgroundColor}
-      />
-      <DataZoomLabel
-        ref={endLabelRef}
-        color={axisLabelColor}
-        background={solidLabelBackgroundColor}
-      />
-    </div>
+    <ReactEChartsComponent
+      echarts={echarts}
+      theme={themeName}
+      option={eChartOptions}
+      style={{ width: '100%', height: `${height}px` }}
+      onChartReady={handleChartReady}
+      onEvents={handleDataZoom}
+      notMerge={false}
+      lazyUpdate
+      opts={opts}
+      autoResize={false}
+    />
   );
 }

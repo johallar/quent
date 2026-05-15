@@ -23,6 +23,8 @@ import { BLACK, WHITE, withOpacity } from '@quent/utils';
 export const TIMELINE_MONO_FONT =
   'ui-monospace, SFMono-Regular, SF Mono, Menlo, Consolas, Liberation Mono, monospace';
 
+export const TIMELINE_LABEL_FONT_SIZE = 10;
+
 export const MARK_AREA_FILL_OPACITY = 0.12;
 export const MARK_AREA_BORDER_OPACITY = 0.75;
 /** Mark labels sit on a colored chip; white reads well against every state color. */

@@ -8,7 +8,7 @@ import type { EChartsOption } from '../lib/echarts';
 import { useZoomRange } from '@quent/hooks';
 import { formatDurationForAxisInterval } from '@quent/utils';
 import { nanosToMs, getTimelineXAxisIntervalMs } from '../lib/timeline.utils';
-import { useTimelineEchartsTheme } from './timelineEchartsTheme';
+import { useTimelineEchartsTheme, TIMELINE_MONO_FONT, TIMELINE_LABEL_FONT_SIZE } from './timelineEchartsTheme';
 import { TIMELINE_SPACING } from './types';
 
 const RULER_HEIGHT = 22;
@@ -30,7 +30,8 @@ type TimelineRulerProps = {
 
 /** Sticky axis ruler showing elapsed time for the current zoom window. */
 export function TimelineRuler({ startTime, isDark, mode = 'relative' }: TimelineRulerProps) {
-  const { themeName, axisTickColor } = useTimelineEchartsTheme(isDark);
+  const { themeName, axisTickColor, axisLabelColor, solidLabelBackgroundColor } =
+    useTimelineEchartsTheme(isDark);
   const startTimeMs = useMemo(() => nanosToMs(startTime), [startTime]);
   const zoomRange = useZoomRange();
 
@@ -47,23 +48,25 @@ export function TimelineRuler({ startTime, isDark, mode = 'relative' }: Timeline
     const formatLabel = (value: number): string => {
       const absoluteMs = value - startTimeMs;
       const relativeMs = value - zoomedStartMs;
+      const isMinMax = value === zoomedStartMs || value === zoomedEndMs;
 
+      let text: string;
       if (mode === 'relative') {
         const relStr = `+${formatDurationForAxisInterval(relativeMs, interval)}`;
-        // Min/max ticks (always shown) get the "absolute (relative)" anchor format.
-        const isMinMax = value === zoomedStartMs || value === zoomedEndMs;
-        if (isMinMax) {
-          return formatDurationForAxisInterval(absoluteMs, interval);
-        }
-        return relStr;
+        text = isMinMax ? `${formatDurationForAxisInterval(absoluteMs, interval)}` : relStr;
+      } else {
+        text = formatDurationForAxisInterval(absoluteMs, interval);
       }
-      return formatDurationForAxisInterval(absoluteMs, interval);
+
+      // Wrap min/max labels in the datazoom-chip rich style.
+      return isMinMax ? `{chip|${text}}` : text;
     };
 
     return {
       animation: false,
       grid: {
         ...TIMELINE_SPACING,
+        left: 1,
         top: RULER_GRID_TOP,
         bottom: 0,
       },
@@ -89,6 +92,19 @@ export function TimelineRuler({ startTime, isDark, mode = 'relative' }: Timeline
           alignMinLabel: 'left',
           alignMaxLabel: 'right',
           formatter: formatLabel,
+          rich: {
+            chip: {
+              color: axisLabelColor,
+              backgroundColor: solidLabelBackgroundColor,
+              borderColor: axisLabelColor,
+              borderWidth: 1,
+              borderRadius: 2,
+              padding: [1, 4, 1, 4],
+              fontSize: TIMELINE_LABEL_FONT_SIZE,
+              fontFamily: TIMELINE_MONO_FONT,
+              lineHeight: TIMELINE_LABEL_FONT_SIZE,
+            },
+          },
         },
         splitLine: { show: false },
         axisPointer: { show: false },
@@ -109,7 +125,16 @@ export function TimelineRuler({ startTime, isDark, mode = 'relative' }: Timeline
         },
       ],
     };
-  }, [zoomedStartMs, zoomedEndMs, interval, startTimeMs, axisTickColor, mode]);
+  }, [
+    zoomedStartMs,
+    zoomedEndMs,
+    interval,
+    startTimeMs,
+    axisTickColor,
+    axisLabelColor,
+    solidLabelBackgroundColor,
+    mode,
+  ]);
 
   return (
     <ReactEChartsComponent
