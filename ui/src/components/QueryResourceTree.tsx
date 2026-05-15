@@ -215,6 +215,11 @@ function QueryResourceTreeContent({ queryBundle, engineId }: QueryResourceTreePr
         label: 'Resource',
         widthIndex: 0,
         isFirst: true,
+        headerContent: (
+          <div className="flex items-center h-full px-3 text-xs font-semibold text-muted-foreground select-none">
+            Resource
+          </div>
+        ),
         render: ({ item }: { item: TreeTableItem; level: number }) => {
           switch (item.type) {
             case OPERATOR_TIMELINE_ROW_TYPE: {
@@ -251,7 +256,7 @@ function QueryResourceTreeContent({ queryBundle, engineId }: QueryResourceTreePr
         key: 'usage',
         label: 'Usage',
         widthIndex: 1,
-        subHeaderContent: (
+        headerContent: (
           <div className="h-full overflow-hidden flex items-center py-2">
             <TimelineController
               startTime={startTime}
@@ -262,7 +267,7 @@ function QueryResourceTreeContent({ queryBundle, engineId }: QueryResourceTreePr
             />
           </div>
         ),
-        subHeaderContent2: <TimelineRuler startTime={startTime} isDark={isDark} />,
+        subHeaderContent: <TimelineRuler startTime={startTime} isDark={isDark} />,
         render: ({ item }: { item: TreeTableItem }) => {
           switch (item.type) {
             case OPERATOR_TIMELINE_ROW_TYPE: {

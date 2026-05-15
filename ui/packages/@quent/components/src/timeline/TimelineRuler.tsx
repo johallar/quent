@@ -8,6 +8,7 @@ import type { EChartsOption } from '../lib/echarts';
 import { useZoomRange } from '@quent/hooks';
 import { formatDurationForAxisInterval } from '@quent/utils';
 import { nanosToMs, getTimelineXAxisIntervalMs } from '../lib/timeline.utils';
+import { useChartResize } from '../lib/useChartResize';
 import {
   useTimelineEchartsTheme,
   TIMELINE_MONO_FONT,
@@ -36,6 +37,7 @@ type TimelineRulerProps = {
 export function TimelineRuler({ startTime, isDark, mode = 'relative' }: TimelineRulerProps) {
   const { themeName, axisTickColor, axisLabelColor, solidLabelBackgroundColor } =
     useTimelineEchartsTheme(isDark);
+  const { handleChartReady } = useChartResize();
   const startTimeMs = useMemo(() => nanosToMs(startTime), [startTime]);
   const zoomRange = useZoomRange();
 
@@ -146,10 +148,11 @@ export function TimelineRuler({ startTime, isDark, mode = 'relative' }: Timeline
       theme={themeName}
       option={option}
       style={{ width: '100%', height: `${RULER_HEIGHT}px` }}
+      onChartReady={handleChartReady}
       notMerge={false}
       lazyUpdate={false}
       opts={{ renderer: 'svg' }}
-      autoResize
+      autoResize={false}
     />
   );
 }
