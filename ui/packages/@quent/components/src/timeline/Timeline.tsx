@@ -422,7 +422,7 @@ export function Timeline({
     <div className="relative w-full h-full">
       {maxValue != null && (
         <span
-          className="absolute z-8 pointer-events-none text-[10px] leading-none rounded-sm px-1 py-0.5"
+          className="absolute z-[8] pointer-events-none text-[10px] leading-none rounded-sm px-1 py-0.5"
           style={{
             top: TIMELINE_SPACING.top + 1,
             left: TIMELINE_SPACING.left + 1,
