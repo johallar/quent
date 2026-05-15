@@ -1021,7 +1021,7 @@ export function TreeTable<I extends TreeTableDataItem>({
                             style={{ right: '-2px' }}
                             onMouseDown={e => handleColumnResizeStart(index, e)}
                           >
-                            <div className="h-6 w-0.25 rounded-full bg-muted-foreground/40 transition-all group-hover/resize:h-8 group-hover/resize:bg-muted-foreground/80" />
+                            <div className="h-6 w-px rounded-full bg-muted-foreground/40 transition-all group-hover/resize:h-8 group-hover/resize:bg-muted-foreground/80" />
                           </div>
                         )}
                       </div>
