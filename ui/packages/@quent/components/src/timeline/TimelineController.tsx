@@ -30,7 +30,8 @@ const CONTROLLER_TOP_HEADROOM_RATIO = 0.2;
 const CONTROLLER_X_MIN_LABELS = 8;
 /** Reserves space for the top-positioned xAxis labels. */
 const CONTROLLER_GRID_TOP = 20;
-const CONTROLLER_GRID_BOTTOM = 5;
+// Balanced with CONTROLLER_GRID_TOP so the chart area is centered in the controller height.
+const CONTROLLER_GRID_BOTTOM = 10;
 
 type TimelineControllerProps = {
   startTime: bigint;

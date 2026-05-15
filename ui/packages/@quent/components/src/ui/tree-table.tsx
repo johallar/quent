@@ -1008,11 +1008,9 @@ export function TreeTable<I extends TreeTableDataItem>({
                     const isNotLast = index < columns.length - 1;
                     return (
                       <div
-                        className={cn(
-                          'overflow-hidden relative',
-                          !isAutoColumn && 'shrink-0',
-                          index > 0 && 'pl-2'
-                        )}
+                        className={cn('overflow-hidden relative', {
+                          'shrink-0': !isAutoColumn,
+                        })}
                         key={`header-${column.key}`}
                         style={isAutoColumn ? { flex: 1, minWidth: 0 } : { width: columnWidth }}
                       >
@@ -1020,10 +1018,10 @@ export function TreeTable<I extends TreeTableDataItem>({
                         {isNotLast && !isAutoColumn && (
                           <div
                             className="absolute top-0 bottom-0 flex w-6 cursor-col-resize items-center justify-center group/resize"
-                            style={{ right: '-6px' }}
+                            style={{ right: '-2px' }}
                             onMouseDown={e => handleColumnResizeStart(index, e)}
                           >
-                            <div className="h-6 w-0.25 rounded-full bg-muted-foreground/40 transition-all group-hover/resize:h-5 group-hover/resize:bg-muted-foreground/80" />
+                            <div className="h-6 w-0.25 rounded-full bg-muted-foreground/40 transition-all group-hover/resize:h-8 group-hover/resize:bg-muted-foreground/80" />
                           </div>
                         )}
                       </div>
