@@ -16,13 +16,20 @@ const RULER_TARGET_TICKS = 7;
 // Space above the grid for axis labels + ticks.
 const RULER_GRID_TOP = 20;
 
+/**
+ * `absolute`: elapsed time from query start (e.g. "20.00ms", "40.00ms").
+ * `relative`: offset from the start of the current zoom window, always begins near 0 (e.g. "+0.00ms", "+20.00µs").
+ */
+export type TimelineRulerMode = 'absolute' | 'relative';
+
 type TimelineRulerProps = {
   startTime: bigint;
   isDark: boolean;
+  mode?: TimelineRulerMode;
 };
 
-/** Sticky axis ruler showing elapsed time relative to query start for the current zoom window. */
-export function TimelineRuler({ startTime, isDark }: TimelineRulerProps) {
+/** Sticky axis ruler showing elapsed time for the current zoom window. */
+export function TimelineRuler({ startTime, isDark, mode = 'relative' }: TimelineRulerProps) {
   const { themeName, axisTickColor } = useTimelineEchartsTheme(isDark);
   const startTimeMs = useMemo(() => nanosToMs(startTime), [startTime]);
   const zoomRange = useZoomRange();
@@ -36,8 +43,24 @@ export function TimelineRuler({ startTime, isDark }: TimelineRulerProps) {
     [zoomedSpanMs]
   );
 
-  const option: EChartsOption = useMemo(
-    () => ({
+  const option: EChartsOption = useMemo(() => {
+    const formatLabel = (value: number): string => {
+      const absoluteMs = value - startTimeMs;
+      const relativeMs = value - zoomedStartMs;
+
+      if (mode === 'relative') {
+        const relStr = `+${formatDurationForAxisInterval(relativeMs, interval)}`;
+        // Min/max ticks (always shown) get the "absolute (relative)" anchor format.
+        const isMinMax = value === zoomedStartMs || value === zoomedEndMs;
+        if (isMinMax) {
+          return formatDurationForAxisInterval(absoluteMs, interval);
+        }
+        return relStr;
+      }
+      return formatDurationForAxisInterval(absoluteMs, interval);
+    };
+
+    return {
       animation: false,
       grid: {
         ...TIMELINE_SPACING,
@@ -53,13 +76,19 @@ export function TimelineRuler({ startTime, isDark }: TimelineRulerProps) {
         interval,
         boundaryGap: false,
         // Re-enable ticks (theme disables them by default); prominent color + extra length.
-        axisTick: { show: true, alignWithLabel: true, length: 8, lineStyle: { color: axisTickColor } },
+        axisTick: {
+          show: true,
+          alignWithLabel: true,
+          length: 8,
+          lineStyle: { color: axisTickColor },
+        },
         axisLabel: {
           hideOverlap: true,
+          showMinLabel: true,
+          showMaxLabel: true,
           alignMinLabel: 'left',
           alignMaxLabel: 'right',
-          formatter: (value: number) =>
-            formatDurationForAxisInterval(value - startTimeMs, interval),
+          formatter: formatLabel,
         },
         splitLine: { show: false },
         axisPointer: { show: false },
@@ -79,9 +108,8 @@ export function TimelineRuler({ startTime, isDark }: TimelineRulerProps) {
           animation: false,
         },
       ],
-    }),
-    [zoomedStartMs, zoomedEndMs, interval, startTimeMs, axisTickColor]
-  );
+    };
+  }, [zoomedStartMs, zoomedEndMs, interval, startTimeMs, axisTickColor, mode]);
 
   return (
     <ReactEChartsComponent
