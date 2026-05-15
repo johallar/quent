@@ -8,7 +8,11 @@ import type { EChartsOption } from '../lib/echarts';
 import { useZoomRange } from '@quent/hooks';
 import { formatDurationForAxisInterval } from '@quent/utils';
 import { nanosToMs, getTimelineXAxisIntervalMs } from '../lib/timeline.utils';
-import { useTimelineEchartsTheme, TIMELINE_MONO_FONT, TIMELINE_LABEL_FONT_SIZE } from './timelineEchartsTheme';
+import {
+  useTimelineEchartsTheme,
+  TIMELINE_MONO_FONT,
+  TIMELINE_LABEL_FONT_SIZE,
+} from './timelineEchartsTheme';
 import { TIMELINE_SPACING } from './types';
 
 const RULER_HEIGHT = 22;
