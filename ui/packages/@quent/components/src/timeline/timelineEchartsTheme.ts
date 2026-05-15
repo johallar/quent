@@ -105,9 +105,6 @@ function buildTimelineTheme(isDark: boolean) {
       moveHandleSize: 5,
       dataBackground: { lineStyle: { opacity: 0 }, areaStyle: { opacity: 0 } },
       selectedDataBackground: { lineStyle: { opacity: 0 }, areaStyle: { opacity: 0 } },
-      // Built-in showDetail labels are disabled on the controller's slider in
-      // favor of custom DOM labels (see TimelineController), so no textStyle
-      // is needed here.
       emphasis: {
         handleStyle: { color: dataZoomEmphasisHandleColor },
       },

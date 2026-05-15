@@ -7,7 +7,7 @@ import { echarts } from '../lib/echarts';
 import type { EChartsOption } from '../lib/echarts';
 import { useZoomRange } from '@quent/hooks';
 import { formatDurationForAxisInterval } from '@quent/utils';
-import { nanosToMs, getTimelineXAxisIntervalMs } from '../lib/timeline.utils';
+import { nanosToMs, getTimelineXAxisIntervalMs, MIN_ZOOM_WINDOW_S } from '../lib/timeline.utils';
 import { useChartResize } from '../lib/useChartResize';
 import {
   useTimelineEchartsTheme,
@@ -43,7 +43,7 @@ export function TimelineRuler({ startTime, isDark, mode = 'relative' }: Timeline
 
   const zoomedStartMs = startTimeMs + zoomRange.start * 1000;
   const zoomedEndMs = startTimeMs + zoomRange.end * 1000;
-  const zoomedSpanMs = Math.max(zoomedEndMs - zoomedStartMs, 1e-6);
+  const zoomedSpanMs = Math.max(zoomedEndMs - zoomedStartMs, MIN_ZOOM_WINDOW_S * 1000);
 
   const interval = useMemo(
     () => getTimelineXAxisIntervalMs(zoomedSpanMs, RULER_TARGET_TICKS),

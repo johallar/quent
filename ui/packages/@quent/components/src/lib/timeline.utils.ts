@@ -353,8 +353,7 @@ const NICE_TIMELINE_INTERVALS_MS = [
  * `targetSplits` is treated as the minimum number of displayed splits/labels.
  */
 export function getTimelineXAxisIntervalMs(spanMs: number, targetSplits: number = 8): number {
-  // 1e-6 ms = 1 ns; guards against zero/negative without artificially capping sub-ms spans.
-  const safeSpanMs = Math.max(1e-6, spanMs);
+  const safeSpanMs = Math.max(MIN_ZOOM_WINDOW_S * 1000, spanMs);
   const minSplits = Math.max(2, targetSplits);
   // To display at least `minSplits`, interval must be <= span/(minSplits-1).
   const maxAllowedStep = safeSpanMs / (minSplits - 1);
