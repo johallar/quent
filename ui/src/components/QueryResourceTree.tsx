@@ -257,7 +257,7 @@ function QueryResourceTreeContent({ queryBundle, engineId }: QueryResourceTreePr
         label: 'Usage',
         widthIndex: 1,
         headerContent: (
-          <div className="h-full overflow-hidden flex items-center py-2">
+          <div className="h-full overflow-hidden flex items-center py-1">
             <TimelineController
               startTime={startTime}
               durationSeconds={durationSeconds}
