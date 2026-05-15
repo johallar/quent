@@ -763,6 +763,8 @@ export type Column<I> = {
   render: ColumnComponent<I>;
   /** Optional content to render in the sub-header row below this column */
   subHeaderContent?: React.ReactNode;
+  /** Optional content to render in a second sub-header row, below the first */
+  subHeaderContent2?: React.ReactNode;
 };
 
 const useIsomorphicLayoutEffect = typeof window !== 'undefined' ? useLayoutEffect : useEffect;
@@ -1049,7 +1051,7 @@ export function TreeTable<I extends TreeTableDataItem>({
               {/* Sub-header row for controller/additional content */}
               {columns.some(col => col.subHeaderContent) && (
                 <div
-                  className="flex bg-background"
+                  className="flex bg-background shadow-md relative z-[1]"
                   style={{ width: `${effectiveWidth}px`, minWidth: `${effectiveWidth}px` }}
                 >
                   <div className="shrink-0" style={{ width: `${leftSpacing}px` }} />
@@ -1064,6 +1066,29 @@ export function TreeTable<I extends TreeTableDataItem>({
                         style={isAutoColumn ? { flex: 1, minWidth: 0 } : { width: columnWidth }}
                       >
                         {column.subHeaderContent}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+              {/* Second sub-header row */}
+              {columns.some(col => col.subHeaderContent2) && (
+                <div
+                  className="flex bg-background pt-[10px]"
+                  style={{ width: `${effectiveWidth}px`, minWidth: `${effectiveWidth}px` }}
+                >
+                  <div className="shrink-0" style={{ width: `${leftSpacing}px` }} />
+                  <div className="shrink-0" style={{ width: `${chevronSpace}px` }} />
+                  {columns.map(column => {
+                    const columnWidth = columnLayoutWidths[column.widthIndex];
+                    const isAutoColumn = columnWidth === 'auto';
+                    return (
+                      <div
+                        className={cn('overflow-hidden', !isAutoColumn && 'shrink-0')}
+                        key={`subheader2-${column.key}`}
+                        style={isAutoColumn ? { flex: 1, minWidth: 0 } : { width: columnWidth }}
+                      >
+                        {column.subHeaderContent2}
                       </div>
                     );
                   })}

@@ -252,19 +252,17 @@ function QueryResourceTreeContent({ queryBundle, engineId }: QueryResourceTreePr
         label: 'Usage',
         widthIndex: 1,
         subHeaderContent: (
-          <div className="h-full overflow-hidden flex flex-col">
-            <div className="flex items-center py-2">
-              <TimelineController
-                startTime={startTime}
-                durationSeconds={durationSeconds}
-                timelineData={fetchedRootTimeline}
-                onZoomChange={handleZoomChange}
-                isDark={isDark}
-              />
-            </div>
-            <TimelineRuler startTime={startTime} isDark={isDark} />
+          <div className="h-full overflow-hidden flex items-center py-2">
+            <TimelineController
+              startTime={startTime}
+              durationSeconds={durationSeconds}
+              timelineData={fetchedRootTimeline}
+              onZoomChange={handleZoomChange}
+              isDark={isDark}
+            />
           </div>
         ),
+        subHeaderContent2: <TimelineRuler startTime={startTime} isDark={isDark} />,
         render: ({ item }: { item: TreeTableItem }) => {
           switch (item.type) {
             case OPERATOR_TIMELINE_ROW_TYPE: {

@@ -40,6 +40,9 @@ export const ROLLUP_TIMELINE_COLOR_DARK = '#777777';
 const TEXT_COLOR_LIGHT = '#333333';
 const TEXT_COLOR_DARK = '#d4d4d4';
 
+const AXIS_TICK_COLOR_LIGHT = '#aaaaaa';
+const AXIS_TICK_COLOR_DARK = '#c0c0c0';
+
 const GRID_BORDER_OPACITY = 0.2;
 const GRID_BACKGROUND_OPACITY = 0.1;
 const CONTROLLER_GRID_BACKGROUND_OPACITY = 0.05;
@@ -128,6 +131,8 @@ export function useTimelineEchartsTheme(isDark: boolean) {
       textColor: isDark ? TEXT_COLOR_DARK : TEXT_COLOR_LIGHT,
       /** Color used by xAxis labels in the registered theme; mirror for DOM overlays. */
       axisLabelColor: isDark ? TIMELINE_MARKUP_COLOR_DARK : TIMELINE_MARKUP_COLOR_LIGHT,
+      /** Prominent color for axis ticks — darker in light mode, lighter in dark mode. */
+      axisTickColor: isDark ? AXIS_TICK_COLOR_DARK : AXIS_TICK_COLOR_LIGHT,
       /** Semi-transparent chip background for DOM labels overlaid on the chart canvas. */
       labelBackgroundColor: withOpacity(isDark ? BLACK : WHITE, 0.75),
       /** Nearly-opaque chip background — used when the label must obscure what's behind it. */

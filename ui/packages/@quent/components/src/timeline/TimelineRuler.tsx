@@ -23,7 +23,7 @@ type TimelineRulerProps = {
 
 /** Sticky axis ruler showing elapsed time relative to query start for the current zoom window. */
 export function TimelineRuler({ startTime, isDark }: TimelineRulerProps) {
-  const { themeName } = useTimelineEchartsTheme(isDark);
+  const { themeName, axisTickColor } = useTimelineEchartsTheme(isDark);
   const startTimeMs = useMemo(() => nanosToMs(startTime), [startTime]);
   const zoomRange = useZoomRange();
 
@@ -52,8 +52,8 @@ export function TimelineRuler({ startTime, isDark }: TimelineRulerProps) {
         max: zoomedEndMs,
         interval,
         boundaryGap: false,
-        // Re-enable ticks (theme disables them by default).
-        axisTick: { show: true, alignWithLabel: true },
+        // Re-enable ticks (theme disables them by default); prominent color + extra length.
+        axisTick: { show: true, alignWithLabel: true, length: 8, lineStyle: { color: axisTickColor } },
         axisLabel: {
           hideOverlap: true,
           alignMinLabel: 'left',
@@ -80,7 +80,7 @@ export function TimelineRuler({ startTime, isDark }: TimelineRulerProps) {
         },
       ],
     }),
-    [zoomedStartMs, zoomedEndMs, interval, startTimeMs]
+    [zoomedStartMs, zoomedEndMs, interval, startTimeMs, axisTickColor]
   );
 
   return (
