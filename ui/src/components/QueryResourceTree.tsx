@@ -8,7 +8,7 @@ import { useAtom } from 'jotai';
 import { useHighlightedItemIds, useBulkTimelines, useHydrateTimelineAtoms } from '@quent/hooks';
 import { ResourceTree, QueryBundle } from '@quent/utils';
 import type { EntityRef, SingleTimelineRequest, QueryFilter, TaskFilter } from '@quent/utils';
-import { TimelineController } from '@quent/components';
+import { TimelineController, TimelineRuler } from '@quent/components';
 import { collectResourceTypesFromTree } from '@quent/components';
 import { EntityRefKey } from '@quent/utils';
 import { TreeTableItem } from '@quent/components';
@@ -252,14 +252,17 @@ function QueryResourceTreeContent({ queryBundle, engineId }: QueryResourceTreePr
         label: 'Usage',
         widthIndex: 1,
         subHeaderContent: (
-          <div className="h-full overflow-hidden flex items-center py-2">
-            <TimelineController
-              startTime={startTime}
-              durationSeconds={durationSeconds}
-              timelineData={fetchedRootTimeline}
-              onZoomChange={handleZoomChange}
-              isDark={isDark}
-            />
+          <div className="h-full overflow-hidden flex flex-col">
+            <div className="flex items-center py-2">
+              <TimelineController
+                startTime={startTime}
+                durationSeconds={durationSeconds}
+                timelineData={fetchedRootTimeline}
+                onZoomChange={handleZoomChange}
+                isDark={isDark}
+              />
+            </div>
+            <TimelineRuler startTime={startTime} isDark={isDark} />
           </div>
         ),
         render: ({ item }: { item: TreeTableItem }) => {

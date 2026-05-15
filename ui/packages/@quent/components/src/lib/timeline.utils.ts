@@ -304,6 +304,21 @@ const HOUR_MS = 60 * MINUTE_MS;
 const DAY_MS = 24 * HOUR_MS;
 
 const NICE_TIMELINE_INTERVALS_MS = [
+  0.001, // 1 µs
+  0.002,
+  0.005,
+  0.01, // 10 µs
+  0.02,
+  0.05,
+  0.1, // 100 µs
+  0.2,
+  0.5,
+  1, // 1 ms
+  2,
+  5,
+  10, // 10 ms
+  20,
+  50,
   100,
   200,
   500,
