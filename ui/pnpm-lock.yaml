@@ -217,6 +217,9 @@ importers:
 
   packages/@quent/components:
     dependencies:
+      '@quent/client':
+        specifier: workspace:*
+        version: link:../client
       '@quent/hooks':
         specifier: workspace:*
         version: link:../hooks
