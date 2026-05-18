@@ -6,7 +6,6 @@ import { useZoomRange } from '@quent/hooks';
 import { computeVisibleMaxValue } from '../lib/timeline.utils';
 import type { TimelineSeries } from './types';
 
-/** Max stacked value across visible bins in the current zoom window. */
 export function useVisibleMaxValue(
   series: TimelineSeries,
   timestamps: number[],
