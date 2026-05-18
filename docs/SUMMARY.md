@@ -17,5 +17,6 @@
     - [Channel](./modeling/common/channel.md)
 - [Domain-Specific Models](./domains/README.md)
   - [Query Engines](./domains/query_engine/README.md)
+  - [Query Profile Diff API](./domains/query_engine/query_profile_diff.md)
   - [Examples](./domains/query_engine/examples/README.md)
     - [Simulator](./domains/query_engine/examples/simulator.md)

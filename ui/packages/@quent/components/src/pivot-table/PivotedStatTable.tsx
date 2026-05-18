@@ -158,7 +158,7 @@ function GroupCell({
 }
 
 function DataCell({ row, stat }: DataCellProps<PivotedRow>) {
-  const { display, interaction, derived } = usePivotTableRenderContext();
+  const { display, interaction, derived, renderConfig } = usePivotTableRenderContext();
   const numVal = getSortValue(row, stat, display.isAggregating, display.aggMode);
   const range = derived.columnRanges.get(stat);
   const bg =
@@ -176,6 +176,29 @@ function DataCell({ row, stat }: DataCellProps<PivotedRow>) {
   const rowHighlight =
     isRowHighlightedFromTable || isRowHighlightedFromDag ? HIGHLIGHT_WASH : undefined;
   const cellHighlight = rowHighlight ?? colHighlight;
+  const rawValue = display.isAggregating
+    ? (row.aggs.get(stat)?.[display.aggMode as Exclude<AggMode, 'value'>] ?? null)
+    : (row.values.get(stat) ?? null);
+  const customStyle = renderConfig.getDataCellStyle?.({
+    row,
+    stat,
+    value: rawValue,
+    numericValue: numVal,
+    isAggregating: display.isAggregating,
+    aggMode: display.aggMode,
+  });
+  const cellStyle: React.CSSProperties = {
+    backgroundColor: bg,
+    ...customStyle,
+    boxShadow: cellHighlight,
+  };
+  const customContent = renderConfig.formatDataCellValue?.({
+    stat,
+    value: rawValue,
+    numericValue: numVal,
+    isAggregating: display.isAggregating,
+    aggMode: display.aggMode,
+  });
   const statCellProps = {
     onMouseEnter: () => interaction.setHoveredStat(derived.buildHoveredStatInfo(stat)),
     onMouseLeave: () => interaction.setHoveredStat(null),
@@ -185,10 +208,10 @@ function DataCell({ row, stat }: DataCellProps<PivotedRow>) {
     return (
       <td
         className="relative z-0 px-3 py-1.5 whitespace-nowrap text-right font-mono"
-        style={{ backgroundColor: bg, boxShadow: cellHighlight }}
+        style={cellStyle}
         {...statCellProps}
       >
-        {formatStatValue(val, stat)}
+        {customContent ?? formatStatValue(val, stat)}
       </td>
     );
   }
@@ -200,7 +223,7 @@ function DataCell({ row, stat }: DataCellProps<PivotedRow>) {
         style={{ boxShadow: cellHighlight }}
         {...statCellProps}
       >
-        -
+        {customContent ?? '-'}
       </td>
     );
   }
@@ -208,10 +231,10 @@ function DataCell({ row, stat }: DataCellProps<PivotedRow>) {
   return (
     <td
       className="relative z-0 px-3 py-1.5 whitespace-nowrap text-right font-mono"
-      style={{ backgroundColor: bg, boxShadow: cellHighlight }}
+      style={cellStyle}
       {...statCellProps}
     >
-      {formatNumericStat(displayVal, stat)}
+      {customContent ?? formatNumericStat(displayVal, stat)}
     </td>
   );
 }
@@ -281,6 +304,8 @@ export function PivotedStatTable<TRow>({
   const effectiveRenderConfig = useMemo(
     (): PivotTableRenderConfig => ({
       getGroupTypeColor: renderConfig?.getGroupTypeColor,
+      getDataCellStyle: renderConfig?.getDataCellStyle,
+      formatDataCellValue: renderConfig?.formatDataCellValue,
     }),
     [renderConfig]
   );

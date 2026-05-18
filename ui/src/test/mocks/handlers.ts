@@ -2,6 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { http, HttpResponse } from 'msw';
+import {
+  differentPlanQueryProfileDiffFixture,
+  equalPlanQueryProfileDiffFixture,
+} from './queryProfileDiffFixtures';
 
 /**
  * Default MSW handlers for mocking API responses
@@ -46,6 +50,18 @@ export const handlers = [
         Memory: Array.from({ length: 100 }, () => Math.random() * 1000),
         IO: Array.from({ length: 100 }, () => Math.random() * 500),
       },
+    });
+  }),
+
+  http.post('/api/engines/:engineId/query-profile-diff', async ({ request }) => {
+    const body = (await request.json()) as { query_a_id?: string; query_b_id?: string };
+    if (body.query_a_id?.includes('different') || body.query_b_id?.includes('different')) {
+      return HttpResponse.json(differentPlanQueryProfileDiffFixture);
+    }
+    return HttpResponse.json({
+      ...equalPlanQueryProfileDiffFixture,
+      query_a: { ...equalPlanQueryProfileDiffFixture.query_a, id: body.query_a_id ?? 'query-a' },
+      query_b: { ...equalPlanQueryProfileDiffFixture.query_b, id: body.query_b_id ?? 'query-b' },
     });
   }),
 ];

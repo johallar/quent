@@ -57,6 +57,20 @@ function RootComponent() {
                         </Button>
                       </NavigationMenuLink>
                     </NavigationMenuItem>
+                    <NavigationMenuItem>
+                      <NavigationMenuLink asChild>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          asChild
+                          className={cn(
+                            isActive('/diff') && 'bg-accent text-accent-foreground font-semibold'
+                          )}
+                        >
+                          <Link to="/diff">Diff</Link>
+                        </Button>
+                      </NavigationMenuLink>
+                    </NavigationMenuItem>
                   </NavigationMenuList>
                 </NavigationMenu>
                 <ThemeToggle />
