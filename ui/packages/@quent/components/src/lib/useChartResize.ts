@@ -29,7 +29,6 @@ export function useChartResize() {
           return;
         }
         try {
-          // `'auto'` forces zrender to re-measure; bare resize() reuses cached init pixels.
           instance.resize({ width: 'auto', height: 'auto' });
         } catch {
           // Instance disposed between layout and callback.
