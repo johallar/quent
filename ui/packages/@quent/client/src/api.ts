@@ -16,7 +16,12 @@ import type {
   EntityRef,
   Engine,
 } from '@quent/utils';
-import type { QueryProfileDiffRequest, QueryProfileDiffResponse } from './queryProfileDiffTypes';
+import type {
+  QueryProfileDiffRequest,
+  QueryProfileDiffResponse,
+  QueryProfileDiffTimelineRequest,
+  QueryProfileDiffTimelineResponse,
+} from './queryProfileDiffTypes';
 
 interface ApiFetchOptions {
   params?: Record<string, string | number | boolean>;
@@ -111,6 +116,18 @@ export async function fetchQueryProfileDiff(
   request: QueryProfileDiffRequest
 ): Promise<QueryProfileDiffResponse> {
   return apiFetch<QueryProfileDiffResponse>(`/engines/${engineId}/query-profile-diff`, {
+    fetchOptions: {
+      method: 'POST',
+      body: JSON.stringify(request),
+    },
+  });
+}
+
+export async function fetchQueryProfileDiffTimeline(
+  engineId: string,
+  request: QueryProfileDiffTimelineRequest
+): Promise<QueryProfileDiffTimelineResponse> {
+  return apiFetch<QueryProfileDiffTimelineResponse>(`/engines/${engineId}/timeline/diff`, {
     fetchOptions: {
       method: 'POST',
       body: JSON.stringify(request),

@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { useMemo, useState } from 'react';
+import { Triangle } from 'lucide-react';
 import {
   DataText,
   PivotedStatTable,
@@ -177,9 +178,13 @@ export function QueryDiffTable({ diff }: { diff: QueryProfileDiffResponse }) {
         <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
           Operator Stat Deltas
         </div>
-        <div className="text-xs text-muted-foreground">
+        <div className="flex min-w-0 items-center gap-1 text-xs text-muted-foreground">
           <DataText>{diff.query_a.instance_name ?? diff.query_a.id}</DataText>
-          {' minus '}
+          <Triangle
+            className="h-3 w-3 shrink-0 text-muted-foreground"
+            aria-label="delta"
+            role="img"
+          />
           <DataText>{diff.query_b.instance_name ?? diff.query_b.id}</DataText>
         </div>
       </div>

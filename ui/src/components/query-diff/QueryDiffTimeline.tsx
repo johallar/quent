@@ -3,10 +3,12 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { Triangle } from 'lucide-react';
 import {
   DEFAULT_STALE_TIME,
-  fetchSingleTimeline,
+  fetchQueryProfileDiffTimeline,
   type QueryProfileDiffResponse,
+  type QueryProfileDiffTimelineRequest,
 } from '@quent/client';
 import {
   DataText,
@@ -191,45 +193,40 @@ export function QueryDiffTimeline({
     });
   }, [queryBBundle.duration_s, queryBBundle.query_id, resourceType, targetB]);
 
-  const timelineA = useQuery({
+  const timelineDiffRequest = useMemo<QueryProfileDiffTimelineRequest | null>(() => {
+    if (!requestA || !requestB || durationSeconds <= 0) return null;
+    return {
+      timelines: [requestA, requestB],
+      delta_config: {
+        num_bins: getAdaptiveNumBins(),
+        start: 0,
+        end: durationSeconds,
+      },
+    };
+  }, [durationSeconds, requestA, requestB]);
+
+  const timelineDiff = useQuery({
     queryKey: [
       'queryDiffTimeline',
-      'a',
       engineId,
       queryAId,
-      targetA?.rootResourceGroupId,
-      resourceType,
-      queryABundle.duration_s,
-    ],
-    queryFn: () => fetchSingleTimeline(engineId, requestA!, queryABundle.duration_s),
-    enabled: Boolean(requestA && engineId),
-    staleTime: DEFAULT_STALE_TIME,
-  });
-
-  const timelineB = useQuery({
-    queryKey: [
-      'queryDiffTimeline',
-      'b',
-      engineId,
       queryBId,
+      targetA?.rootResourceGroupId,
       targetB?.rootResourceGroupId,
-      resourceType,
-      queryBBundle.duration_s,
+      timelineDiffRequest,
     ],
-    queryFn: () => fetchSingleTimeline(engineId, requestB!, queryBBundle.duration_s),
-    enabled: Boolean(requestB && engineId),
+    queryFn: () => fetchQueryProfileDiffTimeline(engineId, timelineDiffRequest!),
+    enabled: Boolean(timelineDiffRequest && engineId),
     staleTime: DEFAULT_STALE_TIME,
   });
 
   const comparison = useMemo(() => {
-    if (!timelineA.data || !timelineB.data || durationSeconds <= 0) return null;
+    if (!timelineDiff.data || durationSeconds <= 0) return null;
     const resourceTypeDecl =
       queryABundle.entities.resource_types[resourceType] ??
       queryBBundle.entities.resource_types[resourceType];
     return buildDiffTimelineData({
-      queryATimeline: timelineA.data,
-      queryBTimeline: timelineB.data,
-      durationSeconds,
+      timelineDiff: timelineDiff.data,
       theme: paletteTheme,
       capacities: resourceTypeDecl?.capacities,
       quantitySpecs: queryABundle.quantity_specs ?? queryBBundle.quantity_specs,
@@ -245,12 +242,11 @@ export function QueryDiffTimeline({
     queryBBundle.entities.resource_types,
     queryBBundle.quantity_specs,
     resourceType,
-    timelineA.data,
-    timelineB.data,
+    timelineDiff.data,
   ]);
 
-  const isLoading = Boolean(resourceType) && (timelineA.isLoading || timelineB.isLoading);
-  const hasError = timelineA.isError || timelineB.isError;
+  const isLoading = Boolean(resourceType) && timelineDiff.isLoading;
+  const hasError = timelineDiff.isError;
 
   return (
     <div className="shrink-0 border-b border-border bg-card">
@@ -263,7 +259,11 @@ export function QueryDiffTimeline({
             <DataText className="max-w-48 truncate">
               {diff.query_a.instance_name ?? queryAId}
             </DataText>
-            <span>minus</span>
+            <Triangle
+              className="h-3 w-3 shrink-0 text-muted-foreground"
+              aria-label="delta"
+              role="img"
+            />
             <DataText className="max-w-48 truncate">
               {diff.query_b.instance_name ?? queryBId}
             </DataText>

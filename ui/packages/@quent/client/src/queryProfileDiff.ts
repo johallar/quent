@@ -2,13 +2,23 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { queryOptions, useQuery } from '@tanstack/react-query';
-import { fetchQueryProfileDiff } from './api';
+import { fetchQueryProfileDiff, fetchQueryProfileDiffTimeline } from './api';
 import { DEFAULT_STALE_TIME } from './constants';
-import type { QueryProfileDiffRequest, QueryProfileDiffResponse } from './queryProfileDiffTypes';
+import type {
+  QueryProfileDiffRequest,
+  QueryProfileDiffResponse,
+  QueryProfileDiffTimelineRequest,
+  QueryProfileDiffTimelineResponse,
+} from './queryProfileDiffTypes';
 
 interface QueryProfileDiffParams {
   engineId: string;
   request: QueryProfileDiffRequest;
+}
+
+interface QueryProfileDiffTimelineParams {
+  engineId: string;
+  request: QueryProfileDiffTimelineRequest;
 }
 
 export const queryProfileDiffQueryOptions = (
@@ -27,6 +37,23 @@ export const useQueryProfileDiff = (
   options?: { staleTime?: number }
 ) => useQuery(queryProfileDiffQueryOptions(params, options));
 
+export const queryProfileDiffTimelineQueryOptions = (
+  { engineId, request }: QueryProfileDiffTimelineParams,
+  options?: { staleTime?: number }
+) =>
+  queryOptions({
+    queryKey: ['queryProfileDiffTimeline', engineId, request],
+    queryFn: (): Promise<QueryProfileDiffTimelineResponse> =>
+      fetchQueryProfileDiffTimeline(engineId, request),
+    staleTime: options?.staleTime ?? DEFAULT_STALE_TIME,
+    enabled: Boolean(engineId),
+  });
+
+export const useQueryProfileDiffTimeline = (
+  params: QueryProfileDiffTimelineParams,
+  options?: { staleTime?: number }
+) => useQuery(queryProfileDiffTimelineQueryOptions(params, options));
+
 export type {
   QueryProfileDiffOperatorDelta,
   QueryProfileDiffOperatorRef,
@@ -36,4 +63,7 @@ export type {
   QueryProfileDiffResponse,
   QueryProfileDiffScenario,
   QueryProfileDiffStatDelta,
+  QueryProfileDiffTimelineEntries,
+  QueryProfileDiffTimelineRequest,
+  QueryProfileDiffTimelineResponse,
 } from './queryProfileDiffTypes';

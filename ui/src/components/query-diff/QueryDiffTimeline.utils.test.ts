@@ -3,13 +3,15 @@
 
 import { describe, expect, it } from 'vitest';
 import type { SingleTimelineResponse } from '@quent/utils';
+import type { QueryProfileDiffTimelineResponse } from '@quent/client';
 import { buildDiffTimelineData } from './QueryDiffTimeline.utils';
 
-function makeTimeline(values: number[]): SingleTimelineResponse {
+function makeTimeline(values: Record<string, number[]>): SingleTimelineResponse {
+  const firstValues = Object.values(values)[0] ?? [];
   const config = {
-    span: { start: 0, end: values.length },
+    span: { start: 0, end: firstValues.length },
     bin_duration: 1,
-    num_bins: BigInt(values.length),
+    num_bins: BigInt(firstValues.length),
   };
 
   return {
@@ -17,7 +19,7 @@ function makeTimeline(values: number[]): SingleTimelineResponse {
     data: {
       Binned: {
         config,
-        capacities_values: { slots: values },
+        capacities_values: values,
         long_fsms: [],
       },
     },
@@ -25,19 +27,23 @@ function makeTimeline(values: number[]): SingleTimelineResponse {
 }
 
 describe('buildDiffTimelineData', () => {
-  it('splits positive and negative aggregate deltas into direction series', () => {
+  it('uses backend-provided delta series for the diff lane', () => {
+    const response: QueryProfileDiffTimelineResponse = {
+      timelines: [makeTimeline({ slots: [100, 100] }), makeTimeline({ slots: [0, 0] })],
+      delta: makeTimeline({
+        'Query A higher': [2, 0],
+        'Query B higher': [0, 3],
+      }),
+    };
+
     const data = buildDiffTimelineData({
-      queryATimeline: makeTimeline([3, 1]),
-      queryBTimeline: makeTimeline([1, 4]),
-      durationSeconds: 2,
+      timelineDiff: response,
       theme: 'light',
     });
 
-    expect(data.queryA.series.slots?.values).toEqual([3, 1]);
-    expect(data.queryB.series.slots?.values).toEqual([1, 4]);
-    expect(data.delta.series['Query A higher']?.values[0]).toBe(2);
-    expect(data.delta.series['Query B higher']?.values[0]).toBe(0);
-    expect(data.delta.series['Query A higher']?.values[150]).toBe(0);
-    expect(data.delta.series['Query B higher']?.values[150]).toBe(3);
+    expect(data.queryA.series.slots?.values).toEqual([100, 100]);
+    expect(data.queryB.series.slots?.values).toEqual([0, 0]);
+    expect(data.delta.series['Query A higher']?.values).toEqual([2, 0]);
+    expect(data.delta.series['Query B higher']?.values).toEqual([0, 3]);
   });
 });

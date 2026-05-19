@@ -1,21 +1,14 @@
 // SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-import {
-  buildBinnedTimelineSeries,
-  getAdaptiveNumBins,
-  type TimelineSeries,
-} from '@quent/components';
-import type {
-  CapacityDecl,
-  FsmTypeDecl,
-  PaletteTheme,
-  QuantitySpec,
-  SingleTimelineResponse,
-} from '@quent/utils';
+import { buildBinnedTimelineSeries, type TimelineSeries } from '@quent/components';
+import type { QueryProfileDiffTimelineResponse } from '@quent/client';
+import type { CapacityDecl, FsmTypeDecl, PaletteTheme, QuantitySpec } from '@quent/utils';
 
 const QUERY_A_HIGHER_COLOR = '#CC6677';
 const QUERY_B_HIGHER_COLOR = '#44AA99';
+const QUERY_A_HIGHER_LABEL = 'Query A higher';
+const QUERY_B_HIGHER_LABEL = 'Query B higher';
 
 interface TimelineRowData {
   timestamps: number[];
@@ -29,9 +22,7 @@ export interface DiffTimelineData {
 }
 
 interface BuildDiffTimelineDataParams {
-  queryATimeline: SingleTimelineResponse;
-  queryBTimeline: SingleTimelineResponse;
-  durationSeconds: number;
+  timelineDiff: QueryProfileDiffTimelineResponse;
   theme: PaletteTheme;
   capacities?: CapacityDecl[];
   quantitySpecs?: { [key in string]?: QuantitySpec };
@@ -46,76 +37,41 @@ function getFirstFormatter(seriesA: TimelineSeries, seriesB: TimelineSeries) {
   );
 }
 
-function buildElapsedTimestamps(durationSeconds: number, numBins: number): number[] {
-  if (numBins <= 0) return [];
-  const binDurationMs = (durationSeconds * 1_000) / numBins;
-  return Array.from({ length: numBins }, (_, index) => index * binDurationMs);
-}
-
-function sampleAggregateAt(series: TimelineSeries, timestamps: number[], targetTimestamp: number) {
-  const entries = Object.values(series);
-  if (entries.length === 0 || timestamps.length === 0) return 0;
-
-  const firstTimestamp = timestamps[0] ?? 0;
-  const secondTimestamp = timestamps[1];
-  const firstEntry = entries[0];
-  const binDurationMs =
-    secondTimestamp != null
-      ? secondTimestamp - firstTimestamp
-      : Math.max(firstEntry?.binDuration ?? 0, 0) * 1_000;
-
-  if (binDurationMs <= 0 || targetTimestamp < firstTimestamp) return 0;
-
-  const index = Math.floor((targetTimestamp - firstTimestamp) / binDurationMs);
-  if (index < 0) return 0;
-
-  return entries.reduce((sum, entry) => sum + (entry.values[index] ?? 0), 0);
-}
-
-function buildDiffSeries({
+function formatDeltaSeries({
+  delta,
   queryA,
   queryB,
-  timestamps,
-  durationSeconds,
 }: {
+  delta: TimelineRowData;
   queryA: TimelineRowData;
   queryB: TimelineRowData;
-  timestamps: number[];
-  durationSeconds: number;
 }): TimelineSeries {
   const formatter = getFirstFormatter(queryA.series, queryB.series);
-  const deltas = timestamps.map(timestamp => {
-    const a = sampleAggregateAt(queryA.series, queryA.timestamps, timestamp);
-    const b = sampleAggregateAt(queryB.series, queryB.timestamps, timestamp);
-    return a - b;
-  });
-  const binDuration = timestamps.length > 0 ? durationSeconds / timestamps.length : 0;
-
-  return {
-    'Query A higher': {
-      color: QUERY_A_HIGHER_COLOR,
-      binDuration,
-      formatter,
-      values: deltas.map(delta => Math.max(delta, 0)),
-    },
-    'Query B higher': {
-      color: QUERY_B_HIGHER_COLOR,
-      binDuration,
-      formatter,
-      values: deltas.map(delta => Math.max(-delta, 0)),
-    },
-  };
+  return Object.fromEntries(
+    Object.entries(delta.series).map(([name, entry]) => [
+      name,
+      {
+        ...entry,
+        color:
+          name === QUERY_A_HIGHER_LABEL
+            ? QUERY_A_HIGHER_COLOR
+            : name === QUERY_B_HIGHER_LABEL
+              ? QUERY_B_HIGHER_COLOR
+              : entry.color,
+        formatter,
+      },
+    ])
+  );
 }
 
 export function buildDiffTimelineData({
-  queryATimeline,
-  queryBTimeline,
-  durationSeconds,
+  timelineDiff,
   theme,
   capacities,
   quantitySpecs,
   fsmTypes,
 }: BuildDiffTimelineDataParams): DiffTimelineData {
+  const [queryATimeline, queryBTimeline] = timelineDiff.timelines;
   const queryA = buildBinnedTimelineSeries(
     queryATimeline.data,
     queryATimeline.config,
@@ -134,14 +90,19 @@ export function buildDiffTimelineData({
     quantitySpecs,
     fsmTypes
   );
-  const timestamps = buildElapsedTimestamps(durationSeconds, getAdaptiveNumBins());
+  const delta = buildBinnedTimelineSeries(
+    timelineDiff.delta.data,
+    timelineDiff.delta.config,
+    0n,
+    theme
+  );
 
   return {
     queryA,
     queryB,
     delta: {
-      timestamps,
-      series: buildDiffSeries({ queryA, queryB, timestamps, durationSeconds }),
+      timestamps: delta.timestamps,
+      series: formatDeltaSeries({ delta, queryA, queryB }),
     },
   };
 }

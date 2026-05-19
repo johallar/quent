@@ -14,6 +14,7 @@ export {
   fetchSingleTimeline,
   fetchBulkTimelines,
   fetchQueryProfileDiff,
+  fetchQueryProfileDiffTimeline,
 } from './api';
 
 // queryOptions factories
@@ -23,7 +24,10 @@ export { queryGroupsQueryOptions } from './queryGroups';
 export { queriesQueryOptions } from './queries';
 export { singleTimelineQueryOptions } from './timeline';
 export { bulkTimelineQueryOptions } from './bulkTimelines';
-export { queryProfileDiffQueryOptions } from './queryProfileDiff';
+export {
+  queryProfileDiffQueryOptions,
+  queryProfileDiffTimelineQueryOptions,
+} from './queryProfileDiff';
 
 // Hooks
 export { useQueryBundle } from './queryBundle';
@@ -31,7 +35,7 @@ export { useEngines } from './engines';
 export { useQueryGroups } from './queryGroups';
 export { useQueries } from './queries';
 export { useTimeline } from './timeline';
-export { useQueryProfileDiff } from './queryProfileDiff';
+export { useQueryProfileDiff, useQueryProfileDiffTimeline } from './queryProfileDiff';
 
 export type {
   QueryProfileDiffOperatorDelta,
@@ -42,4 +46,7 @@ export type {
   QueryProfileDiffResponse,
   QueryProfileDiffScenario,
   QueryProfileDiffStatDelta,
+  QueryProfileDiffTimelineEntries,
+  QueryProfileDiffTimelineRequest,
+  QueryProfileDiffTimelineResponse,
 } from './queryProfileDiff';

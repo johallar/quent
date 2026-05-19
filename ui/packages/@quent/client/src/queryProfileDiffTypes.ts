@@ -1,7 +1,14 @@
 // SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-import type { StatValue } from '@quent/utils';
+import type {
+  QueryFilter,
+  SingleTimelineRequest,
+  SingleTimelineResponse,
+  StatValue,
+  TaskFilter,
+  TimelineConfig,
+} from '@quent/utils';
 
 export interface QueryProfileDiffRequest {
   query_a_id: string;
@@ -38,6 +45,7 @@ export interface QueryProfileDiffOperatorDelta {
 }
 
 export interface QueryProfileDiffPlanComparison {
+  /* Big question here, how do we represent query plan graph diffs */
   match_kind: 'structural' | 'different' | 'incomparable';
   matched_operator_count: number;
   unmatched_operator_a_count: number;
@@ -50,5 +58,18 @@ export interface QueryProfileDiffResponse {
   query_b: QueryProfileDiffQuerySummary;
   plan_comparison: QueryProfileDiffPlanComparison;
   operator_diffs: QueryProfileDiffOperatorDelta[];
+  warnings?: string[];
+}
+
+export type QueryProfileDiffTimelineEntries<T> = [T, T, ...T[]];
+
+export interface QueryProfileDiffTimelineRequest {
+  timelines: QueryProfileDiffTimelineEntries<SingleTimelineRequest<QueryFilter, TaskFilter>>;
+  delta_config: TimelineConfig;
+}
+
+export interface QueryProfileDiffTimelineResponse {
+  timelines: QueryProfileDiffTimelineEntries<SingleTimelineResponse>;
+  delta: SingleTimelineResponse;
   warnings?: string[];
 }
