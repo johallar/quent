@@ -54,6 +54,17 @@ const COMPACT_SELECT_TRIGGER_CLASS =
   'h-7 min-w-0 rounded px-2 py-1 text-xs [&_svg]:h-3 [&_svg]:w-3';
 const COMPACT_SELECT_ITEM_CLASS = 'py-1 pl-7 pr-2 text-xs';
 
+let pendingSelectionOpenAfterNavigation: boolean | null = null;
+
+function getInitialSelectionOpen(engineId: string, queryAId: string, queryBId: string): boolean {
+  if (pendingSelectionOpenAfterNavigation !== null) {
+    const selectionOpen = pendingSelectionOpenAfterNavigation;
+    pendingSelectionOpenAfterNavigation = null;
+    return selectionOpen;
+  }
+  return !(engineId && queryAId && queryBId && queryAId !== queryBId);
+}
+
 function findGroupForQuery(
   queryId: string,
   queriesByGroup: Record<string, Query[]>
@@ -182,8 +193,8 @@ export function DiffSelectionPage({
   const [engineId, setEngineId] = useState(initialEngineId);
   const [queryA, setQueryA] = useState<QuerySideState>({ groupId: '', queryId: initialQueryAId });
   const [queryB, setQueryB] = useState<QuerySideState>({ groupId: '', queryId: initialQueryBId });
-  const [selectionOpen, setSelectionOpen] = useState(
-    !(initialEngineId && initialQueryAId && initialQueryBId && initialQueryAId !== initialQueryBId)
+  const [selectionOpen, setSelectionOpen] = useState(() =>
+    getInitialSelectionOpen(initialEngineId, initialQueryAId, initialQueryBId)
   );
 
   useEffect(() => {
@@ -278,6 +289,7 @@ export function DiffSelectionPage({
     if (!nextEngineId || !nextA.queryId || !nextB.queryId || nextA.queryId === nextB.queryId) {
       return;
     }
+    pendingSelectionOpenAfterNavigation = selectionOpen;
     navigate({
       to: '/diff/engine/$engineId/query/$queryAId/compare/$queryBId',
       params: {
@@ -293,6 +305,7 @@ export function DiffSelectionPage({
     setQueryA({ groupId: '', queryId: '' });
     setQueryB({ groupId: '', queryId: '' });
     setSelectionOpen(true);
+    pendingSelectionOpenAfterNavigation = true;
     navigate({ to: '/diff' });
   };
 
