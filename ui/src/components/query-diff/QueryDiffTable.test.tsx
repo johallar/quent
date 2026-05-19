@@ -16,7 +16,11 @@ describe('QueryDiffTable helpers', () => {
     expect(rows).toHaveLength(3);
     expect(rows[0]).toMatchObject({
       operatorType: 'Scan',
-      operatorLabel: 'Scan orders (scan-a) / Scan orders (scan-b)',
+      operatorLabel: 'Scan orders <-> Scan orders\nscan-a <-> scan-b',
+      operatorAId: 'scan-a',
+      operatorALabel: 'Scan orders',
+      operatorBId: 'scan-b',
+      operatorBLabel: 'Scan orders',
       stats: {
         duration_s: 2,
         input_rows: -200,
@@ -25,10 +29,15 @@ describe('QueryDiffTable helpers', () => {
   });
 
   it('formats numeric deltas with signs', () => {
-    expect(formatSignedDiffValue(12)).toBe('+12');
-    expect(formatSignedDiffValue(-12)).toBe('-12');
-    expect(formatSignedDiffValue(0)).toBe('0');
-    expect(formatSignedDiffValue(null)).toBeNull();
+    expect(formatSignedDiffValue(12, 'input_rows')).toBe('+12');
+    expect(formatSignedDiffValue(-12, 'input_rows')).toBe('-12');
+    expect(formatSignedDiffValue(0, 'input_rows')).toBe('0');
+    expect(formatSignedDiffValue(null, 'input_rows')).toBe('-');
+  });
+
+  it('uses the operator table stat formatter for delta values', () => {
+    expect(formatSignedDiffValue(1536, 'buffer_bytes')).toBe('+1.5 KiB');
+    expect(formatSignedDiffValue(-0.125, 'probe_selectivity')).toBe('-12.5%');
   });
 
   it('returns diverging styles for positive and negative deltas only', () => {

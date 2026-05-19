@@ -9,7 +9,7 @@ import {
   fetchListCoordinators,
   fetchListEngines,
   fetchListQueries,
-  useQueryProfileDiff,
+  queryBundleQueryOptions,
 } from '@quent/client';
 import type { Query, QueryGroup } from '@quent/utils';
 import {
@@ -25,6 +25,8 @@ import {
 } from '@quent/components';
 import { cn } from '@quent/utils';
 import { QueryDiffTable } from '@/components/query-diff/QueryDiffTable';
+import { QueryDiffTimeline } from '@/components/query-diff/QueryDiffTimeline';
+import { buildQueryProfileDiffFromBundles } from '@/components/query-diff/queryProfileDiffFromBundles';
 
 interface DiffSelectionPageProps {
   initialEngineId?: string;
@@ -250,13 +252,23 @@ export function DiffSelectionPage({
   const sameQuerySelected = Boolean(queryA.queryId && queryA.queryId === queryB.queryId);
   const canDiff = Boolean(engineId && queryA.queryId && queryB.queryId && !sameQuerySelected);
 
-  const diffQuery = useQueryProfileDiff({
-    engineId,
-    request: {
-      query_a_id: queryA.queryId,
-      query_b_id: sameQuerySelected ? '' : queryB.queryId,
-    },
+  const queryABundle = useQuery({
+    ...queryBundleQueryOptions({ engineId, queryId: queryA.queryId }),
+    enabled: canDiff,
   });
+  const queryBBundle = useQuery({
+    ...queryBundleQueryOptions({ engineId, queryId: queryB.queryId }),
+    enabled: canDiff,
+  });
+  const diff = useMemo(
+    () =>
+      queryABundle.data && queryBBundle.data
+        ? buildQueryProfileDiffFromBundles(queryABundle.data, queryBBundle.data)
+        : null,
+    [queryABundle.data, queryBBundle.data]
+  );
+  const diffLoading = canDiff && (queryABundle.isLoading || queryBBundle.isLoading);
+  const diffError = queryABundle.error ?? queryBBundle.error;
 
   const maybeNavigateToDiff = (
     nextEngineId: string,
@@ -313,7 +325,7 @@ export function DiffSelectionPage({
         className="shrink-0 border-b border-border bg-card"
       >
         <div className="mx-auto flex w-full max-w-6xl justify-center px-4 py-2">
-          <CollapsibleTrigger className="group flex max-w-full items-center justify-center gap-2 rounded-sm px-2 py-1 text-left transition-colors hover:bg-accent hover:text-accent-foreground">
+          <CollapsibleTrigger className="group flex max-w-full items-center justify-center gap-2 rounded-sm px-2 py-1 text-left transition-colors duration-150 hover:bg-accent hover:text-accent-foreground data-[state=open]:bg-accent/50">
             <span className="shrink-0 text-xs font-semibold text-muted-foreground">Query Diff</span>
             <span className="flex min-w-0 flex-wrap items-center justify-center gap-x-2 gap-y-1 text-xs">
               <DataText className="inline-block max-w-[16rem] truncate align-bottom">
@@ -332,11 +344,11 @@ export function DiffSelectionPage({
                 </>
               )}
             </span>
-            <ChevronDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground transition-transform duration-200 group-data-[state=open]:rotate-180" />
+            <ChevronDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground transition-transform duration-300 ease-out group-data-[state=open]:rotate-180" />
           </CollapsibleTrigger>
         </div>
 
-        <CollapsibleContent>
+        <CollapsibleContent className="overflow-hidden will-change-[height,opacity,transform] data-[state=closed]:animate-collapsible-up data-[state=open]:animate-collapsible-down">
           <div className="mx-auto w-full max-w-5xl px-4 pb-3">
             <div className="mb-2 flex justify-center">
               <div className="w-full max-w-xs">
@@ -410,16 +422,26 @@ export function DiffSelectionPage({
             <div className="text-sm text-destructive">Choose two different queries.</div>
           ) : !canDiff ? (
             <div className="text-sm text-muted-foreground">Select Query A and Query B.</div>
-          ) : diffQuery.isLoading ? (
+          ) : diffLoading ? (
             <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
               Loading diff...
             </div>
-          ) : diffQuery.error ? (
+          ) : diffError ? (
             <div className="flex h-full items-center justify-center text-sm text-destructive">
               Failed to load diff
             </div>
-          ) : diffQuery.data ? (
-            <QueryDiffTable diff={diffQuery.data} />
+          ) : diff && queryABundle.data && queryBBundle.data ? (
+            <div className="flex h-full min-h-0 flex-col">
+              <QueryDiffTimeline
+                engineId={engineId}
+                diff={diff}
+                queryABundle={queryABundle.data}
+                queryBBundle={queryBBundle.data}
+              />
+              <div className="min-h-0 flex-1">
+                <QueryDiffTable diff={diff} />
+              </div>
+            </div>
           ) : null}
         </div>
       </div>

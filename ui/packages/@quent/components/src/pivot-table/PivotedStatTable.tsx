@@ -103,6 +103,7 @@ function GroupCell({
 }: GroupCellProps<PivotedRow>) {
   const { interaction, renderConfig } = usePivotTableRenderContext();
   const typeColor = renderConfig.getGroupTypeColor?.(gk.key, gk.id);
+  const customContent = renderConfig.formatGroupCellValue?.({ groupKey: gk, row });
   const handlers = interaction.groupCellHandlers?.(gk, row);
   const isRowHighlightedFromDag =
     interaction.hoveredItemId !== null &&
@@ -152,7 +153,7 @@ function GroupCell({
         handlers?.onMouseLeave?.();
       }}
     >
-      <span className="relative z-10">{gk.label}</span>
+      <span className="relative z-10">{customContent ?? gk.label}</span>
     </td>
   );
 }

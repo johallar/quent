@@ -47,7 +47,7 @@ const INDEX_ORDER: IndexKey[] = ['operator_type', 'operator'];
 
 const DEFAULT_ENABLED: Record<IndexKey, boolean> = {
   operator_type: true,
-  operator: true,
+  operator: false,
 };
 
 const VIRTUALIZATION_CONFIG = { enabled: true, overscan: 12 } as const;
@@ -55,8 +55,32 @@ const VIRTUALIZATION_CONFIG = { enabled: true, overscan: 12 } as const;
 const getOperatorTypeColor = (key: string, id: string): string | undefined =>
   key === 'operator_type' ? getOperationTypeColor(id.toLowerCase()) : undefined;
 
+function OperatorPairCell({ row }: { row: QueryDiffTableRow }) {
+  return (
+    <div className="grid min-w-[22rem] max-w-[40rem] grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-x-2 leading-tight">
+      <div className="min-w-0">
+        <DataText className="block truncate text-xs text-foreground">{row.operatorALabel}</DataText>
+        <DataText className="block truncate text-[11px] text-muted-foreground">
+          {row.operatorAId}
+        </DataText>
+      </div>
+      <span className="text-[11px] text-muted-foreground">{'<->'}</span>
+      <div className="min-w-0">
+        <DataText className="block truncate text-xs text-foreground">{row.operatorBLabel}</DataText>
+        <DataText className="block truncate text-[11px] text-muted-foreground">
+          {row.operatorBId}
+        </DataText>
+      </div>
+    </div>
+  );
+}
+
 export function QueryDiffTable({ diff }: { diff: QueryProfileDiffResponse }) {
   const rows = useMemo(() => buildQueryDiffRows(diff), [diff]);
+  const rowsByOperatorPairId = useMemo(
+    () => new Map(rows.map(row => [row.operatorPairId, row])),
+    [rows]
+  );
   const allStatNames = useMemo(() => getSchemaStatNames(rows, DIFF_TABLE_SCHEMA), [rows]);
   const maxAbsByStat = useMemo(() => buildMaxAbsByStat(rows), [rows]);
   const [hoveredStat, setHoveredStat] = useState<HoveredStatInfo | null>(null);
@@ -120,10 +144,15 @@ export function QueryDiffTable({ diff }: { diff: QueryProfileDiffResponse }) {
   const renderConfig = useMemo(
     (): PivotTableRenderConfig => ({
       getGroupTypeColor: getOperatorTypeColor,
+      formatGroupCellValue: ({ groupKey }) => {
+        if (groupKey.key !== 'operator') return groupKey.label;
+        const row = rowsByOperatorPairId.get(groupKey.id);
+        return row ? <OperatorPairCell row={row} /> : groupKey.label;
+      },
       getDataCellStyle: ({ stat, value }) => getDeltaCellStyle(value, maxAbsByStat.get(stat)),
-      formatDataCellValue: ({ value }) => formatSignedDiffValue(value) ?? '-',
+      formatDataCellValue: ({ stat, value }) => formatSignedDiffValue(value, stat),
     }),
-    [maxAbsByStat]
+    [maxAbsByStat, rowsByOperatorPairId]
   );
 
   if (diff.scenario !== 'plans_equal') {

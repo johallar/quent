@@ -3,16 +3,26 @@
 
 import type { QueryProfileDiffResponse } from '@quent/client';
 import type { StatValue } from '@quent/utils';
+import { formatStatValue } from '@quent/components';
 
 export interface QueryDiffTableRow {
   operatorType: string;
   operatorLabel: string;
   operatorPairId: string;
+  operatorAId: string;
+  operatorALabel: string;
+  operatorBId: string;
+  operatorBLabel: string;
   stats: Record<string, StatValue>;
 }
 
-function formatOperatorRef(label: string, id: string): string {
-  return `${label} (${id})`;
+function formatOperatorPairLabel(
+  operatorALabel: string,
+  operatorAId: string,
+  operatorBLabel: string,
+  operatorBId: string
+): string {
+  return `${operatorALabel} <-> ${operatorBLabel}\n${operatorAId} <-> ${operatorBId}`;
 }
 
 export function buildQueryDiffRows(diff: QueryProfileDiffResponse): QueryDiffTableRow[] {
@@ -20,7 +30,12 @@ export function buildQueryDiffRows(diff: QueryProfileDiffResponse): QueryDiffTab
     if (!entry.operator_a || !entry.operator_b) return [];
     const operatorType =
       entry.operator_a.operator_type_name ?? entry.operator_b.operator_type_name ?? '-';
-    const operatorLabel = `${formatOperatorRef(entry.operator_a.label, entry.operator_a.id)} / ${formatOperatorRef(entry.operator_b.label, entry.operator_b.id)}`;
+    const operatorLabel = formatOperatorPairLabel(
+      entry.operator_a.label,
+      entry.operator_a.id,
+      entry.operator_b.label,
+      entry.operator_b.id
+    );
     const stats = Object.fromEntries(
       Object.entries(entry.stats).map(([statName, stat]) => [statName, stat.delta])
     );
@@ -29,16 +44,20 @@ export function buildQueryDiffRows(diff: QueryProfileDiffResponse): QueryDiffTab
         operatorType,
         operatorLabel,
         operatorPairId: `${entry.operator_a.id}:${entry.operator_b.id}`,
+        operatorAId: entry.operator_a.id,
+        operatorALabel: entry.operator_a.label,
+        operatorBId: entry.operator_b.id,
+        operatorBLabel: entry.operator_b.label,
         stats,
       },
     ];
   });
 }
 
-export function formatSignedDiffValue(value: StatValue): string | null {
-  if (typeof value !== 'number') return null;
-  if (Object.is(value, -0) || value === 0) return '0';
-  return value > 0 ? `+${value.toLocaleString()}` : value.toLocaleString();
+export function formatSignedDiffValue(value: StatValue, statName: string): string {
+  const formattedValue = formatStatValue(value, statName);
+  if (typeof value !== 'number' || Object.is(value, -0) || value === 0) return formattedValue;
+  return value > 0 ? `+${formattedValue}` : formattedValue;
 }
 
 export function getDeltaCellStyle(

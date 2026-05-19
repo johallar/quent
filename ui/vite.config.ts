@@ -3,15 +3,12 @@
 
 import path from 'path';
 import { defineConfig } from 'vite';
-import type { Plugin } from 'vite';
-import type { IncomingMessage, ServerResponse } from 'node:http';
 import react from '@vitejs/plugin-react';
 import { TanStackRouterVite } from '@tanstack/router-vite-plugin';
 import { visualizer } from 'rollup-plugin-visualizer';
 import tailwindcss from '@tailwindcss/vite';
 
 const API_TARGET = process.env.VITE_API_TARGET || 'http://localhost:8080';
-const ENABLE_DIFF_MOCK_API = process.env.VITE_DIFF_MOCK_API !== 'false';
 
 /** Ensures JS chunks get high fetch priority so they load before competing API requests. */
 function vitePluginScriptPriority() {
@@ -33,182 +30,11 @@ function vitePluginScriptPriority() {
   };
 }
 
-function readRequestBody(req: IncomingMessage): Promise<string> {
-  return new Promise((resolve, reject) => {
-    let body = '';
-    req.setEncoding('utf8');
-    req.on('data', chunk => {
-      body += chunk;
-    });
-    req.on('end', () => resolve(body));
-    req.on('error', reject);
-  });
-}
-
-function createMockQueryProfileDiffResponse(queryAId: string, queryBId: string) {
-  const different = queryAId.includes('different') || queryBId.includes('different');
-  const base = {
-    query_a: {
-      id: queryAId,
-      instance_name: queryAId,
-      query_group_id: null,
-      query_group_name: null,
-    },
-    query_b: {
-      id: queryBId,
-      instance_name: queryBId,
-      query_group_id: null,
-      query_group_name: null,
-    },
-  };
-
-  if (different) {
-    return {
-      scenario: 'plans_different',
-      ...base,
-      plan_comparison: {
-        match_kind: 'different',
-        matched_operator_count: 0,
-        unmatched_operator_a_count: 3,
-        unmatched_operator_b_count: 4,
-      },
-      operator_diffs: [],
-      warnings: ['Plans are structurally different; operator-to-operator diff is unavailable.'],
-    };
-  }
-
-  return {
-    scenario: 'plans_equal',
-    ...base,
-    plan_comparison: {
-      match_kind: 'structural',
-      matched_operator_count: 3,
-      unmatched_operator_a_count: 0,
-      unmatched_operator_b_count: 0,
-    },
-    operator_diffs: [
-      {
-        operator_a: {
-          id: 'scan-a',
-          label: 'Scan orders',
-          operator_type_name: 'Scan',
-          plan_id: 'plan-a',
-        },
-        operator_b: {
-          id: 'scan-b',
-          label: 'Scan orders',
-          operator_type_name: 'Scan',
-          plan_id: 'plan-b',
-        },
-        stats: {
-          duration_s: { a: 12, b: 10, delta: 2, percent_delta: 0.2 },
-          input_rows: { a: 1000, b: 1200, delta: -200, percent_delta: -0.1666666667 },
-          output_rows: { a: 900, b: 950, delta: -50, percent_delta: -0.0526315789 },
-        },
-      },
-      {
-        operator_a: {
-          id: 'join-a',
-          label: 'Join lineitem',
-          operator_type_name: 'Join',
-          plan_id: 'plan-a',
-        },
-        operator_b: {
-          id: 'join-b',
-          label: 'Join lineitem',
-          operator_type_name: 'Join',
-          plan_id: 'plan-b',
-        },
-        stats: {
-          duration_s: { a: 24, b: 30, delta: -6, percent_delta: -0.2 },
-          input_rows: { a: 900, b: 950, delta: -50, percent_delta: -0.0526315789 },
-          output_rows: { a: 400, b: 380, delta: 20, percent_delta: 0.0526315789 },
-        },
-      },
-      {
-        operator_a: {
-          id: 'agg-a',
-          label: 'Aggregate',
-          operator_type_name: 'Aggregate',
-          plan_id: 'plan-a',
-        },
-        operator_b: {
-          id: 'agg-b',
-          label: 'Aggregate',
-          operator_type_name: 'Aggregate',
-          plan_id: 'plan-b',
-        },
-        stats: {
-          duration_s: { a: 4, b: 4, delta: 0, percent_delta: 0 },
-          input_rows: { a: 400, b: 380, delta: 20, percent_delta: 0.0526315789 },
-          output_rows: { a: 20, b: 20, delta: 0, percent_delta: 0 },
-        },
-      },
-    ],
-  };
-}
-
-function vitePluginQueryProfileDiffMock(): Plugin {
-  const diffPath = /^\/api\/engines\/[^/]+\/query-profile-diff(?:\?.*)?$/;
-  return {
-    name: 'vite-plugin-query-profile-diff-mock',
-    configureServer(server) {
-      if (!ENABLE_DIFF_MOCK_API) return;
-      server.middlewares.use((req: IncomingMessage, res: ServerResponse, next) => {
-        if (req.method !== 'POST' || !req.url || !diffPath.test(req.url)) {
-          next();
-          return;
-        }
-        void readRequestBody(req)
-          .then(bodyText => {
-            const body = JSON.parse(bodyText || '{}') as {
-              query_a_id?: string;
-              query_b_id?: string;
-            };
-            const response = createMockQueryProfileDiffResponse(
-              body.query_a_id ?? 'query-a',
-              body.query_b_id ?? 'query-b'
-            );
-            res.statusCode = 200;
-            res.setHeader('Content-Type', 'application/json');
-            res.end(JSON.stringify(response));
-          })
-          .catch(next);
-      });
-    },
-    configurePreviewServer(server) {
-      if (!ENABLE_DIFF_MOCK_API) return;
-      server.middlewares.use((req: IncomingMessage, res: ServerResponse, next) => {
-        if (req.method !== 'POST' || !req.url || !diffPath.test(req.url)) {
-          next();
-          return;
-        }
-        void readRequestBody(req)
-          .then(bodyText => {
-            const body = JSON.parse(bodyText || '{}') as {
-              query_a_id?: string;
-              query_b_id?: string;
-            };
-            const response = createMockQueryProfileDiffResponse(
-              body.query_a_id ?? 'query-a',
-              body.query_b_id ?? 'query-b'
-            );
-            res.statusCode = 200;
-            res.setHeader('Content-Type', 'application/json');
-            res.end(JSON.stringify(response));
-          })
-          .catch(next);
-      });
-    },
-  };
-}
-
 // https://vitejs.dev/config/
 export default defineConfig({
   plugins: [
     react(),
     vitePluginScriptPriority(),
-    vitePluginQueryProfileDiffMock(),
     TanStackRouterVite({
       routeFileIgnorePattern: '.test.|.spec.',
     }),

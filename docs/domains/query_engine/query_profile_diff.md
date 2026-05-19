@@ -1,9 +1,8 @@
 # Query Profile Diff API
 
 The query profile diff API compares two query profiles from the same engine.
-The UI uses this contract through a mock endpoint first; generated TypeScript
-bindings should replace the temporary client-side types once the Rust endpoint
-exports these shapes.
+The UI also uses this contract as its internal diff view model when it builds
+query diffs client-side from real `QueryBundle` API responses.
 
 ## Endpoint
 
@@ -81,4 +80,4 @@ export interface QueryProfileDiffResponse {
 - `operator_diffs` contains matched operator pairs for equal plans.
 - Numeric stats include `delta` and optional `percent_delta`; non-numeric or
   missing values use `delta: null`.
-- Different-plan aggregate rows and timeline deltas are planned follow-ups.
+- Different-plan aggregate rows are a planned follow-up.
