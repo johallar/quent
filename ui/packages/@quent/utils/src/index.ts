@@ -38,6 +38,7 @@ export {
   formatQuantity,
   formatBytes,
   formatNumber,
+  inferFieldFormatter,
 } from './formatters';
 
 // Rust-generated TypeScript types
