@@ -162,7 +162,8 @@ export function QueryDiffStats({ diff, queryABundle, queryBBundle }: QueryDiffSt
             chart={
               <StatisticMiniBarChart
                 rows={operatorRuntimeChartRows(operatorRuntimeComparisons, queryColors)}
-                maxRows={3}
+                maxRows={operatorRuntimeComparisons.length}
+                className="max-h-16 overflow-y-auto pr-1 [scrollbar-width:thin]"
               />
             }
           />
