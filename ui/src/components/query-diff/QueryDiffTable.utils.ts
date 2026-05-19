@@ -17,6 +17,11 @@ export interface QueryDiffTableRow {
   stats: Record<string, StatValue>;
 }
 
+function displayDeltaValue(value: StatValue): StatValue {
+  if (typeof value !== 'number') return value;
+  return value === 0 || Object.is(value, -0) ? 0 : -value;
+}
+
 function formatOperatorPairLabel(
   operatorALabel: string,
   operatorAId: string,
@@ -38,7 +43,10 @@ export function buildQueryDiffRows(diff: QueryProfileDiffResponse): QueryDiffTab
       entry.operator_b.id
     );
     const stats = Object.fromEntries(
-      Object.entries(entry.stats).map(([statName, stat]) => [statName, stat.delta])
+      Object.entries(entry.stats).map(([statName, stat]) => [
+        statName,
+        displayDeltaValue(stat.delta),
+      ])
     );
     return [
       {

@@ -53,6 +53,7 @@ export interface QueryProfileDiffPlanComparison {
 }
 
 export interface QueryProfileDiffResponse {
+  // This almost becomes a query diff bundle
   scenario: QueryProfileDiffScenario;
   query_a: QueryProfileDiffQuerySummary;
   query_b: QueryProfileDiffQuerySummary;

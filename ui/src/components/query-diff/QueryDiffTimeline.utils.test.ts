@@ -49,7 +49,7 @@ describe('buildDiffTimelineData', () => {
     expect(data.delta.series['Query B higher']?.values).toEqual([0, 3]);
     expect(data.queryA.series.slots?.color).toBe('#0072B2');
     expect(data.queryB.series.slots?.color).toBe('#E69F00');
-    expect(data.delta.series['Query A higher']?.color).toBe(DIFF_POSITIVE_COLOR);
-    expect(data.delta.series['Query B higher']?.color).toBe(DIFF_NEGATIVE_COLOR);
+    expect(data.delta.series['Query A higher']?.color).toBe(DIFF_NEGATIVE_COLOR);
+    expect(data.delta.series['Query B higher']?.color).toBe(DIFF_POSITIVE_COLOR);
   });
 });

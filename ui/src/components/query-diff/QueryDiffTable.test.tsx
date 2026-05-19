@@ -23,8 +23,8 @@ describe('QueryDiffTable helpers', () => {
       operatorBId: 'scan-b',
       operatorBLabel: 'Scan orders',
       stats: {
-        duration_s: 2,
-        input_rows: -200,
+        duration_s: -2,
+        input_rows: 200,
       },
     });
   });

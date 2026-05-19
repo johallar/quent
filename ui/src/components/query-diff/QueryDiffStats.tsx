@@ -41,6 +41,15 @@ function runtimeValueStyle(delta: number, paletteTheme: PaletteTheme): CSSProper
   return undefined;
 }
 
+function displayDelta(delta: number): number {
+  return delta === 0 || Object.is(delta, -0) ? 0 : -delta;
+}
+
+function displayPercentDelta(percentDelta: number | null): number | null {
+  if (percentDelta === null) return null;
+  return percentDelta === 0 || Object.is(percentDelta, -0) ? 0 : -percentDelta;
+}
+
 function runtimeComparisons({
   comparison,
   queryAName,
@@ -117,9 +126,11 @@ export function QueryDiffStats({ diff, queryABundle, queryBBundle }: QueryDiffSt
       <div className="grid min-w-0 lg:grid-cols-2">
         <StatisticCard
           title="Total Run Time"
-          value={formatSignedDurationSeconds(totalRuntimeComparison.delta)}
-          valueStyle={runtimeValueStyle(totalRuntimeComparison.delta, paletteTheme)}
-          secondaryValue={formatPercentDelta(totalRuntimeComparison.percentDelta)}
+          value={formatSignedDurationSeconds(displayDelta(totalRuntimeComparison.delta))}
+          valueStyle={runtimeValueStyle(displayDelta(totalRuntimeComparison.delta), paletteTheme)}
+          secondaryValue={formatPercentDelta(
+            displayPercentDelta(totalRuntimeComparison.percentDelta)
+          )}
           comparisons={runtimeComparisons({
             comparison: totalRuntimeComparison,
             queryAName,

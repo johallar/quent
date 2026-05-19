@@ -12,11 +12,11 @@ const TOL_GREEN_INDEX = 0;
 const TOL_RED_INDEX = 1;
 
 export function getDiffPositiveColor(theme: PaletteTheme): string {
-  return getPalette('extended', theme)[TOL_GREEN_INDEX]!;
+  return getPalette('extended', theme)[TOL_RED_INDEX]!;
 }
 
 export function getDiffNegativeColor(theme: PaletteTheme): string {
-  return getPalette('extended', theme)[TOL_RED_INDEX]!;
+  return getPalette('extended', theme)[TOL_GREEN_INDEX]!;
 }
 
 export const DIFF_POSITIVE_COLOR = getDiffPositiveColor('light');

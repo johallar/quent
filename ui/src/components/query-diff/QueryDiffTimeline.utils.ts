@@ -62,9 +62,9 @@ function formatDeltaSeries({
         ...entry,
         color:
           name === QUERY_A_HIGHER_LABEL
-            ? positiveColor
+            ? negativeColor
             : name === QUERY_B_HIGHER_LABEL
-              ? negativeColor
+              ? positiveColor
               : entry.color,
         formatter,
       },

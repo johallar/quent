@@ -12,9 +12,9 @@ import {
 describe('QueryDiffColors', () => {
   afterEach(() => resetColorAssignments());
 
-  it('uses the Tol palette green and red for diff values', () => {
-    expect(DIFF_POSITIVE_COLOR).toBe('#44AA99');
-    expect(DIFF_NEGATIVE_COLOR).toBe('#CC6677');
+  it('uses Tol red for positive values and Tol green for negative values', () => {
+    expect(DIFF_POSITIVE_COLOR).toBe('#CC6677');
+    expect(DIFF_NEGATIVE_COLOR).toBe('#44AA99');
   });
 
   it('assigns distinct palette colors to the compared queries', () => {

@@ -297,14 +297,14 @@ export function QueryDiffTimeline({
               <span className="inline-flex items-center gap-1">
                 <span
                   className="h-2 w-2 rounded-full"
-                  style={{ backgroundColor: diffPositiveColor }}
+                  style={{ backgroundColor: diffNegativeColor }}
                 />
-                A higher
+                B lower
               </span>
               <span className="inline-flex items-center gap-1">
                 <span
                   className="h-2 w-2 rounded-full"
-                  style={{ backgroundColor: diffNegativeColor }}
+                  style={{ backgroundColor: diffPositiveColor }}
                 />
                 B higher
               </span>
