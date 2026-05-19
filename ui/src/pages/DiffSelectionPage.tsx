@@ -26,6 +26,7 @@ import {
 } from '@quent/components';
 import { cn } from '@quent/utils';
 import { QueryDiffTable } from '@/components/query-diff/QueryDiffTable';
+import { QueryDiffStats } from '@/components/query-diff/QueryDiffStats';
 import { QueryDiffTimeline } from '@/components/query-diff/QueryDiffTimeline';
 import { buildQueryProfileDiffFromBundles } from '@/components/query-diff/queryProfileDiffFromBundles';
 
@@ -467,6 +468,11 @@ export function DiffSelectionPage({
             </div>
           ) : diff && queryABundle.data && queryBBundle.data ? (
             <div className="flex h-full min-h-0 flex-col">
+              <QueryDiffStats
+                diff={diff}
+                queryABundle={queryABundle.data}
+                queryBBundle={queryBBundle.data}
+              />
               <QueryDiffTimeline
                 engineId={engineId}
                 diff={diff}

@@ -2,8 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import type { QueryProfileDiffResponse } from '@quent/client';
-import type { StatValue } from '@quent/utils';
+import type { PaletteTheme, StatValue } from '@quent/utils';
 import { formatStatValue } from '@quent/components';
+import { getDiffNegativeColor, getDiffPositiveColor } from './QueryDiffColors';
 
 export interface QueryDiffTableRow {
   operatorType: string;
@@ -62,12 +63,13 @@ export function formatSignedDiffValue(value: StatValue, statName: string): strin
 
 export function getDeltaCellStyle(
   value: StatValue,
-  maxAbs: number | undefined
+  maxAbs: number | undefined,
+  theme: PaletteTheme = 'light'
 ): React.CSSProperties | undefined {
   if (typeof value !== 'number' || value === 0 || !maxAbs) return undefined;
   const intensity = Math.min(1, Math.abs(value) / maxAbs);
   const mix = Math.round(14 + intensity * 42);
-  const color = value > 0 ? '#14b8a6' : '#ef4444';
+  const color = value > 0 ? getDiffPositiveColor(theme) : getDiffNegativeColor(theme);
   return {
     backgroundColor: `color-mix(in srgb, ${color} ${mix}%, hsl(var(--card)))`,
   };

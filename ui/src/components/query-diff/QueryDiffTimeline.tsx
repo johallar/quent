@@ -36,6 +36,11 @@ import {
   type TaskFilter,
 } from '@quent/utils';
 import { THEME_DARK, useTheme } from '@/contexts/ThemeContext';
+import {
+  getDiffNegativeColor,
+  getDiffPositiveColor,
+  getQueryDiffQueryColors,
+} from './QueryDiffColors';
 import { buildDiffTimelineData } from './QueryDiffTimeline.utils';
 
 interface QueryDiffTimelineProps {
@@ -108,11 +113,13 @@ function buildRootTimelineRequest({
 function TimelineLane({
   label,
   detail,
+  color,
   children,
   className,
 }: {
   label: string;
   detail?: React.ReactNode;
+  color?: string;
   children: React.ReactNode;
   className?: string;
 }) {
@@ -125,7 +132,12 @@ function TimelineLane({
       style={{ height: TIMELINE_ROW_HEIGHT }}
     >
       <div className="flex min-w-0 flex-col justify-center border-r border-border px-3">
-        <span className="text-xs font-semibold">{label}</span>
+        <span className="flex min-w-0 items-center gap-1 text-xs font-semibold">
+          {color && (
+            <span className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: color }} />
+          )}
+          <span className="truncate">{label}</span>
+        </span>
         {detail && <span className="truncate text-[11px] text-muted-foreground">{detail}</span>}
       </div>
       <div className="min-w-0">{children}</div>
@@ -147,6 +159,12 @@ export function QueryDiffTimeline({
 
   const queryAId = diff.query_a.id;
   const queryBId = diff.query_b.id;
+  const queryColors = useMemo(
+    () => getQueryDiffQueryColors({ queryAId, queryBId, theme: paletteTheme }),
+    [paletteTheme, queryAId, queryBId]
+  );
+  const diffPositiveColor = getDiffPositiveColor(paletteTheme);
+  const diffNegativeColor = getDiffNegativeColor(paletteTheme);
 
   const targetA = useMemo(() => getTimelineTarget(queryABundle), [queryABundle]);
   const targetB = useMemo(() => getTimelineTarget(queryBBundle), [queryBBundle]);
@@ -231,6 +249,7 @@ export function QueryDiffTimeline({
       capacities: resourceTypeDecl?.capacities,
       quantitySpecs: queryABundle.quantity_specs ?? queryBBundle.quantity_specs,
       fsmTypes: queryABundle.entities.fsm_types ?? queryBBundle.entities.fsm_types,
+      queryColors,
     });
   }, [
     durationSeconds,
@@ -241,6 +260,7 @@ export function QueryDiffTimeline({
     queryBBundle.entities.fsm_types,
     queryBBundle.entities.resource_types,
     queryBBundle.quantity_specs,
+    queryColors,
     resourceType,
     timelineDiff.data,
   ]);
@@ -275,10 +295,18 @@ export function QueryDiffTimeline({
           {comparison && (
             <div className="hidden items-center gap-2 text-[11px] text-muted-foreground sm:flex">
               <span className="inline-flex items-center gap-1">
-                <span className="h-2 w-2 rounded-full bg-[#CC6677]" />A higher
+                <span
+                  className="h-2 w-2 rounded-full"
+                  style={{ backgroundColor: diffPositiveColor }}
+                />
+                A higher
               </span>
               <span className="inline-flex items-center gap-1">
-                <span className="h-2 w-2 rounded-full bg-[#44AA99]" />B higher
+                <span
+                  className="h-2 w-2 rounded-full"
+                  style={{ backgroundColor: diffNegativeColor }}
+                />
+                B higher
               </span>
             </div>
           )}
@@ -343,6 +371,7 @@ export function QueryDiffTimeline({
           </div>
           <TimelineLane
             label="Query A"
+            color={queryColors.queryA}
             detail={<DataText>{diff.query_a.instance_name ?? queryAId}</DataText>}
           >
             <Timeline
@@ -356,6 +385,7 @@ export function QueryDiffTimeline({
           </TimelineLane>
           <TimelineLane
             label="Query B"
+            color={queryColors.queryB}
             detail={<DataText>{diff.query_b.instance_name ?? queryBId}</DataText>}
           >
             <Timeline

@@ -83,6 +83,17 @@ export {
   TableCaption,
 } from './ui/table';
 
+// ─── Statistic card components ───────────────────────────────────────────────
+export { StatisticCard, StatisticMiniBarChart } from './stat-card/StatisticCard';
+export type {
+  StatisticCardComparison,
+  StatisticCardProps,
+  StatisticCardValueTone,
+  StatisticMiniBarChartBar,
+  StatisticMiniBarChartProps,
+  StatisticMiniBarChartRow,
+} from './stat-card/StatisticCard';
+
 // ─── ECharts ──────────────────────────────────────────────────────────────────
 export { echarts } from './lib/echarts';
 export type { EChartsOption } from './lib/echarts';

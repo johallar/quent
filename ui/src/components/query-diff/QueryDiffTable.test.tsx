@@ -8,6 +8,7 @@ import {
   getDeltaCellStyle,
 } from './QueryDiffTable.utils';
 import { equalPlanQueryProfileDiffFixture } from '@/test/mocks/queryProfileDiffFixtures';
+import { DIFF_NEGATIVE_COLOR, DIFF_POSITIVE_COLOR } from './QueryDiffColors';
 
 describe('QueryDiffTable helpers', () => {
   it('converts matched operator diffs into pivot rows', () => {
@@ -41,8 +42,8 @@ describe('QueryDiffTable helpers', () => {
   });
 
   it('returns diverging styles for positive and negative deltas only', () => {
-    expect(getDeltaCellStyle(5, 10)?.backgroundColor).toContain('#14b8a6');
-    expect(getDeltaCellStyle(-5, 10)?.backgroundColor).toContain('#ef4444');
+    expect(getDeltaCellStyle(5, 10)?.backgroundColor).toContain(DIFF_POSITIVE_COLOR);
+    expect(getDeltaCellStyle(-5, 10)?.backgroundColor).toContain(DIFF_NEGATIVE_COLOR);
     expect(getDeltaCellStyle(0, 10)).toBeUndefined();
     expect(getDeltaCellStyle(null, 10)).toBeUndefined();
   });

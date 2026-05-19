@@ -16,8 +16,8 @@ import {
 } from '@quent/components';
 import { useStatGroupTableControls } from '@quent/hooks';
 import type { QueryProfileDiffResponse } from '@quent/client';
-import { getOperationTypeColor } from '@quent/utils';
 import { THEME_DARK, useTheme } from '@/contexts/ThemeContext';
+import { getQueryDiffOperatorTypeColor } from './QueryDiffColors';
 import {
   buildMaxAbsByStat,
   buildQueryDiffRows,
@@ -54,7 +54,7 @@ const DEFAULT_ENABLED: Record<IndexKey, boolean> = {
 const VIRTUALIZATION_CONFIG = { enabled: true, overscan: 12 } as const;
 
 const getOperatorTypeColor = (key: string, id: string): string | undefined =>
-  key === 'operator_type' ? getOperationTypeColor(id.toLowerCase()) : undefined;
+  key === 'operator_type' ? getQueryDiffOperatorTypeColor(id) : undefined;
 
 function OperatorPairCell({ row }: { row: QueryDiffTableRow }) {
   return (
@@ -87,6 +87,7 @@ export function QueryDiffTable({ diff }: { diff: QueryProfileDiffResponse }) {
   const [hoveredStat, setHoveredStat] = useState<HoveredStatInfo | null>(null);
   const { theme } = useTheme();
   const isDark = theme === THEME_DARK;
+  const paletteTheme = isDark ? 'dark' : 'light';
 
   const {
     aggMode,
@@ -150,10 +151,11 @@ export function QueryDiffTable({ diff }: { diff: QueryProfileDiffResponse }) {
         const row = rowsByOperatorPairId.get(groupKey.id);
         return row ? <OperatorPairCell row={row} /> : groupKey.label;
       },
-      getDataCellStyle: ({ stat, value }) => getDeltaCellStyle(value, maxAbsByStat.get(stat)),
+      getDataCellStyle: ({ stat, value }) =>
+        getDeltaCellStyle(value, maxAbsByStat.get(stat), paletteTheme),
       formatDataCellValue: ({ stat, value }) => formatSignedDiffValue(value, stat),
     }),
-    [maxAbsByStat, rowsByOperatorPairId]
+    [maxAbsByStat, paletteTheme, rowsByOperatorPairId]
   );
 
   if (diff.scenario !== 'plans_equal') {

@@ -4,6 +4,7 @@
 import { describe, expect, it } from 'vitest';
 import type { SingleTimelineResponse } from '@quent/utils';
 import type { QueryProfileDiffTimelineResponse } from '@quent/client';
+import { DIFF_NEGATIVE_COLOR, DIFF_POSITIVE_COLOR } from './QueryDiffColors';
 import { buildDiffTimelineData } from './QueryDiffTimeline.utils';
 
 function makeTimeline(values: Record<string, number[]>): SingleTimelineResponse {
@@ -39,11 +40,16 @@ describe('buildDiffTimelineData', () => {
     const data = buildDiffTimelineData({
       timelineDiff: response,
       theme: 'light',
+      queryColors: { queryA: '#0072B2', queryB: '#E69F00' },
     });
 
     expect(data.queryA.series.slots?.values).toEqual([100, 100]);
     expect(data.queryB.series.slots?.values).toEqual([0, 0]);
     expect(data.delta.series['Query A higher']?.values).toEqual([2, 0]);
     expect(data.delta.series['Query B higher']?.values).toEqual([0, 3]);
+    expect(data.queryA.series.slots?.color).toBe('#0072B2');
+    expect(data.queryB.series.slots?.color).toBe('#E69F00');
+    expect(data.delta.series['Query A higher']?.color).toBe(DIFF_POSITIVE_COLOR);
+    expect(data.delta.series['Query B higher']?.color).toBe(DIFF_NEGATIVE_COLOR);
   });
 });

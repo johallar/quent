@@ -4,9 +4,12 @@
 import { buildBinnedTimelineSeries, type TimelineSeries } from '@quent/components';
 import type { QueryProfileDiffTimelineResponse } from '@quent/client';
 import type { CapacityDecl, FsmTypeDecl, PaletteTheme, QuantitySpec } from '@quent/utils';
+import {
+  getDiffNegativeColor,
+  getDiffPositiveColor,
+  type QueryDiffQueryColors,
+} from './QueryDiffColors';
 
-const QUERY_A_HIGHER_COLOR = '#CC6677';
-const QUERY_B_HIGHER_COLOR = '#44AA99';
 const QUERY_A_HIGHER_LABEL = 'Query A higher';
 const QUERY_B_HIGHER_LABEL = 'Query B higher';
 
@@ -27,6 +30,7 @@ interface BuildDiffTimelineDataParams {
   capacities?: CapacityDecl[];
   quantitySpecs?: { [key in string]?: QuantitySpec };
   fsmTypes?: { [key in string]?: FsmTypeDecl };
+  queryColors: QueryDiffQueryColors;
 }
 
 function getFirstFormatter(seriesA: TimelineSeries, seriesB: TimelineSeries) {
@@ -41,12 +45,16 @@ function formatDeltaSeries({
   delta,
   queryA,
   queryB,
+  theme,
 }: {
   delta: TimelineRowData;
   queryA: TimelineRowData;
   queryB: TimelineRowData;
+  theme: PaletteTheme;
 }): TimelineSeries {
   const formatter = getFirstFormatter(queryA.series, queryB.series);
+  const positiveColor = getDiffPositiveColor(theme);
+  const negativeColor = getDiffNegativeColor(theme);
   return Object.fromEntries(
     Object.entries(delta.series).map(([name, entry]) => [
       name,
@@ -54,11 +62,23 @@ function formatDeltaSeries({
         ...entry,
         color:
           name === QUERY_A_HIGHER_LABEL
-            ? QUERY_A_HIGHER_COLOR
+            ? positiveColor
             : name === QUERY_B_HIGHER_LABEL
-              ? QUERY_B_HIGHER_COLOR
+              ? negativeColor
               : entry.color,
         formatter,
+      },
+    ])
+  );
+}
+
+function recolorTimelineSeries(series: TimelineSeries, color: string): TimelineSeries {
+  return Object.fromEntries(
+    Object.entries(series).map(([name, entry]) => [
+      name,
+      {
+        ...entry,
+        color,
       },
     ])
   );
@@ -70,6 +90,7 @@ export function buildDiffTimelineData({
   capacities,
   quantitySpecs,
   fsmTypes,
+  queryColors,
 }: BuildDiffTimelineDataParams): DiffTimelineData {
   const [queryATimeline, queryBTimeline] = timelineDiff.timelines;
   const queryA = buildBinnedTimelineSeries(
@@ -98,11 +119,17 @@ export function buildDiffTimelineData({
   );
 
   return {
-    queryA,
-    queryB,
+    queryA: {
+      ...queryA,
+      series: recolorTimelineSeries(queryA.series, queryColors.queryA),
+    },
+    queryB: {
+      ...queryB,
+      series: recolorTimelineSeries(queryB.series, queryColors.queryB),
+    },
     delta: {
       timestamps: delta.timestamps,
-      series: formatDeltaSeries({ delta, queryA, queryB }),
+      series: formatDeltaSeries({ delta, queryA, queryB, theme }),
     },
   };
 }
