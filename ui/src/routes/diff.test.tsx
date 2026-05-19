@@ -3,7 +3,7 @@
 
 import { describe, expect, it, beforeEach } from 'vitest';
 import { http, HttpResponse } from 'msw';
-import { screen, renderWithRouter } from '@/test/test-utils';
+import { screen, renderWithRouter, userEvent, waitFor } from '@/test/test-utils';
 import { server } from '@/test/mocks/server';
 
 const API_BASE = 'http://localhost:8000/api';
@@ -176,6 +176,72 @@ describe('Diff routes', () => {
     expect(await screen.findByText('Operator Stat Deltas')).toBeInTheDocument();
     expect(screen.getByText('Timeline Delta')).toBeInTheDocument();
     expect(screen.getAllByText(/Query A/).length).toBeGreaterThan(0);
+  });
+
+  it('preserves query group and query selections after the selector collapses', async () => {
+    const user = userEvent.setup();
+    renderWithRouter({ initialPath: '/diff' });
+
+    await user.click(await screen.findByRole('combobox', { name: 'Engine' }));
+    await user.click(await screen.findByRole('option', { name: 'Engine 1' }));
+
+    await waitFor(() => expect(screen.getAllByRole('combobox')).toHaveLength(5));
+    let selectors = screen.getAllByRole('combobox');
+    await user.click(selectors[1]);
+    await user.click(await screen.findByRole('option', { name: 'Group A' }));
+
+    selectors = screen.getAllByRole('combobox');
+    await user.click(selectors[2]);
+    await user.click(await screen.findByRole('option', { name: 'Query A' }));
+
+    selectors = screen.getAllByRole('combobox');
+    await user.click(selectors[3]);
+    await user.click(await screen.findByRole('option', { name: 'Group B' }));
+
+    selectors = screen.getAllByRole('combobox');
+    await user.click(selectors[4]);
+    await user.click(await screen.findByRole('option', { name: 'Query B' }));
+
+    expect(await screen.findByText('Operator Stat Deltas')).toBeInTheDocument();
+
+    const trigger = screen.getByText('Query Diff').closest('button');
+    expect(trigger).not.toBeNull();
+    expect(trigger).toHaveAttribute('aria-expanded', 'true');
+
+    await user.click(trigger!);
+    expect(trigger).toHaveAttribute('aria-expanded', 'false');
+    await user.click(trigger!);
+    expect(trigger).toHaveAttribute('aria-expanded', 'true');
+
+    await waitFor(() => {
+      const reopenedSelectors = screen.getAllByRole('combobox');
+      expect(reopenedSelectors[1]).toHaveTextContent('Group A');
+      expect(reopenedSelectors[2]).toHaveTextContent('Query A');
+      expect(reopenedSelectors[3]).toHaveTextContent('Group B');
+      expect(reopenedSelectors[4]).toHaveTextContent('Query B');
+    });
+  });
+
+  it('swaps Query A and Query B from the selector', async () => {
+    const user = userEvent.setup();
+    const { router } = renderWithRouter({
+      initialPath: '/diff/engine/engine-1/query/query-a/compare/query-b',
+    });
+
+    expect(await screen.findByText('Operator Stat Deltas')).toBeInTheDocument();
+
+    const trigger = screen.getByText('Query Diff').closest('button');
+    expect(trigger).not.toBeNull();
+    await user.click(trigger!);
+
+    await user.click(await screen.findByRole('button', { name: 'Swap Query A and Query B' }));
+
+    await waitFor(() => {
+      expect(router.state.location.pathname).toBe(
+        '/diff/engine/engine-1/query/query-b/compare/query-a'
+      );
+      expect(trigger).toHaveAttribute('aria-expanded', 'true');
+    });
   });
 
   it('does not render a diff for the same query on both sides', async () => {

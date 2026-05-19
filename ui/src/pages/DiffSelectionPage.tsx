@@ -4,7 +4,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from '@tanstack/react-router';
 import { useQuery } from '@tanstack/react-query';
-import { ChevronDown } from 'lucide-react';
+import { ArrowLeftRight, ChevronDown } from 'lucide-react';
 import {
   fetchListCoordinators,
   fetchListEngines,
@@ -13,6 +13,7 @@ import {
 } from '@quent/client';
 import type { Query, QueryGroup } from '@quent/utils';
 import {
+  Button,
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
@@ -187,15 +188,11 @@ export function DiffSelectionPage({
 
   useEffect(() => {
     setEngineId(initialEngineId);
-    setQueryA({ groupId: '', queryId: initialQueryAId });
-    setQueryB({ groupId: '', queryId: initialQueryBId });
-    setSelectionOpen(
-      !(
-        initialEngineId &&
-        initialQueryAId &&
-        initialQueryBId &&
-        initialQueryAId !== initialQueryBId
-      )
+    setQueryA(prev =>
+      prev.queryId === initialQueryAId ? prev : { groupId: '', queryId: initialQueryAId }
+    );
+    setQueryB(prev =>
+      prev.queryId === initialQueryBId ? prev : { groupId: '', queryId: initialQueryBId }
     );
   }, [initialEngineId, initialQueryAId, initialQueryBId]);
 
@@ -234,7 +231,7 @@ export function DiffSelectionPage({
       const groupId = findGroupForQuery(prev.queryId, queriesByGroup);
       return groupId ? { ...prev, groupId } : prev;
     });
-  }, [queriesByGroup]);
+  }, [queriesByGroup, queryA.groupId, queryA.queryId, queryB.groupId, queryB.queryId]);
 
   const selectedEngine = useMemo(
     () => engines.find(engine => engine.id === engineId),
@@ -248,6 +245,9 @@ export function DiffSelectionPage({
   const queryBSummary = useMemo(
     () => queryDisplayLabel(queryB.queryId, queriesByGroup, 'Select Query B'),
     [queryB.queryId, queriesByGroup]
+  );
+  const canSwapQueries = Boolean(
+    engineId && (queryA.groupId || queryA.queryId || queryB.groupId || queryB.queryId)
   );
   const sameQuerySelected = Boolean(queryA.queryId && queryA.queryId === queryB.queryId);
   const canDiff = Boolean(engineId && queryA.queryId && queryB.queryId && !sameQuerySelected);
@@ -317,6 +317,14 @@ export function DiffSelectionPage({
     }
   };
 
+  const handleSwapQueries = () => {
+    const nextA = queryB;
+    const nextB = queryA;
+    setQueryA(nextA);
+    setQueryB(nextB);
+    maybeNavigateToDiff(engineId, nextA, nextB);
+  };
+
   return (
     <div className="flex h-[calc(100vh-4rem)] flex-col">
       <Collapsible
@@ -383,7 +391,7 @@ export function DiffSelectionPage({
               </div>
             </div>
 
-            <div className="mx-auto grid w-full max-w-4xl gap-2 lg:grid-cols-2">
+            <div className="mx-auto grid w-full max-w-4xl items-stretch gap-2 lg:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)]">
               <QuerySelectorColumn
                 label="Query A"
                 side={queryA}
@@ -393,6 +401,20 @@ export function DiffSelectionPage({
                 onGroupChange={groupId => handleGroupChange('a', groupId)}
                 onQueryChange={queryId => handleQueryChange('a', queryId)}
               />
+              <div className="flex items-center justify-center">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon"
+                  className="h-8 w-8 rounded-full"
+                  aria-label="Swap Query A and Query B"
+                  title="Swap Query A and Query B"
+                  disabled={!canSwapQueries}
+                  onClick={handleSwapQueries}
+                >
+                  <ArrowLeftRight className="h-3.5 w-3.5" />
+                </Button>
+              </div>
               <QuerySelectorColumn
                 label="Query B"
                 side={queryB}
