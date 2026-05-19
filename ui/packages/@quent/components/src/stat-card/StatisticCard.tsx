@@ -16,7 +16,7 @@ export interface StatisticCardComparison {
 
 export interface StatisticCardProps {
   title: ReactNode;
-  value: ReactNode;
+  value?: ReactNode;
   valueTone?: StatisticCardValueTone;
   valueStyle?: CSSProperties;
   secondaryValue?: ReactNode;
@@ -118,12 +118,14 @@ export function StatisticCard({
   valueClassName,
   className,
 }: StatisticCardProps) {
+  const hasValue = value != null;
   const hasSupportingContent = comparisons.length > 0 || chart != null;
 
   return (
     <section
       className={cn(
-        'grid min-h-24 min-w-0 grid-rows-[auto_minmax(2.75rem,1fr)_auto] gap-1 border-r border-border px-4 py-1.5 last:border-r-0 [container-type:inline-size]',
+        'grid min-h-24 min-w-0 gap-1 border-r border-border px-4 py-1.5 last:border-r-0 [container-type:inline-size]',
+        hasValue ? 'grid-rows-[auto_minmax(2.75rem,1fr)_auto]' : 'grid-rows-[auto_minmax(0,1fr)]',
         className
       )}
     >
@@ -138,26 +140,28 @@ export function StatisticCard({
         )}
       </div>
 
-      <div
-        className={cn(
-          'flex min-h-0 min-w-0 items-center justify-center text-center',
-          !hasSupportingContent && 'row-span-2'
-        )}
-      >
+      {hasValue && (
         <div
           className={cn(
-            'max-w-full overflow-hidden text-ellipsis whitespace-nowrap font-semibold leading-none tabular-nums text-[clamp(1.375rem,12cqi,3.5rem)]',
-            valueToneClassName(valueTone),
-            valueClassName
+            'flex min-h-0 min-w-0 items-center justify-center text-center',
+            !hasSupportingContent && 'row-span-2'
           )}
-          style={valueStyle}
         >
-          {value}
+          <div
+            className={cn(
+              'max-w-full overflow-hidden text-ellipsis whitespace-nowrap font-semibold leading-none tabular-nums text-[clamp(1.375rem,12cqi,3.5rem)]',
+              valueToneClassName(valueTone),
+              valueClassName
+            )}
+            style={valueStyle}
+          >
+            {value}
+          </div>
         </div>
-      </div>
+      )}
 
       {hasSupportingContent && (
-        <div className="min-w-0 self-end">
+        <div className={cn('min-w-0', hasValue ? 'self-end' : 'min-h-0 self-stretch')}>
           {comparisons.length > 0 && (
             <div className="flex min-w-0 items-center justify-center gap-3 text-center">
               {comparisons.map((comparison, index) => (
@@ -186,7 +190,11 @@ export function StatisticCard({
 
           {chart && (
             <div
-              className={cn('border-t border-border pt-1.5', comparisons.length > 0 && 'mt-1.5')}
+              className={cn(
+                !hasValue && comparisons.length === 0 && 'h-full min-h-0',
+                (hasValue || comparisons.length > 0) && 'border-t border-border pt-1.5',
+                comparisons.length > 0 && 'mt-1.5'
+              )}
             >
               {chartLabel && (
                 <div className="mb-1 text-center text-[11px] font-medium text-muted-foreground">

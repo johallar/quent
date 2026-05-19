@@ -25,7 +25,6 @@ import {
   formatDurationSeconds,
   formatPercentDelta,
   formatSignedDurationSeconds,
-  sumRuntimeComparisons,
   type OperatorTypeRuntimeComparison,
   type RuntimeComparison,
 } from './QueryDiffStats.utils';
@@ -112,10 +111,6 @@ export function QueryDiffStats({ diff, queryABundle, queryBBundle }: QueryDiffSt
     () => buildRuntimeComparison(queryABundle.duration_s, queryBBundle.duration_s),
     [queryABundle.duration_s, queryBBundle.duration_s]
   );
-  const operatorRuntimeComparison = useMemo(
-    () => sumRuntimeComparisons(operatorRuntimeComparisons),
-    [operatorRuntimeComparisons]
-  );
 
   return (
     <div className="shrink-0 border-b border-border bg-card">
@@ -142,28 +137,11 @@ export function QueryDiffStats({ diff, queryABundle, queryBBundle }: QueryDiffSt
         {operatorRuntimeComparisons.length > 0 && (
           <StatisticCard
             title="Operator Run Time"
-            value={formatSignedDurationSeconds(operatorRuntimeComparison.delta)}
-            valueStyle={runtimeValueStyle(operatorRuntimeComparison.delta, paletteTheme)}
-            secondaryValue={formatPercentDelta(operatorRuntimeComparison.percentDelta)}
-            comparisons={runtimeComparisons({
-              comparison: operatorRuntimeComparison,
-              queryAName,
-              queryBName,
-              queryColors,
-            })}
-            comparisonSeparator={
-              <Triangle
-                className="h-3 w-3 shrink-0 text-muted-foreground"
-                aria-label="delta"
-                role="img"
-              />
-            }
-            chartLabel="By operator type"
             chart={
               <StatisticMiniBarChart
                 rows={operatorRuntimeChartRows(operatorRuntimeComparisons, queryColors)}
                 maxRows={operatorRuntimeComparisons.length}
-                className="max-h-16 overflow-y-auto pr-1 [scrollbar-width:thin]"
+                className="h-full overflow-y-auto pr-1 [scrollbar-width:thin]"
               />
             }
           />

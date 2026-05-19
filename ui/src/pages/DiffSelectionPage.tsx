@@ -28,7 +28,9 @@ import { cn } from '@quent/utils';
 import { QueryDiffTable } from '@/components/query-diff/QueryDiffTable';
 import { QueryDiffStats } from '@/components/query-diff/QueryDiffStats';
 import { QueryDiffTimeline } from '@/components/query-diff/QueryDiffTimeline';
+import { getQueryDiffQueryColors } from '@/components/query-diff/QueryDiffColors';
 import { buildQueryProfileDiffFromBundles } from '@/components/query-diff/queryProfileDiffFromBundles';
+import { THEME_DARK, useTheme } from '@/contexts/ThemeContext';
 
 interface DiffSelectionPageProps {
   initialEngineId?: string;
@@ -191,6 +193,8 @@ export function DiffSelectionPage({
   initialQueryBId = '',
 }: DiffSelectionPageProps) {
   const navigate = useNavigate();
+  const { theme } = useTheme();
+  const paletteTheme = theme === THEME_DARK ? 'dark' : 'light';
   const [engineId, setEngineId] = useState(initialEngineId);
   const [queryA, setQueryA] = useState<QuerySideState>({ groupId: '', queryId: initialQueryAId });
   const [queryB, setQueryB] = useState<QuerySideState>({ groupId: '', queryId: initialQueryBId });
@@ -257,6 +261,15 @@ export function DiffSelectionPage({
   const queryBSummary = useMemo(
     () => queryDisplayLabel(queryB.queryId, queriesByGroup, 'Select Query B'),
     [queryB.queryId, queriesByGroup]
+  );
+  const queryColors = useMemo(
+    () =>
+      getQueryDiffQueryColors({
+        queryAId: queryA.queryId,
+        queryBId: queryB.queryId,
+        theme: paletteTheme,
+      }),
+    [paletteTheme, queryA.queryId, queryB.queryId]
   );
   const canSwapQueries = Boolean(
     engineId && (queryA.groupId || queryA.queryId || queryB.groupId || queryB.queryId)
@@ -350,11 +363,17 @@ export function DiffSelectionPage({
           <CollapsibleTrigger className="group flex max-w-full items-center justify-center gap-2 rounded-sm px-2 py-1 text-left transition-colors duration-150 hover:bg-accent hover:text-accent-foreground data-[state=open]:bg-accent/50">
             <span className="shrink-0 text-xs font-semibold text-muted-foreground">Query Diff</span>
             <span className="flex min-w-0 flex-wrap items-center justify-center gap-x-2 gap-y-1 text-xs">
-              <DataText className="inline-block max-w-[16rem] truncate align-bottom">
+              <DataText
+                className="inline-block max-w-[16rem] truncate align-bottom"
+                style={{ color: queryA.queryId ? queryColors.queryA : undefined }}
+              >
                 {queryASummary}
               </DataText>
               <span className="text-muted-foreground">vs</span>
-              <DataText className="inline-block max-w-[16rem] truncate align-bottom">
+              <DataText
+                className="inline-block max-w-[16rem] truncate align-bottom"
+                style={{ color: queryB.queryId ? queryColors.queryB : undefined }}
+              >
                 {queryBSummary}
               </DataText>
               {engineSummary && (
