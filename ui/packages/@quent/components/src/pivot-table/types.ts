@@ -82,6 +82,7 @@ export interface PivotTableRenderConfig {
     aggMode: AggMode;
   }) => React.CSSProperties | undefined;
   formatDataCellValue?: (args: {
+    row: PivotedRow;
     stat: string;
     value: StatValue;
     numericValue: number | null;

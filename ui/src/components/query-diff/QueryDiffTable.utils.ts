@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-import type { DiffQuerySummary, QueryDiff } from '@quent/client';
+import type { DiffDelta, DiffQuerySummary, QueryDiff } from '@quent/client';
 import type { PaletteTheme, StatValue } from '@quent/utils';
 import { formatStatValue } from '@quent/components';
 import { getDiffNegativeColor, getDiffPositiveColor } from './QueryDiffColors';
@@ -9,6 +9,13 @@ import { getDiffNegativeColor, getDiffPositiveColor } from './QueryDiffColors';
 export interface QueryDiffTableEngine {
   id: string;
   label: string;
+}
+
+export interface QueryDiffTableCellValues {
+  baseline: StatValue;
+  comparison: StatValue;
+  delta: StatValue;
+  percentDelta: number | null;
 }
 
 export interface QueryDiffTableRow {
@@ -23,6 +30,7 @@ export interface QueryDiffTableRow {
   operatorBId: string;
   operatorBLabel: string;
   stats: Record<string, StatValue>;
+  statDetails: Record<string, QueryDiffTableCellValues>;
 }
 
 function getQueryEngine(query: DiffQuerySummary): QueryDiffTableEngine {
@@ -35,6 +43,21 @@ function getQueryEngine(query: DiffQuerySummary): QueryDiffTableEngine {
 function displayDeltaValue(value: StatValue): StatValue {
   if (typeof value !== 'number') return value;
   return value === 0 || Object.is(value, -0) ? 0 : -value;
+}
+
+function displayPercentDeltaValue(value: number | null): number | null {
+  if (value === null) return null;
+  const displayedValue = -value;
+  return displayedValue === 0 || Object.is(displayedValue, -0) ? 0 : displayedValue;
+}
+
+function buildCellValues(stat: DiffDelta): QueryDiffTableCellValues {
+  return {
+    baseline: stat.stats[0],
+    comparison: stat.stats[1],
+    delta: displayDeltaValue(stat.delta),
+    percentDelta: displayPercentDeltaValue(stat.percent_delta),
+  };
 }
 
 function formatOperatorPairLabel(
@@ -65,12 +88,14 @@ export function buildQueryDiffRows(
       operatorB.label,
       operatorB.id
     );
-    const stats = Object.fromEntries(
-      Object.entries(entry.stats).map(([statName, stat]) => [
-        statName,
-        displayDeltaValue(stat.delta),
-      ])
-    );
+    const stats: Record<string, StatValue> = {};
+    const statDetails: Record<string, QueryDiffTableCellValues> = {};
+    for (const [statName, stat] of Object.entries(entry.stats)) {
+      const cellValues = buildCellValues(stat);
+      stats[statName] = cellValues.delta;
+      statDetails[statName] = cellValues;
+    }
+
     return [
       {
         engineGroupId,
@@ -84,6 +109,7 @@ export function buildQueryDiffRows(
         operatorBId: operatorB.id,
         operatorBLabel: operatorB.label,
         stats,
+        statDetails,
       },
     ];
   });
@@ -93,6 +119,13 @@ export function formatSignedDiffValue(value: StatValue, statName: string): strin
   const formattedValue = formatStatValue(value, statName);
   if (typeof value !== 'number' || Object.is(value, -0) || value === 0) return formattedValue;
   return value > 0 ? `+${formattedValue}` : formattedValue;
+}
+
+export function formatSignedPercentDelta(percentDelta: number | null): string {
+  if (percentDelta === null) return '-';
+  const displayedValue = percentDelta === 0 || Object.is(percentDelta, -0) ? 0 : percentDelta;
+  const formattedValue = `${(displayedValue * 100).toFixed(1)}%`;
+  return displayedValue > 0 ? `+${formattedValue}` : formattedValue;
 }
 
 export function getDeltaCellStyle(

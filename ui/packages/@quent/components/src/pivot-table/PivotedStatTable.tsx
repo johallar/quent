@@ -194,6 +194,7 @@ function DataCell({ row, stat }: DataCellProps<PivotedRow>) {
     boxShadow: cellHighlight,
   };
   const customContent = renderConfig.formatDataCellValue?.({
+    row,
     stat,
     value: rawValue,
     numericValue: numVal,

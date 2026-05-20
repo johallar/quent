@@ -7,7 +7,9 @@ import {
   DataText,
   PivotedStatTable,
   PivotTableToolbar,
+  formatStatValue,
   getSchemaStatNames,
+  type AggMode,
   type HoveredStatInfo,
   type PivotedRow,
   type PivotedStatTableSchema,
@@ -16,13 +18,16 @@ import {
 } from '@quent/components';
 import { useStatGroupTableControls } from '@quent/hooks';
 import type { DiffQuerySummary, QueryDiff } from '@quent/client';
+import type { StatValue } from '@quent/utils';
 import { THEME_DARK, useTheme } from '@/contexts/ThemeContext';
 import { getQueryDiffOperatorTypeColor } from './QueryDiffColors';
 import {
   buildMaxAbsByStat,
   buildQueryDiffRows,
   formatSignedDiffValue,
+  formatSignedPercentDelta,
   getDeltaCellStyle,
+  type QueryDiffTableCellValues,
   type QueryDiffTableRow,
 } from './QueryDiffTable.utils';
 
@@ -56,7 +61,7 @@ const DEFAULT_ENABLED: Record<IndexKey, boolean> = {
   operator: false,
 };
 
-const VIRTUALIZATION_CONFIG = { enabled: true, overscan: 12 } as const;
+const VIRTUALIZATION_CONFIG = { enabled: true, estimateRowHeight: 66, overscan: 12 } as const;
 
 const getOperatorTypeColor = (key: string, id: string): string | undefined =>
   key === 'operator_type' ? getQueryDiffOperatorTypeColor(id) : undefined;
@@ -88,6 +93,111 @@ function OperatorPairCell({ row }: { row: QueryDiffTableRow }) {
         <DataText className="block truncate text-[11px] text-muted-foreground">
           {row.operatorBId}
         </DataText>
+      </div>
+    </div>
+  );
+}
+
+function aggregateNumericValues(values: number[], aggMode: AggMode): number | null {
+  if (values.length === 0) return null;
+  switch (aggMode) {
+    case 'mean':
+      return values.reduce((sum, value) => sum + value, 0) / values.length;
+    case 'min':
+      return Math.min(...values);
+    case 'max':
+      return Math.max(...values);
+    case 'stdev': {
+      if (values.length <= 1) return null;
+      const mean = values.reduce((sum, value) => sum + value, 0) / values.length;
+      const variance =
+        values.reduce((sum, value) => sum + (value - mean) ** 2, 0) / (values.length - 1);
+      return Math.sqrt(variance);
+    }
+    case 'sum':
+    default:
+      return values.reduce((sum, value) => sum + value, 0);
+  }
+}
+
+function aggregateStatValues(values: StatValue[], aggMode: AggMode): StatValue {
+  if (values.length === 0) return null;
+  if (values.length === 1) return values[0];
+
+  const numericValues = values.filter((value): value is number => typeof value === 'number');
+  if (numericValues.length !== values.length) return null;
+  return aggregateNumericValues(numericValues, aggMode);
+}
+
+function getPercentDeltaFromValues(baseline: StatValue, comparison: StatValue): number | null {
+  if (typeof baseline !== 'number' || typeof comparison !== 'number' || comparison === 0) {
+    return null;
+  }
+
+  const percentDelta = (comparison - baseline) / Math.abs(comparison);
+  return percentDelta === 0 || Object.is(percentDelta, -0) ? 0 : percentDelta;
+}
+
+function getTableCellValues({
+  row,
+  stat,
+  value,
+  aggMode,
+  rowsByOperatorPairId,
+}: {
+  row: PivotedRow;
+  stat: string;
+  value: StatValue;
+  aggMode: AggMode;
+  rowsByOperatorPairId: Map<string, QueryDiffTableRow>;
+}): QueryDiffTableCellValues | null {
+  const sourceValues = [...row.itemIds]
+    .map(itemId => rowsByOperatorPairId.get(itemId)?.statDetails[stat])
+    .filter((cellValues): cellValues is QueryDiffTableCellValues => cellValues != null);
+
+  if (sourceValues.length === 0) return null;
+  if (sourceValues.length === 1) return sourceValues[0];
+
+  const baseline = aggregateStatValues(
+    sourceValues.map(cellValues => cellValues.baseline),
+    aggMode
+  );
+  const comparison = aggregateStatValues(
+    sourceValues.map(cellValues => cellValues.comparison),
+    aggMode
+  );
+
+  return {
+    baseline,
+    comparison,
+    delta: value,
+    percentDelta: getPercentDeltaFromValues(baseline, comparison),
+  };
+}
+
+function QueryDiffDataCell({ values, stat }: { values: QueryDiffTableCellValues; stat: string }) {
+  return (
+    <div className="flex min-w-[11rem] flex-col gap-0.5 leading-tight">
+      <div className="flex items-baseline justify-between gap-3">
+        <span className="font-sans text-[10px] text-muted-foreground uppercase">Baseline</span>
+        <span className="text-right font-mono text-[11px] text-foreground">
+          {formatStatValue(values.baseline, stat)}
+        </span>
+      </div>
+      <div className="flex items-baseline justify-between gap-3">
+        <span className="font-sans text-[10px] text-muted-foreground uppercase">Comparison</span>
+        <span className="text-right font-mono text-[11px] text-foreground">
+          {formatStatValue(values.comparison, stat)}
+        </span>
+      </div>
+      <div className="flex items-baseline justify-between gap-3">
+        <span className="font-sans text-[10px] text-muted-foreground uppercase">Delta</span>
+        <span className="text-right font-mono text-xs font-semibold text-foreground">
+          {formatSignedDiffValue(values.delta, stat)}
+          <span className="ml-1 font-normal text-muted-foreground">
+            ({formatSignedPercentDelta(values.percentDelta)})
+          </span>
+        </span>
       </div>
     </div>
   );
@@ -188,7 +298,20 @@ export function QueryDiffTable({ baselineQuery, comparisonQuery, diff }: QueryDi
       },
       getDataCellStyle: ({ stat, value }) =>
         getDeltaCellStyle(value, maxAbsByStat.get(stat), paletteTheme),
-      formatDataCellValue: ({ stat, value }) => formatSignedDiffValue(value, stat),
+      formatDataCellValue: ({ row, stat, value, aggMode }) => {
+        const cellValues = getTableCellValues({
+          row,
+          stat,
+          value,
+          aggMode,
+          rowsByOperatorPairId,
+        });
+        return cellValues ? (
+          <QueryDiffDataCell values={cellValues} stat={stat} />
+        ) : (
+          formatSignedDiffValue(value, stat)
+        );
+      },
     }),
     [maxAbsByStat, paletteTheme, rowsByEngineGroupId, rowsByOperatorPairId]
   );
