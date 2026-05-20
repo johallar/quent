@@ -1,16 +1,23 @@
 // SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-import { useMemo, type CSSProperties } from 'react';
-import { Triangle } from 'lucide-react';
+import { useMemo, useState, type CSSProperties } from 'react';
+import { Check, ChevronDown, Search, Triangle } from 'lucide-react';
 import type { DiffQuerySummary, QueryDiff } from '@quent/client';
 import {
+  Button,
+  DataText,
+  Input,
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
   StatisticCard,
   StatisticMiniBarChart,
+  formatStatValue,
   type StatisticCardComparison,
   type StatisticMiniBarChartRow,
 } from '@quent/components';
-import type { EntityRef, PaletteTheme, QueryBundle } from '@quent/utils';
+import { cn, type EntityRef, type PaletteTheme, type QueryBundle } from '@quent/utils';
 import { THEME_DARK, useTheme } from '@/contexts/ThemeContext';
 import {
   getDiffNegativeColor,
@@ -25,6 +32,8 @@ import {
   formatDurationSeconds,
   formatPercentDelta,
   formatSignedDurationSeconds,
+  getDefaultOperatorDiffStatName,
+  getOperatorDiffStatNames,
   type OperatorTypeRuntimeComparison,
   type RuntimeComparison,
 } from './QueryDiffStats.utils';
@@ -127,15 +136,145 @@ function RuntimeComparisonCard({
   );
 }
 
+function formatOperatorChartValue(value: number, statName: string): string {
+  return statName === 'duration_s'
+    ? formatDurationSeconds(value)
+    : formatStatValue(value, statName);
+}
+
+function resolveOperatorStat(statNames: string[], requestedStat: string): string | null {
+  return statNames.includes(requestedStat)
+    ? requestedStat
+    : getDefaultOperatorDiffStatName(statNames);
+}
+
+function OperatorStatSelect({
+  statNames,
+  value,
+  onValueChange,
+}: {
+  statNames: string[];
+  value: string;
+  onValueChange: (statName: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState('');
+  const filteredStatNames = useMemo(() => {
+    if (!search) return statNames;
+    const needle = search.toLowerCase();
+    return statNames.filter(statName => statName.toLowerCase().includes(needle));
+  }, [search, statNames]);
+
+  return (
+    <div className="flex items-center justify-center gap-2">
+      <span className="text-xs text-muted-foreground">Stat</span>
+      <Popover
+        open={open}
+        onOpenChange={nextOpen => {
+          setOpen(nextOpen);
+          if (!nextOpen) setSearch('');
+        }}
+      >
+        <PopoverTrigger asChild>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            role="combobox"
+            aria-expanded={open}
+            className="h-7 min-w-40 justify-between gap-2 px-2 text-xs font-normal"
+          >
+            <DataText className="truncate">{value}</DataText>
+            <ChevronDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground opacity-70" />
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent className="w-64 p-2" align="center" side="bottom">
+          <div className="relative mb-2">
+            <Search className="pointer-events-none absolute left-2 top-1/2 size-3 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              type="search"
+              className="h-7 pl-7 pr-2 text-xs md:text-xs"
+              placeholder="Search stats..."
+              value={search}
+              onChange={event => setSearch(event.target.value)}
+              autoFocus
+            />
+          </div>
+          <div role="listbox" className="max-h-52 space-y-0.5 overflow-y-auto">
+            {filteredStatNames.map(statName => {
+              const selected = statName === value;
+              return (
+                <button
+                  key={statName}
+                  type="button"
+                  role="option"
+                  aria-selected={selected}
+                  onClick={() => {
+                    onValueChange(statName);
+                    setOpen(false);
+                    setSearch('');
+                  }}
+                  className={cn(
+                    'flex w-full cursor-default select-none items-center gap-2 rounded-sm px-2 py-1 text-left text-xs font-mono outline-none',
+                    'transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:bg-accent focus-visible:text-accent-foreground',
+                    selected && 'bg-accent text-accent-foreground'
+                  )}
+                >
+                  <Check
+                    className={cn('size-3 shrink-0', selected ? 'opacity-100' : 'opacity-0')}
+                    strokeWidth={3}
+                  />
+                  <span className="truncate">{statName}</span>
+                </button>
+              );
+            })}
+            {filteredStatNames.length === 0 && (
+              <p className="py-2 text-center text-xs text-muted-foreground">No stats found</p>
+            )}
+          </div>
+        </PopoverContent>
+      </Popover>
+    </div>
+  );
+}
+
+function OperatorStatChart({
+  rows,
+  statNames,
+  selectedStat,
+  onSelectedStatChange,
+}: {
+  rows: StatisticMiniBarChartRow[];
+  statNames: string[];
+  selectedStat: string;
+  onSelectedStatChange: (statName: string) => void;
+}) {
+  return (
+    <div className="flex h-full min-h-0 flex-col gap-2">
+      <OperatorStatSelect
+        statNames={statNames}
+        value={selectedStat}
+        onValueChange={onSelectedStatChange}
+      />
+      <StatisticMiniBarChart
+        rows={rows}
+        maxRows={rows.length}
+        className="min-h-0 flex-1 overflow-y-auto pr-1 [scrollbar-width:thin]"
+      />
+    </div>
+  );
+}
+
 function operatorRuntimeChartRows(
   comparisons: OperatorTypeRuntimeComparison[],
-  queryColors: QueryDiffQueryColors
+  queryColors: QueryDiffQueryColors,
+  statName: string
 ): StatisticMiniBarChartRow[] {
   return comparisons.map(comparison => ({
     id: comparison.id,
     label: comparison.label,
     labelColor: getQueryDiffOperatorTypeColor(comparison.id),
-    title: formatDurationSeconds(Math.max(comparison.a, comparison.b)),
+    title: formatOperatorChartValue(Math.max(comparison.a, comparison.b), statName),
     bars: [
       {
         id: 'baseline',
@@ -156,9 +295,11 @@ function operatorRuntimeChartRows(
 function aggregateOperatorRuntimeChartRows({
   comparisons,
   paletteTheme,
+  statName,
 }: {
   comparisons: QueryDiffStatsOverviewComparison[];
   paletteTheme: PaletteTheme;
+  statName: string;
 }): StatisticMiniBarChartRow[] {
   const rowsByOperatorType = new Map<
     string,
@@ -170,7 +311,7 @@ function aggregateOperatorRuntimeChartRows({
   >();
 
   for (const comparison of comparisons) {
-    const operatorComparisons = buildOperatorTypeRuntimeComparisons(comparison.diff);
+    const operatorComparisons = buildOperatorTypeRuntimeComparisons(comparison.diff, statName);
     const comparisonName =
       comparison.comparisonQuery.instance_name ?? comparison.comparisonQuery.id;
     const queryColors = getQueryDiffQueryColors({
@@ -202,8 +343,9 @@ function aggregateOperatorRuntimeChartRows({
       id: operatorType,
       label: row.label,
       labelColor: getQueryDiffOperatorTypeColor(operatorType),
-      title: formatDurationSeconds(
-        Math.max(row.baselineValue, ...row.comparisonBars.map(bar => bar.value))
+      title: formatOperatorChartValue(
+        Math.max(row.baselineValue, ...row.comparisonBars.map(bar => bar.value)),
+        statName
       ),
       bars: [
         {
@@ -248,9 +390,16 @@ export function QueryDiffStats({
       }),
     [baselineQuery.id, comparisonQuery.id, comparisonIndex, paletteTheme]
   );
+  const operatorStatNames = useMemo(() => getOperatorDiffStatNames([diff]), [diff]);
+  const [requestedOperatorStat, setRequestedOperatorStat] = useState('duration_s');
+  const selectedOperatorStat = useMemo(
+    () => resolveOperatorStat(operatorStatNames, requestedOperatorStat),
+    [operatorStatNames, requestedOperatorStat]
+  );
   const operatorRuntimeComparisons = useMemo(
-    () => buildOperatorTypeRuntimeComparisons(diff),
-    [diff]
+    () =>
+      selectedOperatorStat ? buildOperatorTypeRuntimeComparisons(diff, selectedOperatorStat) : [],
+    [diff, selectedOperatorStat]
   );
   const totalRuntimeComparison = useMemo(
     () =>
@@ -272,14 +421,19 @@ export function QueryDiffStats({
           queryColors={queryColors}
           paletteTheme={paletteTheme}
         />
-        {operatorRuntimeComparisons.length > 0 && (
+        {selectedOperatorStat && operatorRuntimeComparisons.length > 0 && (
           <StatisticCard
             title="Operator Run Time"
             chart={
-              <StatisticMiniBarChart
-                rows={operatorRuntimeChartRows(operatorRuntimeComparisons, queryColors)}
-                maxRows={operatorRuntimeComparisons.length}
-                className="h-full overflow-y-auto pr-1 [scrollbar-width:thin]"
+              <OperatorStatChart
+                rows={operatorRuntimeChartRows(
+                  operatorRuntimeComparisons,
+                  queryColors,
+                  selectedOperatorStat
+                )}
+                statNames={operatorStatNames}
+                selectedStat={selectedOperatorStat}
+                onSelectedStatChange={setRequestedOperatorStat}
               />
             }
           />
@@ -296,6 +450,15 @@ export function QueryDiffOverviewStats({
 }) {
   const { theme } = useTheme();
   const paletteTheme = theme === THEME_DARK ? 'dark' : 'light';
+  const operatorStatNames = useMemo(
+    () => getOperatorDiffStatNames(comparisons.map(comparison => comparison.diff)),
+    [comparisons]
+  );
+  const [requestedOperatorStat, setRequestedOperatorStat] = useState('duration_s');
+  const selectedOperatorStat = useMemo(
+    () => resolveOperatorStat(operatorStatNames, requestedOperatorStat),
+    [operatorStatNames, requestedOperatorStat]
+  );
 
   const totalRuntimeComparisons = useMemo(
     () =>
@@ -318,8 +481,15 @@ export function QueryDiffOverviewStats({
     [comparisons, paletteTheme]
   );
   const operatorRuntimeRows = useMemo(
-    () => aggregateOperatorRuntimeChartRows({ comparisons, paletteTheme }),
-    [comparisons, paletteTheme]
+    () =>
+      selectedOperatorStat
+        ? aggregateOperatorRuntimeChartRows({
+            comparisons,
+            paletteTheme,
+            statName: selectedOperatorStat,
+          })
+        : [],
+    [comparisons, paletteTheme, selectedOperatorStat]
   );
 
   return (
@@ -335,14 +505,15 @@ export function QueryDiffOverviewStats({
             paletteTheme={paletteTheme}
           />
         ))}
-        {operatorRuntimeRows.length > 0 && (
+        {selectedOperatorStat && operatorRuntimeRows.length > 0 && (
           <StatisticCard
             title="Operator Run Time"
             chart={
-              <StatisticMiniBarChart
+              <OperatorStatChart
                 rows={operatorRuntimeRows}
-                maxRows={operatorRuntimeRows.length}
-                className="h-full overflow-y-auto pr-1 [scrollbar-width:thin]"
+                statNames={operatorStatNames}
+                selectedStat={selectedOperatorStat}
+                onSelectedStatChange={setRequestedOperatorStat}
               />
             }
           />

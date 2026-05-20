@@ -4,7 +4,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from '@tanstack/react-router';
 import { useQueries, useQuery } from '@tanstack/react-query';
-import { ChevronDown, Plus } from 'lucide-react';
+import { ArrowLeftRight, ChevronDown, Plus, X } from 'lucide-react';
 import {
   fetchListCoordinators,
   fetchListEngines,
@@ -633,30 +633,16 @@ function DiffDashboard({ baselineQuery, comparisonQueries }: DiffDashboardProps)
                 />
               </div>
             ) : activeTab === 'operator' ? (
-              <div className="h-full min-h-0 overflow-y-auto bg-muted/20 p-3">
-                <div className="mx-auto flex min-h-full w-full max-w-7xl flex-col gap-3">
-                  {comparisons.map((comparison, index) => (
-                    <section
-                      key={comparison.id}
-                      className="flex min-h-[32rem] flex-col overflow-hidden border border-border bg-background"
-                    >
-                      <div className="flex shrink-0 flex-wrap items-center gap-x-2 gap-y-1 border-b border-border bg-card px-4 py-2 text-xs text-muted-foreground">
-                        <span className="font-semibold uppercase tracking-wide">
-                          Comparison Query {index + 1}
-                        </span>
-                        <DataText className="max-w-56 truncate">
-                          {querySummaryLabel(comparison.comparisonQuery)}
-                        </DataText>
-                      </div>
-                      <div className="min-h-0 flex-1">
-                        <QueryDiffTable
-                          baselineQuery={comparison.baselineQuery}
-                          comparisonQuery={comparison.comparisonQuery}
-                          diff={comparison.diff}
-                        />
-                      </div>
-                    </section>
-                  ))}
+              <div className="h-full min-h-0 bg-muted/20 p-3">
+                <div className="mx-auto h-full min-h-0 w-full max-w-7xl overflow-hidden border border-border bg-background">
+                  <QueryDiffTable
+                    baselineQuery={comparisons[0].baselineQuery}
+                    comparisons={comparisons.map(comparison => ({
+                      id: comparison.id,
+                      comparisonQuery: comparison.comparisonQuery,
+                      diff: comparison.diff,
+                    }))}
+                  />
                 </div>
               </div>
             ) : (
@@ -916,6 +902,15 @@ export function DiffSelectionPage({
     setComparisonQueries(prev => [...prev, makeComparisonQuery()]);
   };
 
+  const handleRemoveComparisonQuery = (comparisonId: string) => {
+    const nextComparisons = comparisonQueries.filter(query => query.id !== comparisonId);
+    if (nextComparisons.length === 0) return;
+
+    setSelectionOpen(true);
+    setComparisonQueries(nextComparisons);
+    maybeNavigateToDiff(baselineQuery, nextComparisons);
+  };
+
   const handleMakeBaseline = (comparisonId: string) => {
     const selectedComparison = comparisonQueries.find(query => query.id === comparisonId);
     if (!selectedComparison || !isQuerySideComplete(selectedComparison)) return;
@@ -971,19 +966,26 @@ export function DiffSelectionPage({
 
         <CollapsibleContent className="overflow-hidden will-change-[height,opacity,transform] data-[state=closed]:animate-collapsible-up data-[state=open]:animate-collapsible-down">
           <div className="mx-auto w-full max-w-5xl px-4 pb-3">
-            <div className="mx-auto grid w-full max-w-5xl items-start gap-2 lg:grid-cols-2">
-              <QuerySelectorColumn
-                label="Baseline Query"
-                idPrefix="baseline-query"
-                side={baselineQuery}
-                engines={engines}
-                queryGroups={baselineCatalog.queryGroups}
-                queriesByGroup={baselineCatalog.queriesByGroup}
-                queriesLoading={baselineCatalog.queriesLoading}
-                onEngineChange={handleBaselineEngineChange}
-                onGroupChange={handleBaselineGroupChange}
-                onQueryChange={handleBaselineQueryChange}
-              />
+            <div className="mx-auto grid w-full max-w-5xl items-center gap-2 lg:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)]">
+              <div className="min-w-0 lg:self-center">
+                <QuerySelectorColumn
+                  label="Baseline Query"
+                  idPrefix="baseline-query"
+                  side={baselineQuery}
+                  engines={engines}
+                  queryGroups={baselineCatalog.queryGroups}
+                  queriesByGroup={baselineCatalog.queriesByGroup}
+                  queriesLoading={baselineCatalog.queriesLoading}
+                  onEngineChange={handleBaselineEngineChange}
+                  onGroupChange={handleBaselineGroupChange}
+                  onQueryChange={handleBaselineQueryChange}
+                />
+              </div>
+              <div className="flex justify-center lg:self-center" aria-hidden="true">
+                <div className="flex h-8 w-8 items-center justify-center rounded-full border border-border bg-background text-muted-foreground shadow-sm">
+                  <ArrowLeftRight className="h-4 w-4" />
+                </div>
+              </div>
               <div className="min-w-0 space-y-2">
                 {comparisonQueries.map((comparisonQuery, index) => {
                   return (
@@ -994,17 +996,32 @@ export function DiffSelectionPage({
                       side={comparisonQuery}
                       engines={engines}
                       action={
-                        isQuerySideComplete(comparisonQuery) ? (
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            className="h-6 px-2 text-[11px]"
-                            onClick={() => handleMakeBaseline(comparisonQuery.id)}
-                          >
-                            Make Baseline
-                          </Button>
-                        ) : null
+                        <div className="flex items-center gap-1">
+                          {isQuerySideComplete(comparisonQuery) && (
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              className="h-6 px-2 text-[11px]"
+                              onClick={() => handleMakeBaseline(comparisonQuery.id)}
+                            >
+                              Make Baseline
+                            </Button>
+                          )}
+                          {comparisonQueries.length > 1 && (
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              className="h-6 w-6 px-0 text-muted-foreground hover:text-foreground"
+                              aria-label={`Remove Comparison Query ${index + 1}`}
+                              title="Remove comparison"
+                              onClick={() => handleRemoveComparisonQuery(comparisonQuery.id)}
+                            >
+                              <X className="h-3.5 w-3.5" />
+                            </Button>
+                          )}
+                        </div>
                       }
                       onEngineChange={engineId =>
                         handleComparisonEngineChange(comparisonQuery.id, engineId)

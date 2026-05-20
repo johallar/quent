@@ -51,14 +51,15 @@ export function buildRuntimeComparisonFromDelta(
 }
 
 export function buildOperatorTypeRuntimeComparisons(
-  diff: QueryDiff
+  diff: QueryDiff,
+  statName = 'duration_s'
 ): OperatorTypeRuntimeComparison[] {
   const totalsByOperatorType = new Map<string, { a: number; b: number }>();
 
   for (const entry of diff.operator_diffs ?? []) {
     const [operatorA, operatorB] = entry.operators;
-    const duration = entry.stats.duration_s;
-    const [a, b] = duration?.stats ?? ([] as StatValue[]);
+    const stat = entry.stats[statName];
+    const [a, b] = stat?.stats ?? ([] as StatValue[]);
     if (typeof a !== 'number' || typeof b !== 'number') continue;
 
     const operatorType = operatorA.operator_type_name ?? operatorB.operator_type_name ?? 'Unknown';
@@ -75,6 +76,30 @@ export function buildOperatorTypeRuntimeComparisons(
       label: operatorType,
     }))
     .sort((left, right) => Math.max(right.a, right.b) - Math.max(left.a, left.b));
+}
+
+export function getOperatorDiffStatNames(diffs: QueryDiff[]): string[] {
+  const statNames: string[] = [];
+  const seen = new Set<string>();
+
+  for (const diff of diffs) {
+    for (const entry of diff.operator_diffs ?? []) {
+      for (const [statName, stat] of Object.entries(entry.stats)) {
+        if (seen.has(statName)) continue;
+        const [a, b] = stat.stats;
+        if (typeof a !== 'number' || typeof b !== 'number') continue;
+        seen.add(statName);
+        statNames.push(statName);
+      }
+    }
+  }
+
+  return statNames;
+}
+
+export function getDefaultOperatorDiffStatName(statNames: readonly string[]): string | null {
+  if (statNames.length === 0) return null;
+  return statNames.includes('duration_s') ? 'duration_s' : statNames[0]!;
 }
 
 export function sumRuntimeComparisons(entries: RuntimeComparison[]): RuntimeComparison {

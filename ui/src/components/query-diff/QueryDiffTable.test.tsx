@@ -30,6 +30,7 @@ describe('QueryDiffTable helpers', () => {
       engines: [{ id: 'engine-b', label: 'Engine B' }],
       operatorType: 'Scan',
       operatorLabel: 'Scan orders <-> Scan orders\nscan-a <-> scan-b',
+      operatorPairId: 'query-b:scan-a:scan-b',
       operatorAId: 'scan-a',
       operatorALabel: 'Scan orders',
       operatorBId: 'scan-b',

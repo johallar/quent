@@ -72,7 +72,8 @@ function formatOperatorPairLabel(
 export function buildQueryDiffRows(
   _baselineQuery: DiffQuerySummary,
   comparisonQuery: DiffQuerySummary,
-  diff: QueryDiff
+  diff: QueryDiff,
+  comparisonId = comparisonQuery.id
 ): QueryDiffTableRow[] {
   const comparisonEngine = getQueryEngine(comparisonQuery);
   const engines = [comparisonEngine];
@@ -103,7 +104,7 @@ export function buildQueryDiffRows(
         engines,
         operatorType,
         operatorLabel,
-        operatorPairId: `${operatorA.id}:${operatorB.id}`,
+        operatorPairId: `${comparisonId}:${operatorA.id}:${operatorB.id}`,
         operatorAId: operatorA.id,
         operatorALabel: operatorA.label,
         operatorBId: operatorB.id,

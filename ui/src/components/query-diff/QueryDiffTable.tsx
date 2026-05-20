@@ -56,7 +56,7 @@ const DIFF_TABLE_SCHEMA: PivotedStatTableSchema<QueryDiffTableRow> = {
 const INDEX_ORDER: IndexKey[] = ['engine', 'operator_type', 'operator'];
 
 const DEFAULT_ENABLED: Record<IndexKey, boolean> = {
-  engine: false,
+  engine: true,
   operator_type: true,
   operator: false,
 };
@@ -203,16 +203,44 @@ function QueryDiffDataCell({ values, stat }: { values: QueryDiffTableCellValues;
   );
 }
 
-interface QueryDiffTableProps {
-  baselineQuery: DiffQuerySummary;
+export interface QueryDiffTableComparison {
+  id: string;
   comparisonQuery: DiffQuerySummary;
   diff: QueryDiff;
 }
 
-export function QueryDiffTable({ baselineQuery, comparisonQuery, diff }: QueryDiffTableProps) {
+interface QueryDiffTableProps {
+  baselineQuery: DiffQuerySummary;
+  comparisons: QueryDiffTableComparison[];
+}
+
+function comparisonCountLabel(comparisons: QueryDiffTableComparison[]): string {
+  if (comparisons.length === 1) {
+    return (
+      comparisons[0]?.comparisonQuery.instance_name ?? comparisons[0]?.comparisonQuery.id ?? ''
+    );
+  }
+  return `${comparisons.length} comparison queries`;
+}
+
+export function QueryDiffTable({ baselineQuery, comparisons }: QueryDiffTableProps) {
   const rows = useMemo(
-    () => buildQueryDiffRows(baselineQuery, comparisonQuery, diff),
-    [baselineQuery, comparisonQuery, diff]
+    () =>
+      comparisons.flatMap(comparison =>
+        comparison.diff.compatibility === 'compatible'
+          ? buildQueryDiffRows(
+              baselineQuery,
+              comparison.comparisonQuery,
+              comparison.diff,
+              comparison.id
+            )
+          : []
+      ),
+    [baselineQuery, comparisons]
+  );
+  const incompatibleDiffs = useMemo(
+    () => comparisons.filter(comparison => comparison.diff.compatibility !== 'compatible'),
+    [comparisons]
   );
   const rowsByEngineGroupId = useMemo(
     () => new Map(rows.map(row => [row.engineGroupId, row])),
@@ -251,7 +279,8 @@ export function QueryDiffTable({ baselineQuery, comparisonQuery, diff }: QueryDi
     defaultEnabled: DEFAULT_ENABLED,
     allStatNames,
     defaultStatSelector: stats => stats,
-    persistKey: 'queryDiffTable:v3',
+    filterIndexOrder: indexOrder => ['engine', ...indexOrder.filter(key => key !== 'engine')],
+    persistKey: 'queryDiffTable:v4',
     rows,
     getRowIndexId: (row, key) => DIFF_TABLE_SCHEMA.groups[key].id(row),
   });
@@ -270,7 +299,8 @@ export function QueryDiffTable({ baselineQuery, comparisonQuery, diff }: QueryDi
       visibleIndexOrder.map(key => ({
         key,
         label: indexLabels[key],
-        enabled: enabledIndices[key],
+        enabled: key === 'engine' || enabledIndices[key],
+        locked: key === 'engine',
       })),
     [enabledIndices, indexLabels, visibleIndexOrder]
   );
@@ -316,10 +346,11 @@ export function QueryDiffTable({ baselineQuery, comparisonQuery, diff }: QueryDi
     [maxAbsByStat, paletteTheme, rowsByEngineGroupId, rowsByOperatorPairId]
   );
 
-  if (diff.compatibility !== 'compatible') {
+  if (comparisons.length > 0 && incompatibleDiffs.length === comparisons.length) {
     return (
       <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
-        {diff.warnings?.[0] ?? 'Plans are not structurally equal; operator diff is unavailable.'}
+        {incompatibleDiffs[0]?.diff.warnings?.[0] ??
+          'Plans are not structurally equal; operator diff is unavailable.'}
       </div>
     );
   }
@@ -345,7 +376,13 @@ export function QueryDiffTable({ baselineQuery, comparisonQuery, diff }: QueryDi
             aria-label="delta"
             role="img"
           />
-          <DataText>{comparisonQuery.instance_name ?? comparisonQuery.id}</DataText>
+          <DataText>{comparisonCountLabel(comparisons)}</DataText>
+          {incompatibleDiffs.length > 0 && (
+            <span className="ml-2 text-muted-foreground">
+              {incompatibleDiffs.length} incompatible comparison
+              {incompatibleDiffs.length === 1 ? '' : 's'} omitted
+            </span>
+          )}
         </div>
       </div>
       <div className="shrink-0 flex flex-col border-b border-border bg-card">

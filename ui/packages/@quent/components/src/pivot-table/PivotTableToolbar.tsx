@@ -12,6 +12,7 @@ export interface IndexConfigEntry {
   key: string;
   label: React.ReactNode;
   enabled: boolean;
+  locked?: boolean;
 }
 
 export interface PivotTableToolbarProps {
@@ -48,6 +49,7 @@ export function PivotTableToolbar({
       const fromIndex = keys.indexOf(fromKey);
       const targetIndex = keys.indexOf(toKey);
       if (fromIndex < 0 || targetIndex < 0) return;
+      if (indexConfig[fromIndex]?.locked || indexConfig[targetIndex]?.locked) return;
 
       let anchorKey = toKey;
       if (position === 'before' && fromIndex < targetIndex) {
@@ -67,8 +69,8 @@ export function PivotTableToolbar({
     <>
       <div className="flex items-center gap-2 px-3 py-1.5">
         <span className="text-xs text-muted-foreground shrink-0">Group by:</span>
-        {indexConfig.map(({ key, label, enabled }) => {
-          const dropPosition = dragDrop.getDropTargetPosition(key);
+        {indexConfig.map(({ key, label, enabled, locked }) => {
+          const dropPosition = locked ? undefined : dragDrop.getDropTargetPosition(key);
           const dropIndicatorStyle = dropPosition
             ? {
                 boxShadow:
@@ -80,18 +82,32 @@ export function PivotTableToolbar({
           return (
             <button
               key={key}
-              draggable
-              onDragStart={e => dragDrop.handleDragStart(e, key)}
-              onDragOver={e => dragDrop.handleDragOver(e, key)}
-              onDragLeave={e => dragDrop.handleDragLeave(e, key)}
-              onDrop={e => dragDrop.handleDrop(e, key)}
+              draggable={!locked}
+              aria-disabled={locked}
+              title={locked ? 'Required group' : undefined}
+              onDragStart={e => {
+                if (locked) return;
+                dragDrop.handleDragStart(e, key);
+              }}
+              onDragOver={e => {
+                if (!locked) dragDrop.handleDragOver(e, key);
+              }}
+              onDragLeave={e => {
+                if (!locked) dragDrop.handleDragLeave(e, key);
+              }}
+              onDrop={e => {
+                if (!locked) dragDrop.handleDrop(e, key);
+              }}
               onDragEnd={dragDrop.handleDragEnd}
-              onClick={() => onToggleIndex(key)}
+              onClick={() => {
+                if (!locked) onToggleIndex(key);
+              }}
               className={cn(
                 'text-xs px-2 py-0.5 rounded border transition-colors cursor-grab active:cursor-grabbing select-none whitespace-nowrap h-full',
                 {
                   'bg-primary/10 border-primary/40 text-primary': enabled,
                   'bg-muted/50 border-border text-muted-foreground': !enabled,
+                  'cursor-default active:cursor-default': locked,
                   'opacity-45': dragDrop.draggedId === key,
                 }
               )}

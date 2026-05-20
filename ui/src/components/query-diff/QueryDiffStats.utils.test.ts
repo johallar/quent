@@ -7,6 +7,8 @@ import {
   buildOperatorTypeRuntimeComparisons,
   buildRuntimeComparison,
   buildRuntimeComparisonFromDelta,
+  getDefaultOperatorDiffStatName,
+  getOperatorDiffStatNames,
   formatPercentDelta,
   formatSignedDurationSeconds,
   sumRuntimeComparisons,
@@ -71,6 +73,34 @@ describe('QueryDiffStats helpers', () => {
       a: 15,
       b: 12,
       delta: 3,
+    });
+  });
+
+  it('extracts numeric operator diff stat names in payload order', () => {
+    expect(getOperatorDiffStatNames([equalPlanQueryDiffFixture])).toEqual([
+      'duration_s',
+      'input_rows',
+      'output_rows',
+    ]);
+  });
+
+  it('defaults operator stat selection to duration_s or the first available stat', () => {
+    expect(getDefaultOperatorDiffStatName(['input_rows', 'duration_s'])).toBe('duration_s');
+    expect(getDefaultOperatorDiffStatName(['input_rows', 'output_rows'])).toBe('input_rows');
+    expect(getDefaultOperatorDiffStatName([])).toBeNull();
+  });
+
+  it('extracts sorted per-operator-type comparisons for a selected stat', () => {
+    const comparisons = buildOperatorTypeRuntimeComparisons(
+      equalPlanQueryDiffFixture,
+      'input_rows'
+    );
+
+    expect(comparisons.map(comparison => comparison.label)).toEqual(['Scan', 'Join', 'Aggregate']);
+    expect(sumRuntimeComparisons(comparisons)).toMatchObject({
+      a: 2300,
+      b: 2530,
+      delta: -230,
     });
   });
 
