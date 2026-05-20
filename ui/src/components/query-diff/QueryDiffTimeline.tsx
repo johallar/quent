@@ -76,7 +76,7 @@ interface TimelineTarget {
   resourceTypes: string[];
 }
 
-const TIMELINE_ROW_HEIGHT = 44;
+const TIMELINE_ROW_HEIGHT = 55;
 const TIMELINE_START = 0n;
 const COMPACT_SELECT_TRIGGER_CLASS = 'h-7 min-w-36 rounded px-2 py-1 text-xs';
 const COMPACT_SELECT_ITEM_CLASS = 'py-1 pl-7 pr-2 text-xs';
@@ -208,7 +208,6 @@ function QueryDiffTimelinePairRows({
   baselineEngineId,
   baselineQueryId,
   baselineTarget,
-  baselineDurationSeconds,
   resourceType,
   durationSeconds,
 }: {
@@ -216,7 +215,6 @@ function QueryDiffTimelinePairRows({
   baselineEngineId: string;
   baselineQueryId: string;
   baselineTarget: TimelineTarget | null;
-  baselineDurationSeconds: number;
   resourceType: string;
   durationSeconds: number;
 }) {
@@ -247,15 +245,9 @@ function QueryDiffTimelinePairRows({
       queryId: baselineQueryId,
       rootResourceGroupId: baselineTarget.rootResourceGroupId,
       resourceTypeName: resourceType,
-      durationSeconds: baselineDurationSeconds,
+      durationSeconds,
     });
-  }, [
-    baselineQueryId,
-    baselineDurationSeconds,
-    baselineTarget,
-    canRenderResourceType,
-    resourceType,
-  ]);
+  }, [baselineQueryId, baselineTarget, canRenderResourceType, durationSeconds, resourceType]);
 
   const comparisonRequest = useMemo(() => {
     if (!comparisonTarget || !resourceType || !canRenderResourceType) return null;
@@ -263,13 +255,13 @@ function QueryDiffTimelinePairRows({
       queryId: comparison.comparisonBundle.query_id,
       rootResourceGroupId: comparisonTarget.rootResourceGroupId,
       resourceTypeName: resourceType,
-      durationSeconds: comparison.comparisonBundle.duration_s,
+      durationSeconds,
     });
   }, [
-    comparison.comparisonBundle.duration_s,
     comparison.comparisonBundle.query_id,
     canRenderResourceType,
     comparisonTarget,
+    durationSeconds,
     resourceType,
   ]);
 
@@ -374,18 +366,8 @@ function QueryDiffTimelinePairRows({
         <Timeline
           startTime={TIMELINE_START}
           durationSeconds={durationSeconds}
-          timestamps={timelineData.comparison.timestamps}
-          series={timelineData.comparison.series}
-          showTooltip={false}
-          isDark={isDark}
-        />
-      </TimelineLane>
-      <TimelineLane label="Delta" detail={`Baseline - ${comparisonName}`}>
-        <Timeline
-          startTime={TIMELINE_START}
-          durationSeconds={durationSeconds}
-          timestamps={timelineData.delta.timestamps}
-          series={timelineData.delta.series}
+          timestamps={timelineData.comparisonWithDelta.timestamps}
+          series={timelineData.comparisonWithDelta.series}
           showTooltip={false}
           isDark={isDark}
         />
@@ -612,7 +594,6 @@ export function QueryDiffTimelineList({
               baselineEngineId={baselineEngineId}
               baselineQueryId={baselineBundle.query_id}
               baselineTarget={baselineTarget}
-              baselineDurationSeconds={baselineBundle.duration_s}
               resourceType={resourceType}
               durationSeconds={durationSeconds}
             />
@@ -694,9 +675,9 @@ export function QueryDiffTimeline({
       queryId: baselineBundle.query_id,
       rootResourceGroupId: baselineTarget.rootResourceGroupId,
       resourceTypeName: resourceType,
-      durationSeconds: baselineBundle.duration_s,
+      durationSeconds,
     });
-  }, [baselineBundle.duration_s, baselineBundle.query_id, baselineTarget, resourceType]);
+  }, [baselineBundle.query_id, baselineTarget, durationSeconds, resourceType]);
 
   const comparisonRequest = useMemo(() => {
     if (!comparisonTarget || !resourceType) return null;
@@ -704,9 +685,9 @@ export function QueryDiffTimeline({
       queryId: comparisonBundle.query_id,
       rootResourceGroupId: comparisonTarget.rootResourceGroupId,
       resourceTypeName: resourceType,
-      durationSeconds: comparisonBundle.duration_s,
+      durationSeconds,
     });
-  }, [comparisonBundle.duration_s, comparisonBundle.query_id, comparisonTarget, resourceType]);
+  }, [comparisonBundle.query_id, comparisonTarget, durationSeconds, resourceType]);
 
   const timelineDiffRequest = useMemo<DiffTimelineRequest | null>(() => {
     if (!baselineRequest || !comparisonRequest || durationSeconds <= 0) return null;
@@ -888,18 +869,8 @@ export function QueryDiffTimeline({
             <Timeline
               startTime={TIMELINE_START}
               durationSeconds={durationSeconds}
-              timestamps={comparison.comparison.timestamps}
-              series={comparison.comparison.series}
-              showTooltip={false}
-              isDark={isDark}
-            />
-          </TimelineLane>
-          <TimelineLane label="Delta" detail="Baseline - Comparison" className="border-b-0">
-            <Timeline
-              startTime={TIMELINE_START}
-              durationSeconds={durationSeconds}
-              timestamps={comparison.delta.timestamps}
-              series={comparison.delta.series}
+              timestamps={comparison.comparisonWithDelta.timestamps}
+              series={comparison.comparisonWithDelta.series}
               showTooltip={false}
               isDark={isDark}
             />

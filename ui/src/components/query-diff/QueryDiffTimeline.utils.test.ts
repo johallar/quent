@@ -47,6 +47,19 @@ describe('buildDiffTimelineData', () => {
     expect(data.comparison.series.slots?.values).toEqual([0, 0]);
     expect(data.delta.series['Baseline higher']?.values).toEqual([2, 0]);
     expect(data.delta.series['Comparison higher']?.values).toEqual([0, 3]);
+    expect(data.comparisonWithDelta.series.slots?.values).toEqual([0, 0]);
+    expect(data.comparisonWithDelta.series['Delta: Baseline higher']).toMatchObject({
+      values: [-2, 0],
+      color: DIFF_NEGATIVE_COLOR,
+      isOverlay: true,
+      renderType: 'bar',
+    });
+    expect(data.comparisonWithDelta.series['Delta: Comparison higher']).toMatchObject({
+      values: [0, 3],
+      color: DIFF_POSITIVE_COLOR,
+      isOverlay: true,
+      renderType: 'bar',
+    });
     expect(data.baseline.series.slots?.color).toBe('#0072B2');
     expect(data.comparison.series.slots?.color).toBe('#E69F00');
     expect(data.delta.series['Baseline higher']?.color).toBe(DIFF_NEGATIVE_COLOR);

@@ -23,6 +23,7 @@ interface TimelineRowData {
 export interface DiffTimelineData {
   baseline: TimelineRowData;
   comparison: TimelineRowData;
+  comparisonWithDelta: TimelineRowData;
   delta: TimelineRowData;
 }
 
@@ -82,6 +83,46 @@ function formatDeltaSeries({
   );
 }
 
+function buildSignedDeltaOverlaySeries({
+  delta,
+  baseline,
+  comparison,
+  theme,
+}: {
+  delta: TimelineRowData;
+  baseline: TimelineRowData;
+  comparison: TimelineRowData;
+  theme: PaletteTheme;
+}): TimelineSeries {
+  const formatter = getFirstFormatter(baseline.series, comparison.series);
+  const positiveColor = getDiffPositiveColor(theme);
+  const negativeColor = getDiffNegativeColor(theme);
+
+  return Object.fromEntries(
+    Object.entries(delta.series).flatMap(([name, entry]) => {
+      const baselineHigher = name === QUERY_A_HIGHER_LABEL || name === BASELINE_HIGHER_LABEL;
+      const comparisonHigher = name === QUERY_B_HIGHER_LABEL || name === COMPARISON_HIGHER_LABEL;
+      if (!baselineHigher && !comparisonHigher) return [];
+
+      const displayName = baselineHigher ? BASELINE_HIGHER_LABEL : COMPARISON_HIGHER_LABEL;
+      const sign = baselineHigher ? -1 : 1;
+      return [
+        [
+          `Delta: ${displayName}`,
+          {
+            ...entry,
+            color: baselineHigher ? negativeColor : positiveColor,
+            formatter,
+            isOverlay: true,
+            renderType: 'bar' as const,
+            values: entry.values.map(value => (value === 0 ? 0 : sign * Math.abs(value))),
+          },
+        ],
+      ];
+    })
+  );
+}
+
 function recolorTimelineSeries(series: TimelineSeries, color: string): TimelineSeries {
   return Object.fromEntries(
     Object.entries(series).map(([name, entry]) => [
@@ -136,6 +177,13 @@ export function buildDiffTimelineData({
     comparison: {
       ...comparison,
       series: recolorTimelineSeries(comparison.series, queryColors.comparison),
+    },
+    comparisonWithDelta: {
+      timestamps: comparison.timestamps,
+      series: {
+        ...recolorTimelineSeries(comparison.series, queryColors.comparison),
+        ...buildSignedDeltaOverlaySeries({ delta, baseline, comparison, theme }),
+      },
     },
     delta: {
       timestamps: delta.timestamps,

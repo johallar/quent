@@ -13,8 +13,8 @@ import * as echarts from 'echarts/core';
 import type { ComposeOption, EChartsType } from 'echarts/core';
 
 // Charts - only import what you use
-import { LineChart, CustomChart } from 'echarts/charts';
-import type { LineSeriesOption, CustomSeriesOption } from 'echarts/charts';
+import { LineChart, BarChart, CustomChart } from 'echarts/charts';
+import type { LineSeriesOption, BarSeriesOption, CustomSeriesOption } from 'echarts/charts';
 
 // Components - only import what you use
 import {
@@ -45,6 +45,7 @@ import { CanvasRenderer } from 'echarts/renderers';
 echarts.use([
   // Charts
   LineChart,
+  BarChart,
   CustomChart,
   // Components
   TitleComponent,
@@ -63,6 +64,7 @@ echarts.use([
 // Compose the option type from the components we use
 export type EChartsOption = ComposeOption<
   | LineSeriesOption
+  | BarSeriesOption
   | CustomSeriesOption
   | TitleComponentOption
   | TooltipComponentOption

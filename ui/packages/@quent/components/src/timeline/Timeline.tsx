@@ -5,7 +5,7 @@ import { useCallback, useEffect, useMemo, useRef } from 'react';
 import ReactEChartsComponent from 'echarts-for-react';
 import { echarts } from '../lib/echarts';
 import type { EChartsOption } from '../lib/echarts';
-import type { LineSeriesOption } from 'echarts/charts';
+import type { BarSeriesOption, LineSeriesOption } from 'echarts/charts';
 import type { EChartsInstance } from 'echarts-for-react';
 import { withOpacity } from '@quent/utils';
 import type { TimelineSeriesEntry } from './types';
@@ -69,40 +69,61 @@ export function Timeline({
     const sortedEntries = Object.entries(series).sort((a, b) => a[0].localeCompare(b[0]));
     const rollupTimelineColor = isDark ? ROLLUP_TIMELINE_COLOR_DARK : ROLLUP_TIMELINE_COLOR_LIGHT;
 
-    const allSeries: LineSeriesOption[] = sortedEntries.map(([name, seriesData]) => {
-      const isOverlay = seriesData.isOverlay ?? false;
-      const isDimmed = seriesData.isDimmed ?? false;
-      // When an operator is selected, collapse all non-overlay states to a
-      // single neutral gray so the operator overlay reads as the figure and
-      // everything else recedes as a monotone background.
-      const renderColor = isDimmed ? rollupTimelineColor : seriesData.color;
+    const allSeries: Array<LineSeriesOption | BarSeriesOption> = sortedEntries.map(
+      ([name, seriesData]) => {
+        const isOverlay = seriesData.isOverlay ?? false;
+        const isDimmed = seriesData.isDimmed ?? false;
+        // When an operator is selected, collapse all non-overlay states to a
+        // single neutral gray so the operator overlay reads as the figure and
+        // everything else recedes as a monotone background.
+        const renderColor = isDimmed ? rollupTimelineColor : seriesData.color;
 
-      return {
-        name,
-        type: 'line',
-        stack: isOverlay ? `overlay-total` : 'total',
-        step: 'middle',
-        symbol: 'circle',
-        symbolSize: (value: number[]) => (value[1] === 0 || isOverlay ? 0 : 4),
-        hoverAnimation: false,
-        showSymbol: false,
-        ...TIMELINE_X_AXIS_ANIMATION,
-        cursor: 'default',
-        data: seriesData.values.map((value, index) => [timestamps[index], value]),
-        lineStyle: { width: 0 },
-        itemStyle: { color: renderColor },
-        areaStyle: {
-          color: renderColor,
-          opacity: isDimmed ? DIMMED_OPACITY : 1,
-        },
-        z: isOverlay ? 5 : 2,
-        sampling: 'lttb',
-        emphasis: {
-          disabled: true,
-          focus: 'none',
-        },
-      };
-    });
+        if (seriesData.renderType === 'bar') {
+          return {
+            name,
+            type: 'bar',
+            barGap: '-100%',
+            barCategoryGap: '0%',
+            barWidth: '100%',
+            cursor: 'default',
+            data: seriesData.values.map((value, index) => [timestamps[index], value]),
+            itemStyle: { color: renderColor },
+            z: isOverlay ? 6 : 3,
+            sampling: 'lttb',
+            emphasis: {
+              disabled: true,
+              focus: 'none',
+            },
+          };
+        }
+
+        return {
+          name,
+          type: 'line',
+          stack: isOverlay ? `overlay-total` : 'total',
+          step: 'middle',
+          symbol: 'circle',
+          symbolSize: (value: number[]) => (value[1] === 0 || isOverlay ? 0 : 4),
+          hoverAnimation: false,
+          showSymbol: false,
+          ...TIMELINE_X_AXIS_ANIMATION,
+          cursor: 'default',
+          data: seriesData.values.map((value, index) => [timestamps[index], value]),
+          lineStyle: { width: 0 },
+          itemStyle: { color: renderColor },
+          areaStyle: {
+            color: renderColor,
+            opacity: isDimmed ? DIMMED_OPACITY : 1,
+          },
+          z: isOverlay ? 5 : 2,
+          sampling: 'lttb',
+          emphasis: {
+            disabled: true,
+            focus: 'none',
+          },
+        };
+      }
+    );
 
     const markCount = marks?.length ?? 0;
     maxMarkCountRef.current = Math.max(maxMarkCountRef.current, markCount);
@@ -181,11 +202,16 @@ export function Timeline({
 
   const maxValue = useVisibleMaxValue(series, timestamps, startTimeMs);
 
+  const hasNegativeValues = useMemo(
+    () => Object.values(series).some(entry => entry.values.some(value => value < 0)),
+    [series]
+  );
+
   const yAxisOptions = useMemo(
     () => [
       {
         type: 'value',
-        min: 0,
+        min: hasNegativeValues ? (value: { min: number }) => Math.min(0, value.min * 1.1) : 0,
         // Adds a 10% padding to the top of the bars
         max: (value: { max: number }) => value.max * 1.1 || 1,
         splitNumber: 1,
@@ -200,7 +226,7 @@ export function Timeline({
         gridIndex: 0,
       },
     ],
-    []
+    [hasNegativeValues]
   );
 
   const xAxisOptions = useMemo(
