@@ -10,24 +10,24 @@ import type {
   TimelineConfig,
 } from '@quent/utils';
 
-export interface QueryProfileDiffQueryRef {
+export interface DiffQueryRef {
   // @chris tell me if engine is needed, is group needed?
   engine_id: string;
   query_id: string;
 }
 
-export interface QueryProfileDiffRequest {
+export interface DiffRequest {
   // Alternatively make this one array, assume first item is baseline
-  baselineQuery: QueryProfileDiffQueryRef;
-  comparisonQueries: Array<QueryProfileDiffQueryRef>;
+  baselineQuery: DiffQueryRef;
+  comparisonQueries: Array<DiffQueryRef>;
 }
 
 // This is a later thing
-// export type QueryProfileDiffScenario = 'plans_equal' | 'plans_different' | 'plans_incomparable';
+// export type DiffScenario = 'plans_equal' | 'plans_different' | 'plans_incomparable';
 
 export type Compatibility = 'compatible' | 'incompatible';
 
-export interface QueryProfileDiffQuerySummary {
+export interface DiffQuerySummary {
   // Be flexible w these properties/names, maybe no names and just ids
   id: string;
   engine_id: string;
@@ -37,71 +37,69 @@ export interface QueryProfileDiffQuerySummary {
   query_group_name?: string | null;
 }
 
-export interface QueryProfileDiffOperatorRef {
+export interface DiffOperatorRef {
   id: string;
   label: string;
   operator_type_name: string | null;
   plan_id: string | null;
 }
 
-export interface QueryProfileDiffDelta {
+export interface DiffDelta {
   stats: [StatValue, StatValue];
   delta: number | null;
   percent_delta: number | null;
 }
 
-export interface QueryProfileDiffOperatorDelta {
-  operators: [QueryProfileDiffOperatorRef, QueryProfileDiffOperatorRef];
+export interface DiffOperatorDelta {
+  operators: [DiffOperatorRef, DiffOperatorRef];
   /* stat name -> delta values */
-  stats: Record<string, QueryProfileDiffDelta>;
+  stats: Record<string, DiffDelta>;
 }
 
-export interface QueryProfileDiffResponse {
-  // Each comparison query compared to the baseline query listed here (same order as comparison_queries in QueryProfileDiffRequest)
-  comparisonQueries: Array<QueryProfileQueryDiff>;
+export interface DiffResponse {
+  // Each comparison query compared to the baseline query listed here (same order as comparison_queries in DiffRequest)
+  comparisonQueries: Array<QueryDiff>;
 }
 
-export interface QueryProfileQueryDiff {
+export interface QueryDiff {
   compatibility: Compatibility;
-  query?: QueryProfileDiffQuerySummary;
-  operator_diffs?: Array<QueryProfileDiffOperatorDelta>;
+  query?: DiffQuerySummary;
+  operator_diffs?: Array<DiffOperatorDelta>;
   stat_diffs?: {
     // Derived from query timestamps (last-first)
-    duration: QueryProfileDiffDelta;
+    duration: DiffDelta;
     // Extend later with other capacities aggrgated over the whole query?
-    // capacities: Record<CapacityType, QueryProfileDiffDelta>;
+    // capacities: Record<CapacityType, DiffDelta>;
   };
   warnings?: string[];
 }
 
 // IGNORE ISOMORPHIC GRAPH STUFF
-// export interface QueryProfileDiffPlanComparison {
+// export interface DiffPlanComparison {
 //   /* Big question here, how do we represent query plan graph diffs */
 //   matched_operator_count: number;
 //   unmatched_operator_a_count: number;
 //   unmatched_operator_b_count: number;
 // }
-// plan_comparison: QueryProfileDiffPlanComparison;
+// plan_comparison: DiffPlanComparison;
 
 /****
  * Later
  */
-export type QueryProfileDiffTimelineEntries<T> = [T, T, ...T[]];
+export type DiffTimelineEntries<T> = [T, T, ...T[]];
 
-export interface QueryProfileDiffTimelineEntry<T> {
+export interface DiffTimelineEntry<T> {
   engine_id: string;
   timeline: T;
 }
 
-export interface QueryProfileDiffTimelineRequest {
-  timelines: QueryProfileDiffTimelineEntries<
-    QueryProfileDiffTimelineEntry<SingleTimelineRequest<QueryFilter, TaskFilter>>
-  >;
+export interface DiffTimelineRequest {
+  timelines: DiffTimelineEntries<DiffTimelineEntry<SingleTimelineRequest<QueryFilter, TaskFilter>>>;
   delta_config: TimelineConfig;
 }
 
-export interface QueryProfileDiffTimelineResponse {
-  timelines: QueryProfileDiffTimelineEntries<SingleTimelineResponse>;
+export interface DiffTimelineResponse {
+  timelines: DiffTimelineEntries<SingleTimelineResponse>;
   delta: SingleTimelineResponse;
   warnings?: string[];
 }

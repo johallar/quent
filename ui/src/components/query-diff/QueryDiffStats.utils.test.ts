@@ -2,10 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { describe, expect, it } from 'vitest';
-import { equalPlanQueryProfileDiffFixture } from '@/test/mocks/queryProfileDiffFixtures';
+import { equalPlanQueryDiffFixture } from '@/test/mocks/queryProfileDiffFixtures';
 import {
   buildOperatorTypeRuntimeComparisons,
   buildRuntimeComparison,
+  buildRuntimeComparisonFromDelta,
   formatPercentDelta,
   formatSignedDurationSeconds,
   sumRuntimeComparisons,
@@ -21,8 +22,19 @@ describe('QueryDiffStats helpers', () => {
     });
   });
 
+  it('builds runtime comparisons from contract deltas', () => {
+    expect(
+      buildRuntimeComparisonFromDelta({ stats: [12, 10], delta: 2, percent_delta: 0.2 }, 0, 0)
+    ).toEqual({
+      a: 12,
+      b: 10,
+      delta: 2,
+      percentDelta: 0.2,
+    });
+  });
+
   it('extracts sorted per-operator-type runtime comparisons', () => {
-    const comparisons = buildOperatorTypeRuntimeComparisons(equalPlanQueryProfileDiffFixture);
+    const comparisons = buildOperatorTypeRuntimeComparisons(equalPlanQueryDiffFixture);
 
     expect(comparisons.map(comparison => comparison.label)).toEqual(['Join', 'Scan', 'Aggregate']);
     expect(sumRuntimeComparisons(comparisons)).toMatchObject({ a: 40, b: 44, delta: -4 });
@@ -30,24 +42,26 @@ describe('QueryDiffStats helpers', () => {
 
   it('groups runtime comparisons by operator type', () => {
     const comparisons = buildOperatorTypeRuntimeComparisons({
-      ...equalPlanQueryProfileDiffFixture,
+      ...equalPlanQueryDiffFixture,
       operator_diffs: [
-        ...equalPlanQueryProfileDiffFixture.operator_diffs,
+        ...(equalPlanQueryDiffFixture.operator_diffs ?? []),
         {
-          operator_a: {
-            id: 'scan-extra-a',
-            label: 'Scan customers',
-            operator_type_name: 'Scan',
-            plan_id: 'plan-a',
-          },
-          operator_b: {
-            id: 'scan-extra-b',
-            label: 'Scan customers',
-            operator_type_name: 'Scan',
-            plan_id: 'plan-b',
-          },
+          operators: [
+            {
+              id: 'scan-extra-a',
+              label: 'Scan customers',
+              operator_type_name: 'Scan',
+              plan_id: 'plan-a',
+            },
+            {
+              id: 'scan-extra-b',
+              label: 'Scan customers',
+              operator_type_name: 'Scan',
+              plan_id: 'plan-b',
+            },
+          ],
           stats: {
-            duration_s: { a: 3, b: 2, delta: 1, percent_delta: 0.5 },
+            duration_s: { stats: [3, 2], delta: 1, percent_delta: 0.5 },
           },
         },
       ],

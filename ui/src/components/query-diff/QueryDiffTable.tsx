@@ -15,7 +15,7 @@ import {
   type PivotTableRenderConfig,
 } from '@quent/components';
 import { useStatGroupTableControls } from '@quent/hooks';
-import type { QueryProfileDiffResponse } from '@quent/client';
+import type { DiffQuerySummary, QueryDiff } from '@quent/client';
 import { THEME_DARK, useTheme } from '@/contexts/ThemeContext';
 import { getQueryDiffOperatorTypeColor } from './QueryDiffColors';
 import {
@@ -93,8 +93,17 @@ function OperatorPairCell({ row }: { row: QueryDiffTableRow }) {
   );
 }
 
-export function QueryDiffTable({ diff }: { diff: QueryProfileDiffResponse }) {
-  const rows = useMemo(() => buildQueryDiffRows(diff), [diff]);
+interface QueryDiffTableProps {
+  baselineQuery: DiffQuerySummary;
+  comparisonQuery: DiffQuerySummary;
+  diff: QueryDiff;
+}
+
+export function QueryDiffTable({ baselineQuery, comparisonQuery, diff }: QueryDiffTableProps) {
+  const rows = useMemo(
+    () => buildQueryDiffRows(baselineQuery, comparisonQuery, diff),
+    [baselineQuery, comparisonQuery, diff]
+  );
   const rowsByEngineGroupId = useMemo(
     () => new Map(rows.map(row => [row.engineGroupId, row])),
     [rows]
@@ -184,7 +193,7 @@ export function QueryDiffTable({ diff }: { diff: QueryProfileDiffResponse }) {
     [maxAbsByStat, paletteTheme, rowsByEngineGroupId, rowsByOperatorPairId]
   );
 
-  if (diff.scenario !== 'plans_equal') {
+  if (diff.compatibility !== 'compatible') {
     return (
       <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
         {diff.warnings?.[0] ?? 'Plans are not structurally equal; operator diff is unavailable.'}
@@ -207,13 +216,13 @@ export function QueryDiffTable({ diff }: { diff: QueryProfileDiffResponse }) {
           Operator Stat Deltas
         </div>
         <div className="flex min-w-0 items-center gap-1 text-xs text-muted-foreground">
-          <DataText>{diff.query_a.instance_name ?? diff.query_a.id}</DataText>
+          <DataText>{baselineQuery.instance_name ?? baselineQuery.id}</DataText>
           <Triangle
             className="h-3 w-3 shrink-0 text-muted-foreground"
             aria-label="delta"
             role="img"
           />
-          <DataText>{diff.query_b.instance_name ?? diff.query_b.id}</DataText>
+          <DataText>{comparisonQuery.instance_name ?? comparisonQuery.id}</DataText>
         </div>
       </div>
       <div className="shrink-0 flex flex-col border-b border-border bg-card">

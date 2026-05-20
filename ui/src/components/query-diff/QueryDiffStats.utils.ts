@@ -1,7 +1,8 @@
 // SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-import type { QueryProfileDiffResponse } from '@quent/client';
+import type { DiffDelta, QueryDiff } from '@quent/client';
+import type { StatValue } from '@quent/utils';
 import { formatDuration } from '@quent/utils';
 
 export interface RuntimeComparison {
@@ -26,21 +27,44 @@ export function buildRuntimeComparison(a: number, b: number): RuntimeComparison 
   };
 }
 
+export function buildRuntimeComparisonFromDelta(
+  diff: DiffDelta | undefined,
+  fallbackA: number,
+  fallbackB: number
+): RuntimeComparison {
+  const [a, b] = diff?.stats ?? [];
+  if (typeof a !== 'number' || typeof b !== 'number') {
+    return buildRuntimeComparison(fallbackA, fallbackB);
+  }
+
+  return {
+    a,
+    b,
+    delta: typeof diff?.delta === 'number' ? diff.delta : a - b,
+    percentDelta:
+      typeof diff?.percent_delta === 'number'
+        ? diff.percent_delta
+        : b === 0
+          ? null
+          : (a - b) / Math.abs(b),
+  };
+}
+
 export function buildOperatorTypeRuntimeComparisons(
-  diff: QueryProfileDiffResponse
+  diff: QueryDiff
 ): OperatorTypeRuntimeComparison[] {
   const totalsByOperatorType = new Map<string, { a: number; b: number }>();
 
-  for (const entry of diff.operator_diffs) {
-    if (!entry.operator_a || !entry.operator_b) continue;
+  for (const entry of diff.operator_diffs ?? []) {
+    const [operatorA, operatorB] = entry.operators;
     const duration = entry.stats.duration_s;
-    if (typeof duration?.a !== 'number' || typeof duration.b !== 'number') continue;
+    const [a, b] = duration?.stats ?? ([] as StatValue[]);
+    if (typeof a !== 'number' || typeof b !== 'number') continue;
 
-    const operatorType =
-      entry.operator_a.operator_type_name ?? entry.operator_b.operator_type_name ?? 'Unknown';
+    const operatorType = operatorA.operator_type_name ?? operatorB.operator_type_name ?? 'Unknown';
     const totals = totalsByOperatorType.get(operatorType) ?? { a: 0, b: 0 };
-    totals.a += duration.a;
-    totals.b += duration.b;
+    totals.a += a;
+    totals.b += b;
     totalsByOperatorType.set(operatorType, totals);
   }
 

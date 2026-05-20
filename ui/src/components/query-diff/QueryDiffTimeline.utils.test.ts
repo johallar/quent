@@ -3,7 +3,7 @@
 
 import { describe, expect, it } from 'vitest';
 import type { SingleTimelineResponse } from '@quent/utils';
-import type { QueryProfileDiffTimelineResponse } from '@quent/client';
+import type { DiffTimelineResponse } from '@quent/client';
 import { DIFF_NEGATIVE_COLOR, DIFF_POSITIVE_COLOR } from './QueryDiffColors';
 import { buildDiffTimelineData } from './QueryDiffTimeline.utils';
 
@@ -29,7 +29,7 @@ function makeTimeline(values: Record<string, number[]>): SingleTimelineResponse 
 
 describe('buildDiffTimelineData', () => {
   it('uses backend-provided delta series for the diff lane', () => {
-    const response: QueryProfileDiffTimelineResponse = {
+    const response: DiffTimelineResponse = {
       timelines: [makeTimeline({ slots: [100, 100] }), makeTimeline({ slots: [0, 0] })],
       delta: makeTimeline({
         'Query A higher': [2, 0],

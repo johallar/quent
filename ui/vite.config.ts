@@ -68,12 +68,22 @@ interface SingleTimelineResponse {
       };
 }
 
-interface QueryProfileDiffTimelineRequest {
+interface DiffTimelineRequest {
   timelines: Array<{
     engine_id: string;
     timeline: unknown;
   }>;
   delta_config: TimelineConfig;
+}
+
+interface DiffQueryRef {
+  engine_id: string;
+  query_id: string;
+}
+
+interface DiffRequest {
+  baselineQuery: DiffQueryRef;
+  comparisonQueries: DiffQueryRef[];
 }
 
 const QUERY_A_HIGHER_SERIES = 'Query A higher';
@@ -148,6 +158,120 @@ function writeJson(res: ServerResponse, statusCode: number, body: unknown) {
   res.end(JSON.stringify(body));
 }
 
+function queryNameFromId(queryId: string): string {
+  const parts = queryId.split('-');
+  const suffix = parts[parts.length - 1];
+  return suffix ? `Query ${suffix.toUpperCase()}` : queryId;
+}
+
+function makeQueryProfileDiffResponse(body: DiffRequest) {
+  return {
+    comparisonQueries: body.comparisonQueries.map((query, index) => {
+      const baselineDuration = 40;
+      const comparisonDuration = 44 + index * 3;
+      return {
+        compatibility: 'compatible',
+        query: {
+          id: query.query_id,
+          engine_id: query.engine_id,
+          engine_name: query.engine_id,
+          instance_name: queryNameFromId(query.query_id),
+          query_group_id: null,
+          query_group_name: null,
+        },
+        stat_diffs: {
+          duration: {
+            stats: [baselineDuration, comparisonDuration],
+            delta: baselineDuration - comparisonDuration,
+            percent_delta:
+              comparisonDuration === 0
+                ? null
+                : (baselineDuration - comparisonDuration) / comparisonDuration,
+          },
+        },
+        operator_diffs: [
+          {
+            operators: [
+              {
+                id: `scan-${body.baselineQuery.query_id}`,
+                label: 'Scan orders',
+                operator_type_name: 'Scan',
+                plan_id: `plan-${body.baselineQuery.query_id}`,
+              },
+              {
+                id: `scan-${query.query_id}`,
+                label: 'Scan orders',
+                operator_type_name: 'Scan',
+                plan_id: `plan-${query.query_id}`,
+              },
+            ],
+            stats: {
+              duration_s: { stats: [12, 10 + index], delta: 2 - index, percent_delta: 0.2 },
+              input_rows: {
+                stats: [1000, 1200 + index * 100],
+                delta: -200 - index * 100,
+                percent_delta: -0.1666666667,
+              },
+            },
+          },
+          {
+            operators: [
+              {
+                id: `join-${body.baselineQuery.query_id}`,
+                label: 'Join lineitem',
+                operator_type_name: 'Join',
+                plan_id: `plan-${body.baselineQuery.query_id}`,
+              },
+              {
+                id: `join-${query.query_id}`,
+                label: 'Join lineitem',
+                operator_type_name: 'Join',
+                plan_id: `plan-${query.query_id}`,
+              },
+            ],
+            stats: {
+              duration_s: { stats: [24, 30 + index], delta: -6 - index, percent_delta: -0.2 },
+              output_rows: {
+                stats: [400, 380 - index * 20],
+                delta: 20 + index * 20,
+                percent_delta: 0.0526315789,
+              },
+            },
+          },
+        ],
+      };
+    }),
+  };
+}
+
+function installQueryProfileDiffMock(server: ViteDevServer | PreviewServer) {
+  server.middlewares.use(async (req, res, next) => {
+    if (req.method !== 'POST' || !req.url) {
+      next();
+      return;
+    }
+
+    const match = req.url.match(/^\/api\/query-profile-diff(?:\?|$)/);
+    if (!match) {
+      next();
+      return;
+    }
+
+    try {
+      const body = JSON.parse(await readRequestBody(req)) as DiffRequest;
+      if (!body.baselineQuery?.query_id || body.comparisonQueries.length === 0) {
+        throw new Error('query profile diff requires a baseline query and comparison queries');
+      }
+
+      writeJson(res, 200, makeQueryProfileDiffResponse(body));
+    } catch (error) {
+      writeJson(res, 500, {
+        error: error instanceof Error ? error.message : 'Failed to mock query profile diff',
+      });
+    }
+  });
+}
+
 function installTimelineDiffMock(server: ViteDevServer | PreviewServer) {
   server.middlewares.use(async (req, res, next) => {
     if (req.method !== 'POST' || !req.url) {
@@ -162,7 +286,7 @@ function installTimelineDiffMock(server: ViteDevServer | PreviewServer) {
     }
 
     try {
-      const body = JSON.parse(await readRequestBody(req)) as QueryProfileDiffTimelineRequest;
+      const body = JSON.parse(await readRequestBody(req)) as DiffTimelineRequest;
       if (body.timelines.length < 2) {
         throw new Error('timeline diff requires at least two timeline requests');
       }
@@ -216,11 +340,20 @@ function vitePluginTimelineDiffMock() {
   };
 }
 
+function vitePluginQueryProfileDiffMock() {
+  return {
+    name: 'vite-plugin-query-profile-diff-mock',
+    configureServer: installQueryProfileDiffMock,
+    configurePreviewServer: installQueryProfileDiffMock,
+  };
+}
+
 // https://vitejs.dev/config/
 export default defineConfig({
   plugins: [
     react(),
     vitePluginScriptPriority(),
+    vitePluginQueryProfileDiffMock(),
     vitePluginTimelineDiffMock(),
     TanStackRouterVite({
       routeFileIgnorePattern: '.test.|.spec.',

@@ -15,8 +15,11 @@ import type {
   TimelineRequest,
 } from '@quent/utils';
 import type {
-  QueryProfileDiffTimelineRequest,
-  QueryProfileDiffTimelineResponse,
+  DiffRequest,
+  DiffResponse,
+  DiffTimelineRequest,
+  DiffTimelineResponse,
+  QueryDiff,
 } from '@quent/client';
 
 const QUERY_A_HIGHER_SERIES = 'Query A higher';
@@ -92,13 +95,11 @@ function sampleAggregateAt(response: SingleTimelineResponse, targetSeconds: numb
   return timelineValueArrays(response).reduce((sum, values) => sum + (values[index] ?? 0), 0);
 }
 
-function makeMockTimelineDiffResponse(
-  request: QueryProfileDiffTimelineRequest
-): QueryProfileDiffTimelineResponse {
+function makeMockTimelineDiffResponse(request: DiffTimelineRequest): DiffTimelineResponse {
   const [queryARequest, queryBRequest, ...restRequests] = request.timelines;
   const queryA = makeMockTimelineResponse(queryARequest.timeline);
   const queryB = makeMockTimelineResponse(queryBRequest.timeline);
-  const timelines: QueryProfileDiffTimelineResponse['timelines'] = [
+  const timelines: DiffTimelineResponse['timelines'] = [
     queryA,
     queryB,
     ...restRequests.map(request => makeMockTimelineResponse(request.timeline)),
@@ -130,6 +131,89 @@ function makeMockTimelineDiffResponse(
         },
       },
     },
+  };
+}
+
+function queryNameFromId(queryId: string): string {
+  const parts = queryId.split('-');
+  const suffix = parts[parts.length - 1];
+  return suffix ? `Query ${suffix.toUpperCase()}` : queryId;
+}
+
+function makeMockQueryProfileDiffResponse(request: DiffRequest): DiffResponse {
+  return {
+    comparisonQueries: request.comparisonQueries.map((query, index): QueryDiff => {
+      const durationA = 40;
+      const durationB = 44 + index * 3;
+      return {
+        compatibility: 'compatible',
+        query: {
+          id: query.query_id,
+          engine_id: query.engine_id,
+          engine_name: query.engine_id,
+          instance_name: queryNameFromId(query.query_id),
+          query_group_id: null,
+          query_group_name: null,
+        },
+        stat_diffs: {
+          duration: {
+            stats: [durationA, durationB],
+            delta: durationA - durationB,
+            percent_delta: durationB === 0 ? null : (durationA - durationB) / durationB,
+          },
+        },
+        operator_diffs: [
+          {
+            operators: [
+              {
+                id: `scan-${request.baselineQuery.query_id}`,
+                label: 'Scan orders',
+                operator_type_name: 'Scan',
+                plan_id: `plan-${request.baselineQuery.query_id}`,
+              },
+              {
+                id: `scan-${query.query_id}`,
+                label: 'Scan orders',
+                operator_type_name: 'Scan',
+                plan_id: `plan-${query.query_id}`,
+              },
+            ],
+            stats: {
+              duration_s: { stats: [12, 10 + index], delta: 2 - index, percent_delta: 0.2 },
+              input_rows: {
+                stats: [1000, 1200 + index * 100],
+                delta: -200 - index * 100,
+                percent_delta: -0.1666666667,
+              },
+            },
+          },
+          {
+            operators: [
+              {
+                id: `join-${request.baselineQuery.query_id}`,
+                label: 'Join lineitem',
+                operator_type_name: 'Join',
+                plan_id: `plan-${request.baselineQuery.query_id}`,
+              },
+              {
+                id: `join-${query.query_id}`,
+                label: 'Join lineitem',
+                operator_type_name: 'Join',
+                plan_id: `plan-${query.query_id}`,
+              },
+            ],
+            stats: {
+              duration_s: { stats: [24, 30 + index], delta: -6 - index, percent_delta: -0.2 },
+              output_rows: {
+                stats: [400, 380 - index * 20],
+                delta: 20 + index * 20,
+                percent_delta: 0.0526315789,
+              },
+            },
+          },
+        ],
+      };
+    }),
   };
 }
 
@@ -200,8 +284,13 @@ export const handlers = [
     return HttpResponse.json({ entries } satisfies BulkTimelinesResponse);
   }),
 
+  http.post('*/api/query-profile-diff', async ({ request }) => {
+    const body = (await request.json()) as DiffRequest;
+    return HttpResponse.json(makeMockQueryProfileDiffResponse(body));
+  }),
+
   http.post('*/api/timeline/diff', async ({ request }) => {
-    const body = (await request.json()) as QueryProfileDiffTimelineRequest;
+    const body = (await request.json()) as DiffTimelineRequest;
     return HttpResponse.json(makeMockTimelineDiffResponse(body));
   }),
 ];

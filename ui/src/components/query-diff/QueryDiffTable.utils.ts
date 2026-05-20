@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-import type { QueryProfileDiffResponse } from '@quent/client';
+import type { DiffQuerySummary, QueryDiff } from '@quent/client';
 import type { PaletteTheme, StatValue } from '@quent/utils';
 import { formatStatValue } from '@quent/components';
 import { getDiffNegativeColor, getDiffPositiveColor } from './QueryDiffColors';
@@ -25,7 +25,7 @@ export interface QueryDiffTableRow {
   stats: Record<string, StatValue>;
 }
 
-function getQueryEngine(query: QueryProfileDiffResponse['query_a']): QueryDiffTableEngine {
+function getQueryEngine(query: DiffQuerySummary): QueryDiffTableEngine {
   return {
     id: query.engine_id,
     label: query.engine_name ?? query.engine_id,
@@ -55,20 +55,23 @@ function formatOperatorPairLabel(
   return `${operatorALabel} <-> ${operatorBLabel}\n${operatorAId} <-> ${operatorBId}`;
 }
 
-export function buildQueryDiffRows(diff: QueryProfileDiffResponse): QueryDiffTableRow[] {
-  const engines = uniqueEngines([getQueryEngine(diff.query_a), getQueryEngine(diff.query_b)]);
+export function buildQueryDiffRows(
+  baselineQuery: DiffQuerySummary,
+  comparisonQuery: DiffQuerySummary,
+  diff: QueryDiff
+): QueryDiffTableRow[] {
+  const engines = uniqueEngines([getQueryEngine(baselineQuery), getQueryEngine(comparisonQuery)]);
   const engineGroupId = engines.map(engine => engine.id).join(':');
   const engineGroupLabel = engines.map(engine => engine.label).join(', ');
 
-  return diff.operator_diffs.flatMap(entry => {
-    if (!entry.operator_a || !entry.operator_b) return [];
-    const operatorType =
-      entry.operator_a.operator_type_name ?? entry.operator_b.operator_type_name ?? '-';
+  return (diff.operator_diffs ?? []).flatMap(entry => {
+    const [operatorA, operatorB] = entry.operators;
+    const operatorType = operatorA.operator_type_name ?? operatorB.operator_type_name ?? '-';
     const operatorLabel = formatOperatorPairLabel(
-      entry.operator_a.label,
-      entry.operator_a.id,
-      entry.operator_b.label,
-      entry.operator_b.id
+      operatorA.label,
+      operatorA.id,
+      operatorB.label,
+      operatorB.id
     );
     const stats = Object.fromEntries(
       Object.entries(entry.stats).map(([statName, stat]) => [
@@ -83,11 +86,11 @@ export function buildQueryDiffRows(diff: QueryProfileDiffResponse): QueryDiffTab
         engines,
         operatorType,
         operatorLabel,
-        operatorPairId: `${entry.operator_a.id}:${entry.operator_b.id}`,
-        operatorAId: entry.operator_a.id,
-        operatorALabel: entry.operator_a.label,
-        operatorBId: entry.operator_b.id,
-        operatorBLabel: entry.operator_b.label,
+        operatorPairId: `${operatorA.id}:${operatorB.id}`,
+        operatorAId: operatorA.id,
+        operatorALabel: operatorA.label,
+        operatorBId: operatorB.id,
+        operatorBLabel: operatorB.label,
         stats,
       },
     ];

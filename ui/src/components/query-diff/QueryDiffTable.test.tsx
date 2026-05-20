@@ -7,12 +7,20 @@ import {
   formatSignedDiffValue,
   getDeltaCellStyle,
 } from './QueryDiffTable.utils';
-import { equalPlanQueryProfileDiffFixture } from '@/test/mocks/queryProfileDiffFixtures';
+import {
+  baselineDiffQueryFixture,
+  comparisonDiffQueryFixture,
+  equalPlanQueryDiffFixture,
+} from '@/test/mocks/queryProfileDiffFixtures';
 import { DIFF_NEGATIVE_COLOR, DIFF_POSITIVE_COLOR } from './QueryDiffColors';
 
 describe('QueryDiffTable helpers', () => {
   it('converts matched operator diffs into pivot rows', () => {
-    const rows = buildQueryDiffRows(equalPlanQueryProfileDiffFixture);
+    const rows = buildQueryDiffRows(
+      baselineDiffQueryFixture,
+      comparisonDiffQueryFixture,
+      equalPlanQueryDiffFixture
+    );
 
     expect(rows).toHaveLength(3);
     expect(rows[0]).toMatchObject({

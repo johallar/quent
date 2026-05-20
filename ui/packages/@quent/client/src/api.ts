@@ -17,10 +17,10 @@ import type {
   Engine,
 } from '@quent/utils';
 import type {
-  QueryProfileDiffRequest,
-  QueryProfileDiffResponse,
-  QueryProfileDiffTimelineRequest,
-  QueryProfileDiffTimelineResponse,
+  DiffRequest,
+  DiffResponse,
+  DiffTimelineRequest,
+  DiffTimelineResponse,
 } from './queryProfileDiffTypes';
 
 interface ApiFetchOptions {
@@ -111,10 +111,8 @@ export async function fetchBulkTimelines(
   });
 }
 
-export async function fetchQueryProfileDiff(
-  request: QueryProfileDiffRequest
-): Promise<QueryProfileDiffResponse> {
-  return apiFetch<QueryProfileDiffResponse>('/query-profile-diff', {
+export async function fetchQueryProfileDiff(request: DiffRequest): Promise<DiffResponse> {
+  return apiFetch<DiffResponse>('/query-profile-diff', {
     fetchOptions: {
       method: 'POST',
       body: JSON.stringify(request),
@@ -123,9 +121,9 @@ export async function fetchQueryProfileDiff(
 }
 
 export async function fetchQueryProfileDiffTimeline(
-  request: QueryProfileDiffTimelineRequest
-): Promise<QueryProfileDiffTimelineResponse> {
-  return apiFetch<QueryProfileDiffTimelineResponse>('/timeline/diff', {
+  request: DiffTimelineRequest
+): Promise<DiffTimelineResponse> {
+  return apiFetch<DiffTimelineResponse>('/timeline/diff', {
     fetchOptions: {
       method: 'POST',
       body: JSON.stringify(request),

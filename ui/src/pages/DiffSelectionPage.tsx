@@ -9,7 +9,10 @@ import {
   fetchListCoordinators,
   fetchListEngines,
   fetchListQueries,
+  queryProfileDiffQueryOptions,
   queryBundleQueryOptions,
+  type DiffQuerySummary,
+  type DiffRequest,
 } from '@quent/client';
 import type { Engine, Query, QueryGroup } from '@quent/utils';
 import {
@@ -30,7 +33,6 @@ import { QueryDiffOverviewStats } from '@/components/query-diff/QueryDiffStats';
 import { QueryDiffTimelineList } from '@/components/query-diff/QueryDiffTimeline';
 import { getQueryDiffQueryColors } from '@/components/query-diff/QueryDiffColors';
 import { QueryDiffLegend, type QueryDiffLegendItem } from '@/components/query-diff/QueryDiffLegend';
-import { buildQueryProfileDiffFromBundles } from '@/components/query-diff/queryProfileDiffFromBundles';
 import { THEME_DARK, useTheme } from '@/contexts/ThemeContext';
 
 interface DiffSelectionPageProps {
@@ -153,6 +155,27 @@ function engineDisplayLabel(engineId: string, engines: Engine[], emptyLabel: str
   if (!engineId) return emptyLabel;
   const engine = engines.find(item => item.id === engineId);
   return engine ? engineLabel(engine) : engineId;
+}
+
+function querySummaryFromBundle(bundle: {
+  entities: {
+    engine: { id: string; instance_name?: string | null };
+    query_group: { id: string; instance_name?: string | null };
+    query: { id: string; instance_name?: string | null };
+  };
+}): DiffQuerySummary {
+  return {
+    id: bundle.entities.query.id,
+    engine_id: bundle.entities.engine.id,
+    engine_name: bundle.entities.engine.instance_name ?? null,
+    instance_name: bundle.entities.query.instance_name ?? null,
+    query_group_id: bundle.entities.query_group.id,
+    query_group_name: bundle.entities.query_group.instance_name ?? null,
+  };
+}
+
+function querySummaryLabel(query: DiffQuerySummary): string {
+  return query.instance_name ?? query.id;
 }
 
 function findQueryById(
@@ -436,19 +459,37 @@ function DiffDashboard({ baselineQuery, competitorQueries }: DiffDashboardProps)
       enabled: isQuerySideComplete(baselineQuery) && isQuerySideComplete(competitorQuery),
     })),
   });
+  const diffRequest = useMemo<DiffRequest>(
+    () => ({
+      baselineQuery: {
+        engine_id: baselineQuery.engineId,
+        query_id: baselineQuery.queryId,
+      },
+      comparisonQueries: competitorQueries.map(competitorQuery => ({
+        engine_id: competitorQuery.engineId,
+        query_id: competitorQuery.queryId,
+      })),
+    }),
+    [baselineQuery.engineId, baselineQuery.queryId, competitorQueries]
+  );
+  const diffResponse = useQuery(queryProfileDiffQueryOptions({ request: diffRequest }));
 
   const comparisons = useMemo(
     () =>
-      baselineBundle.data
+      baselineBundle.data && diffResponse.data
         ? competitorQueries.flatMap((competitorQuery, index) => {
             const competitorBundle = competitorBundles[index]?.data;
-            if (!competitorBundle) return [];
-            const diff = buildQueryProfileDiffFromBundles(baselineBundle.data, competitorBundle);
+            const diff = diffResponse.data.comparisonQueries[index];
+            if (!competitorBundle || !diff) return [];
+            const baselineQuerySummary = querySummaryFromBundle(baselineBundle.data);
+            const comparisonQuerySummary = diff.query ?? querySummaryFromBundle(competitorBundle);
             return [
               {
                 id: competitorQuery.id,
                 competitorIndex: index,
                 competitorQuery,
+                baselineQuery: baselineQuerySummary,
+                comparisonQuery: comparisonQuerySummary,
                 diff,
                 baselineBundle: baselineBundle.data,
                 competitorBundle,
@@ -456,7 +497,7 @@ function DiffDashboard({ baselineQuery, competitorQueries }: DiffDashboardProps)
             ];
           })
         : [],
-    [baselineBundle.data, competitorBundles, competitorQueries]
+    [baselineBundle.data, competitorBundles, competitorQueries, diffResponse.data]
   );
   const legendItems = useMemo<QueryDiffLegendItem[]>(() => {
     if (!baselineBundle.data || comparisons.length === 0) return [];
@@ -464,7 +505,7 @@ function DiffDashboard({ baselineQuery, competitorQueries }: DiffDashboardProps)
     const baselineQueryEntity = baselineBundle.data.entities.query;
     const baselineColor = getQueryDiffQueryColors({
       baselineQueryId: baselineQueryEntity.id,
-      competitorQueryId: comparisons[0]?.diff.query_b.id ?? '',
+      competitorQueryId: comparisons[0]?.comparisonQuery.id ?? '',
       theme: paletteTheme,
     }).baseline;
 
@@ -476,25 +517,30 @@ function DiffDashboard({ baselineQuery, competitorQueries }: DiffDashboardProps)
         roleLabel: 'Baseline',
       },
       ...comparisons.map((comparison, index) => {
-        const competitorQueryEntity = comparison.competitorBundle.entities.query;
         const queryColors = getQueryDiffQueryColors({
           baselineQueryId: baselineQueryEntity.id,
-          competitorQueryId: competitorQueryEntity.id,
+          competitorQueryId: comparison.comparisonQuery.id,
           competitorIndex: comparison.competitorIndex,
           theme: paletteTheme,
         });
 
         return {
           id: `comparison-${comparison.id}`,
-          label: competitorQueryEntity.instance_name ?? competitorQueryEntity.id,
+          label: querySummaryLabel(comparison.comparisonQuery),
           color: queryColors.competitor,
           roleLabel: `Comparison ${index + 1}`,
         };
       }),
     ];
   }, [baselineBundle.data, comparisons, paletteTheme]);
-  const diffLoading = baselineBundle.isLoading || competitorBundles.some(query => query.isLoading);
-  const diffError = baselineBundle.error ?? competitorBundles.find(query => query.error)?.error;
+  const diffLoading =
+    baselineBundle.isLoading ||
+    competitorBundles.some(query => query.isLoading) ||
+    diffResponse.isLoading;
+  const diffError =
+    baselineBundle.error ??
+    competitorBundles.find(query => query.error)?.error ??
+    diffResponse.error;
   const baselineLabel = baselineBundle.data?.entities.query.instance_name ?? baselineQuery.queryId;
   const competitorCountLabel =
     comparisons.length === 1 ? '1 competitor query' : `${comparisons.length} competitor queries`;
@@ -565,6 +611,8 @@ function DiffDashboard({ baselineQuery, competitorQueries }: DiffDashboardProps)
                 <QueryDiffOverviewStats
                   comparisons={comparisons.map(comparison => ({
                     id: comparison.id,
+                    baselineQuery: comparison.baselineQuery,
+                    comparisonQuery: comparison.comparisonQuery,
                     diff: comparison.diff,
                     baselineBundle: comparison.baselineBundle,
                     competitorBundle: comparison.competitorBundle,
@@ -578,6 +626,7 @@ function DiffDashboard({ baselineQuery, competitorQueries }: DiffDashboardProps)
                     id: comparison.id,
                     competitorIndex: comparison.competitorIndex,
                     competitorEngineId: comparison.competitorQuery.engineId,
+                    comparisonQuery: comparison.comparisonQuery,
                     diff: comparison.diff,
                     competitorBundle: comparison.competitorBundle,
                   }))}
@@ -596,11 +645,15 @@ function DiffDashboard({ baselineQuery, competitorQueries }: DiffDashboardProps)
                           Competitor Query {index + 1}
                         </span>
                         <DataText className="max-w-56 truncate">
-                          {comparison.diff.query_b.instance_name ?? comparison.diff.query_b.id}
+                          {querySummaryLabel(comparison.comparisonQuery)}
                         </DataText>
                       </div>
                       <div className="min-h-0 flex-1">
-                        <QueryDiffTable diff={comparison.diff} />
+                        <QueryDiffTable
+                          baselineQuery={comparison.baselineQuery}
+                          comparisonQuery={comparison.comparisonQuery}
+                          diff={comparison.diff}
+                        />
                       </div>
                     </section>
                   ))}
@@ -615,6 +668,7 @@ function DiffDashboard({ baselineQuery, competitorQueries }: DiffDashboardProps)
                     id: comparison.id,
                     competitorIndex: comparison.competitorIndex,
                     competitorEngineId: comparison.competitorQuery.engineId,
+                    comparisonQuery: comparison.comparisonQuery,
                     diff: comparison.diff,
                     competitorBundle: comparison.competitorBundle,
                   }))}

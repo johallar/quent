@@ -6,28 +6,26 @@ import {
   queryProfileDiffQueryOptions,
   queryProfileDiffTimelineQueryOptions,
 } from './queryProfileDiff';
-import type { QueryProfileDiffTimelineRequest } from './queryProfileDiffTypes';
+import type { DiffTimelineRequest } from './queryProfileDiffTypes';
 
 describe('queryProfileDiffQueryOptions', () => {
   it('builds a stable key from both engine and query ids', () => {
+    const request = {
+      baselineQuery: { engine_id: 'engine-a', query_id: 'query-a' },
+      comparisonQueries: [
+        { engine_id: 'engine-b', query_id: 'query-b' },
+        { engine_id: 'engine-c', query_id: 'query-c' },
+      ],
+    };
     const options = queryProfileDiffQueryOptions({
-      request: {
-        query_a: { engine_id: 'engine-a', query_id: 'query-a' },
-        query_b: { engine_id: 'engine-b', query_id: 'query-b' },
-      },
+      request,
     });
 
-    expect(options.queryKey).toEqual([
-      'queryProfileDiff',
-      'engine-a',
-      'query-a',
-      'engine-b',
-      'query-b',
-    ]);
+    expect(options.queryKey).toEqual(['queryProfileDiff', request]);
   });
 
   it('builds diff timeline options around the full request', () => {
-    const request: QueryProfileDiffTimelineRequest = {
+    const request: DiffTimelineRequest = {
       timelines: [
         {
           engine_id: 'engine-a',

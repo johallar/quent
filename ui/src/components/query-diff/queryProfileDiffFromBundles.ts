@@ -3,11 +3,12 @@
 
 import { parseCustomStatistics } from '@quent/components';
 import type {
-  QueryProfileDiffOperatorDelta,
-  QueryProfileDiffOperatorRef,
-  QueryProfileDiffQuerySummary,
-  QueryProfileDiffResponse,
-  QueryProfileDiffStatDelta,
+  DiffDelta,
+  DiffOperatorDelta,
+  DiffOperatorRef,
+  DiffResponse,
+  DiffQuerySummary,
+  QueryDiff,
 } from '@quent/client';
 import type { EntityRef, Operator, PlanTree, QueryBundle, StatValue } from '@quent/utils';
 
@@ -56,11 +57,7 @@ function flattenOperatorsByPlanTree(bundle: QueryBundle<EntityRef>, node: PlanTr
   ];
 }
 
-function countOperators(bundle: QueryBundle<EntityRef>): number {
-  return Object.values(bundle.entities.operators).filter(Boolean).length;
-}
-
-function getQuerySummary(bundle: QueryBundle<EntityRef>): QueryProfileDiffQuerySummary {
+function getQuerySummary(bundle: QueryBundle<EntityRef>): DiffQuerySummary {
   return {
     id: bundle.entities.query.id,
     engine_id: bundle.entities.engine.id,
@@ -71,7 +68,7 @@ function getQuerySummary(bundle: QueryBundle<EntityRef>): QueryProfileDiffQueryS
   };
 }
 
-function getOperatorRef(operator: Operator): QueryProfileDiffOperatorRef {
+function getOperatorRef(operator: Operator): DiffOperatorRef {
   return {
     id: operator.id,
     label: operator.instance_name ?? operator.id,
@@ -94,27 +91,22 @@ function getOperatorStats(operator: Operator): Record<string, StatValue> {
   return stats;
 }
 
-function buildStatDelta(a: StatValue, b: StatValue): QueryProfileDiffStatDelta {
+function buildStatDelta(a: StatValue, b: StatValue): DiffDelta {
   const delta = typeof a === 'number' && typeof b === 'number' ? a - b : null;
   return {
-    a,
-    b,
+    stats: [a, b],
     delta,
     percent_delta: delta != null && typeof b === 'number' && b !== 0 ? delta / b : null,
   };
 }
 
-function buildOperatorDelta(
-  operatorA: Operator,
-  operatorB: Operator
-): QueryProfileDiffOperatorDelta {
+function buildOperatorDelta(operatorA: Operator, operatorB: Operator): DiffOperatorDelta {
   const statsA = getOperatorStats(operatorA);
   const statsB = getOperatorStats(operatorB);
   const statNames = [...new Set([...Object.keys(statsA), ...Object.keys(statsB)])].sort();
 
   return {
-    operator_a: getOperatorRef(operatorA),
-    operator_b: getOperatorRef(operatorB),
+    operators: [getOperatorRef(operatorA), getOperatorRef(operatorB)],
     stats: Object.fromEntries(
       statNames.map(statName => [
         statName,
@@ -125,45 +117,48 @@ function buildOperatorDelta(
 }
 
 export function buildQueryProfileDiffFromBundles(
-  queryA: QueryBundle<EntityRef>,
-  queryB: QueryBundle<EntityRef>
-): QueryProfileDiffResponse {
-  const query_a = getQuerySummary(queryA);
-  const query_b = getQuerySummary(queryB);
+  baselineQuery: QueryBundle<EntityRef>,
+  comparisonQuery: QueryBundle<EntityRef>
+): QueryDiff {
+  const query = getQuerySummary(comparisonQuery);
+  const stat_diffs = {
+    duration: buildStatDelta(baselineQuery.duration_s, comparisonQuery.duration_s),
+  };
 
-  const signatureA = getPlanSignature(queryA, queryA.plan_tree);
-  const signatureB = getPlanSignature(queryB, queryB.plan_tree);
+  const signatureA = getPlanSignature(baselineQuery, baselineQuery.plan_tree);
+  const signatureB = getPlanSignature(comparisonQuery, comparisonQuery.plan_tree);
 
   if (!signaturesEqual(signatureA, signatureB)) {
     return {
-      scenario: 'plans_different',
-      query_a,
-      query_b,
-      plan_comparison: {
-        matched_operator_count: 0,
-        unmatched_operator_a_count: countOperators(queryA),
-        unmatched_operator_b_count: countOperators(queryB),
-      },
+      compatibility: 'incompatible',
+      query,
+      stat_diffs,
       operator_diffs: [],
       warnings: ['Plans are structurally different; operator-to-operator diff is unavailable.'],
     };
   }
 
-  const operatorsA = flattenOperatorsByPlanTree(queryA, queryA.plan_tree);
-  const operatorsB = flattenOperatorsByPlanTree(queryB, queryB.plan_tree);
+  const operatorsA = flattenOperatorsByPlanTree(baselineQuery, baselineQuery.plan_tree);
+  const operatorsB = flattenOperatorsByPlanTree(comparisonQuery, comparisonQuery.plan_tree);
   const matchedCount = Math.min(operatorsA.length, operatorsB.length);
 
   return {
-    scenario: 'plans_equal',
-    query_a,
-    query_b,
-    plan_comparison: {
-      matched_operator_count: matchedCount,
-      unmatched_operator_a_count: operatorsA.length - matchedCount,
-      unmatched_operator_b_count: operatorsB.length - matchedCount,
-    },
+    compatibility: 'compatible',
+    query,
+    stat_diffs,
     operator_diffs: operatorsA
       .slice(0, matchedCount)
       .map((operatorA, index) => buildOperatorDelta(operatorA, operatorsB[index]!)),
+  };
+}
+
+export function buildQueryProfileDiffResponseFromBundles(
+  baselineQuery: QueryBundle<EntityRef>,
+  comparisonQueries: QueryBundle<EntityRef>[]
+): DiffResponse {
+  return {
+    comparisonQueries: comparisonQueries.map(comparisonQuery =>
+      buildQueryProfileDiffFromBundles(baselineQuery, comparisonQuery)
+    ),
   };
 }

@@ -3,7 +3,7 @@
 
 import { useMemo, type CSSProperties } from 'react';
 import { Triangle } from 'lucide-react';
-import type { QueryProfileDiffResponse } from '@quent/client';
+import type { DiffQuerySummary, QueryDiff } from '@quent/client';
 import {
   StatisticCard,
   StatisticMiniBarChart,
@@ -21,7 +21,7 @@ import {
 } from './QueryDiffColors';
 import {
   buildOperatorTypeRuntimeComparisons,
-  buildRuntimeComparison,
+  buildRuntimeComparisonFromDelta,
   formatDurationSeconds,
   formatPercentDelta,
   formatSignedDurationSeconds,
@@ -30,7 +30,9 @@ import {
 } from './QueryDiffStats.utils';
 
 interface QueryDiffStatsProps {
-  diff: QueryProfileDiffResponse;
+  baselineQuery: DiffQuerySummary;
+  comparisonQuery: DiffQuerySummary;
+  diff: QueryDiff;
   baselineBundle: QueryBundle<EntityRef>;
   competitorBundle: QueryBundle<EntityRef>;
   competitorIndex?: number;
@@ -38,7 +40,9 @@ interface QueryDiffStatsProps {
 
 export interface QueryDiffStatsOverviewComparison {
   id: string;
-  diff: QueryProfileDiffResponse;
+  baselineQuery: DiffQuerySummary;
+  comparisonQuery: DiffQuerySummary;
+  diff: QueryDiff;
   baselineBundle: QueryBundle<EntityRef>;
   competitorBundle: QueryBundle<EntityRef>;
   competitorIndex: number;
@@ -167,10 +171,11 @@ function aggregateOperatorRuntimeChartRows({
 
   for (const comparison of comparisons) {
     const operatorComparisons = buildOperatorTypeRuntimeComparisons(comparison.diff);
-    const competitorName = comparison.diff.query_b.instance_name ?? comparison.diff.query_b.id;
+    const competitorName =
+      comparison.comparisonQuery.instance_name ?? comparison.comparisonQuery.id;
     const queryColors = getQueryDiffQueryColors({
-      baselineQueryId: comparison.diff.query_a.id,
-      competitorQueryId: comparison.diff.query_b.id,
+      baselineQueryId: comparison.baselineQuery.id,
+      competitorQueryId: comparison.comparisonQuery.id,
       competitorIndex: comparison.competitorIndex,
       theme: paletteTheme,
     });
@@ -205,8 +210,8 @@ function aggregateOperatorRuntimeChartRows({
           id: 'baseline',
           value: row.baselineValue,
           color: getQueryDiffQueryColors({
-            baselineQueryId: comparisons[0]?.diff.query_a.id ?? '',
-            competitorQueryId: comparisons[0]?.diff.query_b.id ?? '',
+            baselineQueryId: comparisons[0]?.baselineQuery.id ?? '',
+            competitorQueryId: comparisons[0]?.comparisonQuery.id ?? '',
             theme: paletteTheme,
           }).baseline,
           label: 'Baseline value',
@@ -222,6 +227,8 @@ function aggregateOperatorRuntimeChartRows({
 }
 
 export function QueryDiffStats({
+  baselineQuery,
+  comparisonQuery,
   diff,
   baselineBundle,
   competitorBundle,
@@ -229,25 +236,30 @@ export function QueryDiffStats({
 }: QueryDiffStatsProps) {
   const { theme } = useTheme();
   const paletteTheme = theme === THEME_DARK ? 'dark' : 'light';
-  const baselineName = diff.query_a.instance_name ?? diff.query_a.id;
-  const competitorName = diff.query_b.instance_name ?? diff.query_b.id;
+  const baselineName = baselineQuery.instance_name ?? baselineQuery.id;
+  const competitorName = comparisonQuery.instance_name ?? comparisonQuery.id;
   const queryColors = useMemo(
     () =>
       getQueryDiffQueryColors({
-        baselineQueryId: diff.query_a.id,
-        competitorQueryId: diff.query_b.id,
+        baselineQueryId: baselineQuery.id,
+        competitorQueryId: comparisonQuery.id,
         competitorIndex,
         theme: paletteTheme,
       }),
-    [competitorIndex, diff.query_a.id, diff.query_b.id, paletteTheme]
+    [baselineQuery.id, comparisonQuery.id, competitorIndex, paletteTheme]
   );
   const operatorRuntimeComparisons = useMemo(
     () => buildOperatorTypeRuntimeComparisons(diff),
     [diff]
   );
   const totalRuntimeComparison = useMemo(
-    () => buildRuntimeComparison(baselineBundle.duration_s, competitorBundle.duration_s),
-    [baselineBundle.duration_s, competitorBundle.duration_s]
+    () =>
+      buildRuntimeComparisonFromDelta(
+        diff.stat_diffs?.duration,
+        baselineBundle.duration_s,
+        competitorBundle.duration_s
+      ),
+    [baselineBundle.duration_s, competitorBundle.duration_s, diff.stat_diffs?.duration]
   );
 
   return (
@@ -289,15 +301,16 @@ export function QueryDiffOverviewStats({
     () =>
       comparisons.map(comparison => ({
         ...comparison,
-        baselineName: comparison.diff.query_a.instance_name ?? comparison.diff.query_a.id,
-        competitorName: comparison.diff.query_b.instance_name ?? comparison.diff.query_b.id,
-        runtimeComparison: buildRuntimeComparison(
+        baselineName: comparison.baselineQuery.instance_name ?? comparison.baselineQuery.id,
+        competitorName: comparison.comparisonQuery.instance_name ?? comparison.comparisonQuery.id,
+        runtimeComparison: buildRuntimeComparisonFromDelta(
+          comparison.diff.stat_diffs?.duration,
           comparison.baselineBundle.duration_s,
           comparison.competitorBundle.duration_s
         ),
         queryColors: getQueryDiffQueryColors({
-          baselineQueryId: comparison.diff.query_a.id,
-          competitorQueryId: comparison.diff.query_b.id,
+          baselineQueryId: comparison.baselineQuery.id,
+          competitorQueryId: comparison.comparisonQuery.id,
           competitorIndex: comparison.competitorIndex,
           theme: paletteTheme,
         }),

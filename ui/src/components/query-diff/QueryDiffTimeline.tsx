@@ -8,8 +8,9 @@ import {
   DEFAULT_STALE_TIME,
   fetchQueryProfileDiffTimeline,
   fetchSingleTimeline,
-  type QueryProfileDiffResponse,
-  type QueryProfileDiffTimelineRequest,
+  type DiffQuerySummary,
+  type QueryDiff,
+  type DiffTimelineRequest,
 } from '@quent/client';
 import {
   buildBinnedTimelineSeries,
@@ -49,7 +50,7 @@ import { buildDiffTimelineData } from './QueryDiffTimeline.utils';
 interface QueryDiffTimelineProps {
   baselineEngineId: string;
   competitorEngineId: string;
-  diff: QueryProfileDiffResponse;
+  diff: QueryDiff;
   baselineBundle: QueryBundle<EntityRef>;
   competitorBundle: QueryBundle<EntityRef>;
   competitorIndex?: number;
@@ -59,7 +60,8 @@ export interface QueryDiffTimelineListComparison {
   id: string;
   competitorIndex: number;
   competitorEngineId: string;
-  diff: QueryProfileDiffResponse;
+  comparisonQuery: DiffQuerySummary;
+  diff: QueryDiff;
   competitorBundle: QueryBundle<EntityRef>;
 }
 
@@ -97,6 +99,21 @@ function getTimelineTarget(bundle: QueryBundle<EntityRef>): TimelineTarget | nul
 function getSharedResourceTypes(a: string[], b: string[]): string[] {
   const bSet = new Set(b);
   return a.filter(type => bSet.has(type));
+}
+
+function bundleQuerySummary(bundle: QueryBundle<EntityRef>): DiffQuerySummary {
+  return {
+    id: bundle.entities.query.id,
+    engine_id: bundle.entities.engine.id,
+    engine_name: bundle.entities.engine.instance_name ?? null,
+    instance_name: bundle.entities.query.instance_name ?? null,
+    query_group_id: bundle.entities.query_group.id,
+    query_group_name: bundle.entities.query_group.instance_name ?? null,
+  };
+}
+
+function querySummaryLabel(query: DiffQuerySummary): string {
+  return query.instance_name ?? query.id;
 }
 
 function getBaselineResourceTypesSharedWithCompetitors(
@@ -189,6 +206,7 @@ function recolorTimelineSeries(series: TimelineSeries, color: string): TimelineS
 function QueryDiffTimelinePairRows({
   comparison,
   baselineEngineId,
+  baselineQueryId,
   baselineTarget,
   baselineDurationSeconds,
   resourceType,
@@ -196,6 +214,7 @@ function QueryDiffTimelinePairRows({
 }: {
   comparison: QueryDiffTimelineListComparison;
   baselineEngineId: string;
+  baselineQueryId: string;
   baselineTarget: TimelineTarget | null;
   baselineDurationSeconds: number;
   resourceType: string;
@@ -214,32 +233,27 @@ function QueryDiffTimelinePairRows({
   const queryColors = useMemo(
     () =>
       getQueryDiffQueryColors({
-        baselineQueryId: comparison.diff.query_a.id,
-        competitorQueryId: comparison.diff.query_b.id,
+        baselineQueryId,
+        competitorQueryId: comparison.comparisonQuery.id,
         competitorIndex: comparison.competitorIndex,
         theme: paletteTheme,
       }),
-    [
-      comparison.competitorIndex,
-      comparison.diff.query_a.id,
-      comparison.diff.query_b.id,
-      paletteTheme,
-    ]
+    [baselineQueryId, comparison.comparisonQuery.id, comparison.competitorIndex, paletteTheme]
   );
 
   const baselineRequest = useMemo(() => {
     if (!baselineTarget || !resourceType || !canRenderResourceType) return null;
     return buildRootTimelineRequest({
-      queryId: comparison.diff.query_a.id,
+      queryId: baselineQueryId,
       rootResourceGroupId: baselineTarget.rootResourceGroupId,
       resourceTypeName: resourceType,
       durationSeconds: baselineDurationSeconds,
     });
   }, [
+    baselineQueryId,
     baselineDurationSeconds,
     baselineTarget,
     canRenderResourceType,
-    comparison.diff.query_a.id,
     resourceType,
   ]);
 
@@ -259,7 +273,7 @@ function QueryDiffTimelinePairRows({
     resourceType,
   ]);
 
-  const timelineDiffRequest = useMemo<QueryProfileDiffTimelineRequest | null>(() => {
+  const timelineDiffRequest = useMemo<DiffTimelineRequest | null>(() => {
     if (!baselineRequest || !competitorRequest || durationSeconds <= 0) return null;
     return {
       timelines: [
@@ -284,9 +298,9 @@ function QueryDiffTimelinePairRows({
     queryKey: [
       'queryDiffTimelineListPair',
       baselineEngineId,
-      comparison.diff.query_a.id,
+      baselineQueryId,
       comparison.competitorEngineId,
-      comparison.diff.query_b.id,
+      comparison.comparisonQuery.id,
       baselineTarget?.rootResourceGroupId,
       competitorTarget?.rootResourceGroupId,
       timelineDiffRequest,
@@ -318,7 +332,7 @@ function QueryDiffTimelinePairRows({
     timelineDiff.data,
   ]);
 
-  const competitorName = comparison.diff.query_b.instance_name ?? comparison.diff.query_b.id;
+  const competitorName = querySummaryLabel(comparison.comparisonQuery);
 
   if (!canRenderResourceType) {
     return (
@@ -404,17 +418,14 @@ export function QueryDiffTimelineList({
     baselineBundle.duration_s,
     ...comparisons.map(comparison => comparison.competitorBundle.duration_s)
   );
-  const baselineName =
-    comparisons[0]?.diff.query_a.instance_name ??
-    comparisons[0]?.diff.query_a.id ??
-    baselineBundle.query_id;
+  const baselineName = baselineBundle.entities.query.instance_name ?? baselineBundle.query_id;
   const competitorCountLabel =
     comparisons.length === 1 ? '1 competitor query' : `${comparisons.length} competitor queries`;
   const queryColors = useMemo(
     () =>
       getQueryDiffQueryColors({
         baselineQueryId: baselineBundle.query_id,
-        competitorQueryId: comparisons[0]?.diff.query_b.id ?? '',
+        competitorQueryId: comparisons[0]?.comparisonQuery.id ?? '',
         theme: paletteTheme,
       }),
     [baselineBundle.query_id, comparisons, paletteTheme]
@@ -599,6 +610,7 @@ export function QueryDiffTimelineList({
               key={comparison.id}
               comparison={comparison}
               baselineEngineId={baselineEngineId}
+              baselineQueryId={baselineBundle.query_id}
               baselineTarget={baselineTarget}
               baselineDurationSeconds={baselineBundle.duration_s}
               resourceType={resourceType}
@@ -617,6 +629,7 @@ export function QueryDiffTimeline({
   diff,
   baselineBundle,
   competitorBundle,
+  competitorIndex = 0,
 }: QueryDiffTimelineProps) {
   const { theme } = useTheme();
   const isDark = theme === THEME_DARK;
@@ -624,16 +637,24 @@ export function QueryDiffTimeline({
   const setZoomRange = useSetZoomRange();
   const setDebouncedZoomRange = useSetDebouncedZoomRange();
 
-  const baselineQueryId = diff.query_a.id;
-  const competitorQueryId = diff.query_b.id;
+  const baselineQuery = useMemo(() => bundleQuerySummary(baselineBundle), [baselineBundle]);
+  const competitorQuery = useMemo(
+    () => diff.query ?? bundleQuerySummary(competitorBundle),
+    [competitorBundle, diff.query]
+  );
+  const baselineQueryId = baselineQuery.id;
+  const competitorQueryId = competitorQuery.id;
+  const baselineName = querySummaryLabel(baselineQuery);
+  const competitorName = querySummaryLabel(competitorQuery);
   const queryColors = useMemo(
     () =>
       getQueryDiffQueryColors({
         baselineQueryId,
         competitorQueryId,
+        competitorIndex,
         theme: paletteTheme,
       }),
-    [baselineQueryId, competitorQueryId, paletteTheme]
+    [baselineQueryId, competitorIndex, competitorQueryId, paletteTheme]
   );
   const diffPositiveColor = getDiffPositiveColor(paletteTheme);
   const diffNegativeColor = getDiffNegativeColor(paletteTheme);
@@ -687,7 +708,7 @@ export function QueryDiffTimeline({
     });
   }, [competitorBundle.duration_s, competitorBundle.query_id, competitorTarget, resourceType]);
 
-  const timelineDiffRequest = useMemo<QueryProfileDiffTimelineRequest | null>(() => {
+  const timelineDiffRequest = useMemo<DiffTimelineRequest | null>(() => {
     if (!baselineRequest || !competitorRequest || durationSeconds <= 0) return null;
     return {
       timelines: [
@@ -756,17 +777,13 @@ export function QueryDiffTimeline({
             Timeline Delta
           </div>
           <div className="flex min-w-0 items-center gap-1 text-xs text-muted-foreground">
-            <DataText className="max-w-48 truncate">
-              {diff.query_a.instance_name ?? baselineQueryId}
-            </DataText>
+            <DataText className="max-w-48 truncate">{baselineName}</DataText>
             <Triangle
               className="h-3 w-3 shrink-0 text-muted-foreground"
               aria-label="delta"
               role="img"
             />
-            <DataText className="max-w-48 truncate">
-              {diff.query_b.instance_name ?? competitorQueryId}
-            </DataText>
+            <DataText className="max-w-48 truncate">{competitorName}</DataText>
             {durationSeconds > 0 && <span>{formatDuration(durationSeconds * 1_000)}</span>}
           </div>
         </div>
@@ -852,7 +869,7 @@ export function QueryDiffTimeline({
           <TimelineLane
             label="Baseline"
             color={queryColors.baseline}
-            detail={<DataText>{diff.query_a.instance_name ?? baselineQueryId}</DataText>}
+            detail={<DataText>{baselineName}</DataText>}
           >
             <Timeline
               startTime={TIMELINE_START}
@@ -866,7 +883,7 @@ export function QueryDiffTimeline({
           <TimelineLane
             label="Competitor"
             color={queryColors.competitor}
-            detail={<DataText>{diff.query_b.instance_name ?? competitorQueryId}</DataText>}
+            detail={<DataText>{competitorName}</DataText>}
           >
             <Timeline
               startTime={TIMELINE_START}

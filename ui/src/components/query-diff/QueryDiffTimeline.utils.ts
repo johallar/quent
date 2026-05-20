@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { buildBinnedTimelineSeries, type TimelineSeries } from '@quent/components';
-import type { QueryProfileDiffTimelineResponse } from '@quent/client';
+import type { DiffTimelineResponse } from '@quent/client';
 import type { CapacityDecl, FsmTypeDecl, PaletteTheme, QuantitySpec } from '@quent/utils';
 import {
   getDiffNegativeColor,
@@ -27,7 +27,7 @@ export interface DiffTimelineData {
 }
 
 interface BuildDiffTimelineDataParams {
-  timelineDiff: QueryProfileDiffTimelineResponse;
+  timelineDiff: DiffTimelineResponse;
   theme: PaletteTheme;
   capacities?: CapacityDecl[];
   quantitySpecs?: { [key in string]?: QuantitySpec };
