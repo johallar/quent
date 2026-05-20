@@ -19,6 +19,11 @@ const QUERY_STATS = {
     join: { duration: 30, input_rows: 950, output_rows: 380 },
     agg: { duration: 4, input_rows: 380, output_rows: 20 },
   },
+  'query-c': {
+    scan: { duration: 8, input_rows: 1400, output_rows: 980 },
+    join: { duration: 28, input_rows: 980, output_rows: 360 },
+    agg: { duration: 5, input_rows: 360, output_rows: 18 },
+  },
 };
 
 function taggedNumber(value: number) {
@@ -26,10 +31,10 @@ function taggedNumber(value: number) {
 }
 
 function createQueryBundle(engineId: string, queryId: string) {
-  const suffix = queryId.endsWith('b') ? 'b' : 'a';
+  const suffix = queryId.endsWith('b') ? 'b' : queryId.endsWith('c') ? 'c' : 'a';
   const stats = QUERY_STATS[queryId as keyof typeof QUERY_STATS] ?? QUERY_STATS['query-a'];
   const planId = `plan-${suffix}`;
-  const groupId = `group-${suffix}`;
+  const groupId = suffix === 'a' ? 'group-a' : 'group-b';
 
   return {
     query_id: queryId,
@@ -38,8 +43,8 @@ function createQueryBundle(engineId: string, queryId: string) {
         id: engineId,
         instance_name: engineId === 'engine-2' ? 'Engine 2' : 'Engine 1',
       },
-      query_group: { id: groupId, instance_name: `Group ${suffix.toUpperCase()}` },
-      query: { id: queryId, instance_name: suffix === 'a' ? 'Query A' : 'Query B' },
+      query_group: { id: groupId, instance_name: suffix === 'a' ? 'Group A' : 'Group B' },
+      query: { id: queryId, instance_name: `Query ${suffix.toUpperCase()}` },
       workers: {},
       plans: {
         [planId]: {
@@ -128,15 +133,17 @@ describe('Diff routes', () => {
         ])
       ),
       http.get(`${API_BASE}/engines/:engineId/query-groups`, ({ params }) =>
-        HttpResponse.json([
-          { id: 'group-a', instance_name: 'Group A', engine_id: String(params.engineId) },
-          { id: 'group-b', instance_name: 'Group B', engine_id: String(params.engineId) },
-        ])
+        HttpResponse.json(
+          String(params.engineId) === 'engine-1'
+            ? [{ id: 'group-a', instance_name: 'Group A', engine_id: 'engine-1' }]
+            : [{ id: 'group-b', instance_name: 'Group B', engine_id: 'engine-2' }]
+        )
       ),
       http.get(`${API_BASE}/engines/:engineId/query_group/:queryGroupId/queries`, ({ params }) => {
+        const engineId = String(params.engineId);
         const queryGroupId = String(params.queryGroupId);
         return HttpResponse.json(
-          queryGroupId === 'group-a'
+          engineId === 'engine-1' && queryGroupId === 'group-a'
             ? [
                 {
                   id: 'query-a',
@@ -148,17 +155,28 @@ describe('Diff routes', () => {
                   completed_s: null,
                 },
               ]
-            : [
-                {
-                  id: 'query-b',
-                  query_group_id: 'group-b',
-                  instance_name: 'Query B',
-                  start_unix_ns: null,
-                  planning_s: null,
-                  executing_s: null,
-                  completed_s: null,
-                },
-              ]
+            : engineId === 'engine-2' && queryGroupId === 'group-b'
+              ? [
+                  {
+                    id: 'query-b',
+                    query_group_id: 'group-b',
+                    instance_name: 'Query B',
+                    start_unix_ns: null,
+                    planning_s: null,
+                    executing_s: null,
+                    completed_s: null,
+                  },
+                  {
+                    id: 'query-c',
+                    query_group_id: 'group-b',
+                    instance_name: 'Query C',
+                    start_unix_ns: null,
+                    planning_s: null,
+                    executing_s: null,
+                    completed_s: null,
+                  },
+                ]
+              : []
         );
       }),
       http.get(`${API_BASE}/engines/:engineId/query/:queryId`, ({ params }) =>
@@ -170,19 +188,72 @@ describe('Diff routes', () => {
   it('renders the top-level diff selection route', async () => {
     renderWithRouter({ initialPath: '/diff' });
 
-    expect(await screen.findByText('Query A')).toBeInTheDocument();
-    expect(screen.getByText('Query B')).toBeInTheDocument();
-    expect(screen.getByText('Select engines for Query A and Query B.')).toBeInTheDocument();
+    expect(await screen.findByText('Baseline Query')).toBeInTheDocument();
+    expect(screen.getByText('Competitor Query 1')).toBeInTheDocument();
+    expect(
+      screen.getByText('Select engines for Baseline Query and at least one competitor query.')
+    ).toBeInTheDocument();
+  });
+
+  it('adds another competitor query selector', async () => {
+    const user = userEvent.setup();
+    renderWithRouter({ initialPath: '/diff' });
+
+    await screen.findByText('Competitor Query 1');
+    await user.click(screen.getByRole('button', { name: 'Add Competitor' }));
+
+    expect(screen.getByText('Competitor Query 2')).toBeInTheDocument();
+    expect(screen.getAllByRole('combobox')).toHaveLength(9);
   });
 
   it('renders a selected comparison route', async () => {
     renderWithRouter({
-      initialPath: '/diff/engine/engine-1/query/query-a/compare/engine/engine-2/query/query-b',
+      initialPath: '/diff/query/query-a/compare/query-b',
     });
 
-    expect(await screen.findByText('Operator Stat Deltas')).toBeInTheDocument();
+    expect(await screen.findByRole('tab', { name: 'Overview' })).toHaveAttribute(
+      'aria-selected',
+      'true'
+    );
+    expect(screen.getByRole('tab', { name: 'Operator' })).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: 'Timelines' })).toBeInTheDocument();
+    expect(screen.getByText('Total Run Time')).toBeInTheDocument();
     expect(screen.getByText('Timeline Delta')).toBeInTheDocument();
     expect(screen.getAllByText(/Query A/).length).toBeGreaterThan(0);
+  });
+
+  it('moves the operator pivot table into the Operator tab', async () => {
+    const user = userEvent.setup();
+    renderWithRouter({
+      initialPath: '/diff/query/query-a/compare/query-b',
+    });
+
+    await user.click(await screen.findByRole('tab', { name: 'Operator' }));
+
+    expect(await screen.findByText('Operator Stat Deltas')).toBeInTheDocument();
+  });
+
+  it('keeps the current timeline view in the Timelines tab', async () => {
+    const user = userEvent.setup();
+    renderWithRouter({
+      initialPath: '/diff/query/query-a/compare/query-b',
+    });
+
+    await user.click(await screen.findByRole('tab', { name: 'Timelines' }));
+
+    expect(await screen.findByText('Timeline Delta')).toBeInTheDocument();
+    expect(screen.queryByText('Total Run Time')).not.toBeInTheDocument();
+  });
+
+  it('renders one diff panel for each selected competitor query', async () => {
+    renderWithRouter({
+      initialPath: '/diff/query/query-a/compare/query-b,query-c',
+    });
+
+    const overviewTabs = await screen.findAllByRole('tab', { name: 'Overview' });
+    expect(overviewTabs).toHaveLength(2);
+    expect(screen.getAllByText('Competitor Query 1').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Competitor Query 2').length).toBeGreaterThan(0);
   });
 
   it('preserves query group and query selections after the selector collapses', async () => {
@@ -218,7 +289,7 @@ describe('Diff routes', () => {
     await user.click(selectors[5]);
     await user.click(await screen.findByRole('option', { name: 'Query B' }));
 
-    expect(await screen.findByText('Operator Stat Deltas')).toBeInTheDocument();
+    expect(await screen.findByText('Total Run Time')).toBeInTheDocument();
 
     const trigger = screen.getByText('Query Diff').closest('button');
     expect(trigger).not.toBeNull();
@@ -240,33 +311,33 @@ describe('Diff routes', () => {
     });
   });
 
-  it('swaps Query A and Query B from the selector', async () => {
+  it('makes a competitor query the baseline from the selector', async () => {
     const user = userEvent.setup();
     const { router } = renderWithRouter({
-      initialPath: '/diff/engine/engine-1/query/query-a/compare/engine/engine-2/query/query-b',
+      initialPath: '/diff/query/query-a/compare/query-b',
     });
 
-    expect(await screen.findByText('Operator Stat Deltas')).toBeInTheDocument();
+    expect(await screen.findByText('Total Run Time')).toBeInTheDocument();
 
     const trigger = screen.getByText('Query Diff').closest('button');
     expect(trigger).not.toBeNull();
     await user.click(trigger!);
 
-    await user.click(await screen.findByRole('button', { name: 'Swap Query A and Query B' }));
+    await user.click(await screen.findByRole('button', { name: 'Make Baseline' }));
 
     await waitFor(() => {
-      expect(router.state.location.pathname).toBe(
-        '/diff/engine/engine-2/query/query-b/compare/engine/engine-1/query/query-a'
-      );
+      expect(router.state.location.pathname).toBe('/diff/query/query-b/compare/query-a');
       expect(trigger).toHaveAttribute('aria-expanded', 'true');
     });
   });
 
   it('does not render a diff for the same query on both sides', async () => {
     renderWithRouter({
-      initialPath: '/diff/engine/engine-1/query/query-a/compare/engine/engine-1/query/query-a',
+      initialPath: '/diff/query/query-a/compare/query-a',
     });
 
-    expect(await screen.findByText('Choose two different queries.')).toBeInTheDocument();
+    expect(
+      await screen.findByText('Choose competitor queries different from the baseline.')
+    ).toBeInTheDocument();
   });
 });

@@ -31,8 +31,8 @@ import {
 
 interface QueryDiffStatsProps {
   diff: QueryProfileDiffResponse;
-  queryABundle: QueryBundle<EntityRef>;
-  queryBBundle: QueryBundle<EntityRef>;
+  baselineBundle: QueryBundle<EntityRef>;
+  competitorBundle: QueryBundle<EntityRef>;
 }
 
 function runtimeValueStyle(delta: number, paletteTheme: PaletteTheme): CSSProperties | undefined {
@@ -52,27 +52,27 @@ function displayPercentDelta(percentDelta: number | null): number | null {
 
 function runtimeComparisons({
   comparison,
-  queryAName,
-  queryBName,
+  baselineName,
+  competitorName,
   queryColors,
 }: {
   comparison: RuntimeComparison;
-  queryAName: string;
-  queryBName: string;
+  baselineName: string;
+  competitorName: string;
   queryColors: QueryDiffQueryColors;
 }): StatisticCardComparison[] {
   return [
     {
-      id: 'a',
-      label: queryAName,
+      id: 'baseline',
+      label: baselineName,
       value: formatDurationSeconds(comparison.a),
-      color: queryColors.queryA,
+      color: queryColors.baseline,
     },
     {
-      id: 'b',
-      label: queryBName,
+      id: 'competitor',
+      label: competitorName,
       value: formatDurationSeconds(comparison.b),
-      color: queryColors.queryB,
+      color: queryColors.competitor,
     },
   ];
 }
@@ -87,27 +87,32 @@ function operatorRuntimeChartRows(
     labelColor: getQueryDiffOperatorTypeColor(comparison.id),
     title: formatDurationSeconds(Math.max(comparison.a, comparison.b)),
     bars: [
-      { id: 'a', value: comparison.a, color: queryColors.queryA, label: 'First comparison value' },
       {
-        id: 'b',
+        id: 'baseline',
+        value: comparison.a,
+        color: queryColors.baseline,
+        label: 'Baseline value',
+      },
+      {
+        id: 'competitor',
         value: comparison.b,
-        color: queryColors.queryB,
-        label: 'Second comparison value',
+        color: queryColors.competitor,
+        label: 'Competitor value',
       },
     ],
   }));
 }
 
-export function QueryDiffStats({ diff, queryABundle, queryBBundle }: QueryDiffStatsProps) {
+export function QueryDiffStats({ diff, baselineBundle, competitorBundle }: QueryDiffStatsProps) {
   const { theme } = useTheme();
   const paletteTheme = theme === THEME_DARK ? 'dark' : 'light';
-  const queryAName = diff.query_a.instance_name ?? diff.query_a.id;
-  const queryBName = diff.query_b.instance_name ?? diff.query_b.id;
+  const baselineName = diff.query_a.instance_name ?? diff.query_a.id;
+  const competitorName = diff.query_b.instance_name ?? diff.query_b.id;
   const queryColors = useMemo(
     () =>
       getQueryDiffQueryColors({
-        queryAId: diff.query_a.id,
-        queryBId: diff.query_b.id,
+        baselineQueryId: diff.query_a.id,
+        competitorQueryId: diff.query_b.id,
         theme: paletteTheme,
       }),
     [diff.query_a.id, diff.query_b.id, paletteTheme]
@@ -117,8 +122,8 @@ export function QueryDiffStats({ diff, queryABundle, queryBBundle }: QueryDiffSt
     [diff]
   );
   const totalRuntimeComparison = useMemo(
-    () => buildRuntimeComparison(queryABundle.duration_s, queryBBundle.duration_s),
-    [queryABundle.duration_s, queryBBundle.duration_s]
+    () => buildRuntimeComparison(baselineBundle.duration_s, competitorBundle.duration_s),
+    [baselineBundle.duration_s, competitorBundle.duration_s]
   );
 
   return (
@@ -133,8 +138,8 @@ export function QueryDiffStats({ diff, queryABundle, queryBBundle }: QueryDiffSt
           )}
           comparisons={runtimeComparisons({
             comparison: totalRuntimeComparison,
-            queryAName,
-            queryBName,
+            baselineName,
+            competitorName,
             queryColors,
           })}
           comparisonSeparator={

@@ -19,21 +19,21 @@ describe('QueryDiffColors', () => {
 
   it('assigns distinct palette colors to the compared queries', () => {
     const colors = getQueryDiffQueryColors({
-      queryAId: 'query-a',
-      queryBId: 'query-b',
+      baselineQueryId: 'query-a',
+      competitorQueryId: 'query-b',
       theme: 'light',
     });
 
-    expect(colors.queryA).not.toBe(colors.queryB);
+    expect(colors.baseline).not.toBe(colors.competitor);
   });
 
   it('keeps colors distinct when the same query id is compared', () => {
     const colors = getQueryDiffQueryColors({
-      queryAId: 'query-a',
-      queryBId: 'query-a',
+      baselineQueryId: 'query-a',
+      competitorQueryId: 'query-a',
       theme: 'light',
     });
 
-    expect(colors.queryA).not.toBe(colors.queryB);
+    expect(colors.baseline).not.toBe(colors.competitor);
   });
 });

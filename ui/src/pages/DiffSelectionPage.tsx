@@ -4,7 +4,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from '@tanstack/react-router';
 import { useQuery } from '@tanstack/react-query';
-import { ArrowLeftRight, ChevronDown } from 'lucide-react';
+import { ChevronDown, Plus } from 'lucide-react';
 import {
   fetchListCoordinators,
   fetchListEngines,
@@ -33,10 +33,8 @@ import { buildQueryProfileDiffFromBundles } from '@/components/query-diff/queryP
 import { THEME_DARK, useTheme } from '@/contexts/ThemeContext';
 
 interface DiffSelectionPageProps {
-  initialQueryAEngineId?: string;
-  initialQueryBEngineId?: string;
-  initialQueryAId?: string;
-  initialQueryBId?: string;
+  initialBaselineQueryId?: string;
+  initialCompetitorQueryIds?: readonly string[];
 }
 
 interface QuerySideState {
@@ -45,42 +43,91 @@ interface QuerySideState {
   queryId: string;
 }
 
+interface CompetitorQueryState extends QuerySideState {
+  id: string;
+}
+
 interface QuerySelectorColumnProps {
   label: string;
+  idPrefix: string;
   side: QuerySideState;
   engines: Engine[];
   queryGroups: QueryGroup[];
   queriesByGroup: Record<string, Query[]>;
   queriesLoading: boolean;
+  action?: React.ReactNode;
   onEngineChange: (engineId: string) => void;
   onGroupChange: (groupId: string) => void;
   onQueryChange: (queryId: string) => void;
 }
 
+interface QueryLocation {
+  engineId: string;
+  groupId: string;
+}
+
 const COMPACT_SELECT_TRIGGER_CLASS =
   'h-7 min-w-0 rounded px-2 py-1 text-xs [&_svg]:h-3 [&_svg]:w-3';
 const COMPACT_SELECT_ITEM_CLASS = 'py-1 pl-7 pr-2 text-xs';
+const EMPTY_QUERY_GROUPS: QueryGroup[] = [];
+const EMPTY_QUERIES_BY_GROUP: Record<string, Query[]> = {};
 
 let pendingSelectionOpenAfterNavigation: boolean | null = null;
+let nextCompetitorId = 1;
 
-function getInitialSelectionOpen(
-  queryAEngineId: string,
-  queryBEngineId: string,
-  queryAId: string,
-  queryBId: string
-): boolean {
+function makeQuerySide(queryId = ''): QuerySideState {
+  return { engineId: '', groupId: '', queryId };
+}
+
+function makeCompetitorQuery(queryId = ''): CompetitorQueryState {
+  return {
+    id: `competitor-${nextCompetitorId++}`,
+    ...makeQuerySide(queryId),
+  };
+}
+
+function makeCompetitorQueries(queryIds: readonly string[] = []): CompetitorQueryState[] {
+  const initialQueryIds = queryIds.length > 0 ? queryIds : [''];
+  return initialQueryIds.map(queryId => makeCompetitorQuery(queryId));
+}
+
+function toQuerySide(side: QuerySideState): QuerySideState {
+  return {
+    engineId: side.engineId,
+    groupId: side.groupId,
+    queryId: side.queryId,
+  };
+}
+
+function isQuerySideComplete(side: QuerySideState): boolean {
+  return Boolean(side.engineId && side.groupId && side.queryId);
+}
+
+function queryIdsEqual(a: readonly string[], b: readonly string[]): boolean {
+  return a.length === b.length && a.every((value, index) => value === b[index]);
+}
+
+export function parseCompetitorQueryIds(competitorQueryIds: string): string[] {
+  return competitorQueryIds
+    .split(',')
+    .map(queryId => queryId.trim())
+    .filter(Boolean);
+}
+
+function formatCompetitorQueryIds(competitors: readonly QuerySideState[]): string {
+  return competitors
+    .map(competitor => competitor.queryId)
+    .filter(Boolean)
+    .join(',');
+}
+
+function getInitialSelectionOpen(baselineQueryId: string, competitorQueryIds: readonly string[]) {
   if (pendingSelectionOpenAfterNavigation !== null) {
     const selectionOpen = pendingSelectionOpenAfterNavigation;
     pendingSelectionOpenAfterNavigation = null;
     return selectionOpen;
   }
-  return !(
-    queryAEngineId &&
-    queryBEngineId &&
-    queryAId &&
-    queryBId &&
-    !(queryAEngineId === queryBEngineId && queryAId === queryBId)
-  );
+  return !(baselineQueryId && competitorQueryIds.length > 0);
 }
 
 function findGroupForQuery(
@@ -128,13 +175,14 @@ function queryDisplayLabel(
 }
 
 function useQueryCatalog(engineId: string) {
-  const { data: queryGroups = [], isLoading: queryGroupsLoading } = useQuery({
+  const { data: queryGroupsData, isLoading: queryGroupsLoading } = useQuery({
     queryKey: ['list_coordinators', engineId],
     queryFn: () => fetchListCoordinators(engineId),
     enabled: Boolean(engineId),
   });
+  const queryGroups = queryGroupsData ?? EMPTY_QUERY_GROUPS;
 
-  const { data: queriesByGroup = {}, isLoading: queriesLoading } = useQuery({
+  const { data: queriesByGroupData, isLoading: queriesLoading } = useQuery({
     queryKey: ['diff_queries_by_group', engineId, queryGroups.map(group => group.id).join('\0')],
     queryFn: async () => {
       const entries = await Promise.all(
@@ -146,6 +194,7 @@ function useQueryCatalog(engineId: string) {
     },
     enabled: Boolean(engineId && queryGroups.length > 0),
   });
+  const queriesByGroup = queriesByGroupData ?? EMPTY_QUERIES_BY_GROUP;
 
   return {
     queryGroups,
@@ -154,13 +203,46 @@ function useQueryCatalog(engineId: string) {
   };
 }
 
+function useQueryLocations(queryIds: string[], engines: Engine[]) {
+  const uniqueQueryIds = useMemo(() => [...new Set(queryIds.filter(Boolean))], [queryIds]);
+  const engineIds = useMemo(() => engines.map(engine => engine.id), [engines]);
+
+  return useQuery({
+    queryKey: ['diff_query_locations', engineIds.join('\0'), uniqueQueryIds.join('\0')],
+    queryFn: async () => {
+      const wantedQueryIds = new Set(uniqueQueryIds);
+      const locations: Record<string, QueryLocation> = {};
+
+      await Promise.all(
+        engines.map(async engine => {
+          const queryGroups = await fetchListCoordinators(engine.id);
+          await Promise.all(
+            queryGroups.map(async group => {
+              const queries = await fetchListQueries(engine.id, group.id);
+              for (const query of queries) {
+                if (!wantedQueryIds.has(query.id) || locations[query.id]) continue;
+                locations[query.id] = { engineId: engine.id, groupId: group.id };
+              }
+            })
+          );
+        })
+      );
+
+      return locations;
+    },
+    enabled: uniqueQueryIds.length > 0 && engines.length > 0,
+  });
+}
+
 function QuerySelectorColumn({
   label,
+  idPrefix,
   side,
   engines,
   queryGroups,
   queriesByGroup,
   queriesLoading,
+  action,
   onEngineChange,
   onGroupChange,
   onQueryChange,
@@ -168,19 +250,20 @@ function QuerySelectorColumn({
   const queries = side.groupId ? (queriesByGroup[side.groupId] ?? []) : [];
   return (
     <div className="min-w-0 border border-border bg-card">
-      <div className="border-b border-border px-3 py-1.5">
+      <div className="flex min-h-9 items-center justify-between gap-2 border-b border-border px-3 py-1.5">
         <h2 className="text-xs font-semibold">{label}</h2>
+        {action}
       </div>
       <div className="grid gap-2 p-2 sm:grid-cols-3">
         <div className="min-w-0">
           <label
-            htmlFor={`${label}-engine`}
+            htmlFor={`${idPrefix}-engine`}
             className="mb-1 block text-[11px] font-medium leading-none text-muted-foreground"
           >
             Engine
           </label>
           <Select value={side.engineId} onValueChange={onEngineChange}>
-            <SelectTrigger id={`${label}-engine`} className={COMPACT_SELECT_TRIGGER_CLASS}>
+            <SelectTrigger id={`${idPrefix}-engine`} className={COMPACT_SELECT_TRIGGER_CLASS}>
               <SelectValue placeholder="Select Engine" />
             </SelectTrigger>
             <SelectContent>
@@ -208,7 +291,7 @@ function QuerySelectorColumn({
         </div>
         <div className="min-w-0">
           <label
-            htmlFor={`${label}-group`}
+            htmlFor={`${idPrefix}-group`}
             className="mb-1 block text-[11px] font-medium leading-none text-muted-foreground"
           >
             Query Group
@@ -218,7 +301,7 @@ function QuerySelectorColumn({
             onValueChange={onGroupChange}
             disabled={!side.engineId || queriesLoading}
           >
-            <SelectTrigger id={`${label}-group`} className={COMPACT_SELECT_TRIGGER_CLASS}>
+            <SelectTrigger id={`${idPrefix}-group`} className={COMPACT_SELECT_TRIGGER_CLASS}>
               <SelectValue placeholder="Select Query Group" />
             </SelectTrigger>
             <SelectContent>
@@ -242,7 +325,7 @@ function QuerySelectorColumn({
         </div>
         <div className="min-w-0">
           <label
-            htmlFor={`${label}-query`}
+            htmlFor={`${idPrefix}-query`}
             className="mb-1 block text-[11px] font-medium leading-none text-muted-foreground"
           >
             Query
@@ -252,7 +335,7 @@ function QuerySelectorColumn({
             onValueChange={onQueryChange}
             disabled={queriesLoading || !side.groupId}
           >
-            <SelectTrigger id={`${label}-query`} className={COMPACT_SELECT_TRIGGER_CLASS}>
+            <SelectTrigger id={`${idPrefix}-query`} className={COMPACT_SELECT_TRIGGER_CLASS}>
               <SelectValue placeholder="Select Query" />
             </SelectTrigger>
             <SelectContent>
@@ -279,190 +362,437 @@ function QuerySelectorColumn({
   );
 }
 
+interface CompetitorQuerySelectorColumnProps {
+  label: string;
+  idPrefix: string;
+  side: CompetitorQueryState;
+  engines: Engine[];
+  action?: React.ReactNode;
+  onEngineChange: (engineId: string) => void;
+  onGroupChange: (groupId: string) => void;
+  onQueryChange: (queryId: string) => void;
+}
+
+function CompetitorQuerySelectorColumn({
+  label,
+  idPrefix,
+  side,
+  engines,
+  action,
+  onEngineChange,
+  onGroupChange,
+  onQueryChange,
+}: CompetitorQuerySelectorColumnProps) {
+  const catalog = useQueryCatalog(side.engineId);
+
+  return (
+    <QuerySelectorColumn
+      label={label}
+      idPrefix={idPrefix}
+      side={side}
+      engines={engines}
+      queryGroups={catalog.queryGroups}
+      queriesByGroup={catalog.queriesByGroup}
+      queriesLoading={catalog.queriesLoading}
+      action={action}
+      onEngineChange={onEngineChange}
+      onGroupChange={onGroupChange}
+      onQueryChange={onQueryChange}
+    />
+  );
+}
+
+interface CompetitorDiffPanelProps {
+  baselineQuery: QuerySideState;
+  competitorQuery: CompetitorQueryState;
+  index: number;
+  isOnlyCompetitor: boolean;
+}
+
+type DiffDashboardTab = 'overview' | 'operator' | 'timelines';
+
+const DIFF_DASHBOARD_TABS: Array<{ id: DiffDashboardTab; label: string }> = [
+  { id: 'overview', label: 'Overview' },
+  { id: 'operator', label: 'Operator' },
+  { id: 'timelines', label: 'Timelines' },
+];
+
+function CompetitorDiffPanel({
+  baselineQuery,
+  competitorQuery,
+  index,
+  isOnlyCompetitor,
+}: CompetitorDiffPanelProps) {
+  const [activeTab, setActiveTab] = useState<DiffDashboardTab>('overview');
+  const baselineBundle = useQuery({
+    ...queryBundleQueryOptions({
+      engineId: baselineQuery.engineId,
+      queryId: baselineQuery.queryId,
+    }),
+    enabled: isQuerySideComplete(baselineQuery) && isQuerySideComplete(competitorQuery),
+  });
+  const competitorBundle = useQuery({
+    ...queryBundleQueryOptions({
+      engineId: competitorQuery.engineId,
+      queryId: competitorQuery.queryId,
+    }),
+    enabled: isQuerySideComplete(baselineQuery) && isQuerySideComplete(competitorQuery),
+  });
+  const diff = useMemo(
+    () =>
+      baselineBundle.data && competitorBundle.data
+        ? buildQueryProfileDiffFromBundles(baselineBundle.data, competitorBundle.data)
+        : null,
+    [baselineBundle.data, competitorBundle.data]
+  );
+  const diffLoading = baselineBundle.isLoading || competitorBundle.isLoading;
+  const diffError = baselineBundle.error ?? competitorBundle.error;
+  const baselineLabel = baselineBundle.data?.entities.query.instance_name ?? baselineQuery.queryId;
+  const competitorLabel =
+    competitorBundle.data?.entities.query.instance_name ?? competitorQuery.queryId;
+
+  return (
+    <section
+      className={cn(
+        'flex min-h-[34rem] flex-col overflow-hidden border border-border bg-background',
+        isOnlyCompetitor && 'h-full min-h-0'
+      )}
+    >
+      <div className="flex shrink-0 flex-wrap items-center gap-x-2 gap-y-1 border-b border-border bg-card px-4 py-2 text-xs text-muted-foreground">
+        <span className="font-semibold uppercase tracking-wide">Competitor Query {index + 1}</span>
+        <DataText className="max-w-56 truncate">{baselineLabel}</DataText>
+        <span>vs</span>
+        <DataText className="max-w-56 truncate">{competitorLabel}</DataText>
+      </div>
+      {diffLoading ? (
+        <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
+          Loading diff...
+        </div>
+      ) : diffError ? (
+        <div className="flex h-full items-center justify-center text-sm text-destructive">
+          Failed to load diff
+        </div>
+      ) : diff && baselineBundle.data && competitorBundle.data ? (
+        <div className="flex min-h-0 flex-1 flex-col">
+          <div
+            role="tablist"
+            aria-label={`Competitor Query ${index + 1} diff sections`}
+            className="inline-flex h-9 shrink-0 items-center justify-center gap-0 border-b border-border bg-card p-1 text-muted-foreground"
+          >
+            {DIFF_DASHBOARD_TABS.map(tab => {
+              const isActive = activeTab === tab.id;
+              return (
+                <Button
+                  key={tab.id}
+                  id={`${competitorQuery.id}-${tab.id}-tab`}
+                  type="button"
+                  role="tab"
+                  aria-selected={isActive}
+                  aria-controls={`${competitorQuery.id}-${tab.id}-panel`}
+                  variant="ghost"
+                  size="sm"
+                  className={cn(
+                    'h-7 rounded-md px-3 text-sm font-normal text-muted-foreground transition-all',
+                    isActive && 'bg-muted font-semibold text-foreground shadow'
+                  )}
+                  onClick={() => setActiveTab(tab.id)}
+                >
+                  {tab.label}
+                </Button>
+              );
+            })}
+          </div>
+
+          <div
+            id={`${competitorQuery.id}-${activeTab}-panel`}
+            role="tabpanel"
+            aria-labelledby={`${competitorQuery.id}-${activeTab}-tab`}
+            className="min-h-0 flex-1"
+          >
+            {activeTab === 'overview' ? (
+              <div className="flex min-h-full flex-col">
+                <QueryDiffStats
+                  diff={diff}
+                  baselineBundle={baselineBundle.data}
+                  competitorBundle={competitorBundle.data}
+                />
+                <QueryDiffTimeline
+                  baselineEngineId={baselineQuery.engineId}
+                  competitorEngineId={competitorQuery.engineId}
+                  diff={diff}
+                  baselineBundle={baselineBundle.data}
+                  competitorBundle={competitorBundle.data}
+                />
+              </div>
+            ) : activeTab === 'operator' ? (
+              <div className="h-full min-h-[28rem]">
+                <QueryDiffTable diff={diff} />
+              </div>
+            ) : (
+              <div className="h-full min-h-[16rem]">
+                <QueryDiffTimeline
+                  baselineEngineId={baselineQuery.engineId}
+                  competitorEngineId={competitorQuery.engineId}
+                  diff={diff}
+                  baselineBundle={baselineBundle.data}
+                  competitorBundle={competitorBundle.data}
+                />
+              </div>
+            )}
+          </div>
+        </div>
+      ) : null}
+    </section>
+  );
+}
+
 export function DiffSelectionPage({
-  initialQueryAEngineId = '',
-  initialQueryBEngineId = '',
-  initialQueryAId = '',
-  initialQueryBId = '',
+  initialBaselineQueryId = '',
+  initialCompetitorQueryIds = [],
 }: DiffSelectionPageProps) {
   const navigate = useNavigate();
   const { theme } = useTheme();
   const paletteTheme = theme === THEME_DARK ? 'dark' : 'light';
-  const [queryA, setQueryA] = useState<QuerySideState>({
-    engineId: initialQueryAEngineId,
-    groupId: '',
-    queryId: initialQueryAId,
-  });
-  const [queryB, setQueryB] = useState<QuerySideState>({
-    engineId: initialQueryBEngineId,
-    groupId: '',
-    queryId: initialQueryBId,
-  });
+  const initialCompetitorQueryIdsKey = initialCompetitorQueryIds.join('\0');
+  const resolvedInitialCompetitorQueryIds = useMemo(
+    () => (initialCompetitorQueryIdsKey ? initialCompetitorQueryIdsKey.split('\0') : []),
+    [initialCompetitorQueryIdsKey]
+  );
+  const [baselineQuery, setBaselineQuery] = useState<QuerySideState>(() =>
+    makeQuerySide(initialBaselineQueryId)
+  );
+  const [competitorQueries, setCompetitorQueries] = useState<CompetitorQueryState[]>(() =>
+    makeCompetitorQueries(initialCompetitorQueryIds)
+  );
   const [selectionOpen, setSelectionOpen] = useState(() =>
-    getInitialSelectionOpen(
-      initialQueryAEngineId,
-      initialQueryBEngineId,
-      initialQueryAId,
-      initialQueryBId
-    )
+    getInitialSelectionOpen(initialBaselineQueryId, initialCompetitorQueryIds)
+  );
+  const primaryCompetitorQuery = competitorQueries.find(query => query.queryId) ??
+    competitorQueries[0] ?? {
+      id: 'primary-competitor-query',
+      ...makeQuerySide(),
+    };
+
+  const completeCompetitorQueries = useMemo(
+    () => competitorQueries.filter(isQuerySideComplete),
+    [competitorQueries]
+  );
+  const diffableCompetitorQueries = useMemo(
+    () => completeCompetitorQueries.filter(query => query.queryId !== baselineQuery.queryId),
+    [baselineQuery.queryId, completeCompetitorQueries]
+  );
+  const sameAsBaselineCompetitorQueries = useMemo(
+    () =>
+      completeCompetitorQueries.filter(
+        query => Boolean(baselineQuery.queryId) && query.queryId === baselineQuery.queryId
+      ),
+    [baselineQuery.queryId, completeCompetitorQueries]
   );
 
   useEffect(() => {
-    setQueryA(prev =>
-      prev.engineId === initialQueryAEngineId && prev.queryId === initialQueryAId
-        ? prev
-        : { engineId: initialQueryAEngineId, groupId: '', queryId: initialQueryAId }
+    setBaselineQuery(prev =>
+      prev.queryId === initialBaselineQueryId ? prev : makeQuerySide(initialBaselineQueryId)
     );
-    setQueryB(prev =>
-      prev.engineId === initialQueryBEngineId && prev.queryId === initialQueryBId
-        ? prev
-        : { engineId: initialQueryBEngineId, groupId: '', queryId: initialQueryBId }
-    );
-  }, [initialQueryAEngineId, initialQueryAId, initialQueryBEngineId, initialQueryBId]);
+    setCompetitorQueries(prev => {
+      const nextQueryIds = resolvedInitialCompetitorQueryIds;
+      const currentQueryIds = prev.map(query => query.queryId);
+      if (queryIdsEqual(currentQueryIds, nextQueryIds)) {
+        return prev.length > 0 ? prev : makeCompetitorQueries(nextQueryIds);
+      }
+
+      return makeCompetitorQueries(nextQueryIds).map((query, index) =>
+        prev[index] ? { ...query, id: prev[index].id } : query
+      );
+    });
+  }, [initialBaselineQueryId, resolvedInitialCompetitorQueryIds]);
 
   const { data: engines = [] } = useQuery({
     queryKey: ['list_engines'],
     queryFn: fetchListEngines,
   });
 
-  const queryACatalog = useQueryCatalog(queryA.engineId);
-  const queryBCatalog = useQueryCatalog(queryB.engineId);
+  const unresolvedQueryIds = useMemo(
+    () => [
+      ...(baselineQuery.queryId && !baselineQuery.engineId ? [baselineQuery.queryId] : []),
+      ...competitorQueries.flatMap(query =>
+        query.queryId && !query.engineId ? [query.queryId] : []
+      ),
+    ],
+    [baselineQuery.engineId, baselineQuery.queryId, competitorQueries]
+  );
+  const queryLocationResolution = useQueryLocations(unresolvedQueryIds, engines);
+
+  const baselineCatalog = useQueryCatalog(baselineQuery.engineId);
+  const primaryCompetitorCatalog = useQueryCatalog(primaryCompetitorQuery.engineId);
 
   useEffect(() => {
-    setQueryA(prev => {
-      if (prev.groupId || !prev.queryId) return prev;
-      const groupId = findGroupForQuery(prev.queryId, queryACatalog.queriesByGroup);
-      return groupId ? { ...prev, groupId } : prev;
+    const locations = queryLocationResolution.data;
+    if (!locations) return;
+
+    setBaselineQuery(prev => {
+      if (!prev.queryId || prev.engineId) return prev;
+      const location = locations[prev.queryId];
+      return location ? { ...prev, engineId: location.engineId, groupId: location.groupId } : prev;
     });
-  }, [queryACatalog.queriesByGroup, queryA.groupId, queryA.queryId]);
+    setCompetitorQueries(prev =>
+      prev.map(query => {
+        if (!query.queryId || query.engineId) return query;
+        const location = locations[query.queryId];
+        return location
+          ? { ...query, engineId: location.engineId, groupId: location.groupId }
+          : query;
+      })
+    );
+  }, [queryLocationResolution.data]);
 
   useEffect(() => {
-    setQueryB(prev => {
+    setBaselineQuery(prev => {
       if (prev.groupId || !prev.queryId) return prev;
-      const groupId = findGroupForQuery(prev.queryId, queryBCatalog.queriesByGroup);
+      const groupId = findGroupForQuery(prev.queryId, baselineCatalog.queriesByGroup);
       return groupId ? { ...prev, groupId } : prev;
     });
-  }, [queryBCatalog.queriesByGroup, queryB.groupId, queryB.queryId]);
+  }, [baselineCatalog.queriesByGroup, baselineQuery.groupId, baselineQuery.queryId]);
 
-  const queryAEngineSummary = useMemo(
-    () => engineDisplayLabel(queryA.engineId, engines, 'Select Engine'),
-    [engines, queryA.engineId]
+  useEffect(() => {
+    setCompetitorQueries(prev =>
+      prev.map((query, index) => {
+        if (index !== 0 || query.groupId || !query.queryId) return query;
+        const groupId = findGroupForQuery(query.queryId, primaryCompetitorCatalog.queriesByGroup);
+        return groupId && groupId !== query.groupId ? { ...query, groupId } : query;
+      })
+    );
+  }, [
+    primaryCompetitorCatalog.queriesByGroup,
+    primaryCompetitorQuery.groupId,
+    primaryCompetitorQuery.queryId,
+  ]);
+
+  const baselineEngineSummary = useMemo(
+    () => engineDisplayLabel(baselineQuery.engineId, engines, 'Select Engine'),
+    [engines, baselineQuery.engineId]
   );
-  const queryBEngineSummary = useMemo(
-    () => engineDisplayLabel(queryB.engineId, engines, 'Select Engine'),
-    [engines, queryB.engineId]
+  const primaryCompetitorEngineSummary = useMemo(
+    () => engineDisplayLabel(primaryCompetitorQuery.engineId, engines, 'Select Engine'),
+    [engines, primaryCompetitorQuery.engineId]
   );
-  const queryASummary = useMemo(
-    () => queryDisplayLabel(queryA.queryId, queryACatalog.queriesByGroup, 'Select Query A'),
-    [queryA.queryId, queryACatalog.queriesByGroup]
+  const baselineSummary = useMemo(
+    () =>
+      queryDisplayLabel(
+        baselineQuery.queryId,
+        baselineCatalog.queriesByGroup,
+        'Select Baseline Query'
+      ),
+    [baselineCatalog.queriesByGroup, baselineQuery.queryId]
   );
-  const queryBSummary = useMemo(
-    () => queryDisplayLabel(queryB.queryId, queryBCatalog.queriesByGroup, 'Select Query B'),
-    [queryB.queryId, queryBCatalog.queriesByGroup]
+  const primaryCompetitorSummary = useMemo(
+    () =>
+      queryDisplayLabel(
+        primaryCompetitorQuery.queryId,
+        primaryCompetitorCatalog.queriesByGroup,
+        'Select Competitor Query'
+      ),
+    [primaryCompetitorCatalog.queriesByGroup, primaryCompetitorQuery.queryId]
+  );
+  const competitorSummary = useMemo(
+    () =>
+      completeCompetitorQueries.length > 1
+        ? `${completeCompetitorQueries.length} competitor queries`
+        : primaryCompetitorSummary,
+    [completeCompetitorQueries.length, primaryCompetitorSummary]
   );
   const queryColors = useMemo(
     () =>
       getQueryDiffQueryColors({
-        queryAId: queryA.queryId,
-        queryBId: queryB.queryId,
+        baselineQueryId: baselineQuery.queryId,
+        competitorQueryId: primaryCompetitorQuery.queryId,
         theme: paletteTheme,
       }),
-    [paletteTheme, queryA.queryId, queryB.queryId]
+    [baselineQuery.queryId, paletteTheme, primaryCompetitorQuery.queryId]
   );
-  const canSwapQueries = Boolean(
-    queryA.engineId ||
-    queryA.groupId ||
-    queryA.queryId ||
-    queryB.engineId ||
-    queryB.groupId ||
-    queryB.queryId
-  );
-  const sameQuerySelected = Boolean(
-    queryA.engineId &&
-    queryA.engineId === queryB.engineId &&
-    queryA.queryId &&
-    queryA.queryId === queryB.queryId
-  );
-  const canDiff = Boolean(
-    queryA.engineId && queryA.queryId && queryB.engineId && queryB.queryId && !sameQuerySelected
-  );
+  const baselineComplete = isQuerySideComplete(baselineQuery);
+  const hasDiffableCompetitors = diffableCompetitorQueries.length > 0;
+  const hasSameAsBaselineCompetitors = sameAsBaselineCompetitorQueries.length > 0;
 
-  const queryABundle = useQuery({
-    ...queryBundleQueryOptions({ engineId: queryA.engineId, queryId: queryA.queryId }),
-    enabled: canDiff,
-  });
-  const queryBBundle = useQuery({
-    ...queryBundleQueryOptions({ engineId: queryB.engineId, queryId: queryB.queryId }),
-    enabled: canDiff,
-  });
-  const diff = useMemo(
-    () =>
-      queryABundle.data && queryBBundle.data
-        ? buildQueryProfileDiffFromBundles(queryABundle.data, queryBBundle.data)
-        : null,
-    [queryABundle.data, queryBBundle.data]
-  );
-  const diffLoading = canDiff && (queryABundle.isLoading || queryBBundle.isLoading);
-  const diffError = queryABundle.error ?? queryBBundle.error;
-
-  const maybeNavigateToDiff = (nextA: QuerySideState, nextB: QuerySideState) => {
-    if (
-      !nextA.engineId ||
-      !nextB.engineId ||
-      !nextA.queryId ||
-      !nextB.queryId ||
-      (nextA.engineId === nextB.engineId && nextA.queryId === nextB.queryId)
-    ) {
+  const maybeNavigateToDiff = (
+    nextBaseline: QuerySideState,
+    nextCompetitors: readonly QuerySideState[]
+  ) => {
+    const competitorQueryIds = formatCompetitorQueryIds(nextCompetitors);
+    if (!nextBaseline.queryId || !competitorQueryIds) {
       return;
     }
     pendingSelectionOpenAfterNavigation = selectionOpen;
     navigate({
-      to: '/diff/engine/$queryAEngineId/query/$queryAId/compare/engine/$queryBEngineId/query/$queryBId',
+      to: '/diff/query/$baselineQueryId/compare/$competitorQueryIds',
       params: {
-        queryAEngineId: nextA.engineId,
-        queryAId: nextA.queryId,
-        queryBEngineId: nextB.engineId,
-        queryBId: nextB.queryId,
+        baselineQueryId: nextBaseline.queryId,
+        competitorQueryIds: competitorQueryIds,
       },
     });
   };
 
-  const handleEngineChange = (side: 'a' | 'b', engineId: string) => {
+  const handleBaselineEngineChange = (engineId: string) => {
     setSelectionOpen(true);
-    if (side === 'a') {
-      setQueryA({ engineId, groupId: '', queryId: '' });
-    } else {
-      setQueryB({ engineId, groupId: '', queryId: '' });
-    }
+    setBaselineQuery({ engineId, groupId: '', queryId: '' });
   };
 
-  const handleGroupChange = (side: 'a' | 'b', groupId: string) => {
+  const handleBaselineGroupChange = (groupId: string) => {
     setSelectionOpen(true);
-    if (side === 'a') {
-      setQueryA(prev => ({ ...prev, groupId, queryId: '' }));
-    } else {
-      setQueryB(prev => ({ ...prev, groupId, queryId: '' }));
-    }
+    setBaselineQuery(prev => ({ ...prev, groupId, queryId: '' }));
   };
 
-  const handleQueryChange = (side: 'a' | 'b', queryId: string) => {
-    if (side === 'a') {
-      const nextA = { ...queryA, queryId };
-      setQueryA(nextA);
-      maybeNavigateToDiff(nextA, queryB);
-    } else {
-      const nextB = { ...queryB, queryId };
-      setQueryB(nextB);
-      maybeNavigateToDiff(queryA, nextB);
-    }
+  const handleBaselineQueryChange = (queryId: string) => {
+    const nextBaseline = { ...baselineQuery, queryId };
+    setBaselineQuery(nextBaseline);
+    maybeNavigateToDiff(nextBaseline, competitorQueries);
   };
 
-  const handleSwapQueries = () => {
-    const nextA = queryB;
-    const nextB = queryA;
-    setQueryA(nextA);
-    setQueryB(nextB);
-    maybeNavigateToDiff(nextA, nextB);
+  const handleCompetitorEngineChange = (competitorId: string, engineId: string) => {
+    setSelectionOpen(true);
+    setCompetitorQueries(prev =>
+      prev.map(query =>
+        query.id === competitorId ? { ...query, engineId, groupId: '', queryId: '' } : query
+      )
+    );
+  };
+
+  const handleCompetitorGroupChange = (competitorId: string, groupId: string) => {
+    setSelectionOpen(true);
+    setCompetitorQueries(prev =>
+      prev.map(query => (query.id === competitorId ? { ...query, groupId, queryId: '' } : query))
+    );
+  };
+
+  const handleCompetitorQueryChange = (competitorId: string, queryId: string) => {
+    const currentCompetitor = competitorQueries.find(query => query.id === competitorId);
+    if (!currentCompetitor) return;
+
+    const nextCompetitor = { ...currentCompetitor, queryId };
+    const nextCompetitors = competitorQueries.map(query =>
+      query.id === competitorId ? nextCompetitor : query
+    );
+    setCompetitorQueries(nextCompetitors);
+    maybeNavigateToDiff(baselineQuery, nextCompetitors);
+  };
+
+  const handleAddCompetitorQuery = () => {
+    setSelectionOpen(true);
+    setCompetitorQueries(prev => [...prev, makeCompetitorQuery()]);
+  };
+
+  const handleMakeBaseline = (competitorId: string) => {
+    const selectedCompetitor = competitorQueries.find(query => query.id === competitorId);
+    if (!selectedCompetitor || !isQuerySideComplete(selectedCompetitor)) return;
+
+    const nextBaseline = toQuerySide(selectedCompetitor);
+    const nextCompetitor = { ...selectedCompetitor, ...baselineQuery };
+    const nextCompetitors = [
+      nextCompetitor,
+      ...competitorQueries.filter(query => query.id !== competitorId),
+    ];
+    setBaselineQuery(nextBaseline);
+    setCompetitorQueries(nextCompetitors);
+    maybeNavigateToDiff(nextBaseline, nextCompetitors);
   };
 
   return (
@@ -478,16 +808,25 @@ export function DiffSelectionPage({
             <span className="flex min-w-0 flex-wrap items-center justify-center gap-x-2 gap-y-1 text-xs">
               <DataText
                 className="inline-block max-w-[18rem] truncate align-bottom"
-                style={{ color: queryA.queryId ? queryColors.queryA : undefined }}
+                style={{ color: baselineQuery.queryId ? queryColors.baseline : undefined }}
               >
-                {queryA.engineId ? `${queryAEngineSummary} / ${queryASummary}` : queryASummary}
+                {baselineQuery.engineId
+                  ? `${baselineEngineSummary} / ${baselineSummary}`
+                  : baselineSummary}
               </DataText>
               <span className="text-muted-foreground">vs</span>
               <DataText
                 className="inline-block max-w-[18rem] truncate align-bottom"
-                style={{ color: queryB.queryId ? queryColors.queryB : undefined }}
+                style={{
+                  color:
+                    primaryCompetitorQuery.queryId && completeCompetitorQueries.length <= 1
+                      ? queryColors.competitor
+                      : undefined,
+                }}
               >
-                {queryB.engineId ? `${queryBEngineSummary} / ${queryBSummary}` : queryBSummary}
+                {primaryCompetitorQuery.engineId && completeCompetitorQueries.length <= 1
+                  ? `${primaryCompetitorEngineSummary} / ${competitorSummary}`
+                  : competitorSummary}
               </DataText>
             </span>
             <ChevronDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground transition-transform duration-300 ease-out group-data-[state=open]:rotate-180" />
@@ -496,43 +835,64 @@ export function DiffSelectionPage({
 
         <CollapsibleContent className="overflow-hidden will-change-[height,opacity,transform] data-[state=closed]:animate-collapsible-up data-[state=open]:animate-collapsible-down">
           <div className="mx-auto w-full max-w-5xl px-4 pb-3">
-            <div className="mx-auto grid w-full max-w-4xl items-stretch gap-2 lg:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)]">
+            <div className="mx-auto grid w-full max-w-5xl items-start gap-2 lg:grid-cols-2">
               <QuerySelectorColumn
-                label="Query A"
-                side={queryA}
+                label="Baseline Query"
+                idPrefix="baseline-query"
+                side={baselineQuery}
                 engines={engines}
-                queryGroups={queryACatalog.queryGroups}
-                queriesByGroup={queryACatalog.queriesByGroup}
-                queriesLoading={queryACatalog.queriesLoading}
-                onEngineChange={engineId => handleEngineChange('a', engineId)}
-                onGroupChange={groupId => handleGroupChange('a', groupId)}
-                onQueryChange={queryId => handleQueryChange('a', queryId)}
+                queryGroups={baselineCatalog.queryGroups}
+                queriesByGroup={baselineCatalog.queriesByGroup}
+                queriesLoading={baselineCatalog.queriesLoading}
+                onEngineChange={handleBaselineEngineChange}
+                onGroupChange={handleBaselineGroupChange}
+                onQueryChange={handleBaselineQueryChange}
               />
-              <div className="flex items-center justify-center">
+              <div className="min-w-0 space-y-2">
+                {competitorQueries.map((competitorQuery, index) => {
+                  return (
+                    <CompetitorQuerySelectorColumn
+                      key={competitorQuery.id}
+                      label={`Competitor Query ${index + 1}`}
+                      idPrefix={`competitor-query-${index + 1}`}
+                      side={competitorQuery}
+                      engines={engines}
+                      action={
+                        isQuerySideComplete(competitorQuery) ? (
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            className="h-6 px-2 text-[11px]"
+                            onClick={() => handleMakeBaseline(competitorQuery.id)}
+                          >
+                            Make Baseline
+                          </Button>
+                        ) : null
+                      }
+                      onEngineChange={engineId =>
+                        handleCompetitorEngineChange(competitorQuery.id, engineId)
+                      }
+                      onGroupChange={groupId =>
+                        handleCompetitorGroupChange(competitorQuery.id, groupId)
+                      }
+                      onQueryChange={queryId =>
+                        handleCompetitorQueryChange(competitorQuery.id, queryId)
+                      }
+                    />
+                  );
+                })}
                 <Button
                   type="button"
                   variant="outline"
-                  size="icon"
-                  className="h-8 w-8 rounded-full"
-                  aria-label="Swap Query A and Query B"
-                  title="Swap Query A and Query B"
-                  disabled={!canSwapQueries}
-                  onClick={handleSwapQueries}
+                  size="sm"
+                  className="h-8 w-full rounded-sm text-xs"
+                  onClick={handleAddCompetitorQuery}
                 >
-                  <ArrowLeftRight className="h-3.5 w-3.5" />
+                  <Plus className="h-3.5 w-3.5" />
+                  Add Competitor
                 </Button>
               </div>
-              <QuerySelectorColumn
-                label="Query B"
-                side={queryB}
-                engines={engines}
-                queryGroups={queryBCatalog.queryGroups}
-                queriesByGroup={queryBCatalog.queriesByGroup}
-                queriesLoading={queryBCatalog.queriesLoading}
-                onEngineChange={engineId => handleEngineChange('b', engineId)}
-                onGroupChange={groupId => handleGroupChange('b', groupId)}
-                onQueryChange={queryId => handleQueryChange('b', queryId)}
-              />
             </div>
           </div>
         </CollapsibleContent>
@@ -542,44 +902,38 @@ export function DiffSelectionPage({
         <div
           className={cn(
             'h-full overflow-hidden border border-border bg-background',
-            !canDiff && 'flex items-center justify-center'
+            !hasDiffableCompetitors && 'flex items-center justify-center'
           )}
         >
-          {!queryA.engineId || !queryB.engineId ? (
-            <div className="text-sm text-muted-foreground">
-              Select engines for Query A and Query B.
-            </div>
-          ) : sameQuerySelected ? (
-            <div className="text-sm text-destructive">Choose two different queries.</div>
-          ) : !canDiff ? (
-            <div className="text-sm text-muted-foreground">Select Query A and Query B.</div>
-          ) : diffLoading ? (
+          {queryLocationResolution.isLoading ? (
             <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
               Loading diff...
             </div>
-          ) : diffError ? (
-            <div className="flex h-full items-center justify-center text-sm text-destructive">
-              Failed to load diff
+          ) : !baselineQuery.engineId || !competitorQueries.some(query => query.engineId) ? (
+            <div className="text-sm text-muted-foreground">
+              Select engines for Baseline Query and at least one competitor query.
             </div>
-          ) : diff && queryABundle.data && queryBBundle.data ? (
-            <div className="flex h-full min-h-0 flex-col">
-              <QueryDiffStats
-                diff={diff}
-                queryABundle={queryABundle.data}
-                queryBBundle={queryBBundle.data}
-              />
-              <QueryDiffTimeline
-                queryAEngineId={queryA.engineId}
-                queryBEngineId={queryB.engineId}
-                diff={diff}
-                queryABundle={queryABundle.data}
-                queryBBundle={queryBBundle.data}
-              />
-              <div className="min-h-0 flex-1">
-                <QueryDiffTable diff={diff} />
+          ) : !baselineComplete || !hasDiffableCompetitors ? (
+            <div className="text-sm text-muted-foreground">
+              {hasSameAsBaselineCompetitors
+                ? 'Choose competitor queries different from the baseline.'
+                : 'Select Baseline Query and at least one competitor query.'}
+            </div>
+          ) : (
+            <div className="h-full min-h-0 overflow-y-auto bg-muted/20 p-3">
+              <div className="mx-auto flex min-h-full w-full max-w-7xl flex-col gap-3">
+                {diffableCompetitorQueries.map((competitorQuery, index) => (
+                  <CompetitorDiffPanel
+                    key={competitorQuery.id}
+                    baselineQuery={baselineQuery}
+                    competitorQuery={competitorQuery}
+                    index={index}
+                    isOnlyCompetitor={diffableCompetitorQueries.length === 1}
+                  />
+                ))}
               </div>
             </div>
-          ) : null}
+          )}
         </div>
       </div>
     </div>

@@ -12,6 +12,8 @@ import {
 
 const QUERY_A_HIGHER_LABEL = 'Query A higher';
 const QUERY_B_HIGHER_LABEL = 'Query B higher';
+const BASELINE_HIGHER_LABEL = 'Baseline higher';
+const COMPETITOR_HIGHER_LABEL = 'Competitor higher';
 
 interface TimelineRowData {
   timestamps: number[];
@@ -19,8 +21,8 @@ interface TimelineRowData {
 }
 
 export interface DiffTimelineData {
-  queryA: TimelineRowData;
-  queryB: TimelineRowData;
+  baseline: TimelineRowData;
+  competitor: TimelineRowData;
   delta: TimelineRowData;
 }
 
@@ -43,32 +45,40 @@ function getFirstFormatter(seriesA: TimelineSeries, seriesB: TimelineSeries) {
 
 function formatDeltaSeries({
   delta,
-  queryA,
-  queryB,
+  baseline,
+  competitor,
   theme,
 }: {
   delta: TimelineRowData;
-  queryA: TimelineRowData;
-  queryB: TimelineRowData;
+  baseline: TimelineRowData;
+  competitor: TimelineRowData;
   theme: PaletteTheme;
 }): TimelineSeries {
-  const formatter = getFirstFormatter(queryA.series, queryB.series);
+  const formatter = getFirstFormatter(baseline.series, competitor.series);
   const positiveColor = getDiffPositiveColor(theme);
   const negativeColor = getDiffNegativeColor(theme);
   return Object.fromEntries(
-    Object.entries(delta.series).map(([name, entry]) => [
-      name,
-      {
-        ...entry,
-        color:
-          name === QUERY_A_HIGHER_LABEL
-            ? negativeColor
-            : name === QUERY_B_HIGHER_LABEL
-              ? positiveColor
-              : entry.color,
-        formatter,
-      },
-    ])
+    Object.entries(delta.series).map(([name, entry]) => {
+      const displayName =
+        name === QUERY_A_HIGHER_LABEL
+          ? BASELINE_HIGHER_LABEL
+          : name === QUERY_B_HIGHER_LABEL
+            ? COMPETITOR_HIGHER_LABEL
+            : name;
+      return [
+        displayName,
+        {
+          ...entry,
+          color:
+            name === QUERY_A_HIGHER_LABEL
+              ? negativeColor
+              : name === QUERY_B_HIGHER_LABEL
+                ? positiveColor
+                : entry.color,
+          formatter,
+        },
+      ];
+    })
   );
 }
 
@@ -92,19 +102,19 @@ export function buildDiffTimelineData({
   fsmTypes,
   queryColors,
 }: BuildDiffTimelineDataParams): DiffTimelineData {
-  const [queryATimeline, queryBTimeline] = timelineDiff.timelines;
-  const queryA = buildBinnedTimelineSeries(
-    queryATimeline.data,
-    queryATimeline.config,
+  const [baselineTimeline, competitorTimeline] = timelineDiff.timelines;
+  const baseline = buildBinnedTimelineSeries(
+    baselineTimeline.data,
+    baselineTimeline.config,
     0n,
     theme,
     capacities,
     quantitySpecs,
     fsmTypes
   );
-  const queryB = buildBinnedTimelineSeries(
-    queryBTimeline.data,
-    queryBTimeline.config,
+  const competitor = buildBinnedTimelineSeries(
+    competitorTimeline.data,
+    competitorTimeline.config,
     0n,
     theme,
     capacities,
@@ -119,17 +129,17 @@ export function buildDiffTimelineData({
   );
 
   return {
-    queryA: {
-      ...queryA,
-      series: recolorTimelineSeries(queryA.series, queryColors.queryA),
+    baseline: {
+      ...baseline,
+      series: recolorTimelineSeries(baseline.series, queryColors.baseline),
     },
-    queryB: {
-      ...queryB,
-      series: recolorTimelineSeries(queryB.series, queryColors.queryB),
+    competitor: {
+      ...competitor,
+      series: recolorTimelineSeries(competitor.series, queryColors.competitor),
     },
     delta: {
       timestamps: delta.timestamps,
-      series: formatDeltaSeries({ delta, queryA, queryB, theme }),
+      series: formatDeltaSeries({ delta, baseline, competitor, theme }),
     },
   };
 }

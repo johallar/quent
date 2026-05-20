@@ -5,6 +5,9 @@ from different engines, so each side of the comparison carries its own engine
 ID.
 The UI also uses the profile diff contract as its internal diff view model when
 it builds query diffs client-side from real `QueryBundle` API responses.
+The diff UI presents that pairwise contract as one Baseline Query and one or
+more Competitor Queries. Each competitor renders an independent pairwise diff
+where `query_a` is the baseline and `query_b` is that competitor.
 
 ## Profile Diff Endpoint
 
@@ -26,7 +29,8 @@ export interface QueryProfileDiffRequest {
 }
 ```
 
-Query A is the baseline. Numeric deltas are always `A - B`.
+For a single pairwise comparison, Query A is the baseline and Query B is the
+competitor. Numeric deltas are always `A - B`.
 
 ### Response
 

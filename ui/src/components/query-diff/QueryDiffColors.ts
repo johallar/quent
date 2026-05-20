@@ -23,20 +23,20 @@ export const DIFF_POSITIVE_COLOR = getDiffPositiveColor('light');
 export const DIFF_NEGATIVE_COLOR = getDiffNegativeColor('light');
 
 export interface QueryDiffQueryColors {
-  queryA: string;
-  queryB: string;
+  baseline: string;
+  competitor: string;
 }
 
 export function getQueryDiffQueryColors({
   theme,
 }: {
-  queryAId: string;
-  queryBId: string;
+  baselineQueryId: string;
+  competitorQueryId: string;
   theme: PaletteTheme;
 }): QueryDiffQueryColors {
   return {
-    queryA: getColorByIndex(5, theme),
-    queryB: getColorByIndex(4, theme),
+    baseline: getColorByIndex(5, theme),
+    competitor: getColorByIndex(4, theme),
   };
 }
 
