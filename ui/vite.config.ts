@@ -164,6 +164,132 @@ function queryNameFromId(queryId: string): string {
   return suffix ? `Query ${suffix.toUpperCase()}` : queryId;
 }
 
+interface MockOperatorDiffSpec {
+  id: string;
+  label: string;
+  operatorType: string;
+  duration: [number, number];
+  inputRows: [number, number];
+  outputRows: [number, number];
+}
+
+const MOCK_OPERATOR_DIFF_SPECS: MockOperatorDiffSpec[] = [
+  {
+    id: 'scan-orders',
+    label: 'Scan orders',
+    operatorType: 'Scan',
+    duration: [12, 10],
+    inputRows: [0, 0],
+    outputRows: [1_000_000, 1_200_000],
+  },
+  {
+    id: 'filter-active',
+    label: 'Filter active rows',
+    operatorType: 'Filter',
+    duration: [4, 5],
+    inputRows: [1_000_000, 1_200_000],
+    outputRows: [750_000, 820_000],
+  },
+  {
+    id: 'project-columns',
+    label: 'Project selected columns',
+    operatorType: 'Project',
+    duration: [2, 2.5],
+    inputRows: [750_000, 820_000],
+    outputRows: [750_000, 820_000],
+  },
+  {
+    id: 'join-lineitem',
+    label: 'Join lineitem',
+    operatorType: 'Join',
+    duration: [24, 30],
+    inputRows: [750_000, 820_000],
+    outputRows: [400_000, 380_000],
+  },
+  {
+    id: 'sort-revenue',
+    label: 'Sort by revenue',
+    operatorType: 'Sort',
+    duration: [6, 8],
+    inputRows: [400_000, 380_000],
+    outputRows: [400_000, 380_000],
+  },
+  {
+    id: 'window-rank',
+    label: 'Window rank',
+    operatorType: 'Window',
+    duration: [8, 7],
+    inputRows: [400_000, 380_000],
+    outputRows: [400_000, 380_000],
+  },
+  {
+    id: 'aggregate-status',
+    label: 'Aggregate by status',
+    operatorType: 'Aggregate',
+    duration: [4, 4],
+    inputRows: [400_000, 380_000],
+    outputRows: [20, 18],
+  },
+];
+
+function buildMockDelta([baseline, comparison]: [number, number]) {
+  const delta = baseline - comparison;
+  return {
+    stats: [baseline, comparison] as [number, number],
+    delta,
+    percent_delta: comparison === 0 ? null : delta / comparison,
+  };
+}
+
+function adjustComparisonValue(value: number, competitorIndex: number, statIndex: number): number {
+  if (value === 0) return 0;
+  const direction = statIndex % 2 === 0 ? 1 : -1;
+  return Number((value + direction * competitorIndex * Math.max(1, value * 0.08)).toFixed(3));
+}
+
+function buildMockOperatorDiffs(
+  baselineQueryId: string,
+  comparisonQueryId: string,
+  competitorIndex: number
+) {
+  return MOCK_OPERATOR_DIFF_SPECS.map((spec, statIndex) => {
+    const duration = [
+      spec.duration[0],
+      adjustComparisonValue(spec.duration[1], competitorIndex, statIndex),
+    ] as [number, number];
+    const inputRows = [
+      spec.inputRows[0],
+      adjustComparisonValue(spec.inputRows[1], competitorIndex, statIndex),
+    ] as [number, number];
+    const outputRows = [
+      spec.outputRows[0],
+      adjustComparisonValue(spec.outputRows[1], competitorIndex, statIndex),
+    ] as [number, number];
+
+    return {
+      operators: [
+        {
+          id: `${spec.id}-${baselineQueryId}`,
+          label: spec.label,
+          operator_type_name: spec.operatorType,
+          plan_id: `plan-${baselineQueryId}`,
+        },
+        {
+          id: `${spec.id}-${comparisonQueryId}`,
+          label: spec.label,
+          operator_type_name: spec.operatorType,
+          plan_id: `plan-${comparisonQueryId}`,
+        },
+      ],
+      stats: {
+        duration_s: buildMockDelta(duration),
+        input_rows: buildMockDelta(inputRows),
+        output_rows: buildMockDelta(outputRows),
+      },
+    };
+  });
+}
+
 function makeQueryProfileDiffResponse(body: DiffRequest) {
   return {
     comparisonQueries: body.comparisonQueries.map((query, index) => {
@@ -189,56 +315,7 @@ function makeQueryProfileDiffResponse(body: DiffRequest) {
                 : (baselineDuration - comparisonDuration) / comparisonDuration,
           },
         },
-        operator_diffs: [
-          {
-            operators: [
-              {
-                id: `scan-${body.baselineQuery.query_id}`,
-                label: 'Scan orders',
-                operator_type_name: 'Scan',
-                plan_id: `plan-${body.baselineQuery.query_id}`,
-              },
-              {
-                id: `scan-${query.query_id}`,
-                label: 'Scan orders',
-                operator_type_name: 'Scan',
-                plan_id: `plan-${query.query_id}`,
-              },
-            ],
-            stats: {
-              duration_s: { stats: [12, 10 + index], delta: 2 - index, percent_delta: 0.2 },
-              input_rows: {
-                stats: [1000, 1200 + index * 100],
-                delta: -200 - index * 100,
-                percent_delta: -0.1666666667,
-              },
-            },
-          },
-          {
-            operators: [
-              {
-                id: `join-${body.baselineQuery.query_id}`,
-                label: 'Join lineitem',
-                operator_type_name: 'Join',
-                plan_id: `plan-${body.baselineQuery.query_id}`,
-              },
-              {
-                id: `join-${query.query_id}`,
-                label: 'Join lineitem',
-                operator_type_name: 'Join',
-                plan_id: `plan-${query.query_id}`,
-              },
-            ],
-            stats: {
-              duration_s: { stats: [24, 30 + index], delta: -6 - index, percent_delta: -0.2 },
-              output_rows: {
-                stats: [400, 380 - index * 20],
-                delta: 20 + index * 20,
-                percent_delta: 0.0526315789,
-              },
-            },
-          },
-        ],
+        operator_diffs: buildMockOperatorDiffs(body.baselineQuery.query_id, query.query_id, index),
       };
     }),
   };
