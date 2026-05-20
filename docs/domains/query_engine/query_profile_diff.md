@@ -1,16 +1,16 @@
 # Query Profile Diff API
 
-The query profile diff API compares two query profiles from the same engine.
-The UI also uses this contract as its internal diff view model when it builds
-query diffs client-side from real `QueryBundle` API responses.
+The query profile diff APIs compare two query profiles from the same engine.
+The UI also uses the profile diff contract as its internal diff view model when
+it builds query diffs client-side from real `QueryBundle` API responses.
 
-## Endpoint
+## Profile Diff Endpoint
 
 ```http
 POST /api/engines/{engine_id}/query-profile-diff
 ```
 
-## Request
+### Request
 
 ```ts
 export interface QueryProfileDiffRequest {
@@ -21,7 +21,7 @@ export interface QueryProfileDiffRequest {
 
 Query A is the baseline. Numeric deltas are always `A - B`.
 
-## Response
+### Response
 
 ```ts
 export type QueryProfileDiffScenario =
@@ -72,6 +72,54 @@ export interface QueryProfileDiffResponse {
 }
 ```
 
+`StatValue` comes from the UI utility types and may be a string, number,
+boolean, null, or string array. Numeric stats include `delta` and
+`percent_delta`; non-numeric or missing values use `delta: null`.
+`percent_delta` is `delta / b` when B is numeric and nonzero, otherwise null.
+
+## Timeline Diff Endpoint
+
+```http
+POST /api/engines/{engine_id}/timeline/diff
+```
+
+The timeline diff endpoint accepts two or more single-timeline requests,
+returns each requested timeline, and adds a derived delta timeline.
+
+### Request
+
+```ts
+export type QueryProfileDiffTimelineEntries<T> = [T, T, ...T[]];
+
+export interface QueryProfileDiffTimelineRequest {
+  timelines: QueryProfileDiffTimelineEntries<
+    SingleTimelineRequest<QueryFilter, TaskFilter>
+  >;
+  delta_config: TimelineConfig;
+}
+```
+
+`timelines` must contain at least Query A and Query B entries. Additional
+entries may be included when the caller needs the same request/response bundle
+for overlays or comparison context. `delta_config` controls the output window
+and binning for the derived delta timeline.
+
+### Response
+
+```ts
+export interface QueryProfileDiffTimelineResponse {
+  timelines: QueryProfileDiffTimelineEntries<SingleTimelineResponse>;
+  delta: SingleTimelineResponse;
+  warnings?: string[];
+}
+```
+
+The first response in `timelines` corresponds to Query A and the second
+corresponds to Query B. The `delta` timeline is sampled into `delta_config`.
+The current implementation represents the delta as binned positive magnitudes:
+one series for where Query A is higher and one series for where Query B is
+higher.
+
 ## V1 Semantics
 
 - `plans_equal` means a structural match: topology plus ordered operator
@@ -79,4 +127,24 @@ export interface QueryProfileDiffResponse {
 - `operator_diffs` contains matched operator pairs for equal plans.
 - Numeric stats include `delta` and optional `percent_delta`; non-numeric or
   missing values use `delta: null`.
+- `plans_different` means operator-to-operator diffs are unavailable. The
+  response reports matched and unmatched counts and may include a warning.
+- `plans_incomparable` is reserved for profiles that cannot be compared, such
+  as unsupported or missing plan data.
 - Different-plan aggregate rows are a planned follow-up.
+
+## Client Surface
+
+The TypeScript client exposes:
+
+```ts
+fetchQueryProfileDiff(engineId, request)
+fetchQueryProfileDiffTimeline(engineId, request)
+useQueryProfileDiff(params, options?)
+useQueryProfileDiffTimeline(params, options?)
+```
+
+The current UI can also build a `QueryProfileDiffResponse` locally from two
+`QueryBundle` responses. That local path uses the same response contract so the
+table, stats, and timeline views can consume either API-backed or client-built
+diffs.
