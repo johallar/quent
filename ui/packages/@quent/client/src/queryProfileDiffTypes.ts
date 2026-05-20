@@ -11,18 +11,24 @@ import type {
 } from '@quent/utils';
 
 export interface QueryProfileDiffQueryRef {
+  // @chris tell me if engine is needed, is group needed?
   engine_id: string;
   query_id: string;
 }
 
 export interface QueryProfileDiffRequest {
-  query_a: QueryProfileDiffQueryRef;
-  query_b: QueryProfileDiffQueryRef;
+  // Alternatively make this one array, assume first item is baseline
+  baselineQuery: QueryProfileDiffQueryRef;
+  comparisonQueries: Array<QueryProfileDiffQueryRef>;
 }
 
-export type QueryProfileDiffScenario = 'plans_equal' | 'plans_different' | 'plans_incomparable';
+// This is a later thing
+// export type QueryProfileDiffScenario = 'plans_equal' | 'plans_different' | 'plans_incomparable';
+
+export type Compatibility = 'compatible' | 'incompatible';
 
 export interface QueryProfileDiffQuerySummary {
+  // Be flexible w these properties/names, maybe no names and just ids
   id: string;
   engine_id: string;
   engine_name: string | null;
@@ -38,37 +44,48 @@ export interface QueryProfileDiffOperatorRef {
   plan_id: string | null;
 }
 
-export interface QueryProfileDiffStatDelta {
-  a: StatValue;
-  b: StatValue;
+export interface QueryProfileDiffDelta {
+  stats: [StatValue, StatValue];
   delta: number | null;
   percent_delta: number | null;
 }
 
 export interface QueryProfileDiffOperatorDelta {
-  operator_a: QueryProfileDiffOperatorRef | null;
-  operator_b: QueryProfileDiffOperatorRef | null;
+  operators: [QueryProfileDiffOperatorRef, QueryProfileDiffOperatorRef];
   /* stat name -> delta values */
-  stats: Record<string, QueryProfileDiffStatDelta>;
-}
-
-export interface QueryProfileDiffPlanComparison {
-  /* Big question here, how do we represent query plan graph diffs */
-  matched_operator_count: number;
-  unmatched_operator_a_count: number;
-  unmatched_operator_b_count: number;
+  stats: Record<string, QueryProfileDiffDelta>;
 }
 
 export interface QueryProfileDiffResponse {
-  // This almost becomes a query diff bundle
-  scenario: QueryProfileDiffScenario;
-  query_a: QueryProfileDiffQuerySummary;
-  query_b: QueryProfileDiffQuerySummary;
-  plan_comparison: QueryProfileDiffPlanComparison;
-  operator_diffs: QueryProfileDiffOperatorDelta[];
+  // Each comparison query compared to the baseline query listed here (same order as comparison_queries in QueryProfileDiffRequest)
+  comparisonQueries: Array<QueryProfileQueryDiff>;
+}
+
+export interface QueryProfileQueryDiff {
+  compatibility: Compatibility;
+  query?: QueryProfileDiffQuerySummary;
+  operator_diffs?: Array<QueryProfileDiffOperatorDelta>;
+  stat_diffs?: {
+    // Derived from query timestamps (last-first)
+    duration: QueryProfileDiffDelta;
+    // Extend later with other capacities aggrgated over the whole query?
+    // capacities: Record<CapacityType, QueryProfileDiffDelta>;
+  };
   warnings?: string[];
 }
 
+// IGNORE ISOMORPHIC GRAPH STUFF
+// export interface QueryProfileDiffPlanComparison {
+//   /* Big question here, how do we represent query plan graph diffs */
+//   matched_operator_count: number;
+//   unmatched_operator_a_count: number;
+//   unmatched_operator_b_count: number;
+// }
+// plan_comparison: QueryProfileDiffPlanComparison;
+
+/****
+ * Later
+ */
 export type QueryProfileDiffTimelineEntries<T> = [T, T, ...T[]];
 
 export interface QueryProfileDiffTimelineEntry<T> {
