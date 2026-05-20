@@ -9,50 +9,64 @@ import {
 import type { QueryProfileDiffTimelineRequest } from './queryProfileDiffTypes';
 
 describe('queryProfileDiffQueryOptions', () => {
-  it('builds a stable key from engine and query ids', () => {
+  it('builds a stable key from both engine and query ids', () => {
     const options = queryProfileDiffQueryOptions({
-      engineId: 'engine-1',
-      request: { query_a_id: 'query-a', query_b_id: 'query-b' },
+      request: {
+        query_a: { engine_id: 'engine-a', query_id: 'query-a' },
+        query_b: { engine_id: 'engine-b', query_id: 'query-b' },
+      },
     });
 
-    expect(options.queryKey).toEqual(['queryProfileDiff', 'engine-1', 'query-a', 'query-b']);
+    expect(options.queryKey).toEqual([
+      'queryProfileDiff',
+      'engine-a',
+      'query-a',
+      'engine-b',
+      'query-b',
+    ]);
   });
 
   it('builds diff timeline options around the full request', () => {
     const request: QueryProfileDiffTimelineRequest = {
       timelines: [
         {
-          entry: {
-            ResourceGroup: {
-              resource_group_id: 'root-a',
-              resource_type_name: 'GPU',
-              long_entities_threshold_s: null,
-              entity_filter: { entity_type_name: null },
-              app_params: { operator_id: null },
-              config: { num_bins: 200, start: 0, end: 10 },
+          engine_id: 'engine-a',
+          timeline: {
+            entry: {
+              ResourceGroup: {
+                resource_group_id: 'root-a',
+                resource_type_name: 'GPU',
+                long_entities_threshold_s: null,
+                entity_filter: { entity_type_name: null },
+                app_params: { operator_id: null },
+                config: { num_bins: 200, start: 0, end: 10 },
+              },
             },
+            app_params: { query_id: 'query-a' },
           },
-          app_params: { query_id: 'query-a' },
         },
         {
-          entry: {
-            ResourceGroup: {
-              resource_group_id: 'root-b',
-              resource_type_name: 'GPU',
-              long_entities_threshold_s: null,
-              entity_filter: { entity_type_name: null },
-              app_params: { operator_id: null },
-              config: { num_bins: 200, start: 0, end: 12 },
+          engine_id: 'engine-b',
+          timeline: {
+            entry: {
+              ResourceGroup: {
+                resource_group_id: 'root-b',
+                resource_type_name: 'GPU',
+                long_entities_threshold_s: null,
+                entity_filter: { entity_type_name: null },
+                app_params: { operator_id: null },
+                config: { num_bins: 200, start: 0, end: 12 },
+              },
             },
+            app_params: { query_id: 'query-b' },
           },
-          app_params: { query_id: 'query-b' },
         },
       ],
       delta_config: { num_bins: 200, start: 0, end: 12 },
     };
 
-    const options = queryProfileDiffTimelineQueryOptions({ engineId: 'engine-1', request });
+    const options = queryProfileDiffTimelineQueryOptions({ request });
 
-    expect(options.queryKey).toEqual(['queryProfileDiffTimeline', 'engine-1', request]);
+    expect(options.queryKey).toEqual(['queryProfileDiffTimeline', request]);
   });
 });

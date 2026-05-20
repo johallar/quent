@@ -11,7 +11,7 @@ import {
   fetchListQueries,
   queryBundleQueryOptions,
 } from '@quent/client';
-import type { Query, QueryGroup } from '@quent/utils';
+import type { Engine, Query, QueryGroup } from '@quent/utils';
 import {
   Button,
   Collapsible,
@@ -33,12 +33,14 @@ import { buildQueryProfileDiffFromBundles } from '@/components/query-diff/queryP
 import { THEME_DARK, useTheme } from '@/contexts/ThemeContext';
 
 interface DiffSelectionPageProps {
-  initialEngineId?: string;
+  initialQueryAEngineId?: string;
+  initialQueryBEngineId?: string;
   initialQueryAId?: string;
   initialQueryBId?: string;
 }
 
 interface QuerySideState {
+  engineId: string;
   groupId: string;
   queryId: string;
 }
@@ -46,9 +48,11 @@ interface QuerySideState {
 interface QuerySelectorColumnProps {
   label: string;
   side: QuerySideState;
+  engines: Engine[];
   queryGroups: QueryGroup[];
   queriesByGroup: Record<string, Query[]>;
-  disabled: boolean;
+  queriesLoading: boolean;
+  onEngineChange: (engineId: string) => void;
   onGroupChange: (groupId: string) => void;
   onQueryChange: (queryId: string) => void;
 }
@@ -59,13 +63,24 @@ const COMPACT_SELECT_ITEM_CLASS = 'py-1 pl-7 pr-2 text-xs';
 
 let pendingSelectionOpenAfterNavigation: boolean | null = null;
 
-function getInitialSelectionOpen(engineId: string, queryAId: string, queryBId: string): boolean {
+function getInitialSelectionOpen(
+  queryAEngineId: string,
+  queryBEngineId: string,
+  queryAId: string,
+  queryBId: string
+): boolean {
   if (pendingSelectionOpenAfterNavigation !== null) {
     const selectionOpen = pendingSelectionOpenAfterNavigation;
     pendingSelectionOpenAfterNavigation = null;
     return selectionOpen;
   }
-  return !(engineId && queryAId && queryBId && queryAId !== queryBId);
+  return !(
+    queryAEngineId &&
+    queryBEngineId &&
+    queryAId &&
+    queryBId &&
+    !(queryAEngineId === queryBEngineId && queryAId === queryBId)
+  );
 }
 
 function findGroupForQuery(
@@ -80,6 +95,16 @@ function findGroupForQuery(
 
 function queryLabel(query: Query): string {
   return query.instance_name ?? query.id;
+}
+
+function engineLabel(engine: Engine): string {
+  return engine.instance_name ?? engine.id;
+}
+
+function engineDisplayLabel(engineId: string, engines: Engine[], emptyLabel: string): string {
+  if (!engineId) return emptyLabel;
+  const engine = engines.find(item => item.id === engineId);
+  return engine ? engineLabel(engine) : engineId;
 }
 
 function findQueryById(
@@ -102,12 +127,41 @@ function queryDisplayLabel(
   return query ? queryLabel(query) : queryId;
 }
 
+function useQueryCatalog(engineId: string) {
+  const { data: queryGroups = [], isLoading: queryGroupsLoading } = useQuery({
+    queryKey: ['list_coordinators', engineId],
+    queryFn: () => fetchListCoordinators(engineId),
+    enabled: Boolean(engineId),
+  });
+
+  const { data: queriesByGroup = {}, isLoading: queriesLoading } = useQuery({
+    queryKey: ['diff_queries_by_group', engineId, queryGroups.map(group => group.id).join('\0')],
+    queryFn: async () => {
+      const entries = await Promise.all(
+        queryGroups.map(
+          async group => [group.id, await fetchListQueries(engineId, group.id)] as const
+        )
+      );
+      return Object.fromEntries(entries);
+    },
+    enabled: Boolean(engineId && queryGroups.length > 0),
+  });
+
+  return {
+    queryGroups,
+    queriesByGroup,
+    queriesLoading: queryGroupsLoading || queriesLoading,
+  };
+}
+
 function QuerySelectorColumn({
   label,
   side,
+  engines,
   queryGroups,
   queriesByGroup,
-  disabled,
+  queriesLoading,
+  onEngineChange,
   onGroupChange,
   onQueryChange,
 }: QuerySelectorColumnProps) {
@@ -117,7 +171,41 @@ function QuerySelectorColumn({
       <div className="border-b border-border px-3 py-1.5">
         <h2 className="text-xs font-semibold">{label}</h2>
       </div>
-      <div className="grid gap-2 p-2 sm:grid-cols-2">
+      <div className="grid gap-2 p-2 sm:grid-cols-3">
+        <div className="min-w-0">
+          <label
+            htmlFor={`${label}-engine`}
+            className="mb-1 block text-[11px] font-medium leading-none text-muted-foreground"
+          >
+            Engine
+          </label>
+          <Select value={side.engineId} onValueChange={onEngineChange}>
+            <SelectTrigger id={`${label}-engine`} className={COMPACT_SELECT_TRIGGER_CLASS}>
+              <SelectValue placeholder="Select Engine" />
+            </SelectTrigger>
+            <SelectContent>
+              {engines.length === 0 ? (
+                <SelectItem
+                  value={`${label}-no-engines`}
+                  disabled
+                  className={COMPACT_SELECT_ITEM_CLASS}
+                >
+                  No engines
+                </SelectItem>
+              ) : (
+                engines.map(engine => (
+                  <SelectItem
+                    key={engine.id}
+                    value={engine.id}
+                    className={COMPACT_SELECT_ITEM_CLASS}
+                  >
+                    <DataText>{engineLabel(engine)}</DataText>
+                  </SelectItem>
+                ))
+              )}
+            </SelectContent>
+          </Select>
+        </div>
         <div className="min-w-0">
           <label
             htmlFor={`${label}-group`}
@@ -125,7 +213,11 @@ function QuerySelectorColumn({
           >
             Query Group
           </label>
-          <Select value={side.groupId} onValueChange={onGroupChange} disabled={disabled}>
+          <Select
+            value={side.groupId}
+            onValueChange={onGroupChange}
+            disabled={!side.engineId || queriesLoading}
+          >
             <SelectTrigger id={`${label}-group`} className={COMPACT_SELECT_TRIGGER_CLASS}>
               <SelectValue placeholder="Select Query Group" />
             </SelectTrigger>
@@ -158,7 +250,7 @@ function QuerySelectorColumn({
           <Select
             value={side.queryId}
             onValueChange={onQueryChange}
-            disabled={disabled || !side.groupId}
+            disabled={queriesLoading || !side.groupId}
           >
             <SelectTrigger id={`${label}-query`} className={COMPACT_SELECT_TRIGGER_CLASS}>
               <SelectValue placeholder="Select Query" />
@@ -188,79 +280,85 @@ function QuerySelectorColumn({
 }
 
 export function DiffSelectionPage({
-  initialEngineId = '',
+  initialQueryAEngineId = '',
+  initialQueryBEngineId = '',
   initialQueryAId = '',
   initialQueryBId = '',
 }: DiffSelectionPageProps) {
   const navigate = useNavigate();
   const { theme } = useTheme();
   const paletteTheme = theme === THEME_DARK ? 'dark' : 'light';
-  const [engineId, setEngineId] = useState(initialEngineId);
-  const [queryA, setQueryA] = useState<QuerySideState>({ groupId: '', queryId: initialQueryAId });
-  const [queryB, setQueryB] = useState<QuerySideState>({ groupId: '', queryId: initialQueryBId });
+  const [queryA, setQueryA] = useState<QuerySideState>({
+    engineId: initialQueryAEngineId,
+    groupId: '',
+    queryId: initialQueryAId,
+  });
+  const [queryB, setQueryB] = useState<QuerySideState>({
+    engineId: initialQueryBEngineId,
+    groupId: '',
+    queryId: initialQueryBId,
+  });
   const [selectionOpen, setSelectionOpen] = useState(() =>
-    getInitialSelectionOpen(initialEngineId, initialQueryAId, initialQueryBId)
+    getInitialSelectionOpen(
+      initialQueryAEngineId,
+      initialQueryBEngineId,
+      initialQueryAId,
+      initialQueryBId
+    )
   );
 
   useEffect(() => {
-    setEngineId(initialEngineId);
     setQueryA(prev =>
-      prev.queryId === initialQueryAId ? prev : { groupId: '', queryId: initialQueryAId }
+      prev.engineId === initialQueryAEngineId && prev.queryId === initialQueryAId
+        ? prev
+        : { engineId: initialQueryAEngineId, groupId: '', queryId: initialQueryAId }
     );
     setQueryB(prev =>
-      prev.queryId === initialQueryBId ? prev : { groupId: '', queryId: initialQueryBId }
+      prev.engineId === initialQueryBEngineId && prev.queryId === initialQueryBId
+        ? prev
+        : { engineId: initialQueryBEngineId, groupId: '', queryId: initialQueryBId }
     );
-  }, [initialEngineId, initialQueryAId, initialQueryBId]);
+  }, [initialQueryAEngineId, initialQueryAId, initialQueryBEngineId, initialQueryBId]);
 
   const { data: engines = [] } = useQuery({
     queryKey: ['list_engines'],
     queryFn: fetchListEngines,
   });
 
-  const { data: queryGroups = [] } = useQuery({
-    queryKey: ['list_coordinators', engineId],
-    queryFn: () => fetchListCoordinators(engineId),
-    enabled: Boolean(engineId),
-  });
-
-  const { data: queriesByGroup = {}, isLoading: queriesLoading } = useQuery({
-    queryKey: ['diff_queries_by_group', engineId, queryGroups.map(group => group.id).join('\0')],
-    queryFn: async () => {
-      const entries = await Promise.all(
-        queryGroups.map(
-          async group => [group.id, await fetchListQueries(engineId, group.id)] as const
-        )
-      );
-      return Object.fromEntries(entries);
-    },
-    enabled: Boolean(engineId && queryGroups.length > 0),
-  });
+  const queryACatalog = useQueryCatalog(queryA.engineId);
+  const queryBCatalog = useQueryCatalog(queryB.engineId);
 
   useEffect(() => {
     setQueryA(prev => {
       if (prev.groupId || !prev.queryId) return prev;
-      const groupId = findGroupForQuery(prev.queryId, queriesByGroup);
+      const groupId = findGroupForQuery(prev.queryId, queryACatalog.queriesByGroup);
       return groupId ? { ...prev, groupId } : prev;
     });
+  }, [queryACatalog.queriesByGroup, queryA.groupId, queryA.queryId]);
+
+  useEffect(() => {
     setQueryB(prev => {
       if (prev.groupId || !prev.queryId) return prev;
-      const groupId = findGroupForQuery(prev.queryId, queriesByGroup);
+      const groupId = findGroupForQuery(prev.queryId, queryBCatalog.queriesByGroup);
       return groupId ? { ...prev, groupId } : prev;
     });
-  }, [queriesByGroup, queryA.groupId, queryA.queryId, queryB.groupId, queryB.queryId]);
+  }, [queryBCatalog.queriesByGroup, queryB.groupId, queryB.queryId]);
 
-  const selectedEngine = useMemo(
-    () => engines.find(engine => engine.id === engineId),
-    [engineId, engines]
+  const queryAEngineSummary = useMemo(
+    () => engineDisplayLabel(queryA.engineId, engines, 'Select Engine'),
+    [engines, queryA.engineId]
   );
-  const engineSummary = selectedEngine?.instance_name ?? selectedEngine?.id ?? engineId;
+  const queryBEngineSummary = useMemo(
+    () => engineDisplayLabel(queryB.engineId, engines, 'Select Engine'),
+    [engines, queryB.engineId]
+  );
   const queryASummary = useMemo(
-    () => queryDisplayLabel(queryA.queryId, queriesByGroup, 'Select Query A'),
-    [queryA.queryId, queriesByGroup]
+    () => queryDisplayLabel(queryA.queryId, queryACatalog.queriesByGroup, 'Select Query A'),
+    [queryA.queryId, queryACatalog.queriesByGroup]
   );
   const queryBSummary = useMemo(
-    () => queryDisplayLabel(queryB.queryId, queriesByGroup, 'Select Query B'),
-    [queryB.queryId, queriesByGroup]
+    () => queryDisplayLabel(queryB.queryId, queryBCatalog.queriesByGroup, 'Select Query B'),
+    [queryB.queryId, queryBCatalog.queriesByGroup]
   );
   const queryColors = useMemo(
     () =>
@@ -272,17 +370,29 @@ export function DiffSelectionPage({
     [paletteTheme, queryA.queryId, queryB.queryId]
   );
   const canSwapQueries = Boolean(
-    engineId && (queryA.groupId || queryA.queryId || queryB.groupId || queryB.queryId)
+    queryA.engineId ||
+    queryA.groupId ||
+    queryA.queryId ||
+    queryB.engineId ||
+    queryB.groupId ||
+    queryB.queryId
   );
-  const sameQuerySelected = Boolean(queryA.queryId && queryA.queryId === queryB.queryId);
-  const canDiff = Boolean(engineId && queryA.queryId && queryB.queryId && !sameQuerySelected);
+  const sameQuerySelected = Boolean(
+    queryA.engineId &&
+    queryA.engineId === queryB.engineId &&
+    queryA.queryId &&
+    queryA.queryId === queryB.queryId
+  );
+  const canDiff = Boolean(
+    queryA.engineId && queryA.queryId && queryB.engineId && queryB.queryId && !sameQuerySelected
+  );
 
   const queryABundle = useQuery({
-    ...queryBundleQueryOptions({ engineId, queryId: queryA.queryId }),
+    ...queryBundleQueryOptions({ engineId: queryA.engineId, queryId: queryA.queryId }),
     enabled: canDiff,
   });
   const queryBBundle = useQuery({
-    ...queryBundleQueryOptions({ engineId, queryId: queryB.queryId }),
+    ...queryBundleQueryOptions({ engineId: queryB.engineId, queryId: queryB.queryId }),
     enabled: canDiff,
   });
   const diff = useMemo(
@@ -295,40 +405,43 @@ export function DiffSelectionPage({
   const diffLoading = canDiff && (queryABundle.isLoading || queryBBundle.isLoading);
   const diffError = queryABundle.error ?? queryBBundle.error;
 
-  const maybeNavigateToDiff = (
-    nextEngineId: string,
-    nextA: QuerySideState,
-    nextB: QuerySideState
-  ) => {
-    if (!nextEngineId || !nextA.queryId || !nextB.queryId || nextA.queryId === nextB.queryId) {
+  const maybeNavigateToDiff = (nextA: QuerySideState, nextB: QuerySideState) => {
+    if (
+      !nextA.engineId ||
+      !nextB.engineId ||
+      !nextA.queryId ||
+      !nextB.queryId ||
+      (nextA.engineId === nextB.engineId && nextA.queryId === nextB.queryId)
+    ) {
       return;
     }
     pendingSelectionOpenAfterNavigation = selectionOpen;
     navigate({
-      to: '/diff/engine/$engineId/query/$queryAId/compare/$queryBId',
+      to: '/diff/engine/$queryAEngineId/query/$queryAId/compare/engine/$queryBEngineId/query/$queryBId',
       params: {
-        engineId: nextEngineId,
+        queryAEngineId: nextA.engineId,
         queryAId: nextA.queryId,
+        queryBEngineId: nextB.engineId,
         queryBId: nextB.queryId,
       },
     });
   };
 
-  const handleEngineChange = (nextEngineId: string) => {
-    setEngineId(nextEngineId);
-    setQueryA({ groupId: '', queryId: '' });
-    setQueryB({ groupId: '', queryId: '' });
+  const handleEngineChange = (side: 'a' | 'b', engineId: string) => {
     setSelectionOpen(true);
-    pendingSelectionOpenAfterNavigation = true;
-    navigate({ to: '/diff' });
+    if (side === 'a') {
+      setQueryA({ engineId, groupId: '', queryId: '' });
+    } else {
+      setQueryB({ engineId, groupId: '', queryId: '' });
+    }
   };
 
   const handleGroupChange = (side: 'a' | 'b', groupId: string) => {
     setSelectionOpen(true);
     if (side === 'a') {
-      setQueryA({ groupId, queryId: '' });
+      setQueryA(prev => ({ ...prev, groupId, queryId: '' }));
     } else {
-      setQueryB({ groupId, queryId: '' });
+      setQueryB(prev => ({ ...prev, groupId, queryId: '' }));
     }
   };
 
@@ -336,11 +449,11 @@ export function DiffSelectionPage({
     if (side === 'a') {
       const nextA = { ...queryA, queryId };
       setQueryA(nextA);
-      maybeNavigateToDiff(engineId, nextA, queryB);
+      maybeNavigateToDiff(nextA, queryB);
     } else {
       const nextB = { ...queryB, queryId };
       setQueryB(nextB);
-      maybeNavigateToDiff(engineId, queryA, nextB);
+      maybeNavigateToDiff(queryA, nextB);
     }
   };
 
@@ -349,7 +462,7 @@ export function DiffSelectionPage({
     const nextB = queryA;
     setQueryA(nextA);
     setQueryB(nextB);
-    maybeNavigateToDiff(engineId, nextA, nextB);
+    maybeNavigateToDiff(nextA, nextB);
   };
 
   return (
@@ -364,26 +477,18 @@ export function DiffSelectionPage({
             <span className="shrink-0 text-xs font-semibold text-muted-foreground">Query Diff</span>
             <span className="flex min-w-0 flex-wrap items-center justify-center gap-x-2 gap-y-1 text-xs">
               <DataText
-                className="inline-block max-w-[16rem] truncate align-bottom"
+                className="inline-block max-w-[18rem] truncate align-bottom"
                 style={{ color: queryA.queryId ? queryColors.queryA : undefined }}
               >
-                {queryASummary}
+                {queryA.engineId ? `${queryAEngineSummary} / ${queryASummary}` : queryASummary}
               </DataText>
               <span className="text-muted-foreground">vs</span>
               <DataText
-                className="inline-block max-w-[16rem] truncate align-bottom"
+                className="inline-block max-w-[18rem] truncate align-bottom"
                 style={{ color: queryB.queryId ? queryColors.queryB : undefined }}
               >
-                {queryBSummary}
+                {queryB.engineId ? `${queryBEngineSummary} / ${queryBSummary}` : queryBSummary}
               </DataText>
-              {engineSummary && (
-                <>
-                  <span className="hidden text-muted-foreground sm:inline">on</span>
-                  <DataText className="hidden max-w-[14rem] truncate align-bottom sm:inline-block">
-                    {engineSummary}
-                  </DataText>
-                </>
-              )}
             </span>
             <ChevronDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground transition-transform duration-300 ease-out group-data-[state=open]:rotate-180" />
           </CollapsibleTrigger>
@@ -391,46 +496,15 @@ export function DiffSelectionPage({
 
         <CollapsibleContent className="overflow-hidden will-change-[height,opacity,transform] data-[state=closed]:animate-collapsible-up data-[state=open]:animate-collapsible-down">
           <div className="mx-auto w-full max-w-5xl px-4 pb-3">
-            <div className="mb-2 flex justify-center">
-              <div className="w-full max-w-xs">
-                <label
-                  htmlFor="diff-engine"
-                  className="mb-1 block text-center text-[11px] font-medium leading-none text-muted-foreground"
-                >
-                  Engine
-                </label>
-                <Select value={engineId} onValueChange={handleEngineChange}>
-                  <SelectTrigger id="diff-engine" className="h-8 px-2 text-xs">
-                    <SelectValue placeholder="Select Engine" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {engines.length === 0 ? (
-                      <SelectItem value="no-engines" disabled className={COMPACT_SELECT_ITEM_CLASS}>
-                        No engines
-                      </SelectItem>
-                    ) : (
-                      engines.map(engine => (
-                        <SelectItem
-                          key={engine.id}
-                          value={engine.id}
-                          className={COMPACT_SELECT_ITEM_CLASS}
-                        >
-                          <DataText>{engine.instance_name ?? engine.id}</DataText>
-                        </SelectItem>
-                      ))
-                    )}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-
             <div className="mx-auto grid w-full max-w-4xl items-stretch gap-2 lg:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)]">
               <QuerySelectorColumn
                 label="Query A"
                 side={queryA}
-                queryGroups={queryGroups}
-                queriesByGroup={queriesByGroup}
-                disabled={!engineId || queriesLoading}
+                engines={engines}
+                queryGroups={queryACatalog.queryGroups}
+                queriesByGroup={queryACatalog.queriesByGroup}
+                queriesLoading={queryACatalog.queriesLoading}
+                onEngineChange={engineId => handleEngineChange('a', engineId)}
                 onGroupChange={groupId => handleGroupChange('a', groupId)}
                 onQueryChange={queryId => handleQueryChange('a', queryId)}
               />
@@ -451,9 +525,11 @@ export function DiffSelectionPage({
               <QuerySelectorColumn
                 label="Query B"
                 side={queryB}
-                queryGroups={queryGroups}
-                queriesByGroup={queriesByGroup}
-                disabled={!engineId || queriesLoading}
+                engines={engines}
+                queryGroups={queryBCatalog.queryGroups}
+                queriesByGroup={queryBCatalog.queriesByGroup}
+                queriesLoading={queryBCatalog.queriesLoading}
+                onEngineChange={engineId => handleEngineChange('b', engineId)}
                 onGroupChange={groupId => handleGroupChange('b', groupId)}
                 onQueryChange={queryId => handleQueryChange('b', queryId)}
               />
@@ -469,9 +545,9 @@ export function DiffSelectionPage({
             !canDiff && 'flex items-center justify-center'
           )}
         >
-          {!engineId ? (
+          {!queryA.engineId || !queryB.engineId ? (
             <div className="text-sm text-muted-foreground">
-              Select an engine to compare queries.
+              Select engines for Query A and Query B.
             </div>
           ) : sameQuerySelected ? (
             <div className="text-sm text-destructive">Choose two different queries.</div>
@@ -493,7 +569,8 @@ export function DiffSelectionPage({
                 queryBBundle={queryBBundle.data}
               />
               <QueryDiffTimeline
-                engineId={engineId}
+                queryAEngineId={queryA.engineId}
+                queryBEngineId={queryB.engineId}
                 diff={diff}
                 queryABundle={queryABundle.data}
                 queryBBundle={queryBBundle.data}

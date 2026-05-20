@@ -10,15 +10,22 @@ import type {
   TimelineConfig,
 } from '@quent/utils';
 
+export interface QueryProfileDiffQueryRef {
+  engine_id: string;
+  query_id: string;
+}
+
 export interface QueryProfileDiffRequest {
-  query_a_id: string;
-  query_b_id: string;
+  query_a: QueryProfileDiffQueryRef;
+  query_b: QueryProfileDiffQueryRef;
 }
 
 export type QueryProfileDiffScenario = 'plans_equal' | 'plans_different' | 'plans_incomparable';
 
 export interface QueryProfileDiffQuerySummary {
   id: string;
+  engine_id: string;
+  engine_name: string | null;
   instance_name: string | null;
   query_group_id?: string | null;
   query_group_name?: string | null;
@@ -64,8 +71,15 @@ export interface QueryProfileDiffResponse {
 
 export type QueryProfileDiffTimelineEntries<T> = [T, T, ...T[]];
 
+export interface QueryProfileDiffTimelineEntry<T> {
+  engine_id: string;
+  timeline: T;
+}
+
 export interface QueryProfileDiffTimelineRequest {
-  timelines: QueryProfileDiffTimelineEntries<SingleTimelineRequest<QueryFilter, TaskFilter>>;
+  timelines: QueryProfileDiffTimelineEntries<
+    QueryProfileDiffTimelineEntry<SingleTimelineRequest<QueryFilter, TaskFilter>>
+  >;
   delta_config: TimelineConfig;
 }
 

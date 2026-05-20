@@ -4,16 +4,19 @@
 import { DiffSelectionPage } from '@/pages/DiffSelectionPage';
 import { createFileRoute } from '@tanstack/react-router';
 
-export const Route = createFileRoute('/diff/engine/$engineId/query/$queryAId/compare/$queryBId')({
+export const Route = createFileRoute(
+  '/diff/engine/$queryAEngineId/query/$queryAId/compare/engine/$queryBEngineId/query/$queryBId'
+)({
   component: DiffComparison,
 });
 
 function DiffComparison() {
-  const { engineId, queryAId, queryBId } = Route.useParams();
+  const { queryAEngineId, queryAId, queryBEngineId, queryBId } = Route.useParams();
   return (
     <DiffSelectionPage
-      initialEngineId={engineId}
+      initialQueryAEngineId={queryAEngineId}
       initialQueryAId={queryAId}
+      initialQueryBEngineId={queryBEngineId}
       initialQueryBId={queryBId}
     />
   );

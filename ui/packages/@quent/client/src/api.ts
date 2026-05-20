@@ -112,10 +112,9 @@ export async function fetchBulkTimelines(
 }
 
 export async function fetchQueryProfileDiff(
-  engineId: string,
   request: QueryProfileDiffRequest
 ): Promise<QueryProfileDiffResponse> {
-  return apiFetch<QueryProfileDiffResponse>(`/engines/${engineId}/query-profile-diff`, {
+  return apiFetch<QueryProfileDiffResponse>('/query-profile-diff', {
     fetchOptions: {
       method: 'POST',
       body: JSON.stringify(request),
@@ -124,10 +123,9 @@ export async function fetchQueryProfileDiff(
 }
 
 export async function fetchQueryProfileDiffTimeline(
-  engineId: string,
   request: QueryProfileDiffTimelineRequest
 ): Promise<QueryProfileDiffTimelineResponse> {
-  return apiFetch<QueryProfileDiffTimelineResponse>(`/engines/${engineId}/timeline/diff`, {
+  return apiFetch<QueryProfileDiffTimelineResponse>('/timeline/diff', {
     fetchOptions: {
       method: 'POST',
       body: JSON.stringify(request),

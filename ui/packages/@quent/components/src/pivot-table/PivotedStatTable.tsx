@@ -305,6 +305,7 @@ export function PivotedStatTable<TRow>({
   const effectiveRenderConfig = useMemo(
     (): PivotTableRenderConfig => ({
       getGroupTypeColor: renderConfig?.getGroupTypeColor,
+      formatGroupCellValue: renderConfig?.formatGroupCellValue,
       getDataCellStyle: renderConfig?.getDataCellStyle,
       formatDataCellValue: renderConfig?.formatDataCellValue,
     }),

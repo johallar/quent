@@ -1,21 +1,28 @@
 # Query Profile Diff API
 
-The query profile diff APIs compare two query profiles from the same engine.
+The query profile diff APIs compare two query profiles. The profiles may come
+from different engines, so each side of the comparison carries its own engine
+ID.
 The UI also uses the profile diff contract as its internal diff view model when
 it builds query diffs client-side from real `QueryBundle` API responses.
 
 ## Profile Diff Endpoint
 
 ```http
-POST /api/engines/{engine_id}/query-profile-diff
+POST /api/query-profile-diff
 ```
 
 ### Request
 
 ```ts
+export interface QueryProfileDiffQueryRef {
+  engine_id: string;
+  query_id: string;
+}
+
 export interface QueryProfileDiffRequest {
-  query_a_id: string;
-  query_b_id: string;
+  query_a: QueryProfileDiffQueryRef;
+  query_b: QueryProfileDiffQueryRef;
 }
 ```
 
@@ -31,6 +38,8 @@ export type QueryProfileDiffScenario =
 
 export interface QueryProfileDiffQuerySummary {
   id: string;
+  engine_id: string;
+  engine_name: string | null;
   instance_name: string | null;
   query_group_id?: string | null;
   query_group_name?: string | null;
@@ -80,20 +89,29 @@ boolean, null, or string array. Numeric stats include `delta` and
 ## Timeline Diff Endpoint
 
 ```http
-POST /api/engines/{engine_id}/timeline/diff
+POST /api/timeline/diff
 ```
 
 The timeline diff endpoint accepts two or more single-timeline requests,
-returns each requested timeline, and adds a derived delta timeline.
+returns each requested timeline, and adds a derived delta timeline. Each
+timeline entry names the engine that should execute that single-timeline
+request.
 
 ### Request
 
 ```ts
 export type QueryProfileDiffTimelineEntries<T> = [T, T, ...T[]];
 
+export interface QueryProfileDiffTimelineEntry<T> {
+  engine_id: string;
+  timeline: T;
+}
+
 export interface QueryProfileDiffTimelineRequest {
   timelines: QueryProfileDiffTimelineEntries<
-    SingleTimelineRequest<QueryFilter, TaskFilter>
+    QueryProfileDiffTimelineEntry<
+      SingleTimelineRequest<QueryFilter, TaskFilter>
+    >
   >;
   delta_config: TimelineConfig;
 }
@@ -138,8 +156,8 @@ higher.
 The TypeScript client exposes:
 
 ```ts
-fetchQueryProfileDiff(engineId, request)
-fetchQueryProfileDiffTimeline(engineId, request)
+fetchQueryProfileDiff(request)
+fetchQueryProfileDiffTimeline(request)
 useQueryProfileDiff(params, options?)
 useQueryProfileDiffTimeline(params, options?)
 ```

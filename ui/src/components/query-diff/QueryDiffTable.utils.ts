@@ -6,7 +6,15 @@ import type { PaletteTheme, StatValue } from '@quent/utils';
 import { formatStatValue } from '@quent/components';
 import { getDiffNegativeColor, getDiffPositiveColor } from './QueryDiffColors';
 
+export interface QueryDiffTableEngine {
+  id: string;
+  label: string;
+}
+
 export interface QueryDiffTableRow {
+  engineGroupId: string;
+  engineGroupLabel: string;
+  engines: QueryDiffTableEngine[];
   operatorType: string;
   operatorLabel: string;
   operatorPairId: string;
@@ -15,6 +23,22 @@ export interface QueryDiffTableRow {
   operatorBId: string;
   operatorBLabel: string;
   stats: Record<string, StatValue>;
+}
+
+function getQueryEngine(query: QueryProfileDiffResponse['query_a']): QueryDiffTableEngine {
+  return {
+    id: query.engine_id,
+    label: query.engine_name ?? query.engine_id,
+  };
+}
+
+function uniqueEngines(engines: QueryDiffTableEngine[]): QueryDiffTableEngine[] {
+  const seen = new Set<string>();
+  return engines.filter(engine => {
+    if (seen.has(engine.id)) return false;
+    seen.add(engine.id);
+    return true;
+  });
 }
 
 function displayDeltaValue(value: StatValue): StatValue {
@@ -32,6 +56,10 @@ function formatOperatorPairLabel(
 }
 
 export function buildQueryDiffRows(diff: QueryProfileDiffResponse): QueryDiffTableRow[] {
+  const engines = uniqueEngines([getQueryEngine(diff.query_a), getQueryEngine(diff.query_b)]);
+  const engineGroupId = engines.map(engine => engine.id).join(':');
+  const engineGroupLabel = engines.map(engine => engine.label).join(', ');
+
   return diff.operator_diffs.flatMap(entry => {
     if (!entry.operator_a || !entry.operator_b) return [];
     const operatorType =
@@ -50,6 +78,9 @@ export function buildQueryDiffRows(diff: QueryProfileDiffResponse): QueryDiffTab
     );
     return [
       {
+        engineGroupId,
+        engineGroupLabel,
+        engines,
         operatorType,
         operatorLabel,
         operatorPairId: `${entry.operator_a.id}:${entry.operator_b.id}`,

@@ -44,7 +44,8 @@ import {
 import { buildDiffTimelineData } from './QueryDiffTimeline.utils';
 
 interface QueryDiffTimelineProps {
-  engineId: string;
+  queryAEngineId: string;
+  queryBEngineId: string;
   diff: QueryProfileDiffResponse;
   queryABundle: QueryBundle<EntityRef>;
   queryBBundle: QueryBundle<EntityRef>;
@@ -146,7 +147,8 @@ function TimelineLane({
 }
 
 export function QueryDiffTimeline({
-  engineId,
+  queryAEngineId,
+  queryBEngineId,
   diff,
   queryABundle,
   queryBBundle,
@@ -214,27 +216,31 @@ export function QueryDiffTimeline({
   const timelineDiffRequest = useMemo<QueryProfileDiffTimelineRequest | null>(() => {
     if (!requestA || !requestB || durationSeconds <= 0) return null;
     return {
-      timelines: [requestA, requestB],
+      timelines: [
+        { engine_id: queryAEngineId, timeline: requestA },
+        { engine_id: queryBEngineId, timeline: requestB },
+      ],
       delta_config: {
         num_bins: getAdaptiveNumBins(),
         start: 0,
         end: durationSeconds,
       },
     };
-  }, [durationSeconds, requestA, requestB]);
+  }, [durationSeconds, queryAEngineId, queryBEngineId, requestA, requestB]);
 
   const timelineDiff = useQuery({
     queryKey: [
       'queryDiffTimeline',
-      engineId,
+      queryAEngineId,
       queryAId,
+      queryBEngineId,
       queryBId,
       targetA?.rootResourceGroupId,
       targetB?.rootResourceGroupId,
       timelineDiffRequest,
     ],
-    queryFn: () => fetchQueryProfileDiffTimeline(engineId, timelineDiffRequest!),
-    enabled: Boolean(timelineDiffRequest && engineId),
+    queryFn: () => fetchQueryProfileDiffTimeline(timelineDiffRequest!),
+    enabled: Boolean(timelineDiffRequest),
     staleTime: DEFAULT_STALE_TIME,
   });
 

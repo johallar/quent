@@ -25,16 +25,20 @@ function taggedNumber(value: number) {
   return { Number: value };
 }
 
-function createQueryBundle(queryId: string) {
+function createQueryBundle(engineId: string, queryId: string) {
   const suffix = queryId.endsWith('b') ? 'b' : 'a';
   const stats = QUERY_STATS[queryId as keyof typeof QUERY_STATS] ?? QUERY_STATS['query-a'];
   const planId = `plan-${suffix}`;
+  const groupId = `group-${suffix}`;
 
   return {
     query_id: queryId,
     entities: {
-      engine: { id: 'engine-1', instance_name: 'Engine 1' },
-      query_group: { id: 'group-1', instance_name: 'Group 1' },
+      engine: {
+        id: engineId,
+        instance_name: engineId === 'engine-2' ? 'Engine 2' : 'Engine 1',
+      },
+      query_group: { id: groupId, instance_name: `Group ${suffix.toUpperCase()}` },
       query: { id: queryId, instance_name: suffix === 'a' ? 'Query A' : 'Query B' },
       workers: {},
       plans: {
@@ -102,7 +106,7 @@ function createQueryBundle(queryId: string) {
     },
     resource_tree: {
       ResourceGroup: {
-        id: { QueryGroup: 'group-1' },
+        id: { QueryGroup: groupId },
         children: [],
       },
     },
@@ -118,12 +122,15 @@ describe('Diff routes', () => {
   beforeEach(() => {
     server.use(
       http.get(`${API_BASE}/engines`, () =>
-        HttpResponse.json([{ id: 'engine-1', instance_name: 'Engine 1' }])
-      ),
-      http.get(`${API_BASE}/engines/:engineId/query-groups`, () =>
         HttpResponse.json([
-          { id: 'group-a', instance_name: 'Group A', engine_id: 'engine-1' },
-          { id: 'group-b', instance_name: 'Group B', engine_id: 'engine-1' },
+          { id: 'engine-1', instance_name: 'Engine 1' },
+          { id: 'engine-2', instance_name: 'Engine 2' },
+        ])
+      ),
+      http.get(`${API_BASE}/engines/:engineId/query-groups`, ({ params }) =>
+        HttpResponse.json([
+          { id: 'group-a', instance_name: 'Group A', engine_id: String(params.engineId) },
+          { id: 'group-b', instance_name: 'Group B', engine_id: String(params.engineId) },
         ])
       ),
       http.get(`${API_BASE}/engines/:engineId/query_group/:queryGroupId/queries`, ({ params }) => {
@@ -155,7 +162,7 @@ describe('Diff routes', () => {
         );
       }),
       http.get(`${API_BASE}/engines/:engineId/query/:queryId`, ({ params }) =>
-        HttpResponse.json(createQueryBundle(String(params.queryId)))
+        HttpResponse.json(createQueryBundle(String(params.engineId), String(params.queryId)))
       )
     );
   });
@@ -165,12 +172,12 @@ describe('Diff routes', () => {
 
     expect(await screen.findByText('Query A')).toBeInTheDocument();
     expect(screen.getByText('Query B')).toBeInTheDocument();
-    expect(screen.getByText('Select an engine to compare queries.')).toBeInTheDocument();
+    expect(screen.getByText('Select engines for Query A and Query B.')).toBeInTheDocument();
   });
 
   it('renders a selected comparison route', async () => {
     renderWithRouter({
-      initialPath: '/diff/engine/engine-1/query/query-a/compare/query-b',
+      initialPath: '/diff/engine/engine-1/query/query-a/compare/engine/engine-2/query/query-b',
     });
 
     expect(await screen.findByText('Operator Stat Deltas')).toBeInTheDocument();
@@ -182,24 +189,33 @@ describe('Diff routes', () => {
     const user = userEvent.setup();
     renderWithRouter({ initialPath: '/diff' });
 
-    await user.click(await screen.findByRole('combobox', { name: 'Engine' }));
+    await waitFor(() => expect(screen.getAllByRole('combobox')).toHaveLength(6));
+    let selectors = screen.getAllByRole('combobox');
+    await user.click(selectors[0]);
     await user.click(await screen.findByRole('option', { name: 'Engine 1' }));
 
-    await waitFor(() => expect(screen.getAllByRole('combobox')).toHaveLength(5));
-    let selectors = screen.getAllByRole('combobox');
+    await waitFor(() => expect(screen.getAllByRole('combobox')[1]).not.toBeDisabled());
+    selectors = screen.getAllByRole('combobox');
     await user.click(selectors[1]);
     await user.click(await screen.findByRole('option', { name: 'Group A' }));
 
+    await waitFor(() => expect(screen.getAllByRole('combobox')[2]).not.toBeDisabled());
     selectors = screen.getAllByRole('combobox');
     await user.click(selectors[2]);
     await user.click(await screen.findByRole('option', { name: 'Query A' }));
 
     selectors = screen.getAllByRole('combobox');
     await user.click(selectors[3]);
-    await user.click(await screen.findByRole('option', { name: 'Group B' }));
+    await user.click(await screen.findByRole('option', { name: 'Engine 2' }));
 
+    await waitFor(() => expect(screen.getAllByRole('combobox')[4]).not.toBeDisabled());
     selectors = screen.getAllByRole('combobox');
     await user.click(selectors[4]);
+    await user.click(await screen.findByRole('option', { name: 'Group B' }));
+
+    await waitFor(() => expect(screen.getAllByRole('combobox')[5]).not.toBeDisabled());
+    selectors = screen.getAllByRole('combobox');
+    await user.click(selectors[5]);
     await user.click(await screen.findByRole('option', { name: 'Query B' }));
 
     expect(await screen.findByText('Operator Stat Deltas')).toBeInTheDocument();
@@ -215,17 +231,19 @@ describe('Diff routes', () => {
 
     await waitFor(() => {
       const reopenedSelectors = screen.getAllByRole('combobox');
+      expect(reopenedSelectors[0]).toHaveTextContent('Engine 1');
       expect(reopenedSelectors[1]).toHaveTextContent('Group A');
       expect(reopenedSelectors[2]).toHaveTextContent('Query A');
-      expect(reopenedSelectors[3]).toHaveTextContent('Group B');
-      expect(reopenedSelectors[4]).toHaveTextContent('Query B');
+      expect(reopenedSelectors[3]).toHaveTextContent('Engine 2');
+      expect(reopenedSelectors[4]).toHaveTextContent('Group B');
+      expect(reopenedSelectors[5]).toHaveTextContent('Query B');
     });
   });
 
   it('swaps Query A and Query B from the selector', async () => {
     const user = userEvent.setup();
     const { router } = renderWithRouter({
-      initialPath: '/diff/engine/engine-1/query/query-a/compare/query-b',
+      initialPath: '/diff/engine/engine-1/query/query-a/compare/engine/engine-2/query/query-b',
     });
 
     expect(await screen.findByText('Operator Stat Deltas')).toBeInTheDocument();
@@ -238,7 +256,7 @@ describe('Diff routes', () => {
 
     await waitFor(() => {
       expect(router.state.location.pathname).toBe(
-        '/diff/engine/engine-1/query/query-b/compare/query-a'
+        '/diff/engine/engine-2/query/query-b/compare/engine/engine-1/query/query-a'
       );
       expect(trigger).toHaveAttribute('aria-expanded', 'true');
     });
@@ -246,7 +264,7 @@ describe('Diff routes', () => {
 
   it('does not render a diff for the same query on both sides', async () => {
     renderWithRouter({
-      initialPath: '/diff/engine/engine-1/query/query-a/compare/query-a',
+      initialPath: '/diff/engine/engine-1/query/query-a/compare/engine/engine-1/query/query-a',
     });
 
     expect(await screen.findByText('Choose two different queries.')).toBeInTheDocument();

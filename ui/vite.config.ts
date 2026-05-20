@@ -69,7 +69,10 @@ interface SingleTimelineResponse {
 }
 
 interface QueryProfileDiffTimelineRequest {
-  timelines: unknown[];
+  timelines: Array<{
+    engine_id: string;
+    timeline: unknown;
+  }>;
   delta_config: TimelineConfig;
 }
 
@@ -152,22 +155,21 @@ function installTimelineDiffMock(server: ViteDevServer | PreviewServer) {
       return;
     }
 
-    const match = req.url.match(/^\/api\/engines\/([^/]+)\/timeline\/diff(?:\?|$)/);
+    const match = req.url.match(/^\/api\/timeline\/diff(?:\?|$)/);
     if (!match) {
       next();
       return;
     }
 
     try {
-      const engineId = decodeURIComponent(match[1]!);
       const body = JSON.parse(await readRequestBody(req)) as QueryProfileDiffTimelineRequest;
       if (body.timelines.length < 2) {
         throw new Error('timeline diff requires at least two timeline requests');
       }
 
       const timelines = await Promise.all(
-        body.timelines.map(timelineRequest =>
-          fetchSingleTimelineFromTarget(engineId, timelineRequest)
+        body.timelines.map(({ engine_id: engineId, timeline }) =>
+          fetchSingleTimelineFromTarget(engineId, timeline)
         )
       );
       const [queryA, queryB] = timelines;

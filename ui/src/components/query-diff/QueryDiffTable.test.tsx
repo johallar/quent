@@ -16,6 +16,12 @@ describe('QueryDiffTable helpers', () => {
 
     expect(rows).toHaveLength(3);
     expect(rows[0]).toMatchObject({
+      engineGroupId: 'engine-a:engine-b',
+      engineGroupLabel: 'Engine A, Engine B',
+      engines: [
+        { id: 'engine-a', label: 'Engine A' },
+        { id: 'engine-b', label: 'Engine B' },
+      ],
       operatorType: 'Scan',
       operatorLabel: 'Scan orders <-> Scan orders\nscan-a <-> scan-b',
       operatorAId: 'scan-a',

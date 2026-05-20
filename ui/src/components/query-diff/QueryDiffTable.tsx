@@ -26,10 +26,14 @@ import {
   type QueryDiffTableRow,
 } from './QueryDiffTable.utils';
 
-type IndexKey = 'operator_type' | 'operator';
+type IndexKey = 'engine' | 'operator_type' | 'operator';
 
 const DIFF_TABLE_SCHEMA: PivotedStatTableSchema<QueryDiffTableRow> = {
   groups: {
+    engine: {
+      id: row => row.engineGroupId,
+      label: row => row.engineGroupLabel,
+    },
     operator_type: {
       id: row => row.operatorType,
     },
@@ -44,9 +48,10 @@ const DIFF_TABLE_SCHEMA: PivotedStatTableSchema<QueryDiffTableRow> = {
   stats: row => row.stats,
 };
 
-const INDEX_ORDER: IndexKey[] = ['operator_type', 'operator'];
+const INDEX_ORDER: IndexKey[] = ['engine', 'operator_type', 'operator'];
 
 const DEFAULT_ENABLED: Record<IndexKey, boolean> = {
+  engine: true,
   operator_type: true,
   operator: false,
 };
@@ -55,6 +60,18 @@ const VIRTUALIZATION_CONFIG = { enabled: true, overscan: 12 } as const;
 
 const getOperatorTypeColor = (key: string, id: string): string | undefined =>
   key === 'operator_type' ? getQueryDiffOperatorTypeColor(id) : undefined;
+
+function EngineGroupCell({ engines }: { engines: QueryDiffTableRow['engines'] }) {
+  return (
+    <div className="min-w-[8rem] space-y-0.5 leading-tight">
+      {engines.map(engine => (
+        <DataText key={engine.id} className="block text-xs text-foreground">
+          {engine.label}
+        </DataText>
+      ))}
+    </div>
+  );
+}
 
 function OperatorPairCell({ row }: { row: QueryDiffTableRow }) {
   return (
@@ -78,6 +95,10 @@ function OperatorPairCell({ row }: { row: QueryDiffTableRow }) {
 
 export function QueryDiffTable({ diff }: { diff: QueryProfileDiffResponse }) {
   const rows = useMemo(() => buildQueryDiffRows(diff), [diff]);
+  const rowsByEngineGroupId = useMemo(
+    () => new Map(rows.map(row => [row.engineGroupId, row])),
+    [rows]
+  );
   const rowsByOperatorPairId = useMemo(
     () => new Map(rows.map(row => [row.operatorPairId, row])),
     [rows]
@@ -111,13 +132,14 @@ export function QueryDiffTable({ diff }: { diff: QueryProfileDiffResponse }) {
     defaultEnabled: DEFAULT_ENABLED,
     allStatNames,
     defaultStatSelector: stats => stats,
-    persistKey: 'queryDiffTable',
+    persistKey: 'queryDiffTable:v2',
     rows,
     getRowIndexId: (row, key) => DIFF_TABLE_SCHEMA.groups[key].id(row),
   });
 
   const indexLabels: Record<IndexKey, React.ReactNode> = useMemo(
     () => ({
+      engine: 'Engine',
       operator_type: 'Operator Type',
       operator: 'Operator Pair',
     }),
@@ -147,6 +169,10 @@ export function QueryDiffTable({ diff }: { diff: QueryProfileDiffResponse }) {
     (): PivotTableRenderConfig => ({
       getGroupTypeColor: getOperatorTypeColor,
       formatGroupCellValue: ({ groupKey }) => {
+        if (groupKey.key === 'engine') {
+          const row = rowsByEngineGroupId.get(groupKey.id);
+          return row ? <EngineGroupCell engines={row.engines} /> : groupKey.label;
+        }
         if (groupKey.key !== 'operator') return groupKey.label;
         const row = rowsByOperatorPairId.get(groupKey.id);
         return row ? <OperatorPairCell row={row} /> : groupKey.label;
@@ -155,7 +181,7 @@ export function QueryDiffTable({ diff }: { diff: QueryProfileDiffResponse }) {
         getDeltaCellStyle(value, maxAbsByStat.get(stat), paletteTheme),
       formatDataCellValue: ({ stat, value }) => formatSignedDiffValue(value, stat),
     }),
-    [maxAbsByStat, paletteTheme, rowsByOperatorPairId]
+    [maxAbsByStat, paletteTheme, rowsByEngineGroupId, rowsByOperatorPairId]
   );
 
   if (diff.scenario !== 'plans_equal') {

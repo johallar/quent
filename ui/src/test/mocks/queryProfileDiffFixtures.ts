@@ -7,12 +7,16 @@ export const equalPlanQueryProfileDiffFixture: QueryProfileDiffResponse = {
   scenario: 'plans_equal',
   query_a: {
     id: 'query-a',
+    engine_id: 'engine-a',
+    engine_name: 'Engine A',
     instance_name: 'Query A',
     query_group_id: 'group-1',
     query_group_name: 'Group 1',
   },
   query_b: {
     id: 'query-b',
+    engine_id: 'engine-b',
+    engine_name: 'Engine B',
     instance_name: 'Query B',
     query_group_id: 'group-2',
     query_group_name: 'Group 2',

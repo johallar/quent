@@ -12,24 +12,33 @@ import type {
 } from './queryProfileDiffTypes';
 
 interface QueryProfileDiffParams {
-  engineId: string;
   request: QueryProfileDiffRequest;
 }
 
 interface QueryProfileDiffTimelineParams {
-  engineId: string;
   request: QueryProfileDiffTimelineRequest;
 }
 
 export const queryProfileDiffQueryOptions = (
-  { engineId, request }: QueryProfileDiffParams,
+  { request }: QueryProfileDiffParams,
   options?: { staleTime?: number }
 ) =>
   queryOptions({
-    queryKey: ['queryProfileDiff', engineId, request.query_a_id, request.query_b_id],
-    queryFn: (): Promise<QueryProfileDiffResponse> => fetchQueryProfileDiff(engineId, request),
+    queryKey: [
+      'queryProfileDiff',
+      request.query_a.engine_id,
+      request.query_a.query_id,
+      request.query_b.engine_id,
+      request.query_b.query_id,
+    ],
+    queryFn: (): Promise<QueryProfileDiffResponse> => fetchQueryProfileDiff(request),
     staleTime: options?.staleTime ?? DEFAULT_STALE_TIME,
-    enabled: Boolean(engineId && request.query_a_id && request.query_b_id),
+    enabled: Boolean(
+      request.query_a.engine_id &&
+      request.query_a.query_id &&
+      request.query_b.engine_id &&
+      request.query_b.query_id
+    ),
   });
 
 export const useQueryProfileDiff = (
@@ -38,15 +47,15 @@ export const useQueryProfileDiff = (
 ) => useQuery(queryProfileDiffQueryOptions(params, options));
 
 export const queryProfileDiffTimelineQueryOptions = (
-  { engineId, request }: QueryProfileDiffTimelineParams,
+  { request }: QueryProfileDiffTimelineParams,
   options?: { staleTime?: number }
 ) =>
   queryOptions({
-    queryKey: ['queryProfileDiffTimeline', engineId, request],
+    queryKey: ['queryProfileDiffTimeline', request],
     queryFn: (): Promise<QueryProfileDiffTimelineResponse> =>
-      fetchQueryProfileDiffTimeline(engineId, request),
+      fetchQueryProfileDiffTimeline(request),
     staleTime: options?.staleTime ?? DEFAULT_STALE_TIME,
-    enabled: Boolean(engineId),
+    enabled: request.timelines.length >= 2,
   });
 
 export const useQueryProfileDiffTimeline = (
@@ -58,11 +67,13 @@ export type {
   QueryProfileDiffOperatorDelta,
   QueryProfileDiffOperatorRef,
   QueryProfileDiffPlanComparison,
+  QueryProfileDiffQueryRef,
   QueryProfileDiffQuerySummary,
   QueryProfileDiffRequest,
   QueryProfileDiffResponse,
   QueryProfileDiffScenario,
   QueryProfileDiffStatDelta,
+  QueryProfileDiffTimelineEntry,
   QueryProfileDiffTimelineEntries,
   QueryProfileDiffTimelineRequest,
   QueryProfileDiffTimelineResponse,

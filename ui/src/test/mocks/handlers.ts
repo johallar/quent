@@ -96,12 +96,12 @@ function makeMockTimelineDiffResponse(
   request: QueryProfileDiffTimelineRequest
 ): QueryProfileDiffTimelineResponse {
   const [queryARequest, queryBRequest, ...restRequests] = request.timelines;
-  const queryA = makeMockTimelineResponse(queryARequest);
-  const queryB = makeMockTimelineResponse(queryBRequest);
+  const queryA = makeMockTimelineResponse(queryARequest.timeline);
+  const queryB = makeMockTimelineResponse(queryBRequest.timeline);
   const timelines: QueryProfileDiffTimelineResponse['timelines'] = [
     queryA,
     queryB,
-    ...restRequests.map(makeMockTimelineResponse),
+    ...restRequests.map(request => makeMockTimelineResponse(request.timeline)),
   ];
   const config = toBinnedSpanSec(request.delta_config);
   const queryAHigher: number[] = [];
@@ -200,7 +200,7 @@ export const handlers = [
     return HttpResponse.json({ entries } satisfies BulkTimelinesResponse);
   }),
 
-  http.post('*/api/engines/:engineId/timeline/diff', async ({ request }) => {
+  http.post('*/api/timeline/diff', async ({ request }) => {
     const body = (await request.json()) as QueryProfileDiffTimelineRequest;
     return HttpResponse.json(makeMockTimelineDiffResponse(body));
   }),
