@@ -51,7 +51,7 @@ const DIFF_TABLE_SCHEMA: PivotedStatTableSchema<QueryDiffTableRow> = {
 const INDEX_ORDER: IndexKey[] = ['engine', 'operator_type', 'operator'];
 
 const DEFAULT_ENABLED: Record<IndexKey, boolean> = {
-  engine: true,
+  engine: false,
   operator_type: true,
   operator: false,
 };
@@ -132,7 +132,7 @@ export function QueryDiffTable({ diff }: { diff: QueryProfileDiffResponse }) {
     defaultEnabled: DEFAULT_ENABLED,
     allStatNames,
     defaultStatSelector: stats => stats,
-    persistKey: 'queryDiffTable:v2',
+    persistKey: 'queryDiffTable:v3',
     rows,
     getRowIndexId: (row, key) => DIFF_TABLE_SCHEMA.groups[key].id(row),
   });

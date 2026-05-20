@@ -29,6 +29,7 @@ import { QueryDiffTable } from '@/components/query-diff/QueryDiffTable';
 import { QueryDiffOverviewStats } from '@/components/query-diff/QueryDiffStats';
 import { QueryDiffTimelineList } from '@/components/query-diff/QueryDiffTimeline';
 import { getQueryDiffQueryColors } from '@/components/query-diff/QueryDiffColors';
+import { QueryDiffLegend, type QueryDiffLegendItem } from '@/components/query-diff/QueryDiffLegend';
 import { buildQueryProfileDiffFromBundles } from '@/components/query-diff/queryProfileDiffFromBundles';
 import { THEME_DARK, useTheme } from '@/contexts/ThemeContext';
 
@@ -417,6 +418,8 @@ const DIFF_DASHBOARD_TABS: Array<{ id: DiffDashboardTab; label: string }> = [
 
 function DiffDashboard({ baselineQuery, competitorQueries }: DiffDashboardProps) {
   const [activeTab, setActiveTab] = useState<DiffDashboardTab>('overview');
+  const { theme } = useTheme();
+  const paletteTheme = theme === THEME_DARK ? 'dark' : 'light';
   const baselineBundle = useQuery({
     ...queryBundleQueryOptions({
       engineId: baselineQuery.engineId,
@@ -455,6 +458,41 @@ function DiffDashboard({ baselineQuery, competitorQueries }: DiffDashboardProps)
         : [],
     [baselineBundle.data, competitorBundles, competitorQueries]
   );
+  const legendItems = useMemo<QueryDiffLegendItem[]>(() => {
+    if (!baselineBundle.data || comparisons.length === 0) return [];
+
+    const baselineQueryEntity = baselineBundle.data.entities.query;
+    const baselineColor = getQueryDiffQueryColors({
+      baselineQueryId: baselineQueryEntity.id,
+      competitorQueryId: comparisons[0]?.diff.query_b.id ?? '',
+      theme: paletteTheme,
+    }).baseline;
+
+    return [
+      {
+        id: `baseline-${baselineQueryEntity.id}`,
+        label: baselineQueryEntity.instance_name ?? baselineQueryEntity.id,
+        color: baselineColor,
+        roleLabel: 'Baseline',
+      },
+      ...comparisons.map((comparison, index) => {
+        const competitorQueryEntity = comparison.competitorBundle.entities.query;
+        const queryColors = getQueryDiffQueryColors({
+          baselineQueryId: baselineQueryEntity.id,
+          competitorQueryId: competitorQueryEntity.id,
+          competitorIndex: comparison.competitorIndex,
+          theme: paletteTheme,
+        });
+
+        return {
+          id: `comparison-${comparison.id}`,
+          label: competitorQueryEntity.instance_name ?? competitorQueryEntity.id,
+          color: queryColors.competitor,
+          roleLabel: `Comparison ${index + 1}`,
+        };
+      }),
+    ];
+  }, [baselineBundle.data, comparisons, paletteTheme]);
   const diffLoading = baselineBundle.isLoading || competitorBundles.some(query => query.isLoading);
   const diffError = baselineBundle.error ?? competitorBundles.find(query => query.error)?.error;
   const baselineLabel = baselineBundle.data?.entities.query.instance_name ?? baselineQuery.queryId;
@@ -468,11 +506,14 @@ function DiffDashboard({ baselineQuery, competitorQueries }: DiffDashboardProps)
         'h-full min-h-0'
       )}
     >
-      <div className="flex shrink-0 flex-wrap items-center gap-x-2 gap-y-1 border-b border-border bg-card px-4 py-2 text-xs text-muted-foreground">
-        <span className="font-semibold uppercase tracking-wide">Dashboard</span>
-        <DataText className="max-w-56 truncate">{baselineLabel}</DataText>
-        <span>vs</span>
-        <span>{competitorCountLabel}</span>
+      <div className="flex shrink-0 flex-wrap items-center gap-x-3 gap-y-2 border-b border-border bg-card px-4 py-2 text-xs text-muted-foreground">
+        <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
+          <span className="font-semibold uppercase tracking-wide">Dashboard</span>
+          <DataText className="max-w-56 truncate">{baselineLabel}</DataText>
+          <span>vs</span>
+          <span>{competitorCountLabel}</span>
+        </div>
+        <QueryDiffLegend items={legendItems} className="ml-auto" />
       </div>
       {diffLoading ? (
         <div className="flex h-full items-center justify-center text-sm text-muted-foreground">

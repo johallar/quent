@@ -5,7 +5,6 @@ import { useMemo, type CSSProperties } from 'react';
 import { Triangle } from 'lucide-react';
 import type { QueryProfileDiffResponse } from '@quent/client';
 import {
-  DataText,
   StatisticCard,
   StatisticMiniBarChart,
   type StatisticCardComparison,
@@ -150,31 +149,6 @@ function operatorRuntimeChartRows(
   }));
 }
 
-function operatorRuntimeLegend({
-  baselineName,
-  competitors,
-  queryColors,
-}: {
-  baselineName: string;
-  competitors: Array<{ id: string; name: string; color: string }>;
-  queryColors: QueryDiffQueryColors;
-}) {
-  return (
-    <div className="flex min-w-0 flex-wrap items-center justify-center gap-x-3 gap-y-1">
-      <span className="inline-flex min-w-0 items-center gap-1">
-        <span className="h-2 w-2 shrink-0" style={{ backgroundColor: queryColors.baseline }} />
-        <DataText className="max-w-32 truncate">{baselineName}</DataText>
-      </span>
-      {competitors.map(competitor => (
-        <span key={competitor.id} className="inline-flex min-w-0 items-center gap-1">
-          <span className="h-2 w-2 shrink-0" style={{ backgroundColor: competitor.color }} />
-          <DataText className="max-w-32 truncate">{competitor.name}</DataText>
-        </span>
-      ))}
-    </div>
-  );
-}
-
 function aggregateOperatorRuntimeChartRows({
   comparisons,
   paletteTheme,
@@ -310,13 +284,6 @@ export function QueryDiffOverviewStats({
 }) {
   const { theme } = useTheme();
   const paletteTheme = theme === THEME_DARK ? 'dark' : 'light';
-  const baselineName =
-    comparisons[0]?.diff.query_a.instance_name ?? comparisons[0]?.diff.query_a.id ?? 'Baseline';
-  const baselineColor = getQueryDiffQueryColors({
-    baselineQueryId: comparisons[0]?.diff.query_a.id ?? '',
-    competitorQueryId: comparisons[0]?.diff.query_b.id ?? '',
-    theme: paletteTheme,
-  }).baseline;
 
   const totalRuntimeComparisons = useMemo(
     () =>
@@ -341,15 +308,6 @@ export function QueryDiffOverviewStats({
     () => aggregateOperatorRuntimeChartRows({ comparisons, paletteTheme }),
     [comparisons, paletteTheme]
   );
-  const competitorLegend = useMemo(
-    () =>
-      totalRuntimeComparisons.map(comparison => ({
-        id: comparison.id,
-        name: comparison.competitorName,
-        color: comparison.queryColors.competitor,
-      })),
-    [totalRuntimeComparisons]
-  );
 
   return (
     <div className="shrink-0 border-b border-border bg-card">
@@ -367,14 +325,6 @@ export function QueryDiffOverviewStats({
         {operatorRuntimeRows.length > 0 && (
           <StatisticCard
             title="Operator Run Time"
-            chartLabel={operatorRuntimeLegend({
-              baselineName,
-              competitors: competitorLegend,
-              queryColors: {
-                baseline: baselineColor,
-                competitor: competitorLegend[0]?.color ?? baselineColor,
-              },
-            })}
             chart={
               <StatisticMiniBarChart
                 rows={operatorRuntimeRows}

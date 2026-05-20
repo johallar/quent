@@ -3,7 +3,7 @@
 
 import { describe, expect, it, beforeEach } from 'vitest';
 import { http, HttpResponse } from 'msw';
-import { screen, renderWithRouter, userEvent, waitFor } from '@/test/test-utils';
+import { screen, renderWithRouter, userEvent, waitFor, within } from '@/test/test-utils';
 import { server } from '@/test/mocks/server';
 
 const API_BASE = 'http://localhost:8000/api';
@@ -220,6 +220,12 @@ describe('Diff routes', () => {
     expect(screen.getByText('Total Run Time')).toBeInTheDocument();
     expect(screen.getByText('Timeline Delta')).toBeInTheDocument();
     expect(screen.getAllByText(/Query A/).length).toBeGreaterThan(0);
+
+    const legend = screen.getByRole('group', { name: 'Query diff legend' });
+    expect(within(legend).getByText('Baseline')).toBeInTheDocument();
+    expect(within(legend).getByText('Comparison 1')).toBeInTheDocument();
+    expect(within(legend).getByText('Query A')).toBeInTheDocument();
+    expect(within(legend).getByText('Query B')).toBeInTheDocument();
   });
 
   it('moves the operator pivot table into the Operator tab', async () => {
@@ -255,6 +261,13 @@ describe('Diff routes', () => {
     expect(screen.getAllByText('2 competitor queries').length).toBeGreaterThan(0);
     expect(screen.getAllByText('Total Run Time')).toHaveLength(2);
     expect(screen.getByText('Operator Run Time')).toBeInTheDocument();
+
+    const legend = screen.getByRole('group', { name: 'Query diff legend' });
+    expect(within(legend).getByText('Baseline')).toBeInTheDocument();
+    expect(within(legend).getByText('Comparison 1')).toBeInTheDocument();
+    expect(within(legend).getByText('Comparison 2')).toBeInTheDocument();
+    expect(within(legend).getByText('Query B')).toBeInTheDocument();
+    expect(within(legend).getByText('Query C')).toBeInTheDocument();
   });
 
   it('preserves query group and query selections after the selector collapses', async () => {
