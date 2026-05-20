@@ -36,4 +36,22 @@ describe('QueryDiffColors', () => {
 
     expect(colors.baseline).not.toBe(colors.competitor);
   });
+
+  it('assigns different colors to multiple competitor queries', () => {
+    const firstCompetitor = getQueryDiffQueryColors({
+      baselineQueryId: 'query-a',
+      competitorQueryId: 'query-b',
+      competitorIndex: 0,
+      theme: 'light',
+    });
+    const secondCompetitor = getQueryDiffQueryColors({
+      baselineQueryId: 'query-a',
+      competitorQueryId: 'query-c',
+      competitorIndex: 1,
+      theme: 'light',
+    });
+
+    expect(firstCompetitor.baseline).toBe(secondCompetitor.baseline);
+    expect(firstCompetitor.competitor).not.toBe(secondCompetitor.competitor);
+  });
 });

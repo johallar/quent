@@ -251,9 +251,10 @@ describe('Diff routes', () => {
     });
 
     const overviewTabs = await screen.findAllByRole('tab', { name: 'Overview' });
-    expect(overviewTabs).toHaveLength(2);
-    expect(screen.getAllByText('Competitor Query 1').length).toBeGreaterThan(0);
-    expect(screen.getAllByText('Competitor Query 2').length).toBeGreaterThan(0);
+    expect(overviewTabs).toHaveLength(1);
+    expect(screen.getAllByText('2 competitor queries').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Total Run Time')).toHaveLength(2);
+    expect(screen.getByText('Operator Run Time')).toBeInTheDocument();
   });
 
   it('preserves query group and query selections after the selector collapses', async () => {

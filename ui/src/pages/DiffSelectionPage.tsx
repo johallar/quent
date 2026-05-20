@@ -3,7 +3,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from '@tanstack/react-router';
-import { useQuery } from '@tanstack/react-query';
+import { useQueries, useQuery } from '@tanstack/react-query';
 import { ChevronDown, Plus } from 'lucide-react';
 import {
   fetchListCoordinators,
@@ -26,8 +26,8 @@ import {
 } from '@quent/components';
 import { cn } from '@quent/utils';
 import { QueryDiffTable } from '@/components/query-diff/QueryDiffTable';
-import { QueryDiffStats } from '@/components/query-diff/QueryDiffStats';
-import { QueryDiffTimeline } from '@/components/query-diff/QueryDiffTimeline';
+import { QueryDiffOverviewStats } from '@/components/query-diff/QueryDiffStats';
+import { QueryDiffTimelineList } from '@/components/query-diff/QueryDiffTimeline';
 import { getQueryDiffQueryColors } from '@/components/query-diff/QueryDiffColors';
 import { buildQueryProfileDiffFromBundles } from '@/components/query-diff/queryProfileDiffFromBundles';
 import { THEME_DARK, useTheme } from '@/contexts/ThemeContext';
@@ -402,11 +402,9 @@ function CompetitorQuerySelectorColumn({
   );
 }
 
-interface CompetitorDiffPanelProps {
+interface DiffDashboardProps {
   baselineQuery: QuerySideState;
-  competitorQuery: CompetitorQueryState;
-  index: number;
-  isOnlyCompetitor: boolean;
+  competitorQueries: CompetitorQueryState[];
 }
 
 type DiffDashboardTab = 'overview' | 'operator' | 'timelines';
@@ -417,52 +415,64 @@ const DIFF_DASHBOARD_TABS: Array<{ id: DiffDashboardTab; label: string }> = [
   { id: 'timelines', label: 'Timelines' },
 ];
 
-function CompetitorDiffPanel({
-  baselineQuery,
-  competitorQuery,
-  index,
-  isOnlyCompetitor,
-}: CompetitorDiffPanelProps) {
+function DiffDashboard({ baselineQuery, competitorQueries }: DiffDashboardProps) {
   const [activeTab, setActiveTab] = useState<DiffDashboardTab>('overview');
   const baselineBundle = useQuery({
     ...queryBundleQueryOptions({
       engineId: baselineQuery.engineId,
       queryId: baselineQuery.queryId,
     }),
-    enabled: isQuerySideComplete(baselineQuery) && isQuerySideComplete(competitorQuery),
+    enabled: isQuerySideComplete(baselineQuery),
   });
-  const competitorBundle = useQuery({
-    ...queryBundleQueryOptions({
-      engineId: competitorQuery.engineId,
-      queryId: competitorQuery.queryId,
-    }),
-    enabled: isQuerySideComplete(baselineQuery) && isQuerySideComplete(competitorQuery),
+  const competitorBundles = useQueries({
+    queries: competitorQueries.map(competitorQuery => ({
+      ...queryBundleQueryOptions({
+        engineId: competitorQuery.engineId,
+        queryId: competitorQuery.queryId,
+      }),
+      enabled: isQuerySideComplete(baselineQuery) && isQuerySideComplete(competitorQuery),
+    })),
   });
-  const diff = useMemo(
+
+  const comparisons = useMemo(
     () =>
-      baselineBundle.data && competitorBundle.data
-        ? buildQueryProfileDiffFromBundles(baselineBundle.data, competitorBundle.data)
-        : null,
-    [baselineBundle.data, competitorBundle.data]
+      baselineBundle.data
+        ? competitorQueries.flatMap((competitorQuery, index) => {
+            const competitorBundle = competitorBundles[index]?.data;
+            if (!competitorBundle) return [];
+            const diff = buildQueryProfileDiffFromBundles(baselineBundle.data, competitorBundle);
+            return [
+              {
+                id: competitorQuery.id,
+                competitorIndex: index,
+                competitorQuery,
+                diff,
+                baselineBundle: baselineBundle.data,
+                competitorBundle,
+              },
+            ];
+          })
+        : [],
+    [baselineBundle.data, competitorBundles, competitorQueries]
   );
-  const diffLoading = baselineBundle.isLoading || competitorBundle.isLoading;
-  const diffError = baselineBundle.error ?? competitorBundle.error;
+  const diffLoading = baselineBundle.isLoading || competitorBundles.some(query => query.isLoading);
+  const diffError = baselineBundle.error ?? competitorBundles.find(query => query.error)?.error;
   const baselineLabel = baselineBundle.data?.entities.query.instance_name ?? baselineQuery.queryId;
-  const competitorLabel =
-    competitorBundle.data?.entities.query.instance_name ?? competitorQuery.queryId;
+  const competitorCountLabel =
+    comparisons.length === 1 ? '1 competitor query' : `${comparisons.length} competitor queries`;
 
   return (
     <section
       className={cn(
         'flex min-h-[34rem] flex-col overflow-hidden border border-border bg-background',
-        isOnlyCompetitor && 'h-full min-h-0'
+        'h-full min-h-0'
       )}
     >
       <div className="flex shrink-0 flex-wrap items-center gap-x-2 gap-y-1 border-b border-border bg-card px-4 py-2 text-xs text-muted-foreground">
-        <span className="font-semibold uppercase tracking-wide">Competitor Query {index + 1}</span>
+        <span className="font-semibold uppercase tracking-wide">Dashboard</span>
         <DataText className="max-w-56 truncate">{baselineLabel}</DataText>
         <span>vs</span>
-        <DataText className="max-w-56 truncate">{competitorLabel}</DataText>
+        <span>{competitorCountLabel}</span>
       </div>
       {diffLoading ? (
         <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
@@ -472,11 +482,11 @@ function CompetitorDiffPanel({
         <div className="flex h-full items-center justify-center text-sm text-destructive">
           Failed to load diff
         </div>
-      ) : diff && baselineBundle.data && competitorBundle.data ? (
+      ) : baselineBundle.data && comparisons.length > 0 ? (
         <div className="flex min-h-0 flex-1 flex-col">
           <div
             role="tablist"
-            aria-label={`Competitor Query ${index + 1} diff sections`}
+            aria-label="Query diff sections"
             className="inline-flex h-9 shrink-0 items-center justify-center gap-0 border-b border-border bg-card p-1 text-muted-foreground"
           >
             {DIFF_DASHBOARD_TABS.map(tab => {
@@ -484,11 +494,11 @@ function CompetitorDiffPanel({
               return (
                 <Button
                   key={tab.id}
-                  id={`${competitorQuery.id}-${tab.id}-tab`}
+                  id={`diff-${tab.id}-tab`}
                   type="button"
                   role="tab"
                   aria-selected={isActive}
-                  aria-controls={`${competitorQuery.id}-${tab.id}-panel`}
+                  aria-controls={`diff-${tab.id}-panel`}
                   variant="ghost"
                   size="sm"
                   className={cn(
@@ -504,38 +514,69 @@ function CompetitorDiffPanel({
           </div>
 
           <div
-            id={`${competitorQuery.id}-${activeTab}-panel`}
+            id={`diff-${activeTab}-panel`}
             role="tabpanel"
-            aria-labelledby={`${competitorQuery.id}-${activeTab}-tab`}
+            aria-labelledby={`diff-${activeTab}-tab`}
             className="min-h-0 flex-1"
           >
             {activeTab === 'overview' ? (
-              <div className="flex min-h-full flex-col">
-                <QueryDiffStats
-                  diff={diff}
-                  baselineBundle={baselineBundle.data}
-                  competitorBundle={competitorBundle.data}
+              <div className="flex h-full min-h-0 flex-col overflow-y-auto">
+                <QueryDiffOverviewStats
+                  comparisons={comparisons.map(comparison => ({
+                    id: comparison.id,
+                    diff: comparison.diff,
+                    baselineBundle: comparison.baselineBundle,
+                    competitorBundle: comparison.competitorBundle,
+                    competitorIndex: comparison.competitorIndex,
+                  }))}
                 />
-                <QueryDiffTimeline
+                <QueryDiffTimelineList
                   baselineEngineId={baselineQuery.engineId}
-                  competitorEngineId={competitorQuery.engineId}
-                  diff={diff}
                   baselineBundle={baselineBundle.data}
-                  competitorBundle={competitorBundle.data}
+                  comparisons={comparisons.map(comparison => ({
+                    id: comparison.id,
+                    competitorIndex: comparison.competitorIndex,
+                    competitorEngineId: comparison.competitorQuery.engineId,
+                    diff: comparison.diff,
+                    competitorBundle: comparison.competitorBundle,
+                  }))}
                 />
               </div>
             ) : activeTab === 'operator' ? (
-              <div className="h-full min-h-[28rem]">
-                <QueryDiffTable diff={diff} />
+              <div className="h-full min-h-0 overflow-y-auto bg-muted/20 p-3">
+                <div className="mx-auto flex min-h-full w-full max-w-7xl flex-col gap-3">
+                  {comparisons.map((comparison, index) => (
+                    <section
+                      key={comparison.id}
+                      className="flex min-h-[32rem] flex-col overflow-hidden border border-border bg-background"
+                    >
+                      <div className="flex shrink-0 flex-wrap items-center gap-x-2 gap-y-1 border-b border-border bg-card px-4 py-2 text-xs text-muted-foreground">
+                        <span className="font-semibold uppercase tracking-wide">
+                          Competitor Query {index + 1}
+                        </span>
+                        <DataText className="max-w-56 truncate">
+                          {comparison.diff.query_b.instance_name ?? comparison.diff.query_b.id}
+                        </DataText>
+                      </div>
+                      <div className="min-h-0 flex-1">
+                        <QueryDiffTable diff={comparison.diff} />
+                      </div>
+                    </section>
+                  ))}
+                </div>
               </div>
             ) : (
-              <div className="h-full min-h-[16rem]">
-                <QueryDiffTimeline
+              <div className="h-full min-h-0 overflow-y-auto">
+                <QueryDiffTimelineList
                   baselineEngineId={baselineQuery.engineId}
-                  competitorEngineId={competitorQuery.engineId}
-                  diff={diff}
                   baselineBundle={baselineBundle.data}
-                  competitorBundle={competitorBundle.data}
+                  comparisons={comparisons.map(comparison => ({
+                    id: comparison.id,
+                    competitorIndex: comparison.competitorIndex,
+                    competitorEngineId: comparison.competitorQuery.engineId,
+                    diff: comparison.diff,
+                    competitorBundle: comparison.competitorBundle,
+                  }))}
                 />
               </div>
             )}
@@ -920,17 +961,12 @@ export function DiffSelectionPage({
                 : 'Select Baseline Query and at least one competitor query.'}
             </div>
           ) : (
-            <div className="h-full min-h-0 overflow-y-auto bg-muted/20 p-3">
-              <div className="mx-auto flex min-h-full w-full max-w-7xl flex-col gap-3">
-                {diffableCompetitorQueries.map((competitorQuery, index) => (
-                  <CompetitorDiffPanel
-                    key={competitorQuery.id}
-                    baselineQuery={baselineQuery}
-                    competitorQuery={competitorQuery}
-                    index={index}
-                    isOnlyCompetitor={diffableCompetitorQueries.length === 1}
-                  />
-                ))}
+            <div className="h-full min-h-0 bg-muted/20 p-3">
+              <div className="mx-auto h-full min-h-0 w-full max-w-7xl">
+                <DiffDashboard
+                  baselineQuery={baselineQuery}
+                  competitorQueries={diffableCompetitorQueries}
+                />
               </div>
             </div>
           )}

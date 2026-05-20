@@ -10,6 +10,8 @@ import {
 
 const TOL_GREEN_INDEX = 0;
 const TOL_RED_INDEX = 1;
+const BASELINE_QUERY_COLOR_INDEX = 5;
+const COMPETITOR_QUERY_COLOR_INDICES = [4, 6, 2, 3, 7, 8, 9, 10];
 
 export function getDiffPositiveColor(theme: PaletteTheme): string {
   return getPalette('extended', theme)[TOL_RED_INDEX]!;
@@ -28,15 +30,20 @@ export interface QueryDiffQueryColors {
 }
 
 export function getQueryDiffQueryColors({
+  competitorIndex = 0,
   theme,
 }: {
   baselineQueryId: string;
   competitorQueryId: string;
+  competitorIndex?: number;
   theme: PaletteTheme;
 }): QueryDiffQueryColors {
   return {
-    baseline: getColorByIndex(5, theme),
-    competitor: getColorByIndex(4, theme),
+    baseline: getColorByIndex(BASELINE_QUERY_COLOR_INDEX, theme),
+    competitor: getColorByIndex(
+      COMPETITOR_QUERY_COLOR_INDICES[competitorIndex % COMPETITOR_QUERY_COLOR_INDICES.length]!,
+      theme
+    ),
   };
 }
 
