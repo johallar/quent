@@ -105,12 +105,14 @@ function RuntimeComparisonCard({
   comparisonName,
   queryColors,
   paletteTheme,
+  className,
 }: {
   comparison: RuntimeComparison;
   baselineName: string;
   comparisonName: string;
   queryColors: QueryDiffQueryColors;
   paletteTheme: PaletteTheme;
+  className?: string;
 }) {
   const displayedDelta = displayDelta(comparison.delta);
   return (
@@ -119,6 +121,7 @@ function RuntimeComparisonCard({
       value={formatSignedDurationSeconds(displayedDelta)}
       valueStyle={runtimeValueStyle(displayedDelta, paletteTheme)}
       secondaryValue={formatPercentDelta(displayPercentDelta(comparison.percentDelta))}
+      className={className}
       comparisons={runtimeComparisons({
         comparison,
         baselineName,
@@ -262,6 +265,18 @@ function OperatorStatChart({
         className="min-h-0 flex-1 overflow-y-auto pr-1 [scrollbar-width:thin]"
       />
     </div>
+  );
+}
+
+function overviewStatCardClassName(index: number, totalCards: number): string {
+  const isLast = index === totalCards - 1;
+  const isLastTwo = index >= totalCards - 2;
+
+  return cn(
+    'col-span-12 md:col-span-6 xl:col-span-4',
+    totalCards % 2 === 1 && isLast && 'md:col-span-12',
+    totalCards % 3 === 1 && isLast && 'xl:col-span-12',
+    totalCards % 3 === 2 && isLastTwo && 'xl:col-span-6'
   );
 }
 
@@ -491,11 +506,13 @@ export function QueryDiffOverviewStats({
         : [],
     [comparisons, paletteTheme, selectedOperatorStat]
   );
+  const hasOperatorRuntimeChart = Boolean(selectedOperatorStat && operatorRuntimeRows.length > 0);
+  const totalOverviewCards = totalRuntimeComparisons.length + (hasOperatorRuntimeChart ? 1 : 0);
 
   return (
     <div className="shrink-0 border-b border-border bg-card">
-      <div className="grid min-w-0 [grid-template-columns:repeat(auto-fit,minmax(20rem,1fr))]">
-        {totalRuntimeComparisons.map(comparison => (
+      <div className="grid min-w-0 grid-cols-12">
+        {totalRuntimeComparisons.map((comparison, index) => (
           <RuntimeComparisonCard
             key={comparison.id}
             comparison={comparison.runtimeComparison}
@@ -503,11 +520,16 @@ export function QueryDiffOverviewStats({
             comparisonName={comparison.comparisonName}
             queryColors={comparison.queryColors}
             paletteTheme={paletteTheme}
+            className={overviewStatCardClassName(index, totalOverviewCards)}
           />
         ))}
-        {selectedOperatorStat && operatorRuntimeRows.length > 0 && (
+        {hasOperatorRuntimeChart && selectedOperatorStat && (
           <StatisticCard
             title="Operator Run Time"
+            className={overviewStatCardClassName(
+              totalRuntimeComparisons.length,
+              totalOverviewCards
+            )}
             chart={
               <OperatorStatChart
                 rows={operatorRuntimeRows}

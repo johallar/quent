@@ -103,7 +103,10 @@ function GroupCell({
 }: GroupCellProps<PivotedRow>) {
   const { interaction, renderConfig } = usePivotTableRenderContext();
   const typeColor = renderConfig.getGroupTypeColor?.(gk.key, gk.id);
-  const customContent = renderConfig.formatGroupCellValue?.({ groupKey: gk, row });
+  // Compact rendering blanks repeated group labels. Respect that signal before
+  // asking custom renderers to rebuild the content from the repeated row.
+  const customContent =
+    gk.label === '' ? undefined : renderConfig.formatGroupCellValue?.({ groupKey: gk, row });
   const handlers = interaction.groupCellHandlers?.(gk, row);
   const isRowHighlightedFromDag =
     interaction.hoveredItemId !== null &&

@@ -49,7 +49,6 @@ export function PivotTableToolbar({
       const fromIndex = keys.indexOf(fromKey);
       const targetIndex = keys.indexOf(toKey);
       if (fromIndex < 0 || targetIndex < 0) return;
-      if (indexConfig[fromIndex]?.locked || indexConfig[targetIndex]?.locked) return;
 
       let anchorKey = toKey;
       if (position === 'before' && fromIndex < targetIndex) {
@@ -70,7 +69,7 @@ export function PivotTableToolbar({
       <div className="flex items-center gap-2 px-3 py-1.5">
         <span className="text-xs text-muted-foreground shrink-0">Group by:</span>
         {indexConfig.map(({ key, label, enabled, locked }) => {
-          const dropPosition = locked ? undefined : dragDrop.getDropTargetPosition(key);
+          const dropPosition = dragDrop.getDropTargetPosition(key);
           const dropIndicatorStyle = dropPosition
             ? {
                 boxShadow:
@@ -82,22 +81,13 @@ export function PivotTableToolbar({
           return (
             <button
               key={key}
-              draggable={!locked}
+              draggable
               aria-disabled={locked}
               title={locked ? 'Required group' : undefined}
-              onDragStart={e => {
-                if (locked) return;
-                dragDrop.handleDragStart(e, key);
-              }}
-              onDragOver={e => {
-                if (!locked) dragDrop.handleDragOver(e, key);
-              }}
-              onDragLeave={e => {
-                if (!locked) dragDrop.handleDragLeave(e, key);
-              }}
-              onDrop={e => {
-                if (!locked) dragDrop.handleDrop(e, key);
-              }}
+              onDragStart={e => dragDrop.handleDragStart(e, key)}
+              onDragOver={e => dragDrop.handleDragOver(e, key)}
+              onDragLeave={e => dragDrop.handleDragLeave(e, key)}
+              onDrop={e => dragDrop.handleDrop(e, key)}
               onDragEnd={dragDrop.handleDragEnd}
               onClick={() => {
                 if (!locked) onToggleIndex(key);
@@ -107,7 +97,6 @@ export function PivotTableToolbar({
                 {
                   'bg-primary/10 border-primary/40 text-primary': enabled,
                   'bg-muted/50 border-border text-muted-foreground': !enabled,
-                  'cursor-default active:cursor-default': locked,
                   'opacity-45': dragDrop.draggedId === key,
                 }
               )}
