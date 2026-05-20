@@ -32,15 +32,6 @@ function getQueryEngine(query: DiffQuerySummary): QueryDiffTableEngine {
   };
 }
 
-function uniqueEngines(engines: QueryDiffTableEngine[]): QueryDiffTableEngine[] {
-  const seen = new Set<string>();
-  return engines.filter(engine => {
-    if (seen.has(engine.id)) return false;
-    seen.add(engine.id);
-    return true;
-  });
-}
-
 function displayDeltaValue(value: StatValue): StatValue {
   if (typeof value !== 'number') return value;
   return value === 0 || Object.is(value, -0) ? 0 : -value;
@@ -56,13 +47,14 @@ function formatOperatorPairLabel(
 }
 
 export function buildQueryDiffRows(
-  baselineQuery: DiffQuerySummary,
+  _baselineQuery: DiffQuerySummary,
   comparisonQuery: DiffQuerySummary,
   diff: QueryDiff
 ): QueryDiffTableRow[] {
-  const engines = uniqueEngines([getQueryEngine(baselineQuery), getQueryEngine(comparisonQuery)]);
-  const engineGroupId = engines.map(engine => engine.id).join(':');
-  const engineGroupLabel = engines.map(engine => engine.label).join(', ');
+  const comparisonEngine = getQueryEngine(comparisonQuery);
+  const engines = [comparisonEngine];
+  const engineGroupId = comparisonEngine.id;
+  const engineGroupLabel = comparisonEngine.label;
 
   return (diff.operator_diffs ?? []).flatMap(entry => {
     const [operatorA, operatorB] = entry.operators;

@@ -3,24 +3,21 @@
 
 import { http, HttpResponse } from 'msw';
 import { MAX_TIMELINE_BINS } from '@quent/utils';
+import { buildQueryProfileDiffResponseFromBundles } from '@quent/client';
 import type {
   BinnedSpanSec,
   BulkTimelineRequest,
   BulkTimelinesResponse,
+  EntityRef,
   QueryFilter,
+  QueryBundle,
   SingleTimelineRequest,
   SingleTimelineResponse,
   TaskFilter,
   TimelineConfig,
   TimelineRequest,
 } from '@quent/utils';
-import type {
-  DiffRequest,
-  DiffResponse,
-  DiffTimelineRequest,
-  DiffTimelineResponse,
-  QueryDiff,
-} from '@quent/client';
+import type { DiffRequest, DiffTimelineRequest, DiffTimelineResponse } from '@quent/client';
 
 const QUERY_A_HIGHER_SERIES = 'Query A higher';
 const QUERY_B_HIGHER_SERIES = 'Query B higher';
@@ -95,15 +92,11 @@ function sampleAggregateAt(response: SingleTimelineResponse, targetSeconds: numb
   return timelineValueArrays(response).reduce((sum, values) => sum + (values[index] ?? 0), 0);
 }
 
-function makeMockTimelineDiffResponse(request: DiffTimelineRequest): DiffTimelineResponse {
-  const [queryARequest, queryBRequest, ...restRequests] = request.timelines;
-  const queryA = makeMockTimelineResponse(queryARequest.timeline);
-  const queryB = makeMockTimelineResponse(queryBRequest.timeline);
-  const timelines: DiffTimelineResponse['timelines'] = [
-    queryA,
-    queryB,
-    ...restRequests.map(request => makeMockTimelineResponse(request.timeline)),
-  ];
+function makeTimelineDiffResponse(
+  request: DiffTimelineRequest,
+  timelines: DiffTimelineResponse['timelines']
+): DiffTimelineResponse {
+  const [queryA, queryB] = timelines;
   const config = toBinnedSpanSec(request.delta_config);
   const queryAHigher: number[] = [];
   const queryBHigher: number[] = [];
@@ -134,168 +127,48 @@ function makeMockTimelineDiffResponse(request: DiffTimelineRequest): DiffTimelin
   };
 }
 
-function queryNameFromId(queryId: string): string {
-  const parts = queryId.split('-');
-  const suffix = parts[parts.length - 1];
-  return suffix ? `Query ${suffix.toUpperCase()}` : queryId;
+function apiUrlFromRequest(request: Request, pathname: string): string {
+  return new URL(pathname, request.url).toString();
 }
 
-interface MockOperatorDiffSpec {
-  id: string;
-  label: string;
-  operatorType: string;
-  duration: [number, number];
-  inputRows: [number, number];
-  outputRows: [number, number];
+async function fetchJsonForDiff<T>(
+  request: Request,
+  pathname: string,
+  init?: RequestInit
+): Promise<T> {
+  const response = await fetch(apiUrlFromRequest(request, pathname), init);
+  if (!response.ok) {
+    throw new Error(`diff backend fetch failed: ${response.status} ${response.statusText}`);
+  }
+  return (await response.json()) as T;
 }
 
-const MOCK_OPERATOR_DIFF_SPECS: MockOperatorDiffSpec[] = [
-  {
-    id: 'scan-orders',
-    label: 'Scan orders',
-    operatorType: 'Scan',
-    duration: [12, 10],
-    inputRows: [0, 0],
-    outputRows: [1_000_000, 1_200_000],
-  },
-  {
-    id: 'filter-active',
-    label: 'Filter active rows',
-    operatorType: 'Filter',
-    duration: [4, 5],
-    inputRows: [1_000_000, 1_200_000],
-    outputRows: [750_000, 820_000],
-  },
-  {
-    id: 'project-columns',
-    label: 'Project selected columns',
-    operatorType: 'Project',
-    duration: [2, 2.5],
-    inputRows: [750_000, 820_000],
-    outputRows: [750_000, 820_000],
-  },
-  {
-    id: 'join-lineitem',
-    label: 'Join lineitem',
-    operatorType: 'Join',
-    duration: [24, 30],
-    inputRows: [750_000, 820_000],
-    outputRows: [400_000, 380_000],
-  },
-  {
-    id: 'sort-revenue',
-    label: 'Sort by revenue',
-    operatorType: 'Sort',
-    duration: [6, 8],
-    inputRows: [400_000, 380_000],
-    outputRows: [400_000, 380_000],
-  },
-  {
-    id: 'window-rank',
-    label: 'Window rank',
-    operatorType: 'Window',
-    duration: [8, 7],
-    inputRows: [400_000, 380_000],
-    outputRows: [400_000, 380_000],
-  },
-  {
-    id: 'aggregate-status',
-    label: 'Aggregate by status',
-    operatorType: 'Aggregate',
-    duration: [4, 4],
-    inputRows: [400_000, 380_000],
-    outputRows: [20, 18],
-  },
-];
-
-function buildMockDelta([baseline, comparison]: [number, number]) {
-  const delta = baseline - comparison;
-  return {
-    stats: [baseline, comparison] as [number, number],
-    delta,
-    percent_delta: comparison === 0 ? null : delta / comparison,
-  };
+function queryBundlePath(engineId: string, queryId: string): string {
+  return `/api/engines/${encodeURIComponent(engineId)}/query/${encodeURIComponent(queryId)}`;
 }
 
-function adjustComparisonValue(value: number, competitorIndex: number, statIndex: number): number {
-  if (value === 0) return 0;
-  const direction = statIndex % 2 === 0 ? 1 : -1;
-  return Number((value + direction * competitorIndex * Math.max(1, value * 0.08)).toFixed(3));
+async function fetchQueryBundleForDiff(
+  request: Request,
+  engineId: string,
+  queryId: string
+): Promise<QueryBundle<EntityRef>> {
+  return fetchJsonForDiff<QueryBundle<EntityRef>>(request, queryBundlePath(engineId, queryId));
 }
 
-function buildMockOperatorDiffs(
-  baselineQueryId: string,
-  comparisonQueryId: string,
-  competitorIndex: number
-): QueryDiff['operator_diffs'] {
-  return MOCK_OPERATOR_DIFF_SPECS.map((spec, statIndex) => {
-    const duration = [
-      spec.duration[0],
-      adjustComparisonValue(spec.duration[1], competitorIndex, statIndex),
-    ] as [number, number];
-    const inputRows = [
-      spec.inputRows[0],
-      adjustComparisonValue(spec.inputRows[1], competitorIndex, statIndex),
-    ] as [number, number];
-    const outputRows = [
-      spec.outputRows[0],
-      adjustComparisonValue(spec.outputRows[1], competitorIndex, statIndex),
-    ] as [number, number];
-
-    return {
-      operators: [
-        {
-          id: `${spec.id}-${baselineQueryId}`,
-          label: spec.label,
-          operator_type_name: spec.operatorType,
-          plan_id: `plan-${baselineQueryId}`,
-        },
-        {
-          id: `${spec.id}-${comparisonQueryId}`,
-          label: spec.label,
-          operator_type_name: spec.operatorType,
-          plan_id: `plan-${comparisonQueryId}`,
-        },
-      ],
-      stats: {
-        duration_s: buildMockDelta(duration),
-        input_rows: buildMockDelta(inputRows),
-        output_rows: buildMockDelta(outputRows),
-      },
-    };
-  });
-}
-
-function makeMockQueryProfileDiffResponse(request: DiffRequest): DiffResponse {
-  return {
-    comparisonQueries: request.comparisonQueries.map((query, index): QueryDiff => {
-      const durationA = 40;
-      const durationB = 44 + index * 3;
-      return {
-        compatibility: 'compatible',
-        query: {
-          id: query.query_id,
-          engine_id: query.engine_id,
-          engine_name: query.engine_id,
-          instance_name: queryNameFromId(query.query_id),
-          query_group_id: null,
-          query_group_name: null,
-        },
-        stat_diffs: {
-          duration: {
-            stats: [durationA, durationB],
-            delta: durationA - durationB,
-            percent_delta: durationB === 0 ? null : (durationA - durationB) / durationB,
-          },
-        },
-        operator_diffs: buildMockOperatorDiffs(
-          request.baselineQuery.query_id,
-          query.query_id,
-          index
-        ),
-      };
-    }),
-  };
+async function fetchSingleTimelineForDiff(
+  request: Request,
+  engineId: string,
+  timeline: SingleTimelineRequest<QueryFilter, TaskFilter>
+): Promise<SingleTimelineResponse> {
+  return fetchJsonForDiff<SingleTimelineResponse>(
+    request,
+    `/api/engines/${encodeURIComponent(engineId)}/timeline/single`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(timeline),
+    }
+  );
 }
 
 /**
@@ -367,11 +240,30 @@ export const handlers = [
 
   http.post('*/api/query-profile-diff', async ({ request }) => {
     const body = (await request.json()) as DiffRequest;
-    return HttpResponse.json(makeMockQueryProfileDiffResponse(body));
+    const baselineBundle = await fetchQueryBundleForDiff(
+      request,
+      body.baselineQuery.engine_id,
+      body.baselineQuery.query_id
+    );
+    const comparisonBundles = await Promise.all(
+      body.comparisonQueries.map(query =>
+        fetchQueryBundleForDiff(request, query.engine_id, query.query_id)
+      )
+    );
+    return HttpResponse.json(
+      buildQueryProfileDiffResponseFromBundles(baselineBundle, comparisonBundles)
+    );
   }),
 
   http.post('*/api/timeline/diff', async ({ request }) => {
     const body = (await request.json()) as DiffTimelineRequest;
-    return HttpResponse.json(makeMockTimelineDiffResponse(body));
+    const timelines = await Promise.all(
+      body.timelines.map(({ engine_id: engineId, timeline }) =>
+        fetchSingleTimelineForDiff(request, engineId, timeline)
+      )
+    );
+    return HttpResponse.json(
+      makeTimelineDiffResponse(body, timelines as DiffTimelineResponse['timelines'])
+    );
   }),
 ];

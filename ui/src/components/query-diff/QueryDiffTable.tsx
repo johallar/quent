@@ -148,7 +148,7 @@ export function QueryDiffTable({ baselineQuery, comparisonQuery, diff }: QueryDi
 
   const indexLabels: Record<IndexKey, React.ReactNode> = useMemo(
     () => ({
-      engine: 'Engine',
+      engine: 'Comparison Engine',
       operator_type: 'Operator Type',
       operator: 'Operator Pair',
     }),

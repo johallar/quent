@@ -28,6 +28,10 @@ export {
   queryProfileDiffQueryOptions,
   queryProfileDiffTimelineQueryOptions,
 } from './queryProfileDiff';
+export {
+  buildQueryProfileDiffFromBundles,
+  buildQueryProfileDiffResponseFromBundles,
+} from './queryProfileDiffFromBundles';
 
 // Hooks
 export { useQueryBundle } from './queryBundle';

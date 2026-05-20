@@ -13,7 +13,7 @@ import {
 const QUERY_A_HIGHER_LABEL = 'Query A higher';
 const QUERY_B_HIGHER_LABEL = 'Query B higher';
 const BASELINE_HIGHER_LABEL = 'Baseline higher';
-const COMPETITOR_HIGHER_LABEL = 'Competitor higher';
+const COMPARISON_HIGHER_LABEL = 'Comparison higher';
 
 interface TimelineRowData {
   timestamps: number[];
@@ -22,7 +22,7 @@ interface TimelineRowData {
 
 export interface DiffTimelineData {
   baseline: TimelineRowData;
-  competitor: TimelineRowData;
+  comparison: TimelineRowData;
   delta: TimelineRowData;
 }
 
@@ -46,15 +46,15 @@ function getFirstFormatter(seriesA: TimelineSeries, seriesB: TimelineSeries) {
 function formatDeltaSeries({
   delta,
   baseline,
-  competitor,
+  comparison,
   theme,
 }: {
   delta: TimelineRowData;
   baseline: TimelineRowData;
-  competitor: TimelineRowData;
+  comparison: TimelineRowData;
   theme: PaletteTheme;
 }): TimelineSeries {
-  const formatter = getFirstFormatter(baseline.series, competitor.series);
+  const formatter = getFirstFormatter(baseline.series, comparison.series);
   const positiveColor = getDiffPositiveColor(theme);
   const negativeColor = getDiffNegativeColor(theme);
   return Object.fromEntries(
@@ -63,7 +63,7 @@ function formatDeltaSeries({
         name === QUERY_A_HIGHER_LABEL
           ? BASELINE_HIGHER_LABEL
           : name === QUERY_B_HIGHER_LABEL
-            ? COMPETITOR_HIGHER_LABEL
+            ? COMPARISON_HIGHER_LABEL
             : name;
       return [
         displayName,
@@ -102,7 +102,7 @@ export function buildDiffTimelineData({
   fsmTypes,
   queryColors,
 }: BuildDiffTimelineDataParams): DiffTimelineData {
-  const [baselineTimeline, competitorTimeline] = timelineDiff.timelines;
+  const [baselineTimeline, comparisonTimeline] = timelineDiff.timelines;
   const baseline = buildBinnedTimelineSeries(
     baselineTimeline.data,
     baselineTimeline.config,
@@ -112,9 +112,9 @@ export function buildDiffTimelineData({
     quantitySpecs,
     fsmTypes
   );
-  const competitor = buildBinnedTimelineSeries(
-    competitorTimeline.data,
-    competitorTimeline.config,
+  const comparison = buildBinnedTimelineSeries(
+    comparisonTimeline.data,
+    comparisonTimeline.config,
     0n,
     theme,
     capacities,
@@ -133,13 +133,13 @@ export function buildDiffTimelineData({
       ...baseline,
       series: recolorTimelineSeries(baseline.series, queryColors.baseline),
     },
-    competitor: {
-      ...competitor,
-      series: recolorTimelineSeries(competitor.series, queryColors.competitor),
+    comparison: {
+      ...comparison,
+      series: recolorTimelineSeries(comparison.series, queryColors.comparison),
     },
     delta: {
       timestamps: delta.timestamps,
-      series: formatDeltaSeries({ delta, baseline, competitor, theme }),
+      series: formatDeltaSeries({ delta, baseline, comparison, theme }),
     },
   };
 }

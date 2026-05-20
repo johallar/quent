@@ -20,38 +20,38 @@ describe('QueryDiffColors', () => {
   it('assigns distinct palette colors to the compared queries', () => {
     const colors = getQueryDiffQueryColors({
       baselineQueryId: 'query-a',
-      competitorQueryId: 'query-b',
+      comparisonQueryId: 'query-b',
       theme: 'light',
     });
 
-    expect(colors.baseline).not.toBe(colors.competitor);
+    expect(colors.baseline).not.toBe(colors.comparison);
   });
 
   it('keeps colors distinct when the same query id is compared', () => {
     const colors = getQueryDiffQueryColors({
       baselineQueryId: 'query-a',
-      competitorQueryId: 'query-a',
+      comparisonQueryId: 'query-a',
       theme: 'light',
     });
 
-    expect(colors.baseline).not.toBe(colors.competitor);
+    expect(colors.baseline).not.toBe(colors.comparison);
   });
 
-  it('assigns different colors to multiple competitor queries', () => {
-    const firstCompetitor = getQueryDiffQueryColors({
+  it('assigns different colors to multiple comparison queries', () => {
+    const firstComparison = getQueryDiffQueryColors({
       baselineQueryId: 'query-a',
-      competitorQueryId: 'query-b',
-      competitorIndex: 0,
+      comparisonQueryId: 'query-b',
+      comparisonIndex: 0,
       theme: 'light',
     });
-    const secondCompetitor = getQueryDiffQueryColors({
+    const secondComparison = getQueryDiffQueryColors({
       baselineQueryId: 'query-a',
-      competitorQueryId: 'query-c',
-      competitorIndex: 1,
+      comparisonQueryId: 'query-c',
+      comparisonIndex: 1,
       theme: 'light',
     });
 
-    expect(firstCompetitor.baseline).toBe(secondCompetitor.baseline);
-    expect(firstCompetitor.competitor).not.toBe(secondCompetitor.competitor);
+    expect(firstComparison.baseline).toBe(secondComparison.baseline);
+    expect(firstComparison.comparison).not.toBe(secondComparison.comparison);
   });
 });

@@ -8,6 +8,9 @@ import react from '@vitejs/plugin-react';
 import { TanStackRouterVite } from '@tanstack/router-vite-plugin';
 import { visualizer } from 'rollup-plugin-visualizer';
 import tailwindcss from '@tailwindcss/vite';
+import { buildQueryProfileDiffResponseFromBundles } from './packages/@quent/client/src/queryProfileDiffFromBundles';
+import type { DiffRequest } from './packages/@quent/client/src/queryProfileDiffTypes';
+import type { EntityRef, QueryBundle } from '@quent/utils';
 
 const API_TARGET = process.env.VITE_API_TARGET || 'http://localhost:8080';
 
@@ -76,16 +79,6 @@ interface DiffTimelineRequest {
   delta_config: TimelineConfig;
 }
 
-interface DiffQueryRef {
-  engine_id: string;
-  query_id: string;
-}
-
-interface DiffRequest {
-  baselineQuery: DiffQueryRef;
-  comparisonQueries: DiffQueryRef[];
-}
-
 const QUERY_A_HIGHER_SERIES = 'Query A higher';
 const QUERY_B_HIGHER_SERIES = 'Query B higher';
 
@@ -139,11 +132,14 @@ async function fetchSingleTimelineFromTarget(
   engineId: string,
   request: unknown
 ): Promise<SingleTimelineResponse> {
-  const response = await fetch(`${API_TARGET}/api/engines/${engineId}/timeline/single`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(request),
-  });
+  const response = await fetch(
+    apiTargetUrl(`/api/engines/${encodeURIComponent(engineId)}/timeline/single`),
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(request),
+    }
+  );
 
   if (!response.ok) {
     throw new Error(`single timeline fetch failed: ${response.status} ${response.statusText}`);
@@ -152,173 +148,31 @@ async function fetchSingleTimelineFromTarget(
   return (await response.json()) as SingleTimelineResponse;
 }
 
+async function fetchQueryBundleFromTarget(
+  engineId: string,
+  queryId: string
+): Promise<QueryBundle<EntityRef>> {
+  const response = await fetch(
+    apiTargetUrl(
+      `/api/engines/${encodeURIComponent(engineId)}/query/${encodeURIComponent(queryId)}`
+    )
+  );
+
+  if (!response.ok) {
+    throw new Error(`query bundle fetch failed: ${response.status} ${response.statusText}`);
+  }
+
+  return (await response.json()) as QueryBundle<EntityRef>;
+}
+
+function apiTargetUrl(pathname: string): string {
+  return `${API_TARGET.replace(/\/$/, '')}${pathname}`;
+}
+
 function writeJson(res: ServerResponse, statusCode: number, body: unknown) {
   res.statusCode = statusCode;
   res.setHeader('Content-Type', 'application/json');
   res.end(JSON.stringify(body));
-}
-
-function queryNameFromId(queryId: string): string {
-  const parts = queryId.split('-');
-  const suffix = parts[parts.length - 1];
-  return suffix ? `Query ${suffix.toUpperCase()}` : queryId;
-}
-
-interface MockOperatorDiffSpec {
-  id: string;
-  label: string;
-  operatorType: string;
-  duration: [number, number];
-  inputRows: [number, number];
-  outputRows: [number, number];
-}
-
-const MOCK_OPERATOR_DIFF_SPECS: MockOperatorDiffSpec[] = [
-  {
-    id: 'scan-orders',
-    label: 'Scan orders',
-    operatorType: 'Scan',
-    duration: [12, 10],
-    inputRows: [0, 0],
-    outputRows: [1_000_000, 1_200_000],
-  },
-  {
-    id: 'filter-active',
-    label: 'Filter active rows',
-    operatorType: 'Filter',
-    duration: [4, 5],
-    inputRows: [1_000_000, 1_200_000],
-    outputRows: [750_000, 820_000],
-  },
-  {
-    id: 'project-columns',
-    label: 'Project selected columns',
-    operatorType: 'Project',
-    duration: [2, 2.5],
-    inputRows: [750_000, 820_000],
-    outputRows: [750_000, 820_000],
-  },
-  {
-    id: 'join-lineitem',
-    label: 'Join lineitem',
-    operatorType: 'Join',
-    duration: [24, 30],
-    inputRows: [750_000, 820_000],
-    outputRows: [400_000, 380_000],
-  },
-  {
-    id: 'sort-revenue',
-    label: 'Sort by revenue',
-    operatorType: 'Sort',
-    duration: [6, 8],
-    inputRows: [400_000, 380_000],
-    outputRows: [400_000, 380_000],
-  },
-  {
-    id: 'window-rank',
-    label: 'Window rank',
-    operatorType: 'Window',
-    duration: [8, 7],
-    inputRows: [400_000, 380_000],
-    outputRows: [400_000, 380_000],
-  },
-  {
-    id: 'aggregate-status',
-    label: 'Aggregate by status',
-    operatorType: 'Aggregate',
-    duration: [4, 4],
-    inputRows: [400_000, 380_000],
-    outputRows: [20, 18],
-  },
-];
-
-function buildMockDelta([baseline, comparison]: [number, number]) {
-  const delta = baseline - comparison;
-  return {
-    stats: [baseline, comparison] as [number, number],
-    delta,
-    percent_delta: comparison === 0 ? null : delta / comparison,
-  };
-}
-
-function adjustComparisonValue(value: number, competitorIndex: number, statIndex: number): number {
-  if (value === 0) return 0;
-  const direction = statIndex % 2 === 0 ? 1 : -1;
-  return Number((value + direction * competitorIndex * Math.max(1, value * 0.08)).toFixed(3));
-}
-
-function buildMockOperatorDiffs(
-  baselineQueryId: string,
-  comparisonQueryId: string,
-  competitorIndex: number
-) {
-  return MOCK_OPERATOR_DIFF_SPECS.map((spec, statIndex) => {
-    const duration = [
-      spec.duration[0],
-      adjustComparisonValue(spec.duration[1], competitorIndex, statIndex),
-    ] as [number, number];
-    const inputRows = [
-      spec.inputRows[0],
-      adjustComparisonValue(spec.inputRows[1], competitorIndex, statIndex),
-    ] as [number, number];
-    const outputRows = [
-      spec.outputRows[0],
-      adjustComparisonValue(spec.outputRows[1], competitorIndex, statIndex),
-    ] as [number, number];
-
-    return {
-      operators: [
-        {
-          id: `${spec.id}-${baselineQueryId}`,
-          label: spec.label,
-          operator_type_name: spec.operatorType,
-          plan_id: `plan-${baselineQueryId}`,
-        },
-        {
-          id: `${spec.id}-${comparisonQueryId}`,
-          label: spec.label,
-          operator_type_name: spec.operatorType,
-          plan_id: `plan-${comparisonQueryId}`,
-        },
-      ],
-      stats: {
-        duration_s: buildMockDelta(duration),
-        input_rows: buildMockDelta(inputRows),
-        output_rows: buildMockDelta(outputRows),
-      },
-    };
-  });
-}
-
-function makeQueryProfileDiffResponse(body: DiffRequest) {
-  return {
-    comparisonQueries: body.comparisonQueries.map((query, index) => {
-      const baselineDuration = 40;
-      const comparisonDuration = 44 + index * 3;
-      return {
-        compatibility: 'compatible',
-        query: {
-          id: query.query_id,
-          engine_id: query.engine_id,
-          engine_name: query.engine_id,
-          instance_name: queryNameFromId(query.query_id),
-          query_group_id: null,
-          query_group_name: null,
-        },
-        stat_diffs: {
-          duration: {
-            stats: [baselineDuration, comparisonDuration],
-            delta: baselineDuration - comparisonDuration,
-            percent_delta:
-              comparisonDuration === 0
-                ? null
-                : (baselineDuration - comparisonDuration) / comparisonDuration,
-          },
-        },
-        operator_diffs: buildMockOperatorDiffs(body.baselineQuery.query_id, query.query_id, index),
-      };
-    }),
-  };
 }
 
 function installQueryProfileDiffMock(server: ViteDevServer | PreviewServer) {
@@ -340,10 +194,24 @@ function installQueryProfileDiffMock(server: ViteDevServer | PreviewServer) {
         throw new Error('query profile diff requires a baseline query and comparison queries');
       }
 
-      writeJson(res, 200, makeQueryProfileDiffResponse(body));
+      const baselineBundle = await fetchQueryBundleFromTarget(
+        body.baselineQuery.engine_id,
+        body.baselineQuery.query_id
+      );
+      const comparisonBundles = await Promise.all(
+        body.comparisonQueries.map(query =>
+          fetchQueryBundleFromTarget(query.engine_id, query.query_id)
+        )
+      );
+
+      writeJson(
+        res,
+        200,
+        buildQueryProfileDiffResponseFromBundles(baselineBundle, comparisonBundles)
+      );
     } catch (error) {
       writeJson(res, 500, {
-        error: error instanceof Error ? error.message : 'Failed to mock query profile diff',
+        error: error instanceof Error ? error.message : 'Failed to build query profile diff',
       });
     }
   });

@@ -40,16 +40,16 @@ describe('buildDiffTimelineData', () => {
     const data = buildDiffTimelineData({
       timelineDiff: response,
       theme: 'light',
-      queryColors: { baseline: '#0072B2', competitor: '#E69F00' },
+      queryColors: { baseline: '#0072B2', comparison: '#E69F00' },
     });
 
     expect(data.baseline.series.slots?.values).toEqual([100, 100]);
-    expect(data.competitor.series.slots?.values).toEqual([0, 0]);
+    expect(data.comparison.series.slots?.values).toEqual([0, 0]);
     expect(data.delta.series['Baseline higher']?.values).toEqual([2, 0]);
-    expect(data.delta.series['Competitor higher']?.values).toEqual([0, 3]);
+    expect(data.delta.series['Comparison higher']?.values).toEqual([0, 3]);
     expect(data.baseline.series.slots?.color).toBe('#0072B2');
-    expect(data.competitor.series.slots?.color).toBe('#E69F00');
+    expect(data.comparison.series.slots?.color).toBe('#E69F00');
     expect(data.delta.series['Baseline higher']?.color).toBe(DIFF_NEGATIVE_COLOR);
-    expect(data.delta.series['Competitor higher']?.color).toBe(DIFF_POSITIVE_COLOR);
+    expect(data.delta.series['Comparison higher']?.color).toBe(DIFF_POSITIVE_COLOR);
   });
 });

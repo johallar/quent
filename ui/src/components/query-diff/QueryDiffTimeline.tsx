@@ -49,20 +49,20 @@ import { buildDiffTimelineData } from './QueryDiffTimeline.utils';
 
 interface QueryDiffTimelineProps {
   baselineEngineId: string;
-  competitorEngineId: string;
+  comparisonEngineId: string;
   diff: QueryDiff;
   baselineBundle: QueryBundle<EntityRef>;
-  competitorBundle: QueryBundle<EntityRef>;
-  competitorIndex?: number;
+  comparisonBundle: QueryBundle<EntityRef>;
+  comparisonIndex?: number;
 }
 
 export interface QueryDiffTimelineListComparison {
   id: string;
-  competitorIndex: number;
-  competitorEngineId: string;
+  comparisonIndex: number;
+  comparisonEngineId: string;
   comparisonQuery: DiffQuerySummary;
   diff: QueryDiff;
-  competitorBundle: QueryBundle<EntityRef>;
+  comparisonBundle: QueryBundle<EntityRef>;
 }
 
 interface QueryDiffTimelineListProps {
@@ -116,13 +116,13 @@ function querySummaryLabel(query: DiffQuerySummary): string {
   return query.instance_name ?? query.id;
 }
 
-function getBaselineResourceTypesSharedWithCompetitors(
+function getBaselineResourceTypesSharedWithComparisons(
   baselineTarget: TimelineTarget | null,
-  competitorTargets: Array<TimelineTarget | null>
+  comparisonTargets: Array<TimelineTarget | null>
 ): string[] {
   if (!baselineTarget) return [];
   return baselineTarget.resourceTypes.filter(type =>
-    competitorTargets.some(target => target?.resourceTypes.includes(type))
+    comparisonTargets.some(target => target?.resourceTypes.includes(type))
   );
 }
 
@@ -223,22 +223,22 @@ function QueryDiffTimelinePairRows({
   const { theme } = useTheme();
   const isDark = theme === THEME_DARK;
   const paletteTheme = isDark ? 'dark' : 'light';
-  const competitorTarget = useMemo(
-    () => getTimelineTarget(comparison.competitorBundle),
-    [comparison.competitorBundle]
+  const comparisonTarget = useMemo(
+    () => getTimelineTarget(comparison.comparisonBundle),
+    [comparison.comparisonBundle]
   );
   const canRenderResourceType = Boolean(
-    baselineTarget && competitorTarget?.resourceTypes.includes(resourceType)
+    baselineTarget && comparisonTarget?.resourceTypes.includes(resourceType)
   );
   const queryColors = useMemo(
     () =>
       getQueryDiffQueryColors({
         baselineQueryId,
-        competitorQueryId: comparison.comparisonQuery.id,
-        competitorIndex: comparison.competitorIndex,
+        comparisonQueryId: comparison.comparisonQuery.id,
+        comparisonIndex: comparison.comparisonIndex,
         theme: paletteTheme,
       }),
-    [baselineQueryId, comparison.comparisonQuery.id, comparison.competitorIndex, paletteTheme]
+    [baselineQueryId, comparison.comparisonQuery.id, comparison.comparisonIndex, paletteTheme]
   );
 
   const baselineRequest = useMemo(() => {
@@ -257,28 +257,28 @@ function QueryDiffTimelinePairRows({
     resourceType,
   ]);
 
-  const competitorRequest = useMemo(() => {
-    if (!competitorTarget || !resourceType || !canRenderResourceType) return null;
+  const comparisonRequest = useMemo(() => {
+    if (!comparisonTarget || !resourceType || !canRenderResourceType) return null;
     return buildRootTimelineRequest({
-      queryId: comparison.competitorBundle.query_id,
-      rootResourceGroupId: competitorTarget.rootResourceGroupId,
+      queryId: comparison.comparisonBundle.query_id,
+      rootResourceGroupId: comparisonTarget.rootResourceGroupId,
       resourceTypeName: resourceType,
-      durationSeconds: comparison.competitorBundle.duration_s,
+      durationSeconds: comparison.comparisonBundle.duration_s,
     });
   }, [
-    comparison.competitorBundle.duration_s,
-    comparison.competitorBundle.query_id,
+    comparison.comparisonBundle.duration_s,
+    comparison.comparisonBundle.query_id,
     canRenderResourceType,
-    competitorTarget,
+    comparisonTarget,
     resourceType,
   ]);
 
   const timelineDiffRequest = useMemo<DiffTimelineRequest | null>(() => {
-    if (!baselineRequest || !competitorRequest || durationSeconds <= 0) return null;
+    if (!baselineRequest || !comparisonRequest || durationSeconds <= 0) return null;
     return {
       timelines: [
         { engine_id: baselineEngineId, timeline: baselineRequest },
-        { engine_id: comparison.competitorEngineId, timeline: competitorRequest },
+        { engine_id: comparison.comparisonEngineId, timeline: comparisonRequest },
       ],
       delta_config: {
         num_bins: getAdaptiveNumBins(),
@@ -289,8 +289,8 @@ function QueryDiffTimelinePairRows({
   }, [
     baselineEngineId,
     baselineRequest,
-    comparison.competitorEngineId,
-    competitorRequest,
+    comparison.comparisonEngineId,
+    comparisonRequest,
     durationSeconds,
   ]);
 
@@ -299,10 +299,10 @@ function QueryDiffTimelinePairRows({
       'queryDiffTimelineListPair',
       baselineEngineId,
       baselineQueryId,
-      comparison.competitorEngineId,
+      comparison.comparisonEngineId,
       comparison.comparisonQuery.id,
       baselineTarget?.rootResourceGroupId,
-      competitorTarget?.rootResourceGroupId,
+      comparisonTarget?.rootResourceGroupId,
       timelineDiffRequest,
     ],
     queryFn: () => fetchQueryProfileDiffTimeline(timelineDiffRequest!),
@@ -312,19 +312,19 @@ function QueryDiffTimelinePairRows({
 
   const timelineData = useMemo(() => {
     if (!timelineDiff.data || durationSeconds <= 0) return null;
-    const resourceTypeDecl = comparison.competitorBundle.entities.resource_types[resourceType];
+    const resourceTypeDecl = comparison.comparisonBundle.entities.resource_types[resourceType];
     return buildDiffTimelineData({
       timelineDiff: timelineDiff.data,
       theme: paletteTheme,
       capacities: resourceTypeDecl?.capacities,
-      quantitySpecs: comparison.competitorBundle.quantity_specs,
-      fsmTypes: comparison.competitorBundle.entities.fsm_types,
+      quantitySpecs: comparison.comparisonBundle.quantity_specs,
+      fsmTypes: comparison.comparisonBundle.entities.fsm_types,
       queryColors,
     });
   }, [
-    comparison.competitorBundle.entities.fsm_types,
-    comparison.competitorBundle.entities.resource_types,
-    comparison.competitorBundle.quantity_specs,
+    comparison.comparisonBundle.entities.fsm_types,
+    comparison.comparisonBundle.entities.resource_types,
+    comparison.comparisonBundle.quantity_specs,
     durationSeconds,
     paletteTheme,
     queryColors,
@@ -332,11 +332,11 @@ function QueryDiffTimelinePairRows({
     timelineDiff.data,
   ]);
 
-  const competitorName = querySummaryLabel(comparison.comparisonQuery);
+  const comparisonName = querySummaryLabel(comparison.comparisonQuery);
 
   if (!canRenderResourceType) {
     return (
-      <TimelineLane label={competitorName} color={queryColors.competitor}>
+      <TimelineLane label={comparisonName} color={queryColors.comparison}>
         <div className="flex h-full items-center px-3 text-xs text-muted-foreground">
           No shared resource type available.
         </div>
@@ -346,7 +346,7 @@ function QueryDiffTimelinePairRows({
 
   if (timelineDiff.isLoading) {
     return (
-      <TimelineLane label={competitorName} color={queryColors.competitor}>
+      <TimelineLane label={comparisonName} color={queryColors.comparison}>
         <div className="flex h-full items-center px-3 text-xs text-muted-foreground">
           Loading timeline...
         </div>
@@ -356,7 +356,7 @@ function QueryDiffTimelinePairRows({
 
   if (timelineDiff.isError || !timelineData) {
     return (
-      <TimelineLane label={competitorName} color={queryColors.competitor}>
+      <TimelineLane label={comparisonName} color={queryColors.comparison}>
         <div className="flex h-full items-center px-3 text-xs text-destructive">
           Failed to load timeline delta
         </div>
@@ -367,20 +367,20 @@ function QueryDiffTimelinePairRows({
   return (
     <>
       <TimelineLane
-        label="Competitor"
-        color={queryColors.competitor}
-        detail={<DataText>{competitorName}</DataText>}
+        label="Comparison"
+        color={queryColors.comparison}
+        detail={<DataText>{comparisonName}</DataText>}
       >
         <Timeline
           startTime={TIMELINE_START}
           durationSeconds={durationSeconds}
-          timestamps={timelineData.competitor.timestamps}
-          series={timelineData.competitor.series}
+          timestamps={timelineData.comparison.timestamps}
+          series={timelineData.comparison.series}
           showTooltip={false}
           isDark={isDark}
         />
       </TimelineLane>
-      <TimelineLane label="Delta" detail={`Baseline - ${competitorName}`}>
+      <TimelineLane label="Delta" detail={`Baseline - ${comparisonName}`}>
         <Timeline
           startTime={TIMELINE_START}
           durationSeconds={durationSeconds}
@@ -405,27 +405,27 @@ export function QueryDiffTimelineList({
   const setZoomRange = useSetZoomRange();
   const setDebouncedZoomRange = useSetDebouncedZoomRange();
   const baselineTarget = useMemo(() => getTimelineTarget(baselineBundle), [baselineBundle]);
-  const competitorTargets = useMemo(
-    () => comparisons.map(comparison => getTimelineTarget(comparison.competitorBundle)),
+  const comparisonTargets = useMemo(
+    () => comparisons.map(comparison => getTimelineTarget(comparison.comparisonBundle)),
     [comparisons]
   );
   const sharedResourceTypes = useMemo(
-    () => getBaselineResourceTypesSharedWithCompetitors(baselineTarget, competitorTargets),
-    [baselineTarget, competitorTargets]
+    () => getBaselineResourceTypesSharedWithComparisons(baselineTarget, comparisonTargets),
+    [baselineTarget, comparisonTargets]
   );
   const [resourceType, setResourceType] = useState('');
   const durationSeconds = Math.max(
     baselineBundle.duration_s,
-    ...comparisons.map(comparison => comparison.competitorBundle.duration_s)
+    ...comparisons.map(comparison => comparison.comparisonBundle.duration_s)
   );
   const baselineName = baselineBundle.entities.query.instance_name ?? baselineBundle.query_id;
-  const competitorCountLabel =
-    comparisons.length === 1 ? '1 competitor query' : `${comparisons.length} competitor queries`;
+  const comparisonCountLabel =
+    comparisons.length === 1 ? '1 comparison query' : `${comparisons.length} comparison queries`;
   const queryColors = useMemo(
     () =>
       getQueryDiffQueryColors({
         baselineQueryId: baselineBundle.query_id,
-        competitorQueryId: comparisons[0]?.comparisonQuery.id ?? '',
+        comparisonQueryId: comparisons[0]?.comparisonQuery.id ?? '',
         theme: paletteTheme,
       }),
     [baselineBundle.query_id, comparisons, paletteTheme]
@@ -508,7 +508,7 @@ export function QueryDiffTimelineList({
           <div className="flex min-w-0 items-center gap-1 text-xs text-muted-foreground">
             <DataText className="max-w-48 truncate">{baselineName}</DataText>
             <span>vs</span>
-            <span>{competitorCountLabel}</span>
+            <span>{comparisonCountLabel}</span>
             {durationSeconds > 0 && <span>{formatDuration(durationSeconds * 1_000)}</span>}
           </div>
         </div>
@@ -521,14 +521,14 @@ export function QueryDiffTimelineList({
                   className="h-2 w-2 rounded-full"
                   style={{ backgroundColor: diffNegativeColor }}
                 />
-                Competitor lower
+                Comparison lower
               </span>
               <span className="inline-flex items-center gap-1">
                 <span
                   className="h-2 w-2 rounded-full"
                   style={{ backgroundColor: diffPositiveColor }}
                 />
-                Competitor higher
+                Comparison higher
               </span>
             </div>
           )}
@@ -625,11 +625,11 @@ export function QueryDiffTimelineList({
 
 export function QueryDiffTimeline({
   baselineEngineId,
-  competitorEngineId,
+  comparisonEngineId,
   diff,
   baselineBundle,
-  competitorBundle,
-  competitorIndex = 0,
+  comparisonBundle,
+  comparisonIndex = 0,
 }: QueryDiffTimelineProps) {
   const { theme } = useTheme();
   const isDark = theme === THEME_DARK;
@@ -638,36 +638,36 @@ export function QueryDiffTimeline({
   const setDebouncedZoomRange = useSetDebouncedZoomRange();
 
   const baselineQuery = useMemo(() => bundleQuerySummary(baselineBundle), [baselineBundle]);
-  const competitorQuery = useMemo(
-    () => diff.query ?? bundleQuerySummary(competitorBundle),
-    [competitorBundle, diff.query]
+  const comparisonQuery = useMemo(
+    () => diff.query ?? bundleQuerySummary(comparisonBundle),
+    [comparisonBundle, diff.query]
   );
   const baselineQueryId = baselineQuery.id;
-  const competitorQueryId = competitorQuery.id;
+  const comparisonQueryId = comparisonQuery.id;
   const baselineName = querySummaryLabel(baselineQuery);
-  const competitorName = querySummaryLabel(competitorQuery);
+  const comparisonName = querySummaryLabel(comparisonQuery);
   const queryColors = useMemo(
     () =>
       getQueryDiffQueryColors({
         baselineQueryId,
-        competitorQueryId,
-        competitorIndex,
+        comparisonQueryId,
+        comparisonIndex,
         theme: paletteTheme,
       }),
-    [baselineQueryId, competitorIndex, competitorQueryId, paletteTheme]
+    [baselineQueryId, comparisonIndex, comparisonQueryId, paletteTheme]
   );
   const diffPositiveColor = getDiffPositiveColor(paletteTheme);
   const diffNegativeColor = getDiffNegativeColor(paletteTheme);
 
   const baselineTarget = useMemo(() => getTimelineTarget(baselineBundle), [baselineBundle]);
-  const competitorTarget = useMemo(() => getTimelineTarget(competitorBundle), [competitorBundle]);
+  const comparisonTarget = useMemo(() => getTimelineTarget(comparisonBundle), [comparisonBundle]);
   const sharedResourceTypes = useMemo(
     () =>
       getSharedResourceTypes(
         baselineTarget?.resourceTypes ?? [],
-        competitorTarget?.resourceTypes ?? []
+        comparisonTarget?.resourceTypes ?? []
       ),
-    [baselineTarget?.resourceTypes, competitorTarget?.resourceTypes]
+    [baselineTarget?.resourceTypes, comparisonTarget?.resourceTypes]
   );
   const [resourceType, setResourceType] = useState('');
 
@@ -679,14 +679,14 @@ export function QueryDiffTimeline({
     setResourceType(prev => (sharedResourceTypes.includes(prev) ? prev : sharedResourceTypes[0]!));
   }, [sharedResourceTypes]);
 
-  const durationSeconds = Math.max(baselineBundle.duration_s, competitorBundle.duration_s);
+  const durationSeconds = Math.max(baselineBundle.duration_s, comparisonBundle.duration_s);
 
   useEffect(() => {
     if (durationSeconds <= 0) return;
     const full = { start: 0, end: durationSeconds };
     setZoomRange(full);
     setDebouncedZoomRange(full);
-  }, [durationSeconds, baselineQueryId, competitorQueryId, setZoomRange, setDebouncedZoomRange]);
+  }, [durationSeconds, baselineQueryId, comparisonQueryId, setZoomRange, setDebouncedZoomRange]);
 
   const baselineRequest = useMemo(() => {
     if (!baselineTarget || !resourceType) return null;
@@ -698,22 +698,22 @@ export function QueryDiffTimeline({
     });
   }, [baselineBundle.duration_s, baselineBundle.query_id, baselineTarget, resourceType]);
 
-  const competitorRequest = useMemo(() => {
-    if (!competitorTarget || !resourceType) return null;
+  const comparisonRequest = useMemo(() => {
+    if (!comparisonTarget || !resourceType) return null;
     return buildRootTimelineRequest({
-      queryId: competitorBundle.query_id,
-      rootResourceGroupId: competitorTarget.rootResourceGroupId,
+      queryId: comparisonBundle.query_id,
+      rootResourceGroupId: comparisonTarget.rootResourceGroupId,
       resourceTypeName: resourceType,
-      durationSeconds: competitorBundle.duration_s,
+      durationSeconds: comparisonBundle.duration_s,
     });
-  }, [competitorBundle.duration_s, competitorBundle.query_id, competitorTarget, resourceType]);
+  }, [comparisonBundle.duration_s, comparisonBundle.query_id, comparisonTarget, resourceType]);
 
   const timelineDiffRequest = useMemo<DiffTimelineRequest | null>(() => {
-    if (!baselineRequest || !competitorRequest || durationSeconds <= 0) return null;
+    if (!baselineRequest || !comparisonRequest || durationSeconds <= 0) return null;
     return {
       timelines: [
         { engine_id: baselineEngineId, timeline: baselineRequest },
-        { engine_id: competitorEngineId, timeline: competitorRequest },
+        { engine_id: comparisonEngineId, timeline: comparisonRequest },
       ],
       delta_config: {
         num_bins: getAdaptiveNumBins(),
@@ -721,17 +721,17 @@ export function QueryDiffTimeline({
         end: durationSeconds,
       },
     };
-  }, [baselineEngineId, baselineRequest, competitorEngineId, competitorRequest, durationSeconds]);
+  }, [baselineEngineId, baselineRequest, comparisonEngineId, comparisonRequest, durationSeconds]);
 
   const timelineDiff = useQuery({
     queryKey: [
       'queryDiffTimeline',
       baselineEngineId,
       baselineQueryId,
-      competitorEngineId,
-      competitorQueryId,
+      comparisonEngineId,
+      comparisonQueryId,
       baselineTarget?.rootResourceGroupId,
-      competitorTarget?.rootResourceGroupId,
+      comparisonTarget?.rootResourceGroupId,
       timelineDiffRequest,
     ],
     queryFn: () => fetchQueryProfileDiffTimeline(timelineDiffRequest!),
@@ -743,22 +743,22 @@ export function QueryDiffTimeline({
     if (!timelineDiff.data || durationSeconds <= 0) return null;
     const resourceTypeDecl =
       baselineBundle.entities.resource_types[resourceType] ??
-      competitorBundle.entities.resource_types[resourceType];
+      comparisonBundle.entities.resource_types[resourceType];
     return buildDiffTimelineData({
       timelineDiff: timelineDiff.data,
       theme: paletteTheme,
       capacities: resourceTypeDecl?.capacities,
-      quantitySpecs: baselineBundle.quantity_specs ?? competitorBundle.quantity_specs,
-      fsmTypes: baselineBundle.entities.fsm_types ?? competitorBundle.entities.fsm_types,
+      quantitySpecs: baselineBundle.quantity_specs ?? comparisonBundle.quantity_specs,
+      fsmTypes: baselineBundle.entities.fsm_types ?? comparisonBundle.entities.fsm_types,
       queryColors,
     });
   }, [
     baselineBundle.entities.fsm_types,
     baselineBundle.entities.resource_types,
     baselineBundle.quantity_specs,
-    competitorBundle.entities.fsm_types,
-    competitorBundle.entities.resource_types,
-    competitorBundle.quantity_specs,
+    comparisonBundle.entities.fsm_types,
+    comparisonBundle.entities.resource_types,
+    comparisonBundle.quantity_specs,
     durationSeconds,
     paletteTheme,
     queryColors,
@@ -783,7 +783,7 @@ export function QueryDiffTimeline({
               aria-label="delta"
               role="img"
             />
-            <DataText className="max-w-48 truncate">{competitorName}</DataText>
+            <DataText className="max-w-48 truncate">{comparisonName}</DataText>
             {durationSeconds > 0 && <span>{formatDuration(durationSeconds * 1_000)}</span>}
           </div>
         </div>
@@ -796,14 +796,14 @@ export function QueryDiffTimeline({
                   className="h-2 w-2 rounded-full"
                   style={{ backgroundColor: diffNegativeColor }}
                 />
-                Competitor lower
+                Comparison lower
               </span>
               <span className="inline-flex items-center gap-1">
                 <span
                   className="h-2 w-2 rounded-full"
                   style={{ backgroundColor: diffPositiveColor }}
                 />
-                Competitor higher
+                Comparison higher
               </span>
             </div>
           )}
@@ -844,7 +844,7 @@ export function QueryDiffTimeline({
         <div className="flex h-28 items-center justify-center border-t border-border text-xs text-destructive">
           Failed to load timeline delta
         </div>
-      ) : !resourceType || !baselineTarget || !competitorTarget ? (
+      ) : !resourceType || !baselineTarget || !comparisonTarget ? (
         <div className="flex h-28 items-center justify-center border-t border-border text-xs text-muted-foreground">
           No shared resource type available for timeline delta.
         </div>
@@ -881,20 +881,20 @@ export function QueryDiffTimeline({
             />
           </TimelineLane>
           <TimelineLane
-            label="Competitor"
-            color={queryColors.competitor}
-            detail={<DataText>{competitorName}</DataText>}
+            label="Comparison"
+            color={queryColors.comparison}
+            detail={<DataText>{comparisonName}</DataText>}
           >
             <Timeline
               startTime={TIMELINE_START}
               durationSeconds={durationSeconds}
-              timestamps={comparison.competitor.timestamps}
-              series={comparison.competitor.series}
+              timestamps={comparison.comparison.timestamps}
+              series={comparison.comparison.series}
               showTooltip={false}
               isDark={isDark}
             />
           </TimelineLane>
-          <TimelineLane label="Delta" detail="Baseline - Competitor" className="border-b-0">
+          <TimelineLane label="Delta" detail="Baseline - Comparison" className="border-b-0">
             <Timeline
               startTime={TIMELINE_START}
               durationSeconds={durationSeconds}

@@ -189,20 +189,20 @@ describe('Diff routes', () => {
     renderWithRouter({ initialPath: '/diff' });
 
     expect(await screen.findByText('Baseline Query')).toBeInTheDocument();
-    expect(screen.getByText('Competitor Query 1')).toBeInTheDocument();
+    expect(screen.getByText('Comparison Query 1')).toBeInTheDocument();
     expect(
-      screen.getByText('Select engines for Baseline Query and at least one competitor query.')
+      screen.getByText('Select engines for Baseline Query and at least one comparison query.')
     ).toBeInTheDocument();
   });
 
-  it('adds another competitor query selector', async () => {
+  it('adds another comparison query selector', async () => {
     const user = userEvent.setup();
     renderWithRouter({ initialPath: '/diff' });
 
-    await screen.findByText('Competitor Query 1');
-    await user.click(screen.getByRole('button', { name: 'Add Competitor' }));
+    await screen.findByText('Comparison Query 1');
+    await user.click(screen.getByRole('button', { name: 'Add Comparison' }));
 
-    expect(screen.getByText('Competitor Query 2')).toBeInTheDocument();
+    expect(screen.getByText('Comparison Query 2')).toBeInTheDocument();
     expect(screen.getAllByRole('combobox')).toHaveLength(9);
   });
 
@@ -251,14 +251,14 @@ describe('Diff routes', () => {
     expect(screen.queryByText('Total Run Time')).not.toBeInTheDocument();
   });
 
-  it('renders one diff panel for each selected competitor query', async () => {
+  it('renders one diff panel for each selected comparison query', async () => {
     renderWithRouter({
       initialPath: '/diff/query/query-a/compare/query-b,query-c',
     });
 
     const overviewTabs = await screen.findAllByRole('tab', { name: 'Overview' });
     expect(overviewTabs).toHaveLength(1);
-    expect(screen.getAllByText('2 competitor queries').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('2 comparison queries').length).toBeGreaterThan(0);
     expect(screen.getAllByText('Total Run Time')).toHaveLength(2);
     expect(screen.getByText('Operator Run Time')).toBeInTheDocument();
 
@@ -325,7 +325,7 @@ describe('Diff routes', () => {
     });
   });
 
-  it('makes a competitor query the baseline from the selector', async () => {
+  it('makes a comparison query the baseline from the selector', async () => {
     const user = userEvent.setup();
     const { router } = renderWithRouter({
       initialPath: '/diff/query/query-a/compare/query-b',
@@ -351,7 +351,7 @@ describe('Diff routes', () => {
     });
 
     expect(
-      await screen.findByText('Choose competitor queries different from the baseline.')
+      await screen.findByText('Choose comparison queries different from the baseline.')
     ).toBeInTheDocument();
   });
 });
