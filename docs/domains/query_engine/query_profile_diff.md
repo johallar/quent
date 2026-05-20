@@ -57,7 +57,6 @@ export interface QueryProfileDiffOperatorDelta {
 }
 
 export interface QueryProfileDiffPlanComparison {
-  match_kind: "structural" | "different" | "incomparable";
   matched_operator_count: number;
   unmatched_operator_a_count: number;
   unmatched_operator_b_count: number;

@@ -41,12 +41,12 @@ export interface QueryProfileDiffStatDelta {
 export interface QueryProfileDiffOperatorDelta {
   operator_a: QueryProfileDiffOperatorRef | null;
   operator_b: QueryProfileDiffOperatorRef | null;
+  /* stat name -> delta values */
   stats: Record<string, QueryProfileDiffStatDelta>;
 }
 
 export interface QueryProfileDiffPlanComparison {
   /* Big question here, how do we represent query plan graph diffs */
-  match_kind: 'structural' | 'different' | 'incomparable';
   matched_operator_count: number;
   unmatched_operator_a_count: number;
   unmatched_operator_b_count: number;

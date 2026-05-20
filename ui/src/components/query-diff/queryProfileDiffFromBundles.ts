@@ -138,7 +138,6 @@ export function buildQueryProfileDiffFromBundles(
       query_a,
       query_b,
       plan_comparison: {
-        match_kind: 'different',
         matched_operator_count: 0,
         unmatched_operator_a_count: countOperators(queryA),
         unmatched_operator_b_count: countOperators(queryB),
@@ -157,7 +156,6 @@ export function buildQueryProfileDiffFromBundles(
     query_a,
     query_b,
     plan_comparison: {
-      match_kind: 'structural',
       matched_operator_count: matchedCount,
       unmatched_operator_a_count: operatorsA.length - matchedCount,
       unmatched_operator_b_count: operatorsB.length - matchedCount,

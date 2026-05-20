@@ -18,7 +18,6 @@ export const equalPlanQueryProfileDiffFixture: QueryProfileDiffResponse = {
     query_group_name: 'Group 2',
   },
   plan_comparison: {
-    match_kind: 'structural',
     matched_operator_count: 3,
     unmatched_operator_a_count: 0,
     unmatched_operator_b_count: 0,
@@ -88,7 +87,6 @@ export const differentPlanQueryProfileDiffFixture: QueryProfileDiffResponse = {
   ...equalPlanQueryProfileDiffFixture,
   scenario: 'plans_different',
   plan_comparison: {
-    match_kind: 'different',
     matched_operator_count: 0,
     unmatched_operator_a_count: 3,
     unmatched_operator_b_count: 4,

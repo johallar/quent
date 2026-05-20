@@ -293,7 +293,7 @@ export function QueryDiffTimeline({
 
         <div className="flex items-center gap-3">
           {comparison && (
-            <div className="hidden items-center gap-2 text-[11px] text-muted-foreground sm:flex">
+            <div className="hidden items-center gap-2 text-[11px] text-muted-foreground sm:flex shrink-0">
               <span className="inline-flex items-center gap-1">
                 <span
                   className="h-2 w-2 rounded-full"
