@@ -32,7 +32,6 @@ pub(crate) mod embedded {
     #[derive(Embed)]
     #[folder = "../../../ui/dist/"]
     struct UiAssets;
-
     pub async fn serve(uri: axum::http::Uri) -> impl IntoResponse {
         let path = uri.path().trim_start_matches('/');
         let file = UiAssets::get(path).or_else(|| UiAssets::get("index.html"));
@@ -278,6 +277,26 @@ where
     ))
 }
 
+#[cfg_attr(feature = "swagger", utoipa::path(
+    post,
+    path = "/api/workload-diff",
+    tag = "diff",
+    request_body = Object,
+    responses(
+        (status = 200, description = "Workload diff statistics", body = Object)
+    )
+))]
+#[tracing::instrument(skip_all, err)]
+async fn workload_diff<A>(
+    State(_state): State<ServiceState<A>>,
+    Json(_request): Json<ui::diff::DiffRequest>,
+) -> ServerResult<Json<ui::diff::DiffResponse>>
+where
+    A: UiAnalyzer + Send + Sync + 'static,
+{
+    todo!()
+}
+
 #[cfg(feature = "swagger")]
 #[derive(utoipa::OpenApi)]
 #[openapi(
@@ -289,13 +308,30 @@ where
         query,
         single_timeline,
         bulk_timelines,
+        workload_diff,
     ),
     tags(
         (name = "engines", description = "Engine, query group, and query management"),
         (name = "timelines", description = "Resource timeline data"),
+        (name = "diff", description = "Cross-engine query comparison"),
     )
 )]
 pub(crate) struct ApiDoc;
+
+pub fn diff_routes<A>(state: ServiceState<A>) -> Router<()>
+where
+    A: UiAnalyzer + Send + Sync + 'static,
+    <A as UiAnalyzer>::EntityRef: serde::Serialize,
+    <A as UiAnalyzer>::TimelineGlobalParams:
+        Send + Sync + Clone + serde::Serialize + Hash + Eq + 'static,
+    <A as UiAnalyzer>::TimelineParams: Send + Sync + Clone + serde::Serialize + Hash + Eq + 'static,
+    for<'de> <A as UiAnalyzer>::TimelineGlobalParams: serde::Deserialize<'de>,
+    for<'de> <A as UiAnalyzer>::TimelineParams: serde::Deserialize<'de>,
+{
+    Router::new()
+        .route("/workload-diff", post(workload_diff))
+        .with_state(state)
+}
 
 pub fn routes<A>(state: ServiceState<A>) -> Router<()>
 where
