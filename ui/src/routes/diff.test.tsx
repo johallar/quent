@@ -260,7 +260,7 @@ describe('Diff routes', () => {
     expect(overviewTabs).toHaveLength(1);
     expect(screen.getAllByText('2 comparison queries').length).toBeGreaterThan(0);
     expect(screen.getAllByText('Total Run Time')).toHaveLength(2);
-    expect(screen.getByText('Operator Run Time')).toBeInTheDocument();
+    expect(screen.getByText('Operator Summary')).toBeInTheDocument();
 
     const legend = screen.getByRole('group', { name: 'Query diff legend' });
     expect(within(legend).getByText('Baseline')).toBeInTheDocument();
