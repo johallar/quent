@@ -248,6 +248,14 @@ describe('Diff routes', () => {
     await user.click(await screen.findByRole('tab', { name: 'Timelines' }));
 
     expect(await screen.findByText('Timeline Delta')).toBeInTheDocument();
+    const overlayButton = screen.getByRole('button', { name: 'Overlay' });
+    const heatmapButton = screen.getByRole('button', { name: 'Heatmap' });
+    expect(overlayButton).toHaveAttribute('aria-pressed', 'true');
+    await user.click(heatmapButton);
+    expect(heatmapButton).toHaveAttribute('aria-pressed', 'true');
+    expect(overlayButton).toHaveAttribute('aria-pressed', 'false');
+    await user.click(overlayButton);
+    expect(overlayButton).toHaveAttribute('aria-pressed', 'true');
     expect(screen.queryByText('Total Run Time')).not.toBeInTheDocument();
   });
 

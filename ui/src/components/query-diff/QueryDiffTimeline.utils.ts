@@ -27,6 +27,16 @@ export interface DiffTimelineData {
   delta: TimelineRowData;
 }
 
+export interface DiffHeatmapRowData {
+  timestamps: number[];
+  baselineValues: number[];
+  comparisonValues: number[];
+  signedDeltaValues: number[];
+  relativeValues: number[];
+  colorValues: number[];
+  formatter: (value: number, decimals?: number) => string;
+}
+
 interface BuildDiffTimelineDataParams {
   timelineDiff: DiffTimelineResponse;
   theme: PaletteTheme;
@@ -133,6 +143,76 @@ function recolorTimelineSeries(series: TimelineSeries, color: string): TimelineS
       },
     ])
   );
+}
+
+function clampRelativeValue(value: number): number {
+  if (!Number.isFinite(value)) return 0;
+  return Math.max(-1, Math.min(1, value));
+}
+
+function sumSeriesAtIndex(series: TimelineSeries, index: number): number {
+  return Object.values(series)
+    .filter(entry => !entry.isOverlay)
+    .reduce((sum, entry) => sum + (entry.values[index] ?? 0), 0);
+}
+
+function seriesValue(series: TimelineSeries, name: string, index: number): number {
+  return series[name]?.values[index] ?? 0;
+}
+
+export function buildDiffHeatmapRowData(data: DiffTimelineData): DiffHeatmapRowData {
+  const binCount = Math.max(
+    data.delta.timestamps.length,
+    data.baseline.timestamps.length,
+    data.comparison.timestamps.length
+  );
+  const formatter = getFirstFormatter(data.baseline.series, data.comparison.series);
+
+  const baselineValues = new Array<number>(binCount);
+  const comparisonValues = new Array<number>(binCount);
+  const signedDeltaValues = new Array<number>(binCount);
+  const relativeValues = new Array<number>(binCount);
+  const colorValues = new Array<number>(binCount);
+  const hasBackendDelta =
+    Boolean(data.delta.series[BASELINE_HIGHER_LABEL]) ||
+    Boolean(data.delta.series[COMPARISON_HIGHER_LABEL]);
+
+  for (let index = 0; index < binCount; index += 1) {
+    const baseline = sumSeriesAtIndex(data.baseline.series, index);
+    const comparison = sumSeriesAtIndex(data.comparison.series, index);
+    const signedDelta = hasBackendDelta
+      ? seriesValue(data.delta.series, COMPARISON_HIGHER_LABEL, index) -
+        seriesValue(data.delta.series, BASELINE_HIGHER_LABEL, index)
+      : comparison - baseline;
+
+    const relative =
+      baseline !== 0
+        ? signedDelta / Math.abs(baseline)
+        : comparison !== 0
+          ? Math.sign(signedDelta)
+          : 0;
+
+    baselineValues[index] = baseline;
+    comparisonValues[index] = comparison;
+    signedDeltaValues[index] = signedDelta;
+    relativeValues[index] = relative;
+    colorValues[index] = clampRelativeValue(relative);
+  }
+
+  return {
+    timestamps:
+      data.delta.timestamps.length > 0
+        ? data.delta.timestamps
+        : data.baseline.timestamps.length > 0
+          ? data.baseline.timestamps
+          : data.comparison.timestamps,
+    baselineValues,
+    comparisonValues,
+    signedDeltaValues,
+    relativeValues,
+    colorValues,
+    formatter,
+  };
 }
 
 export function buildDiffTimelineData({

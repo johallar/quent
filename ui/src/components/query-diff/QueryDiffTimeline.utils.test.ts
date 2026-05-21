@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest';
 import type { SingleTimelineResponse } from '@quent/utils';
 import type { DiffTimelineResponse } from '@quent/client';
 import { DIFF_NEGATIVE_COLOR, DIFF_POSITIVE_COLOR } from './QueryDiffColors';
-import { buildDiffTimelineData } from './QueryDiffTimeline.utils';
+import { buildDiffHeatmapRowData, buildDiffTimelineData } from './QueryDiffTimeline.utils';
 
 function makeTimeline(values: Record<string, number[]>): SingleTimelineResponse {
   const firstValues = Object.values(values)[0] ?? [];
@@ -64,5 +64,29 @@ describe('buildDiffTimelineData', () => {
     expect(data.comparison.series.slots?.color).toBe('#E69F00');
     expect(data.delta.series['Baseline higher']?.color).toBe(DIFF_NEGATIVE_COLOR);
     expect(data.delta.series['Comparison higher']?.color).toBe(DIFF_POSITIVE_COLOR);
+  });
+
+  it('builds capped relative values for heatmap rows', () => {
+    const response: DiffTimelineResponse = {
+      timelines: [makeTimeline({ slots: [100, 0, 50] }), makeTimeline({ slots: [50, 25, 200] })],
+      delta: makeTimeline({
+        'Query A higher': [50, 0, 0],
+        'Query B higher': [0, 25, 150],
+      }),
+    };
+
+    const timelineData = buildDiffTimelineData({
+      timelineDiff: response,
+      theme: 'light',
+      queryColors: { baseline: '#0072B2', comparison: '#E69F00' },
+    });
+
+    const row = buildDiffHeatmapRowData(timelineData);
+
+    expect(row.baselineValues).toEqual([100, 0, 50]);
+    expect(row.comparisonValues).toEqual([50, 25, 200]);
+    expect(row.signedDeltaValues).toEqual([-50, 25, 150]);
+    expect(row.relativeValues).toEqual([-0.5, 1, 3]);
+    expect(row.colorValues).toEqual([-0.5, 1, 1]);
   });
 });
