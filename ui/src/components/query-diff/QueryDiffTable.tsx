@@ -279,7 +279,6 @@ export function QueryDiffTable({ baselineQuery, comparisons }: QueryDiffTablePro
     defaultEnabled: DEFAULT_ENABLED,
     allStatNames,
     defaultStatSelector: stats => stats,
-    filterIndexOrder: indexOrder => ['engine', ...indexOrder.filter(key => key !== 'engine')],
     persistKey: 'queryDiffTable:v4',
     rows,
     getRowIndexId: (row, key) => DIFF_TABLE_SCHEMA.groups[key].id(row),

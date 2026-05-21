@@ -1,19 +1,45 @@
 // SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-import { describe, expect, it } from 'vitest';
+import { Provider as JotaiProvider, createStore } from 'jotai';
+import { describe, expect, it, vi } from 'vitest';
+import { fireEvent, render, screen, within } from '@/test/test-utils';
+import { ThemeProvider } from '@/contexts/ThemeContext';
 import {
   buildQueryDiffRows,
   formatSignedDiffValue,
   formatSignedPercentDelta,
   getDeltaCellStyle,
 } from './QueryDiffTable.utils';
+import { QueryDiffTable } from './QueryDiffTable';
 import {
   baselineDiffQueryFixture,
   comparisonDiffQueryFixture,
   equalPlanQueryDiffFixture,
 } from '@/test/mocks/queryProfileDiffFixtures';
 import { DIFF_NEGATIVE_COLOR, DIFF_POSITIVE_COLOR } from './QueryDiffColors';
+
+function renderQueryDiffTable() {
+  const store = createStore();
+  return render(
+    <JotaiProvider store={store}>
+      <ThemeProvider>
+        <div className="h-[600px]">
+          <QueryDiffTable
+            baselineQuery={baselineDiffQueryFixture}
+            comparisons={[
+              {
+                id: 'comparison-1',
+                comparisonQuery: comparisonDiffQueryFixture,
+                diff: equalPlanQueryDiffFixture,
+              },
+            ]}
+          />
+        </div>
+      </ThemeProvider>
+    </JotaiProvider>
+  );
+}
 
 describe('QueryDiffTable helpers', () => {
   it('converts matched operator diffs into pivot rows', () => {
@@ -80,5 +106,36 @@ describe('QueryDiffTable helpers', () => {
     expect(getDeltaCellStyle(-5, 10)?.backgroundColor).toContain(DIFF_NEGATIVE_COLOR);
     expect(getDeltaCellStyle(0, 10)).toBeUndefined();
     expect(getDeltaCellStyle(null, 10)).toBeUndefined();
+  });
+});
+
+describe('QueryDiffTable', () => {
+  it('allows the required comparison engine group to be reordered', () => {
+    renderQueryDiffTable();
+
+    const getGroupHeaders = () =>
+      within(screen.getByRole('table'))
+        .getAllByRole('columnheader')
+        .slice(0, 2)
+        .map(header => header.textContent);
+
+    expect(getGroupHeaders()).toEqual(['Comparison Engine', 'Operator Type']);
+
+    const dataTransfer = {
+      effectAllowed: '',
+      dropEffect: '',
+      setData: vi.fn(),
+    };
+    fireEvent.dragStart(screen.getByRole('button', { name: 'Comparison Engine' }), {
+      dataTransfer,
+    });
+    fireEvent.dragOver(screen.getByRole('button', { name: 'Operator Type' }), {
+      dataTransfer,
+    });
+    fireEvent.drop(screen.getByRole('button', { name: 'Operator Type' }), {
+      dataTransfer,
+    });
+
+    expect(getGroupHeaders()).toEqual(['Operator Type', 'Comparison Engine']);
   });
 });

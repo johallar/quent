@@ -62,6 +62,7 @@ export type {
   CategoricalEdgeColoring,
   EdgeColoring,
   NodeLabelField,
+  StatValue,
   DAGNode,
   DAGEdge,
 } from './dagTypes';

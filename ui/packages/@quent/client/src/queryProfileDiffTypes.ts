@@ -5,9 +5,9 @@ import type {
   QueryFilter,
   SingleTimelineRequest,
   SingleTimelineResponse,
+  StatValue,
   TaskFilter,
   TimelineConfig,
-  Value,
 } from '@quent/utils';
 
 export interface DiffQueryRef {
@@ -45,7 +45,7 @@ export interface DiffOperatorRef {
 }
 
 export interface DiffDelta {
-  stats: [Value, Value];
+  stats: [StatValue, StatValue];
   delta: number | null;
   percent_delta: number | null;
 }

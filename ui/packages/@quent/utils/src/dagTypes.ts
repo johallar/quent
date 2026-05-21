@@ -52,6 +52,8 @@ export const NODE_LABEL_FIELD = {
 
 export type NodeLabelField = (typeof NODE_LABEL_FIELD)[keyof typeof NODE_LABEL_FIELD];
 
+export type StatValue = string | number | boolean | null | string[];
+
 export interface DAGNode {
   id: string;
   label: string;
