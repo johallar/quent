@@ -2,17 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { useMemo, useState, type CSSProperties } from 'react';
-import { Check, ChevronDown, Search, Triangle } from 'lucide-react';
+import { Triangle } from 'lucide-react';
 import type { DiffQuerySummary, QueryDiff } from '@quent/client';
 import {
-  Button,
-  DataText,
-  Input,
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
+  MultiStatStackedBarChart,
   StatisticCard,
-  StatisticMiniBarChart,
   formatStatValue,
   type StatisticCardComparison,
   type StatisticMiniBarChartRow,
@@ -151,133 +145,15 @@ function resolveOperatorStat(statNames: string[], requestedStat: string): string
     : getDefaultOperatorDiffStatName(statNames);
 }
 
-function OperatorStatSelect({
-  statNames,
-  value,
-  onValueChange,
-}: {
-  statNames: string[];
-  value: string;
-  onValueChange: (statName: string) => void;
-}) {
-  const [open, setOpen] = useState(false);
-  const [search, setSearch] = useState('');
-  const filteredStatNames = useMemo(() => {
-    if (!search) return statNames;
-    const needle = search.toLowerCase();
-    return statNames.filter(statName => statName.toLowerCase().includes(needle));
-  }, [search, statNames]);
-
-  return (
-    <div className="flex items-center justify-center gap-2">
-      <span className="text-xs text-muted-foreground">Stat</span>
-      <Popover
-        open={open}
-        onOpenChange={nextOpen => {
-          setOpen(nextOpen);
-          if (!nextOpen) setSearch('');
-        }}
-      >
-        <PopoverTrigger asChild>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            role="combobox"
-            aria-expanded={open}
-            className="h-7 min-w-40 justify-between gap-2 px-2 text-xs font-normal"
-          >
-            <DataText className="truncate">{value}</DataText>
-            <ChevronDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground opacity-70" />
-          </Button>
-        </PopoverTrigger>
-        <PopoverContent className="w-64 p-2" align="center" side="bottom">
-          <div className="relative mb-2">
-            <Search className="pointer-events-none absolute left-2 top-1/2 size-3 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              type="search"
-              className="h-7 pl-7 pr-2 text-xs md:text-xs"
-              placeholder="Search stats..."
-              value={search}
-              onChange={event => setSearch(event.target.value)}
-              autoFocus
-            />
-          </div>
-          <div role="listbox" className="max-h-52 space-y-0.5 overflow-y-auto">
-            {filteredStatNames.map(statName => {
-              const selected = statName === value;
-              return (
-                <button
-                  key={statName}
-                  type="button"
-                  role="option"
-                  aria-selected={selected}
-                  onClick={() => {
-                    onValueChange(statName);
-                    setOpen(false);
-                    setSearch('');
-                  }}
-                  className={cn(
-                    'flex w-full cursor-default select-none items-center gap-2 rounded-sm px-2 py-1 text-left text-xs font-mono outline-none',
-                    'transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:bg-accent focus-visible:text-accent-foreground',
-                    selected && 'bg-accent text-accent-foreground'
-                  )}
-                >
-                  <Check
-                    className={cn('size-3 shrink-0', selected ? 'opacity-100' : 'opacity-0')}
-                    strokeWidth={3}
-                  />
-                  <span className="truncate">{statName}</span>
-                </button>
-              );
-            })}
-            {filteredStatNames.length === 0 && (
-              <p className="py-2 text-center text-xs text-muted-foreground">No stats found</p>
-            )}
-          </div>
-        </PopoverContent>
-      </Popover>
-    </div>
-  );
+function getOverviewStatColumnCount(statCardCount: number): number {
+  if (statCardCount <= 0) return 1;
+  return statCardCount <= 5 ? statCardCount : 3;
 }
 
-function OperatorStatChart({
-  rows,
-  statNames,
-  selectedStat,
-  onSelectedStatChange,
-}: {
-  rows: StatisticMiniBarChartRow[];
-  statNames: string[];
-  selectedStat: string;
-  onSelectedStatChange: (statName: string) => void;
-}) {
-  return (
-    <div className="flex h-full min-h-0 flex-col gap-2">
-      <OperatorStatSelect
-        statNames={statNames}
-        value={selectedStat}
-        onValueChange={onSelectedStatChange}
-      />
-      <StatisticMiniBarChart
-        rows={rows}
-        maxRows={rows.length}
-        className="min-h-0 flex-1 overflow-y-auto pr-1 [scrollbar-width:thin]"
-      />
-    </div>
-  );
-}
-
-function overviewStatCardClassName(index: number, totalCards: number): string {
-  const isLast = index === totalCards - 1;
-  const isLastTwo = index >= totalCards - 2;
-
-  return cn(
-    'col-span-12 md:col-span-6 xl:col-span-4',
-    totalCards % 2 === 1 && isLast && 'md:col-span-12',
-    totalCards % 3 === 1 && isLast && 'xl:col-span-12',
-    totalCards % 3 === 2 && isLastTwo && 'xl:col-span-6'
-  );
+function overviewRuntimeCardClassName(index: number, statCardCount: number): string {
+  const columnCount = getOverviewStatColumnCount(statCardCount);
+  const isEndOfRow = (index + 1) % columnCount === 0 || index === statCardCount - 1;
+  return cn(isEndOfRow && 'border-r-0');
 }
 
 function operatorRuntimeChartRows(
@@ -440,7 +316,7 @@ export function QueryDiffStats({
           <StatisticCard
             title="Operator Run Time"
             chart={
-              <OperatorStatChart
+              <MultiStatStackedBarChart
                 rows={operatorRuntimeChartRows(
                   operatorRuntimeComparisons,
                   queryColors,
@@ -507,11 +383,16 @@ export function QueryDiffOverviewStats({
     [comparisons, paletteTheme, selectedOperatorStat]
   );
   const hasOperatorRuntimeChart = Boolean(selectedOperatorStat && operatorRuntimeRows.length > 0);
-  const totalOverviewCards = totalRuntimeComparisons.length + (hasOperatorRuntimeChart ? 1 : 0);
+  const overviewGridStyle = useMemo<CSSProperties>(
+    () => ({
+      gridTemplateColumns: `repeat(${getOverviewStatColumnCount(totalRuntimeComparisons.length)}, minmax(0, 1fr))`,
+    }),
+    [totalRuntimeComparisons.length]
+  );
 
   return (
     <div className="shrink-0 border-b border-border bg-card">
-      <div className="grid min-w-0 grid-cols-12">
+      <div className="grid min-w-0" style={overviewGridStyle}>
         {totalRuntimeComparisons.map((comparison, index) => (
           <RuntimeComparisonCard
             key={comparison.id}
@@ -520,18 +401,15 @@ export function QueryDiffOverviewStats({
             comparisonName={comparison.comparisonName}
             queryColors={comparison.queryColors}
             paletteTheme={paletteTheme}
-            className={overviewStatCardClassName(index, totalOverviewCards)}
+            className={overviewRuntimeCardClassName(index, totalRuntimeComparisons.length)}
           />
         ))}
         {hasOperatorRuntimeChart && selectedOperatorStat && (
           <StatisticCard
-            title="Operator Run Time"
-            className={overviewStatCardClassName(
-              totalRuntimeComparisons.length,
-              totalOverviewCards
-            )}
+            title="Operator Summary"
+            className="col-span-full border-r-0 border-t border-border"
             chart={
-              <OperatorStatChart
+              <MultiStatStackedBarChart
                 rows={operatorRuntimeRows}
                 statNames={operatorStatNames}
                 selectedStat={selectedOperatorStat}

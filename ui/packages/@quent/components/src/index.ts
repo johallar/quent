@@ -85,6 +85,7 @@ export {
 
 // ─── Statistic card components ───────────────────────────────────────────────
 export { StatisticCard, StatisticMiniBarChart } from './stat-card/StatisticCard';
+export { MultiStatStackedBarChart } from './stat-card/MultiStatStackedBarChart';
 export type {
   StatisticCardComparison,
   StatisticCardProps,
@@ -93,6 +94,7 @@ export type {
   StatisticMiniBarChartProps,
   StatisticMiniBarChartRow,
 } from './stat-card/StatisticCard';
+export type { MultiStatStackedBarChartProps } from './stat-card/MultiStatStackedBarChart';
 
 // ─── ECharts ──────────────────────────────────────────────────────────────────
 export { echarts } from './lib/echarts';
