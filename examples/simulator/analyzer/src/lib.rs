@@ -3,6 +3,7 @@
 
 use quent_events::Event;
 pub use quent_query_engine_analyzer::QueryEngineModel;
+use quent_query_engine_analyzer::diff::QueryOperatorStats;
 use quent_query_engine_analyzer::ui::UiAnalyzer;
 use quent_query_engine_ui::{QueryBundle, QueryEntities};
 use quent_ui::{
@@ -237,6 +238,17 @@ impl UiAnalyzer for SimulatorUiAnalyzer {
             start_time_unix_ns,
             duration_s,
         })
+    }
+
+    fn query_operator_stats(&self, _query_id: Uuid) -> AnalyzerResult<QueryOperatorStats> {
+        // fn query_operator_stats(&self, _query_id: Uuid) {
+        // todo!("implement query_operator_stats");
+        let view = self.model.query_view(_query_id)?;
+        // let epoch = view.query_epoch(_query_id)?;
+
+        let engine = view.engine()?;
+        println!("{:#?}", engine);
+        todo!("finish implementing");
     }
 
     fn query_engine_model(&self) -> &impl QueryEngineModel {

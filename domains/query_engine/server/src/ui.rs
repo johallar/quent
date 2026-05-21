@@ -288,13 +288,18 @@ where
 ))]
 #[tracing::instrument(skip_all, err)]
 async fn workload_diff<A>(
-    State(_state): State<ServiceState<A>>,
-    Json(_request): Json<ui::diff::DiffRequest>,
+    State(state): State<ServiceState<A>>,
+    Json(request): Json<ui::diff::DiffRequest>,
 ) -> ServerResult<Json<ui::diff::DiffResponse>>
 where
     A: UiAnalyzer + Send + Sync + 'static,
 {
-    todo!()
+    let analyzer = state
+        .analyzers
+        .get(request.baseline_query.engine_id)
+        .await?;
+    let stats = analyzer.query_operator_stats(request.baseline_query.query_id)?;
+    todo!();
 }
 
 #[cfg(feature = "swagger")]
