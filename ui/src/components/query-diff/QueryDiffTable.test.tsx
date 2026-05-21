@@ -54,6 +54,8 @@ describe('QueryDiffTable helpers', () => {
       engineGroupId: 'engine-b',
       engineGroupLabel: 'Engine B',
       engines: [{ id: 'engine-b', label: 'Engine B' }],
+      queryGroupId: 'group-2',
+      queryGroupLabel: 'Group 2',
       operatorType: 'Scan',
       operatorLabel: 'Scan orders <-> Scan orders\nscan-a <-> scan-b',
       operatorPairId: 'query-b:scan-a:scan-b',
@@ -110,7 +112,52 @@ describe('QueryDiffTable helpers', () => {
 });
 
 describe('QueryDiffTable', () => {
-  it('allows the required comparison engine group to be reordered', () => {
+  it('orders group-by options and selects operator type plus comparison engine by default', () => {
+    renderQueryDiffTable();
+
+    const groupByToolbar = screen.getByText('Group by:').parentElement!;
+    const groupButtonLabels = within(groupByToolbar)
+      .getAllByRole('button')
+      .map(button => button.textContent)
+      .filter(label =>
+        ['Operator Type', 'Engine', 'Query Group', 'Operator Pair'].includes(label ?? '')
+      );
+    expect(groupButtonLabels).toEqual(['Operator Type', 'Engine', 'Query Group', 'Operator Pair']);
+
+    const defaultGroupHeaders = within(screen.getByRole('table'))
+      .getAllByRole('columnheader')
+      .slice(0, 2)
+      .map(header => header.textContent);
+    expect(defaultGroupHeaders).toEqual(['Operator Type', 'Engine']);
+  });
+
+  it('offers query group name as a group-by column', () => {
+    renderQueryDiffTable();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Query Group' }));
+
+    const groupHeaders = within(screen.getByRole('table'))
+      .getAllByRole('columnheader')
+      .slice(0, 3)
+      .map(header => header.textContent);
+
+    expect(groupHeaders).toEqual(['Operator Type', 'Engine', 'Query Group']);
+  });
+
+  it('allows comparison engine to be disabled as a group-by column', () => {
+    renderQueryDiffTable();
+
+    const engineButton = screen.getByRole('button', { name: 'Engine' });
+    expect(engineButton).not.toHaveAttribute('aria-disabled');
+
+    fireEvent.click(engineButton);
+
+    const table = within(screen.getByRole('table'));
+    expect(table.queryByRole('columnheader', { name: 'Engine' })).not.toBeInTheDocument();
+    expect(table.getAllByRole('columnheader')[0]).toHaveTextContent('Operator Type');
+  });
+
+  it('allows comparison engine group to be reordered', () => {
     renderQueryDiffTable();
 
     const getGroupHeaders = () =>
@@ -119,23 +166,23 @@ describe('QueryDiffTable', () => {
         .slice(0, 2)
         .map(header => header.textContent);
 
-    expect(getGroupHeaders()).toEqual(['Comparison Engine', 'Operator Type']);
+    expect(getGroupHeaders()).toEqual(['Operator Type', 'Engine']);
 
     const dataTransfer = {
       effectAllowed: '',
       dropEffect: '',
       setData: vi.fn(),
     };
-    fireEvent.dragStart(screen.getByRole('button', { name: 'Comparison Engine' }), {
+    fireEvent.dragStart(screen.getByRole('button', { name: 'Operator Type' }), {
       dataTransfer,
     });
-    fireEvent.dragOver(screen.getByRole('button', { name: 'Operator Type' }), {
+    fireEvent.dragOver(screen.getByRole('button', { name: 'Engine' }), {
       dataTransfer,
     });
-    fireEvent.drop(screen.getByRole('button', { name: 'Operator Type' }), {
+    fireEvent.drop(screen.getByRole('button', { name: 'Engine' }), {
       dataTransfer,
     });
 
-    expect(getGroupHeaders()).toEqual(['Operator Type', 'Comparison Engine']);
+    expect(getGroupHeaders()).toEqual(['Engine', 'Operator Type']);
   });
 });

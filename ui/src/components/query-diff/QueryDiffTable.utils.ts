@@ -22,6 +22,8 @@ export interface QueryDiffTableRow {
   engineGroupId: string;
   engineGroupLabel: string;
   engines: QueryDiffTableEngine[];
+  queryGroupId: string;
+  queryGroupLabel: string;
   operatorType: string;
   operatorLabel: string;
   operatorPairId: string;
@@ -37,6 +39,13 @@ function getQueryEngine(query: DiffQuerySummary): QueryDiffTableEngine {
   return {
     id: query.engine_id,
     label: query.engine_name ?? query.engine_id,
+  };
+}
+
+function getQueryGroup(query: DiffQuerySummary): { id: string; label: string } {
+  return {
+    id: query.query_group_id ?? query.query_group_name ?? '__no_query_group__',
+    label: query.query_group_name ?? query.query_group_id ?? 'No Query Group',
   };
 }
 
@@ -79,6 +88,7 @@ export function buildQueryDiffRows(
   const engines = [comparisonEngine];
   const engineGroupId = comparisonEngine.id;
   const engineGroupLabel = comparisonEngine.label;
+  const queryGroup = getQueryGroup(comparisonQuery);
 
   return (diff.operator_diffs ?? []).flatMap(entry => {
     const [operatorA, operatorB] = entry.operators;
@@ -102,6 +112,8 @@ export function buildQueryDiffRows(
         engineGroupId,
         engineGroupLabel,
         engines,
+        queryGroupId: queryGroup.id,
+        queryGroupLabel: queryGroup.label,
         operatorType,
         operatorLabel,
         operatorPairId: `${comparisonId}:${operatorA.id}:${operatorB.id}`,

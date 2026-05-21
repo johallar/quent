@@ -31,13 +31,17 @@ import {
   type QueryDiffTableRow,
 } from './QueryDiffTable.utils';
 
-type IndexKey = 'engine' | 'operator_type' | 'operator';
+type IndexKey = 'engine' | 'query_group' | 'operator_type' | 'operator';
 
 const DIFF_TABLE_SCHEMA: PivotedStatTableSchema<QueryDiffTableRow> = {
   groups: {
     engine: {
       id: row => row.engineGroupId,
       label: row => row.engineGroupLabel,
+    },
+    query_group: {
+      id: row => row.queryGroupId,
+      label: row => row.queryGroupLabel,
     },
     operator_type: {
       id: row => row.operatorType,
@@ -53,10 +57,11 @@ const DIFF_TABLE_SCHEMA: PivotedStatTableSchema<QueryDiffTableRow> = {
   stats: row => row.stats,
 };
 
-const INDEX_ORDER: IndexKey[] = ['engine', 'operator_type', 'operator'];
+const INDEX_ORDER: IndexKey[] = ['operator_type', 'engine', 'query_group', 'operator'];
 
 const DEFAULT_ENABLED: Record<IndexKey, boolean> = {
   engine: true,
+  query_group: false,
   operator_type: true,
   operator: false,
 };
@@ -279,14 +284,15 @@ export function QueryDiffTable({ baselineQuery, comparisons }: QueryDiffTablePro
     defaultEnabled: DEFAULT_ENABLED,
     allStatNames,
     defaultStatSelector: stats => stats,
-    persistKey: 'queryDiffTable:v4',
+    persistKey: 'queryDiffTable:v6',
     rows,
     getRowIndexId: (row, key) => DIFF_TABLE_SCHEMA.groups[key].id(row),
   });
 
   const indexLabels: Record<IndexKey, React.ReactNode> = useMemo(
     () => ({
-      engine: 'Comparison Engine',
+      engine: 'Engine',
+      query_group: 'Query Group',
       operator_type: 'Operator Type',
       operator: 'Operator Pair',
     }),
@@ -298,8 +304,7 @@ export function QueryDiffTable({ baselineQuery, comparisons }: QueryDiffTablePro
       visibleIndexOrder.map(key => ({
         key,
         label: indexLabels[key],
-        enabled: key === 'engine' || enabledIndices[key],
-        locked: key === 'engine',
+        enabled: enabledIndices[key],
       })),
     [enabledIndices, indexLabels, visibleIndexOrder]
   );
