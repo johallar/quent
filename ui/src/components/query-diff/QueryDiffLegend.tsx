@@ -22,7 +22,7 @@ interface QueryDiffLegendProps {
 
 export function QueryDiffLegend({
   items,
-  title = 'Legend',
+  title = '',
   ariaLabel = 'Query diff legend',
   compact = false,
   className,

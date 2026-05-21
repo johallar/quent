@@ -6,9 +6,10 @@ import { Triangle } from 'lucide-react';
 import type { DiffQuerySummary, QueryDiff } from '@quent/client';
 import {
   MultiStatStackedBarChart,
+  NumberComparisonCard,
   StatisticCard,
   formatStatValue,
-  type StatisticCardComparison,
+  type StatisticMiniBarChartBar,
   type StatisticMiniBarChartRow,
 } from '@quent/components';
 import { cn, type EntityRef, type PaletteTheme, type QueryBundle } from '@quent/utils';
@@ -57,6 +58,13 @@ function runtimeValueStyle(delta: number, paletteTheme: PaletteTheme): CSSProper
   return undefined;
 }
 
+function relativeValueStyle(
+  value: number | null,
+  paletteTheme: PaletteTheme
+): CSSProperties | undefined {
+  return value === null ? undefined : runtimeValueStyle(value, paletteTheme);
+}
+
 function displayDelta(delta: number): number {
   return delta === 0 || Object.is(delta, -0) ? 0 : -delta;
 }
@@ -66,34 +74,13 @@ function displayPercentDelta(percentDelta: number | null): number | null {
   return percentDelta === 0 || Object.is(percentDelta, -0) ? 0 : -percentDelta;
 }
 
-function runtimeComparisons({
-  comparison,
-  baselineName,
-  comparisonName,
-  queryColors,
-}: {
-  comparison: RuntimeComparison;
-  baselineName: string;
-  comparisonName: string;
-  queryColors: QueryDiffQueryColors;
-}): StatisticCardComparison[] {
-  return [
-    {
-      id: 'baseline',
-      label: baselineName,
-      value: formatDurationSeconds(comparison.a),
-      color: queryColors.baseline,
-    },
-    {
-      id: 'comparison',
-      label: comparisonName,
-      value: formatDurationSeconds(comparison.b),
-      color: queryColors.comparison,
-    },
-  ];
+function runtimeComparisonSeparator() {
+  return (
+    <Triangle className="h-3 w-3 shrink-0 text-muted-foreground" aria-label="delta" role="img" />
+  );
 }
 
-function RuntimeComparisonCard({
+function RuntimeNumberComparisonCard({
   comparison,
   baselineName,
   comparisonName,
@@ -110,25 +97,22 @@ function RuntimeComparisonCard({
 }) {
   const displayedDelta = displayDelta(comparison.delta);
   return (
-    <StatisticCard
+    <NumberComparisonCard
       title="Total Run Time"
-      value={formatSignedDurationSeconds(displayedDelta)}
+      baselineLabel={baselineName}
+      comparisonLabel={comparisonName}
+      baselineValue={comparison.a}
+      comparisonValue={comparison.b}
+      deltaValue={displayedDelta}
+      percentDelta={displayPercentDelta(comparison.percentDelta)}
+      baselineColor={queryColors.baseline}
+      comparisonColor={queryColors.comparison}
+      formatValue={formatDurationSeconds}
+      formatDeltaValue={formatSignedDurationSeconds}
+      formatPercentDelta={formatPercentDelta}
       valueStyle={runtimeValueStyle(displayedDelta, paletteTheme)}
-      secondaryValue={formatPercentDelta(displayPercentDelta(comparison.percentDelta))}
       className={className}
-      comparisons={runtimeComparisons({
-        comparison,
-        baselineName,
-        comparisonName,
-        queryColors,
-      })}
-      comparisonSeparator={
-        <Triangle
-          className="h-3 w-3 shrink-0 text-muted-foreground"
-          aria-label="delta"
-          role="img"
-        />
-      }
+      comparisonSeparator={runtimeComparisonSeparator()}
     />
   );
 }
@@ -137,6 +121,29 @@ function formatOperatorChartValue(value: number, statName: string): string {
   return statName === 'duration_s'
     ? formatDurationSeconds(value)
     : formatStatValue(value, statName);
+}
+
+function formatOperatorChartDeltaValue(value: number, statName: string): string {
+  if (statName === 'duration_s') return formatSignedDurationSeconds(value);
+  if (value === 0 || Object.is(value, -0)) return formatStatValue(0, statName);
+  const formattedValue = formatStatValue(Math.abs(value), statName);
+  return value > 0 ? `+${formattedValue}` : `-${formattedValue}`;
+}
+
+function queryLabel(query: DiffQuerySummary): string {
+  return query.instance_name ?? query.id;
+}
+
+function queryTooltipDetails(query: DiffQuerySummary): StatisticMiniBarChartBar['details'] {
+  const engineLabel = query.engine_name ?? query.engine_id;
+  const queryGroupLabel = query.query_group_name ?? query.query_group_id;
+
+  return [
+    { id: 'engine', label: 'Engine', value: engineLabel },
+    ...(queryGroupLabel
+      ? [{ id: 'query-group', label: 'Query group', value: queryGroupLabel }]
+      : []),
+  ];
 }
 
 function resolveOperatorStat(statNames: string[], requestedStat: string): string | null {
@@ -159,7 +166,9 @@ function overviewRuntimeCardClassName(index: number, statCardCount: number): str
 function operatorRuntimeChartRows(
   comparisons: OperatorTypeRuntimeComparison[],
   queryColors: QueryDiffQueryColors,
-  statName: string
+  statName: string,
+  baselineQuery: DiffQuerySummary,
+  comparisonQuery: DiffQuerySummary
 ): StatisticMiniBarChartRow[] {
   return comparisons.map(comparison => ({
     id: comparison.id,
@@ -171,13 +180,17 @@ function operatorRuntimeChartRows(
         id: 'baseline',
         value: comparison.a,
         color: queryColors.baseline,
-        label: 'Baseline value',
+        label: queryLabel(baselineQuery),
+        details: queryTooltipDetails(baselineQuery),
       },
       {
         id: 'comparison',
         value: comparison.b,
         color: queryColors.comparison,
-        label: 'Comparison value',
+        label: queryLabel(comparisonQuery),
+        details: queryTooltipDetails(comparisonQuery),
+        deltaValue: displayDelta(comparison.delta),
+        percentDelta: displayPercentDelta(comparison.percentDelta),
       },
     ],
   }));
@@ -197,7 +210,7 @@ function aggregateOperatorRuntimeChartRows({
     {
       label: string;
       baselineValue: number;
-      comparisonBars: Array<{ id: string; value: number; color: string; label: string }>;
+      comparisonBars: StatisticMiniBarChartRow['bars'];
     }
   >();
 
@@ -223,7 +236,10 @@ function aggregateOperatorRuntimeChartRows({
         id: comparison.id,
         value: operatorComparison.b,
         color: queryColors.comparison,
-        label: `${comparisonName} value`,
+        label: comparisonName,
+        details: queryTooltipDetails(comparison.comparisonQuery),
+        deltaValue: displayDelta(operatorComparison.delta),
+        percentDelta: displayPercentDelta(operatorComparison.percentDelta),
       });
       rowsByOperatorType.set(operatorComparison.id, row);
     }
@@ -247,7 +263,12 @@ function aggregateOperatorRuntimeChartRows({
             comparisonQueryId: comparisons[0]?.comparisonQuery.id ?? '',
             theme: paletteTheme,
           }).baseline,
-          label: 'Baseline value',
+          label: comparisons[0]?.baselineQuery
+            ? queryLabel(comparisons[0].baselineQuery)
+            : 'Baseline',
+          details: comparisons[0]?.baselineQuery
+            ? queryTooltipDetails(comparisons[0].baselineQuery)
+            : undefined,
         },
         ...row.comparisonBars,
       ],
@@ -305,7 +326,7 @@ export function QueryDiffStats({
   return (
     <div className="shrink-0 border-b border-border bg-card">
       <div className="grid min-w-0 lg:grid-cols-2">
-        <RuntimeComparisonCard
+        <RuntimeNumberComparisonCard
           comparison={totalRuntimeComparison}
           baselineName={baselineName}
           comparisonName={comparisonName}
@@ -320,11 +341,19 @@ export function QueryDiffStats({
                 rows={operatorRuntimeChartRows(
                   operatorRuntimeComparisons,
                   queryColors,
-                  selectedOperatorStat
+                  selectedOperatorStat,
+                  baselineQuery,
+                  comparisonQuery
                 )}
                 statNames={operatorStatNames}
                 selectedStat={selectedOperatorStat}
                 onSelectedStatChange={setRequestedOperatorStat}
+                formatValue={value => formatOperatorChartValue(value, selectedOperatorStat)}
+                formatDeltaValue={value =>
+                  formatOperatorChartDeltaValue(value, selectedOperatorStat)
+                }
+                formatPercentDelta={formatPercentDelta}
+                getRelativeValueStyle={value => relativeValueStyle(value, paletteTheme)}
               />
             }
           />
@@ -394,7 +423,7 @@ export function QueryDiffOverviewStats({
     <div className="shrink-0 border-b border-border bg-card">
       <div className="grid min-w-0" style={overviewGridStyle}>
         {totalRuntimeComparisons.map((comparison, index) => (
-          <RuntimeComparisonCard
+          <RuntimeNumberComparisonCard
             key={comparison.id}
             comparison={comparison.runtimeComparison}
             baselineName={comparison.baselineName}
@@ -414,6 +443,12 @@ export function QueryDiffOverviewStats({
                 statNames={operatorStatNames}
                 selectedStat={selectedOperatorStat}
                 onSelectedStatChange={setRequestedOperatorStat}
+                formatValue={value => formatOperatorChartValue(value, selectedOperatorStat)}
+                formatDeltaValue={value =>
+                  formatOperatorChartDeltaValue(value, selectedOperatorStat)
+                }
+                formatPercentDelta={formatPercentDelta}
+                getRelativeValueStyle={value => relativeValueStyle(value, paletteTheme)}
               />
             }
           />

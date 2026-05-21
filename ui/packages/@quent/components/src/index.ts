@@ -86,15 +86,21 @@ export {
 // ─── Statistic card components ───────────────────────────────────────────────
 export { StatisticCard, StatisticMiniBarChart } from './stat-card/StatisticCard';
 export { MultiStatStackedBarChart } from './stat-card/MultiStatStackedBarChart';
+export { NumberComparisonCard } from './stat-card/NumberComparisonCard';
 export type {
   StatisticCardComparison,
   StatisticCardProps,
   StatisticCardValueTone,
   StatisticMiniBarChartBar,
+  StatisticMiniBarChartBarDetail,
+  StatisticMiniBarChartPercentDeltaFormatter,
   StatisticMiniBarChartProps,
+  StatisticMiniBarChartRelativeValueStyle,
   StatisticMiniBarChartRow,
+  StatisticMiniBarChartValueFormatter,
 } from './stat-card/StatisticCard';
 export type { MultiStatStackedBarChartProps } from './stat-card/MultiStatStackedBarChart';
+export type { NumberComparisonCardProps } from './stat-card/NumberComparisonCard';
 
 // ─── ECharts ──────────────────────────────────────────────────────────────────
 export { echarts } from './lib/echarts';

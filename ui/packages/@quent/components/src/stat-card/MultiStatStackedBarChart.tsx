@@ -8,7 +8,11 @@ import { Button } from '../ui/button';
 import { DataText } from '../ui/data-text';
 import { Input } from '../ui/input';
 import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover';
-import { StatisticMiniBarChart, type StatisticMiniBarChartRow } from './StatisticCard';
+import {
+  StatisticMiniBarChart,
+  type StatisticMiniBarChartProps,
+  type StatisticMiniBarChartRow,
+} from './StatisticCard';
 
 export interface MultiStatStackedBarChartProps {
   rows: StatisticMiniBarChartRow[];
@@ -21,6 +25,11 @@ export interface MultiStatStackedBarChartProps {
   className?: string;
   chartClassName?: string;
   maxRows?: number;
+  formatValue?: StatisticMiniBarChartProps['formatValue'];
+  formatDeltaValue?: StatisticMiniBarChartProps['formatDeltaValue'];
+  formatPercentDelta?: StatisticMiniBarChartProps['formatPercentDelta'];
+  getRelativeValueStyle?: StatisticMiniBarChartProps['getRelativeValueStyle'];
+  tooltipTitleSuffix?: StatisticMiniBarChartProps['tooltipTitleSuffix'];
 }
 
 function MultiStatSelect({
@@ -130,6 +139,11 @@ export function MultiStatStackedBarChart({
   className,
   chartClassName,
   maxRows,
+  formatValue,
+  formatDeltaValue,
+  formatPercentDelta,
+  getRelativeValueStyle,
+  tooltipTitleSuffix = selectedStat,
 }: MultiStatStackedBarChartProps) {
   return (
     <div className={cn('flex h-full min-h-0 flex-col gap-2', className)}>
@@ -144,6 +158,11 @@ export function MultiStatStackedBarChart({
       <StatisticMiniBarChart
         rows={rows}
         maxRows={maxRows ?? rows.length}
+        formatValue={formatValue}
+        formatDeltaValue={formatDeltaValue}
+        formatPercentDelta={formatPercentDelta}
+        getRelativeValueStyle={getRelativeValueStyle}
+        tooltipTitleSuffix={tooltipTitleSuffix}
         className={cn('min-h-0 flex-1 overflow-y-auto pr-1 [scrollbar-width:thin]', chartClassName)}
       />
     </div>

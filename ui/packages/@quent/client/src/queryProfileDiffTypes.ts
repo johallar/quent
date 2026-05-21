@@ -5,9 +5,9 @@ import type {
   QueryFilter,
   SingleTimelineRequest,
   SingleTimelineResponse,
-  StatValue,
   TaskFilter,
   TimelineConfig,
+  Value,
 } from '@quent/utils';
 
 export interface DiffQueryRef {
@@ -45,12 +45,13 @@ export interface DiffOperatorRef {
 }
 
 export interface DiffDelta {
-  stats: [StatValue, StatValue];
+  stats: [Value, Value];
   delta: number | null;
   percent_delta: number | null;
 }
 
 export interface DiffOperatorDelta {
+  /* Should we be using Operator type here? */
   operators: [DiffOperatorRef, DiffOperatorRef];
   /* stat name -> delta values */
   stats: Record<string, DiffDelta>;
