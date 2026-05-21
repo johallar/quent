@@ -54,6 +54,80 @@ function getFirstFormatter(seriesA: TimelineSeries, seriesB: TimelineSeries) {
   );
 }
 
+function getFirstBinDuration(series: TimelineSeries): number | null {
+  return Object.values(series).find(entry => entry.values.length > 0)?.binDuration ?? null;
+}
+
+function inferBinDurationSeconds(timestamps: number[]): number | null {
+  if (timestamps.length <= 1) return null;
+  const first = timestamps[0] ?? 0;
+  const second = timestamps[1] ?? first;
+  const durationMs = second - first;
+  return durationMs > 0 ? durationMs / 1_000 : null;
+}
+
+function timestampsEqual(a: number[], b: number[]): boolean {
+  return (
+    a.length === b.length && a.every((value, index) => Math.abs(value - (b[index] ?? 0)) < 0.001)
+  );
+}
+
+function inferTimelineEnd(timestamps: number[], binDurationSeconds: number | null): number {
+  const last = timestamps[timestamps.length - 1];
+  if (last == null) return Number.POSITIVE_INFINITY;
+
+  if (binDurationSeconds != null && binDurationSeconds > 0) {
+    return last + binDurationSeconds * 1_000;
+  }
+
+  if (timestamps.length <= 1) return Number.POSITIVE_INFINITY;
+
+  const previous = timestamps[timestamps.length - 2] ?? last;
+  return last + Math.max(0, last - previous);
+}
+
+function findBinIndexAtTime(sourceTimestamps: number[], timestamp: number): number {
+  if (sourceTimestamps.length <= 1) return 0;
+
+  let lo = 0;
+  let hi = sourceTimestamps.length - 1;
+  while (lo <= hi) {
+    const mid = (lo + hi) >>> 1;
+    if ((sourceTimestamps[mid] ?? 0) <= timestamp) lo = mid + 1;
+    else hi = mid - 1;
+  }
+
+  return Math.max(0, Math.min(sourceTimestamps.length - 1, hi));
+}
+
+function alignValuesToTimestamps({
+  values,
+  sourceTimestamps,
+  targetTimestamps,
+  sourceBinDuration,
+}: {
+  values: number[];
+  sourceTimestamps: number[];
+  targetTimestamps: number[];
+  sourceBinDuration: number | null;
+}): number[] {
+  if (values.length === 0 || targetTimestamps.length === 0) return [];
+  if (
+    values.length === targetTimestamps.length &&
+    timestampsEqual(sourceTimestamps, targetTimestamps)
+  ) {
+    return values.slice(0, targetTimestamps.length);
+  }
+
+  const sourceStart = sourceTimestamps[0] ?? 0;
+  const sourceEnd = inferTimelineEnd(sourceTimestamps, sourceBinDuration);
+
+  return targetTimestamps.map(timestamp => {
+    if (timestamp < sourceStart || timestamp >= sourceEnd) return 0;
+    return values[findBinIndexAtTime(sourceTimestamps, timestamp)] ?? 0;
+  });
+}
+
 function formatDeltaSeries({
   delta,
   baseline,
@@ -107,6 +181,13 @@ function buildSignedDeltaOverlaySeries({
   const formatter = getFirstFormatter(baseline.series, comparison.series);
   const positiveColor = getDiffPositiveColor(theme);
   const negativeColor = getDiffNegativeColor(theme);
+  const targetTimestamps =
+    comparison.timestamps.length > 0 ? comparison.timestamps : delta.timestamps;
+  const targetBinDuration =
+    getFirstBinDuration(comparison.series) ??
+    inferBinDurationSeconds(targetTimestamps) ??
+    getFirstBinDuration(delta.series) ??
+    0;
 
   return Object.fromEntries(
     Object.entries(delta.series).flatMap(([name, entry]) => {
@@ -116,16 +197,23 @@ function buildSignedDeltaOverlaySeries({
 
       const displayName = baselineHigher ? BASELINE_HIGHER_LABEL : COMPARISON_HIGHER_LABEL;
       const sign = baselineHigher ? -1 : 1;
+      const alignedValues = alignValuesToTimestamps({
+        values: entry.values,
+        sourceTimestamps: delta.timestamps,
+        targetTimestamps,
+        sourceBinDuration: entry.binDuration,
+      });
       return [
         [
           `Delta: ${displayName}`,
           {
             ...entry,
+            binDuration: targetBinDuration,
             color: baselineHigher ? negativeColor : positiveColor,
             formatter,
             isOverlay: true,
             renderType: 'bar' as const,
-            values: entry.values.map(value => (value === 0 ? 0 : sign * Math.abs(value))),
+            values: alignedValues.map(value => (value === 0 ? 0 : sign * Math.abs(value))),
           },
         ],
       ];

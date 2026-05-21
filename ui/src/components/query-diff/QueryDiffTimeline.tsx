@@ -83,6 +83,7 @@ interface TimelineTarget {
 }
 
 const TIMELINE_ROW_HEIGHT = 55;
+const HEATMAP_ROW_HEIGHT = Math.round((TIMELINE_ROW_HEIGHT * 2) / 3);
 const TIMELINE_START = 0n;
 const COMPACT_SELECT_TRIGGER_CLASS = 'h-7 min-w-36 rounded px-2 py-1 text-xs';
 const COMPACT_SELECT_ITEM_CLASS = 'py-1 pl-7 pr-2 text-xs';
@@ -568,7 +569,7 @@ function QueryDiffTimelineHeatmapRows({
     <QueryDiffTimelineHeatmap
       rows={rows}
       timestamps={fallbackTimestamps}
-      rowHeight={TIMELINE_ROW_HEIGHT}
+      rowHeight={HEATMAP_ROW_HEIGHT}
       durationSeconds={durationSeconds}
       isDark={isDark}
       positiveColor={positiveColor}

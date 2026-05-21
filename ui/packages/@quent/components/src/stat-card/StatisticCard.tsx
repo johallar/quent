@@ -316,7 +316,7 @@ export function StatisticMiniBarChart({
       {visibleRows.map(row => (
         <div
           key={row.id}
-          className="grid min-w-0 grid-cols-[minmax(5rem,7rem)_minmax(0,1fr)] items-center gap-2"
+          className="grid min-w-0 grid-cols-[minmax(5rem,7rem)_minmax(0,1fr)] items-center gap-2 py-1"
         >
           <DataText
             className="truncate text-[11px] text-muted-foreground"

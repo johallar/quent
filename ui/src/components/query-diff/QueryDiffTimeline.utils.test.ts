@@ -7,11 +7,17 @@ import type { DiffTimelineResponse } from '@quent/client';
 import { DIFF_NEGATIVE_COLOR, DIFF_POSITIVE_COLOR } from './QueryDiffColors';
 import { buildDiffHeatmapRowData, buildDiffTimelineData } from './QueryDiffTimeline.utils';
 
-function makeTimeline(values: Record<string, number[]>): SingleTimelineResponse {
+function makeTimeline(
+  values: Record<string, number[]>,
+  span: { start: number; end: number } = {
+    start: 0,
+    end: Object.values(values)[0]?.length ?? 0,
+  }
+): SingleTimelineResponse {
   const firstValues = Object.values(values)[0] ?? [];
   const config = {
-    span: { start: 0, end: firstValues.length },
-    bin_duration: 1,
+    span,
+    bin_duration: firstValues.length > 0 ? (span.end - span.start) / firstValues.length : 0,
     num_bins: BigInt(firstValues.length),
   };
 
@@ -64,6 +70,38 @@ describe('buildDiffTimelineData', () => {
     expect(data.comparison.series.slots?.color).toBe('#E69F00');
     expect(data.delta.series['Baseline higher']?.color).toBe(DIFF_NEGATIVE_COLOR);
     expect(data.delta.series['Comparison higher']?.color).toBe(DIFF_POSITIVE_COLOR);
+  });
+
+  it('aligns delta overlays to the comparison timeline bins', () => {
+    const response: DiffTimelineResponse = {
+      timelines: [
+        makeTimeline({ slots: [100, 100, 100, 100] }, { start: 0, end: 4 }),
+        makeTimeline({ slots: [90, 90, 120, 120] }, { start: 0, end: 4 }),
+      ],
+      delta: makeTimeline(
+        {
+          'Query A higher': [10, 0],
+          'Query B higher': [0, 20],
+        },
+        { start: 0, end: 4 }
+      ),
+    };
+
+    const data = buildDiffTimelineData({
+      timelineDiff: response,
+      theme: 'light',
+      queryColors: { baseline: '#0072B2', comparison: '#E69F00' },
+    });
+
+    expect(data.comparisonWithDelta.timestamps).toEqual(data.comparison.timestamps);
+    expect(data.comparisonWithDelta.series['Delta: Baseline higher']).toMatchObject({
+      values: [-10, -10, 0, 0],
+      binDuration: 1,
+    });
+    expect(data.comparisonWithDelta.series['Delta: Comparison higher']).toMatchObject({
+      values: [0, 0, 20, 20],
+      binDuration: 1,
+    });
   });
 
   it('builds capped relative values for heatmap rows', () => {
