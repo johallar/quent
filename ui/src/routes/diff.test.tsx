@@ -250,10 +250,14 @@ describe('Diff routes', () => {
     expect(await screen.findByText('Timeline Delta')).toBeInTheDocument();
     const overlayButton = screen.getByRole('button', { name: 'Overlay' });
     const heatmapButton = screen.getByRole('button', { name: 'Heatmap' });
+    const lineButton = screen.getByRole('button', { name: 'Line' });
     expect(overlayButton).toHaveAttribute('aria-pressed', 'true');
     await user.click(heatmapButton);
     expect(heatmapButton).toHaveAttribute('aria-pressed', 'true');
     expect(overlayButton).toHaveAttribute('aria-pressed', 'false');
+    await user.click(lineButton);
+    expect(lineButton).toHaveAttribute('aria-pressed', 'true');
+    expect(heatmapButton).toHaveAttribute('aria-pressed', 'false');
     await user.click(overlayButton);
     expect(overlayButton).toHaveAttribute('aria-pressed', 'true');
     expect(screen.queryByText('Total Run Time')).not.toBeInTheDocument();

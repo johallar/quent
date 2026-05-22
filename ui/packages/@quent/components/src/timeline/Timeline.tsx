@@ -77,6 +77,7 @@ export function Timeline({
         // single neutral gray so the operator overlay reads as the figure and
         // everything else recedes as a monotone background.
         const renderColor = isDimmed ? rollupTimelineColor : seriesData.color;
+        const renderOpacity = seriesData.opacity ?? (isDimmed ? DIMMED_OPACITY : 1);
 
         if (seriesData.renderType === 'bar') {
           return {
@@ -87,7 +88,7 @@ export function Timeline({
             barWidth: '100%',
             cursor: 'default',
             data: seriesData.values.map((value, index) => [timestamps[index], value]),
-            itemStyle: { color: renderColor },
+            itemStyle: { color: renderColor, opacity: renderOpacity },
             z: isOverlay ? 6 : 3,
             sampling: 'lttb',
             emphasis: {
@@ -110,10 +111,10 @@ export function Timeline({
           cursor: 'default',
           data: seriesData.values.map((value, index) => [timestamps[index], value]),
           lineStyle: { width: 0 },
-          itemStyle: { color: renderColor },
+          itemStyle: { color: renderColor, opacity: renderOpacity },
           areaStyle: {
             color: renderColor,
-            opacity: isDimmed ? DIMMED_OPACITY : 1,
+            opacity: renderOpacity,
           },
           z: isOverlay ? 5 : 2,
           sampling: 'lttb',

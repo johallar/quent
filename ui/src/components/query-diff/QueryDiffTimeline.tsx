@@ -52,6 +52,7 @@ import {
   QueryDiffTimelineHeatmap,
   type QueryDiffTimelineHeatmapRow,
 } from './QueryDiffTimelineHeatmap';
+import { QueryDiffTimelineLine } from './QueryDiffTimelineLine';
 import { buildDiffHeatmapRowData, buildDiffTimelineData } from './QueryDiffTimeline.utils';
 
 interface QueryDiffTimelineProps {
@@ -83,12 +84,13 @@ interface TimelineTarget {
   resourceTypes: string[];
 }
 
-const TIMELINE_ROW_HEIGHT = 55;
+const TIMELINE_ROW_HEIGHT = 85;
 const HEATMAP_ROW_HEIGHT = Math.round((TIMELINE_ROW_HEIGHT * 2) / 3);
 const TIMELINE_START = 0n;
 const COMPACT_SELECT_TRIGGER_CLASS = 'h-7 min-w-36 rounded px-2 py-1 text-xs';
 const COMPACT_SELECT_ITEM_CLASS = 'py-1 pl-7 pr-2 text-xs';
-type QueryDiffTimelineView = 'overlay' | 'heatmap';
+type QueryDiffTimelineView = 'overlay' | 'heatmap' | 'line';
+type QueryDiffCompactTimelineView = Exclude<QueryDiffTimelineView, 'overlay'>;
 
 function getTimelineTarget(bundle: QueryBundle<EntityRef>): TimelineTarget | null {
   if (!('ResourceGroup' in bundle.resource_tree)) return null;
@@ -410,6 +412,7 @@ function QueryDiffTimelinePairRows({
 }
 
 function QueryDiffTimelineHeatmapRows({
+  view,
   baselineEngineId,
   baselineQueryId,
   baselineBundle,
@@ -424,6 +427,7 @@ function QueryDiffTimelineHeatmapRows({
   positiveColor,
   negativeColor,
 }: {
+  view: QueryDiffCompactTimelineView;
   baselineEngineId: string;
   baselineQueryId: string;
   baselineBundle: QueryBundle<EntityRef>;
@@ -494,7 +498,7 @@ function QueryDiffTimelineHeatmapRows({
   if (activeRequestCount > 0 && isLoading) {
     return (
       <div className="flex h-28 items-center justify-center border-t border-border text-xs text-muted-foreground">
-        Loading timeline heatmap...
+        Loading timeline {view}...
       </div>
     );
   }
@@ -502,7 +506,7 @@ function QueryDiffTimelineHeatmapRows({
   if (hasError) {
     return (
       <div className="flex h-28 items-center justify-center border-t border-border text-xs text-destructive">
-        Failed to load timeline heatmap
+        Failed to load timeline {view}
       </div>
     );
   }
@@ -568,7 +572,7 @@ function QueryDiffTimelineHeatmapRows({
       ...buildDiffHeatmapRowData(timelineData),
     };
   });
-  return (
+  return view === 'heatmap' ? (
     <QueryDiffTimelineHeatmap
       rows={rows}
       timestamps={fallbackTimestamps}
@@ -576,6 +580,16 @@ function QueryDiffTimelineHeatmapRows({
       durationSeconds={durationSeconds}
       isDark={isDark}
       colorScheme={colorScheme}
+      positiveColor={positiveColor}
+      negativeColor={negativeColor}
+    />
+  ) : (
+    <QueryDiffTimelineLine
+      rows={rows}
+      timestamps={fallbackTimestamps}
+      rowHeight={HEATMAP_ROW_HEIGHT}
+      durationSeconds={durationSeconds}
+      isDark={isDark}
       positiveColor={positiveColor}
       negativeColor={negativeColor}
     />
@@ -708,7 +722,7 @@ export function QueryDiffTimelineList({
             aria-label="Timeline chart type"
             className="inline-flex h-7 shrink-0 items-center gap-0 rounded border border-border bg-background p-0.5"
           >
-            {(['overlay', 'heatmap'] as const).map(view => {
+            {(['overlay', 'heatmap', 'line'] as const).map(view => {
               const isActive = timelineView === view;
               return (
                 <Button
@@ -723,7 +737,7 @@ export function QueryDiffTimelineList({
                   )}
                   onClick={() => setTimelineView(view)}
                 >
-                  {view === 'overlay' ? 'Overlay' : 'Heatmap'}
+                  {view === 'overlay' ? 'Overlay' : view === 'heatmap' ? 'Heatmap' : 'Line'}
                 </Button>
               );
             })}
@@ -819,8 +833,21 @@ export function QueryDiffTimelineList({
               isDark={isDark}
             />
           </TimelineLane>
-          {timelineView === 'heatmap' ? (
+          {timelineView === 'overlay' ? (
+            comparisons.map(comparison => (
+              <QueryDiffTimelinePairRows
+                key={comparison.id}
+                comparison={comparison}
+                baselineEngineId={baselineEngineId}
+                baselineQueryId={baselineBundle.query_id}
+                baselineTarget={baselineTarget}
+                resourceType={resourceType}
+                durationSeconds={durationSeconds}
+              />
+            ))
+          ) : (
             <QueryDiffTimelineHeatmapRows
+              view={timelineView}
               baselineEngineId={baselineEngineId}
               baselineQueryId={baselineBundle.query_id}
               baselineBundle={baselineBundle}
@@ -835,18 +862,6 @@ export function QueryDiffTimelineList({
               positiveColor={diffPositiveColor}
               negativeColor={diffNegativeColor}
             />
-          ) : (
-            comparisons.map(comparison => (
-              <QueryDiffTimelinePairRows
-                key={comparison.id}
-                comparison={comparison}
-                baselineEngineId={baselineEngineId}
-                baselineQueryId={baselineBundle.query_id}
-                baselineTarget={baselineTarget}
-                resourceType={resourceType}
-                durationSeconds={durationSeconds}
-              />
-            ))
           )}
         </div>
       )}

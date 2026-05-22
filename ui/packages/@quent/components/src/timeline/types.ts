@@ -6,6 +6,7 @@ export type TimelineSeriesEntry = {
   formatter: (value: number, decimals?: number) => string;
   values: number[];
   color: string;
+  opacity?: number;
   renderType?: 'area' | 'bar';
   isOverlay?: boolean;
   /** When true, this series is dimmed to make overlay series stand out. */

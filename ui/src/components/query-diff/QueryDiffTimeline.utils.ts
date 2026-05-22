@@ -14,6 +14,7 @@ const QUERY_A_HIGHER_LABEL = 'Query A higher';
 const QUERY_B_HIGHER_LABEL = 'Query B higher';
 const BASELINE_HIGHER_LABEL = 'Baseline higher';
 const COMPARISON_HIGHER_LABEL = 'Comparison higher';
+const COMPARISON_WITH_DELTA_OPACITY = 0.5;
 
 interface TimelineRowData {
   timestamps: number[];
@@ -233,6 +234,18 @@ function recolorTimelineSeries(series: TimelineSeries, color: string): TimelineS
   );
 }
 
+function setTimelineSeriesOpacity(series: TimelineSeries, opacity: number): TimelineSeries {
+  return Object.fromEntries(
+    Object.entries(series).map(([name, entry]) => [
+      name,
+      {
+        ...entry,
+        opacity,
+      },
+    ])
+  );
+}
+
 function clampRelativeValue(value: number): number {
   if (!Number.isFinite(value)) return 0;
   return Math.max(-1, Math.min(1, value));
@@ -349,7 +362,10 @@ export function buildDiffTimelineData({
     comparisonWithDelta: {
       timestamps: comparison.timestamps,
       series: {
-        ...recolorTimelineSeries(comparison.series, queryColors.comparison),
+        ...setTimelineSeriesOpacity(
+          recolorTimelineSeries(comparison.series, queryColors.comparison),
+          COMPARISON_WITH_DELTA_OPACITY
+        ),
         ...buildSignedDeltaOverlaySeries({ delta, baseline, comparison, theme }),
       },
     },

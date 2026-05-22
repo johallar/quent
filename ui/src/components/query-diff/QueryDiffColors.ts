@@ -29,7 +29,7 @@ export const DIFF_DIVERGING_COLORS_DARK = [
 
 export const DIFF_DIVERGING_COLORS = DIFF_DIVERGING_COLORS_LIGHT;
 
-const BASELINE_QUERY_COLOR_INDEX = 5;
+const BASELINE_QUERY_COLOR_INDEX = 8;
 const COMPARISON_QUERY_COLOR_INDICES = [4, 6, 2, 3, 7, 8, 9, 10];
 
 export function getDiffDivergingColors(theme: PaletteTheme): readonly string[] {
