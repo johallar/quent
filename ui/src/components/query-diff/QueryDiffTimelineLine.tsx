@@ -58,6 +58,7 @@ interface AlignedLineRow extends QueryDiffTimelineHeatmapRow {
 }
 
 const ROW_HALF_BAND_HEIGHT = 0.5;
+const AREA_FILL_OPACITY = 0.42;
 
 function formatRelativePercent(value: number): string {
   const percent = value * 100;
@@ -292,6 +293,11 @@ export function QueryDiffTimelineLine({
           ),
           lineStyle: { color: positiveColor, width: 1.5 },
           itemStyle: { color: positiveColor },
+          areaStyle: {
+            color: positiveColor,
+            opacity: AREA_FILL_OPACITY,
+            origin: rowIndex,
+          },
         },
         {
           ...commonLineOptions,
@@ -301,6 +307,11 @@ export function QueryDiffTimelineLine({
           ),
           lineStyle: { color: negativeColor, width: 1.5 },
           itemStyle: { color: negativeColor },
+          areaStyle: {
+            color: negativeColor,
+            opacity: AREA_FILL_OPACITY,
+            origin: rowIndex,
+          },
         },
       ];
     });

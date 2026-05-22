@@ -107,7 +107,7 @@ describe('buildDiffTimelineData', () => {
     });
   });
 
-  it('builds capped relative values for heatmap rows', () => {
+  it('builds log-scaled color values for heatmap rows', () => {
     const response: DiffTimelineResponse = {
       timelines: [makeTimeline({ slots: [100, 0, 50] }), makeTimeline({ slots: [50, 25, 200] })],
       delta: makeTimeline({
@@ -128,6 +128,8 @@ describe('buildDiffTimelineData', () => {
     expect(row.comparisonValues).toEqual([50, 25, 200]);
     expect(row.signedDeltaValues).toEqual([-50, 25, 150]);
     expect(row.relativeValues).toEqual([-0.5, 1, 3]);
-    expect(row.colorValues).toEqual([-0.5, 1, 1]);
+    expect(row.colorValues[0]).toBeCloseTo(-Math.log1p(0.5) / Math.LN2);
+    expect(row.colorValues[1]).toBe(1);
+    expect(row.colorValues[2]).toBe(1);
   });
 });

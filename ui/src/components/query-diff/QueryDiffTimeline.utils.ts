@@ -251,6 +251,11 @@ function clampRelativeValue(value: number): number {
   return Math.max(-1, Math.min(1, value));
 }
 
+function logScaleRelativeColorValue(value: number): number {
+  const clamped = clampRelativeValue(value);
+  return Math.sign(clamped) * (Math.log1p(Math.abs(clamped)) / Math.LN2);
+}
+
 function sumSeriesAtIndex(series: TimelineSeries, index: number): number {
   return Object.values(series)
     .filter(entry => !entry.isOverlay)
@@ -297,7 +302,7 @@ export function buildDiffHeatmapRowData(data: DiffTimelineData): DiffHeatmapRowD
     comparisonValues[index] = comparison;
     signedDeltaValues[index] = signedDelta;
     relativeValues[index] = relative;
-    colorValues[index] = clampRelativeValue(relative);
+    colorValues[index] = logScaleRelativeColorValue(relative);
   }
 
   return {

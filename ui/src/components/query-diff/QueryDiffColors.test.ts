@@ -36,13 +36,13 @@ describe('QueryDiffColors', () => {
   it('uses a dark BuRd variant with the card color at the center', () => {
     expect(DIFF_DIVERGING_COLORS_DARK).toEqual([
       '#92C5DE',
-      '#4393C3',
-      '#2166AC',
-      '#0B2F4A',
+      '#638BA3',
+      '#446689',
+      '#1B2D3A',
       '#020817',
-      '#4A1218',
-      '#B2182B',
-      '#D6604D',
+      '#3C2023',
+      '#8B3F48',
+      '#B4796F',
       '#F4A582',
     ]);
     expect(getDiffDivergingColors('dark')[4]).toBe('#020817');
