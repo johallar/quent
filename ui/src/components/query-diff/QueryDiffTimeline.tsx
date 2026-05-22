@@ -43,6 +43,7 @@ import {
 } from '@quent/utils';
 import { THEME_DARK, useTheme } from '@/contexts/ThemeContext';
 import {
+  getDiffDivergingColors,
   getDiffNegativeColor,
   getDiffPositiveColor,
   getQueryDiffQueryColors,
@@ -419,6 +420,7 @@ function QueryDiffTimelineHeatmapRows({
   fallbackTimestamps,
   isDark,
   paletteTheme,
+  colorScheme,
   positiveColor,
   negativeColor,
 }: {
@@ -432,6 +434,7 @@ function QueryDiffTimelineHeatmapRows({
   fallbackTimestamps: number[];
   isDark: boolean;
   paletteTheme: PaletteTheme;
+  colorScheme: readonly string[];
   positiveColor: string;
   negativeColor: string;
 }) {
@@ -572,6 +575,7 @@ function QueryDiffTimelineHeatmapRows({
       rowHeight={HEATMAP_ROW_HEIGHT}
       durationSeconds={durationSeconds}
       isDark={isDark}
+      colorScheme={colorScheme}
       positiveColor={positiveColor}
       negativeColor={negativeColor}
     />
@@ -617,6 +621,7 @@ export function QueryDiffTimelineList({
   );
   const diffPositiveColor = getDiffPositiveColor(paletteTheme);
   const diffNegativeColor = getDiffNegativeColor(paletteTheme);
+  const diffColorScheme = getDiffDivergingColors(paletteTheme);
 
   useEffect(() => {
     if (sharedResourceTypes.length === 0) {
@@ -826,6 +831,7 @@ export function QueryDiffTimelineList({
               fallbackTimestamps={baselineTimelineData.timestamps}
               isDark={isDark}
               paletteTheme={paletteTheme}
+              colorScheme={diffColorScheme}
               positiveColor={diffPositiveColor}
               negativeColor={diffNegativeColor}
             />

@@ -1,24 +1,48 @@
 // SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-import {
-  getColorByIndex,
-  getOperationTypeColor,
-  getPalette,
-  type PaletteTheme,
-} from '@quent/utils';
+import { getColorByIndex, getOperationTypeColor, type PaletteTheme } from '@quent/utils';
 
-const TOL_GREEN_INDEX = 0;
-const TOL_RED_INDEX = 1;
+export const DIFF_DIVERGING_COLORS_LIGHT = [
+  '#2166AC',
+  '#4393C3',
+  '#92C5DE',
+  '#D1E5F0',
+  '#F7F7F7',
+  '#FDDBC7',
+  '#F4A582',
+  '#D6604D',
+  '#B2182B',
+] as const;
+
+export const DIFF_DIVERGING_COLORS_DARK = [
+  '#92C5DE',
+  '#4393C3',
+  '#2166AC',
+  '#0B2F4A',
+  '#020817',
+  '#4A1218',
+  '#B2182B',
+  '#D6604D',
+  '#F4A582',
+] as const;
+
+export const DIFF_DIVERGING_COLORS = DIFF_DIVERGING_COLORS_LIGHT;
+
 const BASELINE_QUERY_COLOR_INDEX = 5;
 const COMPARISON_QUERY_COLOR_INDICES = [4, 6, 2, 3, 7, 8, 9, 10];
 
+export function getDiffDivergingColors(theme: PaletteTheme): readonly string[] {
+  return theme === 'dark' ? DIFF_DIVERGING_COLORS_DARK : DIFF_DIVERGING_COLORS_LIGHT;
+}
+
 export function getDiffPositiveColor(theme: PaletteTheme): string {
-  return getPalette('extended', theme)[TOL_RED_INDEX]!;
+  const colors = getDiffDivergingColors(theme);
+  return colors[colors.length - 1]!;
 }
 
 export function getDiffNegativeColor(theme: PaletteTheme): string {
-  return getPalette('extended', theme)[TOL_GREEN_INDEX]!;
+  return getDiffDivergingColors(theme)[0]!;
 }
 
 export const DIFF_POSITIVE_COLOR = getDiffPositiveColor('light');

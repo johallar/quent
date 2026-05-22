@@ -17,7 +17,7 @@ import {
   type EChartsOption,
 } from '@quent/components';
 import { useZoomRange } from '@quent/hooks';
-import { cn, formatDuration, withOpacity } from '@quent/utils';
+import { cn, formatDuration } from '@quent/utils';
 
 export interface QueryDiffTimelineHeatmapRow {
   id: string;
@@ -40,6 +40,7 @@ interface QueryDiffTimelineHeatmapProps {
   rowHeight: number;
   durationSeconds: number;
   isDark: boolean;
+  colorScheme: readonly string[];
   positiveColor: string;
   negativeColor: string;
 }
@@ -129,22 +130,21 @@ function colorToCss({ r, g, b, a }: RgbaColor): string {
 
 function getCellColor({
   value,
-  negativeColor,
-  neutralColor,
-  positiveColor,
+  colorScheme,
 }: {
   value: number;
-  negativeColor: string;
-  neutralColor: string;
-  positiveColor: string;
+  colorScheme: readonly string[];
 }): string {
+  if (colorScheme.length === 0) return 'rgba(128, 128, 128, 1)';
+  if (colorScheme.length === 1) return colorToCss(parseHexColor(colorScheme[0]!));
+
   const clamped = clampUnit(value);
-  const negative = parseHexColor(negativeColor);
-  const neutral = parseHexColor(neutralColor);
-  const positive = parseHexColor(positiveColor);
-  return colorToCss(
-    clamped < 0 ? mixColor(negative, neutral, clamped + 1) : mixColor(neutral, positive, clamped)
-  );
+  const scaled = ((clamped + 1) / 2) * (colorScheme.length - 1);
+  const lowerIndex = Math.floor(scaled);
+  const upperIndex = Math.ceil(scaled);
+  const lower = parseHexColor(colorScheme[lowerIndex]!);
+  const upper = parseHexColor(colorScheme[upperIndex]!);
+  return colorToCss(mixColor(lower, upper, scaled - lowerIndex));
 }
 
 function clipRectByRect(rect: RectShape, bounds: RectShape): RectShape | null {
@@ -250,11 +250,11 @@ export function QueryDiffTimelineHeatmap({
   rowHeight,
   durationSeconds,
   isDark,
+  colorScheme,
   positiveColor,
   negativeColor,
 }: QueryDiffTimelineHeatmapProps) {
   const { themeName, axisLabelColor, labelBackgroundColor } = useTimelineEchartsTheme(isDark);
-  const neutralColor = withOpacity(axisLabelColor, isDark ? 0.2 : 0.16);
   const chartHeight = Math.max(rowHeight, rows.length * rowHeight);
   const xAxisMin = timestamps[0] ?? 0;
   const xAxisMax = Math.max(
@@ -325,7 +325,7 @@ export function QueryDiffTimelineHeatmap({
         type: 'rect' as const,
         shape: clippedShape,
         style: {
-          fill: getCellColor({ value: colorValue, negativeColor, neutralColor, positiveColor }),
+          fill: getCellColor({ value: colorValue, colorScheme }),
           lineWidth: 0,
         },
         emphasis: {
@@ -336,7 +336,7 @@ export function QueryDiffTimelineHeatmap({
         },
       };
     },
-    [axisLabelColor, negativeColor, neutralColor, positiveColor, rowHeight]
+    [axisLabelColor, colorScheme, rowHeight]
   );
 
   const option: EChartsOption = useMemo(
@@ -371,13 +371,18 @@ export function QueryDiffTimelineHeatmap({
                 : signedDelta < 0
                   ? 'Comparison lower'
                   : 'No change';
+            const deltaColor =
+              signedDelta > 0 ? positiveColor : signedDelta < 0 ? negativeColor : axisLabelColor;
+            const deltaStyle = `color:${deltaColor};font-weight:600`;
+            const relativeText = escapeTooltipText(formatRelativePercent(relative));
+            const deltaText = escapeTooltipText(row.formatter(signedDelta, 2));
 
             return [
               `<strong>${escapeTooltipText(row.label)}</strong>`,
-              `${escapeTooltipText(deltaLabel)} (${formatRelativePercent(relative)})`,
+              `<span style="${deltaStyle}">${escapeTooltipText(deltaLabel)}</span> (${relativeText})`,
               `Baseline: ${escapeTooltipText(row.formatter(baseline, 2))}`,
               `Comparison: ${escapeTooltipText(row.formatter(comparison, 2))}`,
-              `Delta: ${escapeTooltipText(row.formatter(signedDelta, 2))}`,
+              `Delta: <span style="${deltaStyle}">${deltaText}</span>`,
               `Time: ${escapeTooltipText(formatDuration(timestamp))}`,
             ].join('<br />');
           },
@@ -449,6 +454,8 @@ export function QueryDiffTimelineHeatmap({
       axisLabelColor,
       heatmapData,
       labelBackgroundColor,
+      negativeColor,
+      positiveColor,
       renderItem,
       timestamps,
       xAxisMax,
