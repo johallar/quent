@@ -36,7 +36,6 @@ pub enum Compatibility {
 pub struct DiffQuerySummary {
     pub id: Uuid,
     pub engine_id: Uuid,
-    pub engine_name: Option<String>,
     pub instance_name: Option<String>,
     pub query_group_id: Option<Uuid>,
     pub query_group_name: Option<String>,

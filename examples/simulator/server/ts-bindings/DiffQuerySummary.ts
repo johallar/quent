@@ -3,4 +3,4 @@
 /**
  * Summary metadata for a query included in a diff result.
  */
-export type DiffQuerySummary = { id: string, engine_id: string, engine_name: string | null, instance_name: string | null, query_group_id: string | null, query_group_name: string | null, };
+export type DiffQuerySummary = { id: string, engine_id: string, instance_name: string | null, query_group_id: string | null, query_group_name: string | null, };
