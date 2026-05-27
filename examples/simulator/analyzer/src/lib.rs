@@ -5,7 +5,7 @@ use quent_events::Event;
 pub use quent_query_engine_analyzer::QueryEngineModel;
 use quent_query_engine_analyzer::diff::QueryOperatorStats;
 use quent_query_engine_analyzer::ui::UiAnalyzer;
-use quent_query_engine_ui::{QueryBundle, QueryEntities};
+use quent_query_engine_ui::{self as ui, QueryBundle, QueryEntities};
 use quent_ui::{
     FiniteStateMachine, ResourceGroupNode, ResourceTree, convert_resource_tree,
     quantity::QuantitySpec,
@@ -241,63 +241,34 @@ impl UiAnalyzer for SimulatorUiAnalyzer {
     }
 
     fn query_operator_stats(&self, query_id: Uuid) -> AnalyzerResult<QueryOperatorStats> {
-        // fn query_operator_stats(&self, _query_id: Uuid) {
-        // todo!("implement query_operator_stats");
         let view = self.model.query_view(query_id)?;
-        // let epoch = view.query_epoch(_query_id)?;
 
         let engine = view.engine()?.to_ui()?;
         let epoch = view.query_epoch(query_id)?;
         let query = self.model.query(query_id)?;
-        println!("{:#?}", query.to_ui()?);
-        // todo!("finish implementing");
-        let engine_name = engine.id;
-        let instance_name = engine.instance_name;
-
+        // println!("{:#?}", query.to_ui()?);
         let duration_s = to_secs(query.span()?.duration());
 
         // get query group metadata
-        // let query_group_id = query.query_group_id();
         let query_group_id = query.query_group_id().ok_or_else(|| {
             quent_analyzer::AnalyzerError::IncompleteEntity(format!(
                 "query {} has no query_group_id",
                 query_id
             ))
         })?;
-        let query_group = view.query_group(query_group_id)?;
-        println!("{:#?}", query_group.to_ui());
+        let query_group = view.query_group(query_group_id)?.to_ui();
+        // println!("{:#?}", query_group.to_ui());
+        let operators: StdHashMap<Uuid, ui::Operator> =
+            view.operators().map(|o| (o.id(), o.to_ui(epoch))).collect();
 
-        // convert operators
-        // let operators = view.operators();
-        // println!("{:#?}", operators);
-        // let operators = view.operators().map(|o| (o.id(), o.to_ui(epoch))).collect();
-        let ops: Vec<_> = view.operators().map(|o| (o.to_ui(epoch))).collect();
-        // now just need to run through vec and create hash map, keying by id
-        println!("{:#?}", ops);
-        // let operators = HashMap::from(view.operators().map(|o| (o.to_ui(epoch))));
-
-        todo!("secs {duration_s}");
-
-        // Step 3: get engine metadata
-        // view.engine()? gives you &Engine
-        // Engine has .id() (via Entity trait) and .instance_name() (via Entity trait)
-        // engine_name and instance_name in QueryOperatorStats both come from here
-
-        // Step 4: get duration_s
-        // same pattern as query_bundle line 145:
-        // to_secs(query.span()?.duration())
-        // you'll need: let query = self.model.query(query_id)?;
-
-        // Step 5: get query_group metadata
-        // query.query_group_id() gives Option<Uuid>
-        // view.query_group(id)? gives &QueryGroup
-        // QueryGroup has .id() and .instance_name()
-
-        // Step 6: convert operators
-        // view.operators() iterates &Operator
-        // each operator has .to_ui(epoch) -> ui::Operator
-        // collect into HashMap<Uuid, ui::Operator> keyed by .id()
-        // (same pattern as query_bundle line 160)
+        Ok(QueryOperatorStats {
+            engine_id: engine.id,
+            instance_name: engine.instance_name,
+            query_group_id: Some(query_group_id),
+            query_group_name: query_group.instance_name,
+            duration_s,
+            operators,
+        })
     }
 
     fn query_engine_model(&self) -> &impl QueryEngineModel {
