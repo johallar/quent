@@ -10,6 +10,7 @@ use axum::{
 };
 
 use quent_analyzer::AnalyzerResult;
+use quent_query_engine_analyzer::diff::compute_diff;
 use quent_query_engine_analyzer::{QueryEngineModel, query_group::QueryGroup, ui::UiAnalyzer};
 use quent_query_engine_ui as ui;
 use quent_ui::timeline::{
@@ -294,13 +295,28 @@ async fn workload_diff<A>(
 where
     A: UiAnalyzer + Send + Sync + 'static,
 {
-    let analyzer = state
+    let baseline_analyzer = state
         .analyzers
         .get(request.baseline_query.engine_id)
         .await?;
-    let stats = analyzer.query_operator_stats(request.baseline_query.query_id)?;
-    // let diff = analyzer.l
-    todo!();
+    let baseline_stats =
+        baseline_analyzer.query_operator_stats(request.baseline_query.query_id)?;
+
+    let mut diffs = Vec::new();
+    for comparison_ref in &request.comparison_queries {
+        let comparison_analyzer = state.analyzers.get(comparison_ref.engine_id).await?;
+        let comparison_stats =
+            comparison_analyzer.query_operator_stats(comparison_ref.query_id)?;
+        diffs.push(compute_diff(
+            comparison_ref.query_id,
+            &baseline_stats,
+            &comparison_stats,
+        ));
+    }
+
+    Ok(Json(ui::diff::DiffResponse {
+        comparison_queries: diffs,
+    }))
 }
 
 #[cfg(feature = "swagger")]

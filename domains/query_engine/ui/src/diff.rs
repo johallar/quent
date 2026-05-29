@@ -41,13 +41,13 @@ pub struct DiffQuerySummary {
     pub query_group_name: Option<String>,
 }
 
-/// A reference to an operator within a diff, with enough context to display it.
+/// A reference to an operator type in a diff, aggregated across all operators of that type.
 #[derive(TS, Debug, Serialize)]
 pub struct DiffOperatorRef {
-    pub id: Uuid,
     pub label: String,
     pub operator_type_name: Option<String>,
-    pub plan_id: Option<Uuid>,
+    /// Number of operators of this type that were aggregated.
+    pub count: usize,
 }
 
 /// The raw values and computed delta for a single stat across two queries.
