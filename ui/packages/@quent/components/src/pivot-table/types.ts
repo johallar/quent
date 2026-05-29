@@ -69,6 +69,26 @@ export interface PivotTableInteractionConfig<TRow extends GroupedDataTableRowBas
 
 export interface PivotTableRenderConfig {
   getGroupTypeColor?: (key: string, id: string) => string | undefined;
+  formatGroupCellValue?: (args: {
+    groupKey: GroupedDataTableGroupKeyEntry;
+    row: PivotedRow;
+  }) => React.ReactNode;
+  getDataCellStyle?: (args: {
+    row: PivotedRow;
+    stat: string;
+    value: StatValue;
+    numericValue: number | null;
+    isAggregating: boolean;
+    aggMode: AggMode;
+  }) => React.CSSProperties | undefined;
+  formatDataCellValue?: (args: {
+    row: PivotedRow;
+    stat: string;
+    value: StatValue;
+    numericValue: number | null;
+    isAggregating: boolean;
+    aggMode: AggMode;
+  }) => React.ReactNode;
 }
 
 export interface PivotTableDnDConfig {

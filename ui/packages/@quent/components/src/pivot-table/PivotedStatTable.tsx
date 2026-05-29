@@ -103,6 +103,10 @@ function GroupCell({
 }: GroupCellProps<PivotedRow>) {
   const { interaction, renderConfig } = usePivotTableRenderContext();
   const typeColor = renderConfig.getGroupTypeColor?.(gk.key, gk.id);
+  // Compact rendering blanks repeated group labels. Respect that signal before
+  // asking custom renderers to rebuild the content from the repeated row.
+  const customContent =
+    gk.label === '' ? undefined : renderConfig.formatGroupCellValue?.({ groupKey: gk, row });
   const handlers = interaction.groupCellHandlers?.(gk, row);
   const isRowHighlightedFromDag =
     interaction.hoveredItemId !== null &&
@@ -152,13 +156,13 @@ function GroupCell({
         handlers?.onMouseLeave?.();
       }}
     >
-      <span className="relative z-10">{gk.label}</span>
+      <span className="relative z-10">{customContent ?? gk.label}</span>
     </td>
   );
 }
 
 function DataCell({ row, stat }: DataCellProps<PivotedRow>) {
-  const { display, interaction, derived } = usePivotTableRenderContext();
+  const { display, interaction, derived, renderConfig } = usePivotTableRenderContext();
   const numVal = getSortValue(row, stat, display.isAggregating, display.aggMode);
   const range = derived.columnRanges.get(stat);
   const bg =
@@ -176,6 +180,30 @@ function DataCell({ row, stat }: DataCellProps<PivotedRow>) {
   const rowHighlight =
     isRowHighlightedFromTable || isRowHighlightedFromDag ? HIGHLIGHT_WASH : undefined;
   const cellHighlight = rowHighlight ?? colHighlight;
+  const rawValue = display.isAggregating
+    ? (row.aggs.get(stat)?.[display.aggMode as Exclude<AggMode, 'value'>] ?? null)
+    : (row.values.get(stat) ?? null);
+  const customStyle = renderConfig.getDataCellStyle?.({
+    row,
+    stat,
+    value: rawValue,
+    numericValue: numVal,
+    isAggregating: display.isAggregating,
+    aggMode: display.aggMode,
+  });
+  const cellStyle: React.CSSProperties = {
+    backgroundColor: bg,
+    ...customStyle,
+    boxShadow: cellHighlight,
+  };
+  const customContent = renderConfig.formatDataCellValue?.({
+    row,
+    stat,
+    value: rawValue,
+    numericValue: numVal,
+    isAggregating: display.isAggregating,
+    aggMode: display.aggMode,
+  });
   const statCellProps = {
     onMouseEnter: () => interaction.setHoveredStat(derived.buildHoveredStatInfo(stat)),
     onMouseLeave: () => interaction.setHoveredStat(null),
@@ -185,10 +213,10 @@ function DataCell({ row, stat }: DataCellProps<PivotedRow>) {
     return (
       <td
         className="relative z-0 px-3 py-1.5 whitespace-nowrap text-right font-mono"
-        style={{ backgroundColor: bg, boxShadow: cellHighlight }}
+        style={cellStyle}
         {...statCellProps}
       >
-        {formatStatValue(val, stat)}
+        {customContent ?? formatStatValue(val, stat)}
       </td>
     );
   }
@@ -200,7 +228,7 @@ function DataCell({ row, stat }: DataCellProps<PivotedRow>) {
         style={{ boxShadow: cellHighlight }}
         {...statCellProps}
       >
-        -
+        {customContent ?? '-'}
       </td>
     );
   }
@@ -208,10 +236,10 @@ function DataCell({ row, stat }: DataCellProps<PivotedRow>) {
   return (
     <td
       className="relative z-0 px-3 py-1.5 whitespace-nowrap text-right font-mono"
-      style={{ backgroundColor: bg, boxShadow: cellHighlight }}
+      style={cellStyle}
       {...statCellProps}
     >
-      {formatNumericStat(displayVal, stat)}
+      {customContent ?? formatNumericStat(displayVal, stat)}
     </td>
   );
 }
@@ -281,6 +309,9 @@ export function PivotedStatTable<TRow>({
   const effectiveRenderConfig = useMemo(
     (): PivotTableRenderConfig => ({
       getGroupTypeColor: renderConfig?.getGroupTypeColor,
+      formatGroupCellValue: renderConfig?.formatGroupCellValue,
+      getDataCellStyle: renderConfig?.getDataCellStyle,
+      formatDataCellValue: renderConfig?.formatDataCellValue,
     }),
     [renderConfig]
   );

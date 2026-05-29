@@ -1,6 +1,8 @@
 // SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 // SPDX-License-Identifier: Apache-2.0
 
+import { Value } from './types';
+
 // Pure-data types for DAG coloring, width configuration, and node/edge shapes.
 // These are kept in @quent/utils to avoid circular dependencies between
 // @quent/hooks (which holds DAG atoms) and @quent/components (which holds DAG rendering).
@@ -71,5 +73,5 @@ export interface DAGEdge {
   source: string;
   target: string;
   type?: 'smoothstep' | 'default' | 'straight';
-  portStats?: Array<{ key: string; value: StatValue }>; // from source port
+  portStats?: Array<{ key: string; value: Value }>; // from source port
 }

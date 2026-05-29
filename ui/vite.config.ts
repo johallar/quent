@@ -2,11 +2,15 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import path from 'path';
-import { defineConfig } from 'vite';
+import type { IncomingMessage, ServerResponse } from 'node:http';
+import { defineConfig, type PreviewServer, type ViteDevServer } from 'vite';
 import react from '@vitejs/plugin-react';
 import { TanStackRouterVite } from '@tanstack/router-vite-plugin';
 import { visualizer } from 'rollup-plugin-visualizer';
 import tailwindcss from '@tailwindcss/vite';
+import { buildQueryProfileDiffResponseFromBundles } from './packages/@quent/client/src/queryProfileDiffFromBundles';
+import type { DiffRequest } from './packages/@quent/client/src/queryProfileDiffTypes';
+import type { EntityRef, QueryBundle } from '@quent/utils';
 
 const API_TARGET = process.env.VITE_API_TARGET || 'http://localhost:8080';
 
@@ -30,11 +34,272 @@ function vitePluginScriptPriority() {
   };
 }
 
+interface TimelineConfig {
+  num_bins: number;
+  start: number;
+  end: number;
+}
+
+interface BinnedSpanSec {
+  span: {
+    start: number;
+    end: number;
+  };
+  bin_duration: number;
+  num_bins: number;
+}
+
+interface SingleTimelineResponse {
+  config: BinnedSpanSec;
+  data:
+    | {
+        Binned: {
+          config: BinnedSpanSec;
+          capacities_values: Record<string, number[] | undefined>;
+          long_fsms: unknown[];
+        };
+      }
+    | {
+        BinnedByState: {
+          config: BinnedSpanSec;
+          capacities_states_values: Record<
+            string,
+            Record<string, number[] | undefined> | undefined
+          >;
+          long_fsms: unknown[];
+        };
+      };
+}
+
+interface DiffTimelineRequest {
+  timelines: Array<{
+    engine_id: string;
+    timeline: unknown;
+  }>;
+  delta_config: TimelineConfig;
+}
+
+const QUERY_A_HIGHER_SERIES = 'Query A higher';
+const QUERY_B_HIGHER_SERIES = 'Query B higher';
+
+function readRequestBody(req: IncomingMessage): Promise<string> {
+  return new Promise((resolve, reject) => {
+    let body = '';
+    req.setEncoding('utf8');
+    req.on('data', chunk => {
+      body += chunk;
+    });
+    req.on('end', () => resolve(body));
+    req.on('error', reject);
+  });
+}
+
+function toBinnedSpanSec(config: TimelineConfig): BinnedSpanSec {
+  const numBins = Math.max(1, Math.trunc(Number(config.num_bins)));
+  const start = Number(config.start);
+  const end = Number(config.end);
+
+  return {
+    span: { start, end },
+    bin_duration: end > start ? (end - start) / numBins : 0,
+    num_bins: numBins,
+  };
+}
+
+function timelineValueArrays(response: SingleTimelineResponse): number[][] {
+  if ('Binned' in response.data) {
+    return Object.values(response.data.Binned.capacities_values).filter(
+      (values): values is number[] => Array.isArray(values)
+    );
+  }
+
+  return Object.values(response.data.BinnedByState.capacities_states_values).flatMap(states =>
+    Object.values(states ?? {}).filter((values): values is number[] => Array.isArray(values))
+  );
+}
+
+function sampleAggregateAt(response: SingleTimelineResponse, targetSeconds: number): number {
+  const { bin_duration: binDuration, span, num_bins: numBins } = response.config;
+  if (binDuration <= 0 || targetSeconds < span.start) return 0;
+
+  const index = Math.floor((targetSeconds - span.start) / binDuration);
+  if (index < 0 || index >= numBins) return 0;
+
+  return timelineValueArrays(response).reduce((sum, values) => sum + (values[index] ?? 0), 0);
+}
+
+async function fetchSingleTimelineFromTarget(
+  engineId: string,
+  request: unknown
+): Promise<SingleTimelineResponse> {
+  const response = await fetch(
+    apiTargetUrl(`/api/engines/${encodeURIComponent(engineId)}/timeline/single`),
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(request),
+    }
+  );
+
+  if (!response.ok) {
+    throw new Error(`single timeline fetch failed: ${response.status} ${response.statusText}`);
+  }
+
+  return (await response.json()) as SingleTimelineResponse;
+}
+
+async function fetchQueryBundleFromTarget(
+  engineId: string,
+  queryId: string
+): Promise<QueryBundle<EntityRef>> {
+  const response = await fetch(
+    apiTargetUrl(
+      `/api/engines/${encodeURIComponent(engineId)}/query/${encodeURIComponent(queryId)}`
+    )
+  );
+
+  if (!response.ok) {
+    throw new Error(`query bundle fetch failed: ${response.status} ${response.statusText}`);
+  }
+
+  return (await response.json()) as QueryBundle<EntityRef>;
+}
+
+function apiTargetUrl(pathname: string): string {
+  return `${API_TARGET.replace(/\/$/, '')}${pathname}`;
+}
+
+function writeJson(res: ServerResponse, statusCode: number, body: unknown) {
+  res.statusCode = statusCode;
+  res.setHeader('Content-Type', 'application/json');
+  res.end(JSON.stringify(body));
+}
+
+function installQueryProfileDiffMock(server: ViteDevServer | PreviewServer) {
+  server.middlewares.use(async (req, res, next) => {
+    if (req.method !== 'POST' || !req.url) {
+      next();
+      return;
+    }
+
+    const match = req.url.match(/^\/api\/query-profile-diff(?:\?|$)/);
+    if (!match) {
+      next();
+      return;
+    }
+
+    try {
+      const body = JSON.parse(await readRequestBody(req)) as DiffRequest;
+      if (!body.baselineQuery?.query_id || body.comparisonQueries.length === 0) {
+        throw new Error('query profile diff requires a baseline query and comparison queries');
+      }
+
+      const baselineBundle = await fetchQueryBundleFromTarget(
+        body.baselineQuery.engine_id,
+        body.baselineQuery.query_id
+      );
+      const comparisonBundles = await Promise.all(
+        body.comparisonQueries.map(query =>
+          fetchQueryBundleFromTarget(query.engine_id, query.query_id)
+        )
+      );
+
+      writeJson(
+        res,
+        200,
+        buildQueryProfileDiffResponseFromBundles(baselineBundle, comparisonBundles)
+      );
+    } catch (error) {
+      writeJson(res, 500, {
+        error: error instanceof Error ? error.message : 'Failed to build query profile diff',
+      });
+    }
+  });
+}
+
+function installTimelineDiffMock(server: ViteDevServer | PreviewServer) {
+  server.middlewares.use(async (req, res, next) => {
+    if (req.method !== 'POST' || !req.url) {
+      next();
+      return;
+    }
+
+    const match = req.url.match(/^\/api\/timeline\/diff(?:\?|$)/);
+    if (!match) {
+      next();
+      return;
+    }
+
+    try {
+      const body = JSON.parse(await readRequestBody(req)) as DiffTimelineRequest;
+      if (body.timelines.length < 2) {
+        throw new Error('timeline diff requires at least two timeline requests');
+      }
+
+      const timelines = await Promise.all(
+        body.timelines.map(({ engine_id: engineId, timeline }) =>
+          fetchSingleTimelineFromTarget(engineId, timeline)
+        )
+      );
+      const [queryA, queryB] = timelines;
+      const deltaConfig = toBinnedSpanSec(body.delta_config);
+      const queryAHigher: number[] = [];
+      const queryBHigher: number[] = [];
+
+      for (let index = 0; index < deltaConfig.num_bins; index += 1) {
+        const timestamp = deltaConfig.span.start + index * deltaConfig.bin_duration;
+        const delta = sampleAggregateAt(queryA, timestamp) - sampleAggregateAt(queryB, timestamp);
+        queryAHigher.push(Math.max(delta, 0));
+        queryBHigher.push(Math.max(-delta, 0));
+      }
+
+      writeJson(res, 200, {
+        timelines,
+        delta: {
+          config: deltaConfig,
+          data: {
+            Binned: {
+              config: deltaConfig,
+              capacities_values: {
+                [QUERY_A_HIGHER_SERIES]: queryAHigher,
+                [QUERY_B_HIGHER_SERIES]: queryBHigher,
+              },
+              long_fsms: [],
+            },
+          },
+        },
+      });
+    } catch (error) {
+      writeJson(res, 500, {
+        error: error instanceof Error ? error.message : 'Failed to mock timeline diff',
+      });
+    }
+  });
+}
+
+function vitePluginTimelineDiffMock() {
+  return {
+    name: 'vite-plugin-timeline-diff-mock',
+    configureServer: installTimelineDiffMock,
+    configurePreviewServer: installTimelineDiffMock,
+  };
+}
+
+function vitePluginQueryProfileDiffMock() {
+  return {
+    name: 'vite-plugin-query-profile-diff-mock',
+    configureServer: installQueryProfileDiffMock,
+    configurePreviewServer: installQueryProfileDiffMock,
+  };
+}
+
 // https://vitejs.dev/config/
 export default defineConfig({
   plugins: [
     react(),
     vitePluginScriptPriority(),
+    vitePluginQueryProfileDiffMock(),
+    vitePluginTimelineDiffMock(),
     TanStackRouterVite({
       routeFileIgnorePattern: '.test.|.spec.',
     }),

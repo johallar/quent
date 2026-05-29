@@ -12,6 +12,7 @@ export interface IndexConfigEntry {
   key: string;
   label: React.ReactNode;
   enabled: boolean;
+  locked?: boolean;
 }
 
 export interface PivotTableToolbarProps {
@@ -67,7 +68,7 @@ export function PivotTableToolbar({
     <>
       <div className="flex items-center gap-2 px-3 py-1.5">
         <span className="text-xs text-muted-foreground shrink-0">Group by:</span>
-        {indexConfig.map(({ key, label, enabled }) => {
+        {indexConfig.map(({ key, label, enabled, locked }) => {
           const dropPosition = dragDrop.getDropTargetPosition(key);
           const dropIndicatorStyle = dropPosition
             ? {
@@ -81,12 +82,16 @@ export function PivotTableToolbar({
             <button
               key={key}
               draggable
+              aria-disabled={locked}
+              title={locked ? 'Required group' : undefined}
               onDragStart={e => dragDrop.handleDragStart(e, key)}
               onDragOver={e => dragDrop.handleDragOver(e, key)}
               onDragLeave={e => dragDrop.handleDragLeave(e, key)}
               onDrop={e => dragDrop.handleDrop(e, key)}
               onDragEnd={dragDrop.handleDragEnd}
-              onClick={() => onToggleIndex(key)}
+              onClick={() => {
+                if (!locked) onToggleIndex(key);
+              }}
               className={cn(
                 'text-xs px-2 py-0.5 rounded border transition-colors cursor-pointer active:cursor-grabbing select-none whitespace-nowrap h-full',
                 {

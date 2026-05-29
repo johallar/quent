@@ -13,6 +13,8 @@ export {
   fetchListQueries,
   fetchSingleTimeline,
   fetchBulkTimelines,
+  fetchQueryProfileDiff,
+  fetchQueryProfileDiffTimeline,
 } from './api';
 
 // queryOptions factories
@@ -22,6 +24,14 @@ export { queryGroupsQueryOptions } from './queryGroups';
 export { queriesQueryOptions } from './queries';
 export { singleTimelineQueryOptions } from './timeline';
 export { bulkTimelineQueryOptions } from './bulkTimelines';
+export {
+  queryProfileDiffQueryOptions,
+  queryProfileDiffTimelineQueryOptions,
+} from './queryProfileDiff';
+export {
+  buildQueryProfileDiffFromBundles,
+  buildQueryProfileDiffResponseFromBundles,
+} from './queryProfileDiffFromBundles';
 
 // Hooks
 export { useQueryBundle } from './queryBundle';
@@ -29,3 +39,20 @@ export { useEngines } from './engines';
 export { useQueryGroups } from './queryGroups';
 export { useQueries } from './queries';
 export { useTimeline } from './timeline';
+export { useQueryProfileDiff, useQueryProfileDiffTimeline } from './queryProfileDiff';
+
+export type {
+  Compatibility,
+  DiffDelta,
+  DiffOperatorDelta,
+  DiffOperatorRef,
+  QueryDiff,
+  DiffQueryRef,
+  DiffQuerySummary,
+  DiffRequest,
+  DiffResponse,
+  DiffTimelineEntry,
+  DiffTimelineEntries,
+  DiffTimelineRequest,
+  DiffTimelineResponse,
+} from './queryProfileDiff';

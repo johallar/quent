@@ -16,6 +16,12 @@ import type {
   EntityRef,
   Engine,
 } from '@quent/utils';
+import type {
+  DiffRequest,
+  DiffResponse,
+  DiffTimelineRequest,
+  DiffTimelineResponse,
+} from './queryProfileDiffTypes';
 
 interface ApiFetchOptions {
   params?: Record<string, string | number | boolean>;
@@ -98,6 +104,26 @@ export async function fetchBulkTimelines(
   request: BulkTimelineRequest<QueryFilter, TaskFilter>
 ): Promise<BulkTimelinesResponse> {
   return apiFetch<BulkTimelinesResponse>(`/engines/${engineId}/timeline/bulk`, {
+    fetchOptions: {
+      method: 'POST',
+      body: JSON.stringify(request),
+    },
+  });
+}
+
+export async function fetchQueryProfileDiff(request: DiffRequest): Promise<DiffResponse> {
+  return apiFetch<DiffResponse>('/query-profile-diff', {
+    fetchOptions: {
+      method: 'POST',
+      body: JSON.stringify(request),
+    },
+  });
+}
+
+export async function fetchQueryProfileDiffTimeline(
+  request: DiffTimelineRequest
+): Promise<DiffTimelineResponse> {
+  return apiFetch<DiffTimelineResponse>('/timeline/diff', {
     fetchOptions: {
       method: 'POST',
       body: JSON.stringify(request),
