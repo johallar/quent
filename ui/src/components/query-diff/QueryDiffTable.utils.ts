@@ -38,7 +38,7 @@ export interface QueryDiffTableRow {
 function getQueryEngine(query: DiffQuerySummary): QueryDiffTableEngine {
   return {
     id: query.engine_id,
-    label: query.engine_name ?? query.engine_id,
+    label: query.engine_id,
   };
 }
 
@@ -62,20 +62,15 @@ function displayPercentDeltaValue(value: number | null): number | null {
 
 function buildCellValues(stat: DiffDelta): QueryDiffTableCellValues {
   return {
-    baseline: stat.stats[0],
-    comparison: stat.stats[1],
+    baseline: stat.stats[0] as StatValue,
+    comparison: stat.stats[1] as StatValue,
     delta: displayDeltaValue(stat.delta),
     percentDelta: displayPercentDeltaValue(stat.percent_delta),
   };
 }
 
-function formatOperatorPairLabel(
-  operatorALabel: string,
-  operatorAId: string,
-  operatorBLabel: string,
-  operatorBId: string
-): string {
-  return `${operatorALabel} <-> ${operatorBLabel}\n${operatorAId} <-> ${operatorBId}`;
+function formatOperatorPairLabel(operatorALabel: string, operatorBLabel: string): string {
+  return `${operatorALabel} <-> ${operatorBLabel}`;
 }
 
 export function buildQueryDiffRows(
@@ -90,18 +85,14 @@ export function buildQueryDiffRows(
   const engineGroupLabel = comparisonEngine.label;
   const queryGroup = getQueryGroup(comparisonQuery);
 
-  return (diff.operator_diffs ?? []).flatMap(entry => {
+  return (diff.operator_diffs ?? []).flatMap((entry, index) => {
     const [operatorA, operatorB] = entry.operators;
     const operatorType = operatorA.operator_type_name ?? operatorB.operator_type_name ?? '-';
-    const operatorLabel = formatOperatorPairLabel(
-      operatorA.label,
-      operatorA.id,
-      operatorB.label,
-      operatorB.id
-    );
+    const operatorLabel = formatOperatorPairLabel(operatorA.label, operatorB.label);
     const stats: Record<string, StatValue> = {};
     const statDetails: Record<string, QueryDiffTableCellValues> = {};
     for (const [statName, stat] of Object.entries(entry.stats)) {
+      if (!stat) continue;
       const cellValues = buildCellValues(stat);
       stats[statName] = cellValues.delta;
       statDetails[statName] = cellValues;
@@ -116,10 +107,10 @@ export function buildQueryDiffRows(
         queryGroupLabel: queryGroup.label,
         operatorType,
         operatorLabel,
-        operatorPairId: `${comparisonId}:${operatorA.id}:${operatorB.id}`,
-        operatorAId: operatorA.id,
+        operatorPairId: `${comparisonId}:${index}`,
+        operatorAId: operatorA.label,
         operatorALabel: operatorA.label,
-        operatorBId: operatorB.id,
+        operatorBId: operatorB.label,
         operatorBLabel: operatorB.label,
         stats,
         statDetails,

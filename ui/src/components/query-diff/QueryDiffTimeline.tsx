@@ -116,7 +116,6 @@ function bundleQuerySummary(bundle: QueryBundle<EntityRef>): DiffQuerySummary {
   return {
     id: bundle.entities.query.id,
     engine_id: bundle.entities.engine.id,
-    engine_name: bundle.entities.engine.instance_name ?? null,
     instance_name: bundle.entities.query.instance_name ?? null,
     query_group_id: bundle.entities.query_group.id,
     query_group_name: bundle.entities.query_group.instance_name ?? null,

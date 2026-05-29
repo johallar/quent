@@ -76,10 +76,10 @@ describe('buildQueryProfileDiffFromBundles', () => {
     );
 
     expect(diff.compatibility).toBe('compatible');
-    expect(diff.operator_diffs?.[0]?.stats.duration_s.delta).toBe(2);
-    expect(diff.operator_diffs?.[0]?.stats.duration_s.stats).toEqual([12, 10]);
-    expect(diff.operator_diffs?.[0]?.stats.input_rows.delta).toBe(20);
-    expect(diff.operator_diffs?.[0]?.stats.input_rows.percent_delta).toBe(0.25);
+    expect(diff.operator_diffs?.[0]?.stats.duration_s?.delta).toBe(2);
+    expect(diff.operator_diffs?.[0]?.stats.duration_s?.stats).toEqual([12, 10]);
+    expect(diff.operator_diffs?.[0]?.stats.input_rows?.delta).toBe(20);
+    expect(diff.operator_diffs?.[0]?.stats.input_rows?.percent_delta).toBe(0.25);
     expect(diff.stat_diffs?.duration.stats).toEqual([12, 10]);
   });
 

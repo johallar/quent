@@ -50,16 +50,14 @@ describe('QueryDiffStats helpers', () => {
         {
           operators: [
             {
-              id: 'scan-extra-a',
               label: 'Scan customers',
               operator_type_name: 'Scan',
-              plan_id: 'plan-a',
+              count: 1,
             },
             {
-              id: 'scan-extra-b',
               label: 'Scan customers',
               operator_type_name: 'Scan',
-              plan_id: 'plan-b',
+              count: 1,
             },
           ],
           stats: {

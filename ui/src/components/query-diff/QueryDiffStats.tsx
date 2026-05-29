@@ -135,7 +135,7 @@ function queryLabel(query: DiffQuerySummary): string {
 }
 
 function queryTooltipDetails(query: DiffQuerySummary): StatisticMiniBarChartBar['details'] {
-  const engineLabel = query.engine_name ?? query.engine_id;
+  const engineLabel = query.engine_id;
   const queryGroupLabel = query.query_group_name ?? query.query_group_id;
 
   return [

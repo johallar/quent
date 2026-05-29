@@ -16,6 +16,9 @@ import {
 import { cn } from '@quent/utils';
 
 function AppNav({ highlightProfile }: { highlightProfile?: boolean }) {
+  const routerState = useRouterState();
+  const isProfileActive = routerState.location.pathname.startsWith('/profile');
+  const isDiffActive = routerState.location.pathname.startsWith('/diff');
   return (
     <nav className="sticky top-0 z-50 w-full border-b bg-card shadow-sm">
       <div className="w-full flex h-16 items-center justify-between px-4 sm:px-6 lg:px-8">
@@ -37,10 +40,22 @@ function AppNav({ highlightProfile }: { highlightProfile?: boolean }) {
                     size="sm"
                     asChild
                     className={cn(
-                      highlightProfile && 'bg-accent text-accent-foreground font-semibold'
+                      isProfileActive && 'bg-accent text-accent-foreground font-semibold'
                     )}
                   >
                     <Link to="/profile">Profile</Link>
+                  </Button>
+                </NavigationMenuLink>
+              </NavigationMenuItem>
+              <NavigationMenuItem>
+                <NavigationMenuLink asChild>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    asChild
+                    className={cn(isDiffActive && 'bg-accent text-accent-foreground font-semibold')}
+                  >
+                    <Link to="/diff">Diff</Link>
                   </Button>
                 </NavigationMenuLink>
               </NavigationMenuItem>
@@ -85,14 +100,11 @@ function RootNotFoundComponent() {
 }
 
 function RootComponent() {
-  const routerState = useRouterState();
-  const isProfileActive = routerState.location.pathname.startsWith('/profile');
-
   return (
     <>
       <ThemeProvider>
         <div className="min-h-screen flex flex-col bg-background">
-          <AppNav highlightProfile={isProfileActive} />
+          <AppNav />
           <main className="flex-1 w-full">
             <Outlet />
           </main>

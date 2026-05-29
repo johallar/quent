@@ -167,7 +167,6 @@ function querySummaryFromBundle(bundle: {
   return {
     id: bundle.entities.query.id,
     engine_id: bundle.entities.engine.id,
-    engine_name: bundle.entities.engine.instance_name ?? null,
     instance_name: bundle.entities.query.instance_name ?? null,
     query_group_id: bundle.entities.query_group.id,
     query_group_name: bundle.entities.query_group.instance_name ?? null,
@@ -461,11 +460,11 @@ function DiffDashboard({ baselineQuery, comparisonQueries }: DiffDashboardProps)
   });
   const diffRequest = useMemo<DiffRequest>(
     () => ({
-      baselineQuery: {
+      baseline_query: {
         engine_id: baselineQuery.engineId,
         query_id: baselineQuery.queryId,
       },
-      comparisonQueries: comparisonQueries.map(comparisonQuery => ({
+      comparison_queries: comparisonQueries.map(comparisonQuery => ({
         engine_id: comparisonQuery.engineId,
         query_id: comparisonQuery.queryId,
       })),
@@ -479,7 +478,7 @@ function DiffDashboard({ baselineQuery, comparisonQueries }: DiffDashboardProps)
       baselineBundle.data && diffResponse.data
         ? comparisonQueries.flatMap((comparisonSelection, index) => {
             const comparisonBundle = comparisonBundles[index]?.data;
-            const diff = diffResponse.data.comparisonQueries[index];
+            const diff = diffResponse.data.comparison_queries[index];
             if (!comparisonBundle || !diff) return [];
             const baselineQuerySummary = querySummaryFromBundle(baselineBundle.data);
             const comparisonQuerySummary = diff.query ?? querySummaryFromBundle(comparisonBundle);

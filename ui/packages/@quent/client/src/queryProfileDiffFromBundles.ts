@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-import type { EntityRef, Operator, PlanTree, QueryBundle, StatValue } from '@quent/utils';
+import type { EntityRef, Operator, PlanTree, QueryBundle, Value } from '@quent/utils';
 import type {
   DiffDelta,
   DiffOperatorDelta,
@@ -21,14 +21,16 @@ function unwrapToString(val: unknown): string {
   return Array.isArray(result) ? result.join('\n') : String(result ?? '');
 }
 
-function unwrapTaggedValue(val: unknown): StatValue {
+function unwrapTaggedValue(val: unknown): Value | null {
   switch (true) {
     case val === null || val === undefined:
       return null;
-    case typeof val === 'string' || typeof val === 'number' || typeof val === 'boolean':
-      return val as StatValue;
+    case typeof val === 'string' || typeof val === 'number':
+      return val as Value;
+    case typeof val === 'boolean':
+      return String(val);
     case Array.isArray(val):
-      return (val as unknown[]).map(unwrapToString);
+      return (val as unknown[]).map(unwrapToString) as Value;
     case typeof val === 'object': {
       const obj = val as Record<string, unknown>;
       const keys = Object.keys(obj);
@@ -45,7 +47,7 @@ function unwrapTaggedValue(val: unknown): StatValue {
   }
 }
 
-function parseCustomStatistics(rawNode: unknown): Array<{ key: string; value: StatValue }> {
+function parseCustomStatistics(rawNode: unknown): Array<{ key: string; value: Value | null }> {
   const statistics = (rawNode as Operator)?.statistics?.custom_statistics;
   if (!statistics) return [];
 
@@ -101,7 +103,6 @@ function getQuerySummary(bundle: QueryBundle<EntityRef>): DiffQuerySummary {
   return {
     id: bundle.entities.query.id,
     engine_id: bundle.entities.engine.id,
-    engine_name: bundle.entities.engine.instance_name ?? null,
     instance_name: bundle.entities.query.instance_name ?? null,
     query_group_id: bundle.entities.query_group.id,
     query_group_name: bundle.entities.query_group.instance_name ?? null,
@@ -110,15 +111,14 @@ function getQuerySummary(bundle: QueryBundle<EntityRef>): DiffQuerySummary {
 
 function getOperatorRef(operator: Operator): DiffOperatorRef {
   return {
-    id: operator.id,
     label: operator.instance_name ?? operator.id,
     operator_type_name: operator.operator_type_name ?? null,
-    plan_id: operator.plan_id ?? null,
+    count: 1,
   };
 }
 
-function getOperatorStats(operator: Operator): Record<string, StatValue> {
-  const stats: Record<string, StatValue> = {
+function getOperatorStats(operator: Operator): Record<string, Value | null> {
+  const stats: Record<string, Value | null> = {
     duration_s: operator.active_span
       ? Number((operator.active_span.end - operator.active_span.start).toFixed(6))
       : null,
@@ -131,7 +131,7 @@ function getOperatorStats(operator: Operator): Record<string, StatValue> {
   return stats;
 }
 
-function buildStatDelta(a: StatValue, b: StatValue): DiffDelta {
+function buildStatDelta(a: Value | null, b: Value | null): DiffDelta {
   const delta = typeof a === 'number' && typeof b === 'number' ? a - b : null;
   return {
     stats: [a, b],
@@ -189,6 +189,7 @@ export function buildQueryProfileDiffFromBundles(
     operator_diffs: operatorsA
       .slice(0, matchedCount)
       .map((operatorA, index) => buildOperatorDelta(operatorA, operatorsB[index]!)),
+    warnings: null,
   };
 }
 
@@ -197,7 +198,7 @@ export function buildQueryProfileDiffResponseFromBundles(
   comparisonQueries: QueryBundle<EntityRef>[]
 ): DiffResponse {
   return {
-    comparisonQueries: comparisonQueries.map(comparisonQuery =>
+    comparison_queries: comparisonQueries.map(comparisonQuery =>
       buildQueryProfileDiffFromBundles(baselineQuery, comparisonQuery)
     ),
   };

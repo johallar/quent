@@ -190,16 +190,16 @@ function installQueryProfileDiffMock(server: ViteDevServer | PreviewServer) {
 
     try {
       const body = JSON.parse(await readRequestBody(req)) as DiffRequest;
-      if (!body.baselineQuery?.query_id || body.comparisonQueries.length === 0) {
+      if (!body.baseline_query?.query_id || body.comparison_queries.length === 0) {
         throw new Error('query profile diff requires a baseline query and comparison queries');
       }
 
       const baselineBundle = await fetchQueryBundleFromTarget(
-        body.baselineQuery.engine_id,
-        body.baselineQuery.query_id
+        body.baseline_query.engine_id,
+        body.baseline_query.query_id
       );
       const comparisonBundles = await Promise.all(
-        body.comparisonQueries.map(query =>
+        body.comparison_queries.map(query =>
           fetchQueryBundleFromTarget(query.engine_id, query.query_id)
         )
       );

@@ -2,6 +2,16 @@
 // SPDX-License-Identifier: Apache-2.0
 
 export type { Attribute } from '../../../../../../examples/simulator/server/ts-bindings/Attribute';
+export type { Compatibility } from '../../../../../../examples/simulator/server/ts-bindings/Compatibility';
+export type { DiffDelta } from '../../../../../../examples/simulator/server/ts-bindings/DiffDelta';
+export type { DiffOperatorDelta } from '../../../../../../examples/simulator/server/ts-bindings/DiffOperatorDelta';
+export type { DiffOperatorRef } from '../../../../../../examples/simulator/server/ts-bindings/DiffOperatorRef';
+export type { DiffQueryRef } from '../../../../../../examples/simulator/server/ts-bindings/DiffQueryRef';
+export type { DiffQuerySummary } from '../../../../../../examples/simulator/server/ts-bindings/DiffQuerySummary';
+export type { DiffRequest } from '../../../../../../examples/simulator/server/ts-bindings/DiffRequest';
+export type { DiffResponse } from '../../../../../../examples/simulator/server/ts-bindings/DiffResponse';
+export type { QueryDiff } from '../../../../../../examples/simulator/server/ts-bindings/QueryDiff';
+export type { QueryStatDiffs } from '../../../../../../examples/simulator/server/ts-bindings/QueryStatDiffs';
 export type { BinnedSpanSec } from '../../../../../../examples/simulator/server/ts-bindings/BinnedSpanSec';
 export type { BulkTimelineRequest } from '../../../../../../examples/simulator/server/ts-bindings/BulkTimelineRequest';
 export type { BulkTimelinesResponse } from '../../../../../../examples/simulator/server/ts-bindings/BulkTimelinesResponse';

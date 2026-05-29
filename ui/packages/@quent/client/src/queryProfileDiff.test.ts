@@ -11,8 +11,8 @@ import type { DiffTimelineRequest } from './queryProfileDiffTypes';
 describe('queryProfileDiffQueryOptions', () => {
   it('builds a stable key from both engine and query ids', () => {
     const request = {
-      baselineQuery: { engine_id: 'engine-a', query_id: 'query-a' },
-      comparisonQueries: [
+      baseline_query: { engine_id: 'engine-a', query_id: 'query-a' },
+      comparison_queries: [
         { engine_id: 'engine-b', query_id: 'query-b' },
         { engine_id: 'engine-c', query_id: 'query-c' },
       ],

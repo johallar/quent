@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import type { DiffDelta, QueryDiff } from '@quent/client';
-import type { StatValue } from '@quent/utils';
 import { formatDuration } from '@quent/utils';
 
 export interface RuntimeComparison {
@@ -59,7 +58,8 @@ export function buildOperatorTypeRuntimeComparisons(
   for (const entry of diff.operator_diffs ?? []) {
     const [operatorA, operatorB] = entry.operators;
     const stat = entry.stats[statName];
-    const [a, b] = stat?.stats ?? ([] as StatValue[]);
+    if (!stat) continue;
+    const [a, b] = stat.stats;
     if (typeof a !== 'number' || typeof b !== 'number') continue;
 
     const operatorType = operatorA.operator_type_name ?? operatorB.operator_type_name ?? 'Unknown';
@@ -85,7 +85,7 @@ export function getOperatorDiffStatNames(diffs: QueryDiff[]): string[] {
   for (const diff of diffs) {
     for (const entry of diff.operator_diffs ?? []) {
       for (const [statName, stat] of Object.entries(entry.stats)) {
-        if (seen.has(statName)) continue;
+        if (seen.has(statName) || !stat) continue;
         const [a, b] = stat.stats;
         if (typeof a !== 'number' || typeof b !== 'number') continue;
         seen.add(statName);

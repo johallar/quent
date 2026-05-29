@@ -28,10 +28,10 @@ export const queryProfileDiffQueryOptions = (
     queryFn: (): Promise<DiffResponse> => fetchQueryProfileDiff(request),
     staleTime: options?.staleTime ?? DEFAULT_STALE_TIME,
     enabled: Boolean(
-      request.baselineQuery.engine_id &&
-      request.baselineQuery.query_id &&
-      request.comparisonQueries.length > 0 &&
-      request.comparisonQueries.every(query => query.engine_id && query.query_id)
+      request.baseline_query.engine_id &&
+      request.baseline_query.query_id &&
+      request.comparison_queries.length > 0 &&
+      request.comparison_queries.every(query => query.engine_id && query.query_id)
     ),
   });
 

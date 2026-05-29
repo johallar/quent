@@ -242,11 +242,11 @@ export const handlers = [
     const body = (await request.json()) as DiffRequest;
     const baselineBundle = await fetchQueryBundleForDiff(
       request,
-      body.baselineQuery.engine_id,
-      body.baselineQuery.query_id
+      body.baseline_query.engine_id,
+      body.baseline_query.query_id
     );
     const comparisonBundles = await Promise.all(
-      body.comparisonQueries.map(query =>
+      body.comparison_queries.map(query =>
         fetchQueryBundleForDiff(request, query.engine_id, query.query_id)
       )
     );

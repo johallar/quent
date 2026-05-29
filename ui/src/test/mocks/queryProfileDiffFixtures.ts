@@ -6,7 +6,6 @@ import type { DiffQuerySummary, QueryDiff } from '@quent/client';
 export const baselineDiffQueryFixture: DiffQuerySummary = {
   id: 'query-a',
   engine_id: 'engine-a',
-  engine_name: 'Engine A',
   instance_name: 'Query A',
   query_group_id: 'group-1',
   query_group_name: 'Group 1',
@@ -15,7 +14,6 @@ export const baselineDiffQueryFixture: DiffQuerySummary = {
 export const comparisonDiffQueryFixture: DiffQuerySummary = {
   id: 'query-b',
   engine_id: 'engine-b',
-  engine_name: 'Engine B',
   instance_name: 'Query B',
   query_group_id: 'group-2',
   query_group_name: 'Group 2',
@@ -24,6 +22,7 @@ export const comparisonDiffQueryFixture: DiffQuerySummary = {
 export const equalPlanQueryDiffFixture: QueryDiff = {
   compatibility: 'compatible',
   query: comparisonDiffQueryFixture,
+  warnings: null,
   stat_diffs: {
     duration: { stats: [40, 44], delta: -4, percent_delta: -0.0909090909 },
   },
@@ -31,16 +30,14 @@ export const equalPlanQueryDiffFixture: QueryDiff = {
     {
       operators: [
         {
-          id: 'scan-a',
           label: 'Scan orders',
           operator_type_name: 'Scan',
-          plan_id: 'plan-a',
+          count: 1,
         },
         {
-          id: 'scan-b',
           label: 'Scan orders',
           operator_type_name: 'Scan',
-          plan_id: 'plan-b',
+          count: 1,
         },
       ],
       stats: {
@@ -52,16 +49,14 @@ export const equalPlanQueryDiffFixture: QueryDiff = {
     {
       operators: [
         {
-          id: 'join-a',
           label: 'Join lineitem',
           operator_type_name: 'Join',
-          plan_id: 'plan-a',
+          count: 1,
         },
         {
-          id: 'join-b',
           label: 'Join lineitem',
           operator_type_name: 'Join',
-          plan_id: 'plan-b',
+          count: 1,
         },
       ],
       stats: {
@@ -73,16 +68,14 @@ export const equalPlanQueryDiffFixture: QueryDiff = {
     {
       operators: [
         {
-          id: 'agg-a',
           label: 'Aggregate',
           operator_type_name: 'Aggregate',
-          plan_id: 'plan-a',
+          count: 1,
         },
         {
-          id: 'agg-b',
           label: 'Aggregate',
           operator_type_name: 'Aggregate',
-          plan_id: 'plan-b',
+          count: 1,
         },
       ],
       stats: {
