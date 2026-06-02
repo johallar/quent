@@ -17,7 +17,8 @@ import {
   type EChartsOption,
 } from '@quent/components';
 import { useZoomRange } from '@quent/hooks';
-import { cn, formatDuration } from '@quent/utils';
+import { cn } from '@quent/utils';
+import { formatQueryDiffTimelineTooltipHtml } from './QueryDiffTimelineTooltip.utils';
 
 export interface QueryDiffTimelineHeatmapRow {
   id: string;
@@ -73,21 +74,6 @@ interface AlignedHeatmapRow extends QueryDiffTimelineHeatmapRow {
   signedDeltaValues: number[];
   relativeValues: number[];
   colorValues: number[];
-}
-
-function formatRelativePercent(value: number): string {
-  const percent = value * 100;
-  const decimals = Math.abs(percent) < 10 && percent !== 0 ? 1 : 0;
-  return `${percent.toFixed(decimals)}%`;
-}
-
-function escapeTooltipText(value: string): string {
-  return value
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
 }
 
 function isHeatmapCellValue(value: unknown): value is HeatmapCellValue {
@@ -360,31 +346,22 @@ export function QueryDiffTimelineHeatmap({
             const row = alignedRows[rowIndex];
             if (!row) return '';
 
-            const relative = row.relativeValues[binIndex] ?? 0;
-            const signedDelta = row.signedDeltaValues[binIndex] ?? 0;
-            const baseline = row.baselineValues[binIndex] ?? 0;
-            const comparison = row.comparisonValues[binIndex] ?? 0;
-            const timestamp = timestamps[binIndex] ?? 0;
-            const deltaLabel =
-              signedDelta > 0
-                ? 'Comparison higher'
-                : signedDelta < 0
-                  ? 'Comparison lower'
-                  : 'No change';
-            const deltaColor =
-              signedDelta > 0 ? positiveColor : signedDelta < 0 ? negativeColor : axisLabelColor;
-            const deltaStyle = `color:${deltaColor};font-weight:600`;
-            const relativeText = escapeTooltipText(formatRelativePercent(relative));
-            const deltaText = escapeTooltipText(row.formatter(signedDelta, 2));
-
-            return [
-              `<strong>${escapeTooltipText(row.label)}</strong>`,
-              `<span style="${deltaStyle}">${escapeTooltipText(deltaLabel)}</span> (${relativeText})`,
-              `Baseline: ${escapeTooltipText(row.formatter(baseline, 2))}`,
-              `Comparison: ${escapeTooltipText(row.formatter(comparison, 2))}`,
-              `Delta: <span style="${deltaStyle}">${deltaText}</span>`,
-              `Time: ${escapeTooltipText(formatDuration(timestamp))}`,
-            ].join('<br />');
+            return formatQueryDiffTimelineTooltipHtml(
+              {
+                label: row.label,
+                relative: row.relativeValues[binIndex] ?? 0,
+                signedDelta: row.signedDeltaValues[binIndex] ?? 0,
+                baseline: row.baselineValues[binIndex] ?? 0,
+                comparison: row.comparisonValues[binIndex] ?? 0,
+                timestamp: timestamps[binIndex] ?? 0,
+                formatter: row.formatter,
+              },
+              {
+                positive: positiveColor,
+                negative: negativeColor,
+                neutral: axisLabelColor,
+              }
+            );
           },
         },
         grid: {

@@ -87,7 +87,7 @@ function inferTimelineEnd(timestamps: number[], binDurationSeconds: number | nul
   return last + Math.max(0, last - previous);
 }
 
-function findBinIndexAtTime(sourceTimestamps: number[], timestamp: number): number {
+export function findBinIndexAtTime(sourceTimestamps: number[], timestamp: number): number {
   if (sourceTimestamps.length <= 1) return 0;
 
   let lo = 0;

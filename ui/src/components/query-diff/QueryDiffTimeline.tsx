@@ -54,6 +54,7 @@ import {
   type QueryDiffTimelineHeatmapRow,
 } from './QueryDiffTimelineHeatmap';
 import { QueryDiffTimelineLine } from './QueryDiffTimelineLine';
+import { QueryDiffTimelineWithTooltip } from './QueryDiffTimelineTooltip';
 import { buildDiffHeatmapRowData, buildDiffTimelineData } from './QueryDiffTimeline.utils';
 
 interface QueryDiffTimelineProps {
@@ -271,6 +272,8 @@ function QueryDiffTimelinePairRows({
   baselineTarget,
   resourceType,
   durationSeconds,
+  positiveColor,
+  negativeColor,
 }: {
   comparison: QueryDiffTimelineListComparisonWithBundle;
   baselineEngineId: string;
@@ -278,6 +281,8 @@ function QueryDiffTimelinePairRows({
   baselineTarget: TimelineTarget | null;
   resourceType: string;
   durationSeconds: number;
+  positiveColor: string;
+  negativeColor: string;
 }) {
   const { theme } = useTheme();
   const isDark = theme === THEME_DARK;
@@ -363,6 +368,13 @@ function QueryDiffTimelinePairRows({
   ]);
 
   const comparisonName = querySummaryLabel(comparison.comparisonQuery);
+  const tooltipData = useMemo(() => {
+    if (!timelineData) return null;
+    return {
+      label: comparisonName,
+      ...buildDiffHeatmapRowData(timelineData),
+    };
+  }, [comparisonName, timelineData]);
 
   if (!canRenderResourceType) {
     return (
@@ -384,7 +396,7 @@ function QueryDiffTimelinePairRows({
     );
   }
 
-  if (timelineDiff.isError || !timelineData) {
+  if (timelineDiff.isError || !timelineData || !tooltipData) {
     return (
       <TimelineLane label={comparisonName} color={queryColors.comparison}>
         <div className="flex h-full items-center px-3 text-xs text-destructive">
@@ -401,12 +413,14 @@ function QueryDiffTimelinePairRows({
         color={queryColors.comparison}
         detail={<DataText>{comparisonName}</DataText>}
       >
-        <Timeline
+        <QueryDiffTimelineWithTooltip
           startTime={TIMELINE_START}
           durationSeconds={durationSeconds}
           timestamps={timelineData.comparisonWithDelta.timestamps}
           series={timelineData.comparisonWithDelta.series}
-          showTooltip={false}
+          tooltipData={tooltipData}
+          positiveColor={positiveColor}
+          negativeColor={negativeColor}
           isDark={isDark}
         />
       </TimelineLane>
@@ -915,6 +929,8 @@ function QueryDiffTimelineListContent({
                 baselineTarget={baselineTarget}
                 resourceType={resourceType}
                 durationSeconds={durationSeconds}
+                positiveColor={diffPositiveColor}
+                negativeColor={diffNegativeColor}
               />
             ))
           ) : (
@@ -1086,6 +1102,13 @@ export function QueryDiffTimeline({
 
   const isLoading = Boolean(resourceType) && timelineDiff.isLoading;
   const hasError = timelineDiff.isError;
+  const tooltipData = useMemo(() => {
+    if (!comparison) return null;
+    return {
+      label: comparisonName,
+      ...buildDiffHeatmapRowData(comparison),
+    };
+  }, [comparison, comparisonName]);
 
   return (
     <div className="shrink-0 border-b border-border bg-card">
@@ -1166,7 +1189,7 @@ export function QueryDiffTimeline({
         <div className="flex h-28 items-center justify-center border-t border-border text-xs text-muted-foreground">
           No shared resource type available for timeline delta.
         </div>
-      ) : comparison ? (
+      ) : comparison && tooltipData ? (
         <div className="min-w-0">
           <div className="border-t border-border">
             <TimelineController
@@ -1189,12 +1212,14 @@ export function QueryDiffTimeline({
             color={queryColors.baseline}
             detail={<DataText>{baselineName}</DataText>}
           >
-            <Timeline
+            <QueryDiffTimelineWithTooltip
               startTime={TIMELINE_START}
               durationSeconds={durationSeconds}
               timestamps={comparison.baseline.timestamps}
               series={comparison.baseline.series}
-              showTooltip={false}
+              tooltipData={tooltipData}
+              positiveColor={diffPositiveColor}
+              negativeColor={diffNegativeColor}
               isDark={isDark}
             />
           </TimelineLane>
@@ -1203,12 +1228,14 @@ export function QueryDiffTimeline({
             color={queryColors.comparison}
             detail={<DataText>{comparisonName}</DataText>}
           >
-            <Timeline
+            <QueryDiffTimelineWithTooltip
               startTime={TIMELINE_START}
               durationSeconds={durationSeconds}
               timestamps={comparison.comparisonWithDelta.timestamps}
               series={comparison.comparisonWithDelta.series}
-              showTooltip={false}
+              tooltipData={tooltipData}
+              positiveColor={diffPositiveColor}
+              negativeColor={diffNegativeColor}
               isDark={isDark}
             />
           </TimelineLane>
