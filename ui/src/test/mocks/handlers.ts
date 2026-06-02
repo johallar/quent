@@ -15,11 +15,14 @@ import type {
   TimelineRequest,
 } from '@quent/utils';
 import type {
+  DiffQueryRef,
   DiffRequest,
   DiffResponse,
   DiffTimelineRequest,
   DiffTimelineResponse,
+  QueryDiff,
 } from '@quent/client';
+import { equalPlanQueryDiffFixture } from './queryProfileDiffFixtures';
 
 const QUERY_A_HIGHER_SERIES = 'Query A higher';
 const QUERY_B_HIGHER_SERIES = 'Query B higher';
@@ -165,6 +168,33 @@ async function fetchSingleTimelineForDiff(
  * Default MSW handlers for mocking API responses
  * Add your API mocks here
  */
+function queryDisplayName(queryId: string): string {
+  const suffix = queryId.split('-').pop() ?? queryId;
+  return `Query ${suffix.toUpperCase()}`;
+}
+
+function makeMockQueryDiff(query: DiffQueryRef, comparisonIndex: number): QueryDiff {
+  const baselineDuration = 40;
+  const comparisonDuration = 44 + comparisonIndex * 4;
+  return {
+    ...equalPlanQueryDiffFixture,
+    query: {
+      id: query.query_id,
+      engine_id: query.engine_id,
+      instance_name: queryDisplayName(String(query.query_id)),
+      query_group_id: String(query.query_id).endsWith('a') ? 'group-a' : 'group-b',
+      query_group_name: String(query.query_id).endsWith('a') ? 'Group A' : 'Group B',
+    },
+    stat_diffs: {
+      duration: {
+        stats: [baselineDuration, comparisonDuration],
+        delta: baselineDuration - comparisonDuration,
+        percent_delta: (baselineDuration - comparisonDuration) / comparisonDuration,
+      },
+    },
+  };
+}
+
 export const handlers = [
   // Example: List engines
   http.get('/api/engines', () => {
@@ -231,19 +261,9 @@ export const handlers = [
   http.post('*/api/workload-diff', async ({ request }) => {
     const body = (await request.json()) as DiffRequest;
     return HttpResponse.json({
-      comparison_queries: body.comparison_queries.map(query => ({
-        compatibility: 'compatible',
-        query: {
-          id: query.query_id,
-          engine_id: query.engine_id,
-          instance_name: null,
-          query_group_id: null,
-          query_group_name: null,
-        },
-        operator_diffs: null,
-        stat_diffs: null,
-        warnings: null,
-      })),
+      comparison_queries: body.comparison_queries.map((query, index) =>
+        makeMockQueryDiff(query, index)
+      ),
     } satisfies DiffResponse);
   }),
 

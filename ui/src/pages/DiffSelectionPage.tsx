@@ -3,7 +3,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from '@tanstack/react-router';
-import { useQueries, useQuery } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { ArrowLeftRight, ChevronDown, Plus, X } from 'lucide-react';
 import {
   fetchListCoordinators,
@@ -157,20 +157,21 @@ function engineDisplayLabel(engineId: string, engines: Engine[], emptyLabel: str
   return engine ? engineLabel(engine) : engineId;
 }
 
-function querySummaryFromBundle(bundle: {
-  entities: {
-    engine: { id: string; instance_name?: string | null };
-    query_group: { id: string; instance_name?: string | null };
-    query: { id: string; instance_name?: string | null };
-  };
-}): DiffQuerySummary {
+function querySummaryFromSelection(side: QuerySideState): DiffQuerySummary {
   return {
-    id: bundle.entities.query.id,
-    engine_id: bundle.entities.engine.id,
-    instance_name: bundle.entities.query.instance_name ?? null,
-    query_group_id: bundle.entities.query_group.id,
-    query_group_name: bundle.entities.query_group.instance_name ?? null,
+    id: side.queryId,
+    engine_id: side.engineId,
+    instance_name: null,
+    query_group_id: side.groupId || null,
+    query_group_name: null,
   };
+}
+
+function comparisonQuerySummary(
+  comparisonSelection: ComparisonQueryState,
+  diff: { query: DiffQuerySummary | null }
+): DiffQuerySummary {
+  return diff.query ?? querySummaryFromSelection(comparisonSelection);
 }
 
 function querySummaryLabel(query: DiffQuerySummary): string {
@@ -449,15 +450,6 @@ function DiffDashboard({ baselineQuery, comparisonQueries }: DiffDashboardProps)
     }),
     enabled: isQuerySideComplete(baselineQuery),
   });
-  const comparisonBundles = useQueries({
-    queries: comparisonQueries.map(comparisonQuery => ({
-      ...queryBundleQueryOptions({
-        engineId: comparisonQuery.engineId,
-        queryId: comparisonQuery.queryId,
-      }),
-      enabled: isQuerySideComplete(baselineQuery) && isQuerySideComplete(comparisonQuery),
-    })),
-  });
   const diffRequest = useMemo<DiffRequest>(
     () => ({
       baseline_query: {
@@ -475,49 +467,53 @@ function DiffDashboard({ baselineQuery, comparisonQueries }: DiffDashboardProps)
 
   const comparisons = useMemo(
     () =>
-      baselineBundle.data && diffResponse.data
+      diffResponse.data
         ? comparisonQueries.flatMap((comparisonSelection, index) => {
-            const comparisonBundle = comparisonBundles[index]?.data;
             const diff = diffResponse.data.comparison_queries[index];
-            if (!comparisonBundle || !diff) return [];
-            const baselineQuerySummary = querySummaryFromBundle(baselineBundle.data);
-            const comparisonQuerySummary = diff.query ?? querySummaryFromBundle(comparisonBundle);
+            if (!diff) return [];
+            const baselineQuerySummary = baselineBundle.data
+              ? {
+                  id: baselineBundle.data.entities.query.id,
+                  engine_id: baselineBundle.data.entities.engine.id,
+                  instance_name: baselineBundle.data.entities.query.instance_name ?? null,
+                  query_group_id: baselineBundle.data.entities.query_group.id,
+                  query_group_name: baselineBundle.data.entities.query_group.instance_name ?? null,
+                }
+              : querySummaryFromSelection(baselineQuery);
             return [
               {
                 id: comparisonSelection.id,
                 comparisonIndex: index,
                 comparisonSelection,
                 baselineQuery: baselineQuerySummary,
-                comparisonQuery: comparisonQuerySummary,
+                comparisonQuery: comparisonQuerySummary(comparisonSelection, diff),
                 diff,
-                baselineBundle: baselineBundle.data,
-                comparisonBundle,
               },
             ];
           })
         : [],
-    [baselineBundle.data, comparisonBundles, comparisonQueries, diffResponse.data]
+    [baselineBundle.data, baselineQuery, comparisonQueries, diffResponse.data]
   );
   const legendItems = useMemo<QueryDiffLegendItem[]>(() => {
-    if (!baselineBundle.data || comparisons.length === 0) return [];
+    if (comparisons.length === 0) return [];
 
-    const baselineQueryEntity = baselineBundle.data.entities.query;
+    const baselineQuerySummary = comparisons[0]!.baselineQuery;
     const baselineColor = getQueryDiffQueryColors({
-      baselineQueryId: baselineQueryEntity.id,
+      baselineQueryId: baselineQuerySummary.id,
       comparisonQueryId: comparisons[0]?.comparisonQuery.id ?? '',
       theme: paletteTheme,
     }).baseline;
 
     return [
       {
-        id: `baseline-${baselineQueryEntity.id}`,
-        label: baselineQueryEntity.instance_name ?? baselineQueryEntity.id,
+        id: `baseline-${baselineQuerySummary.id}`,
+        label: querySummaryLabel(baselineQuerySummary),
         color: baselineColor,
         roleLabel: 'Baseline',
       },
       ...comparisons.map((comparison, index) => {
         const queryColors = getQueryDiffQueryColors({
-          baselineQueryId: baselineQueryEntity.id,
+          baselineQueryId: baselineQuerySummary.id,
           comparisonQueryId: comparison.comparisonQuery.id,
           comparisonIndex: comparison.comparisonIndex,
           theme: paletteTheme,
@@ -531,16 +527,13 @@ function DiffDashboard({ baselineQuery, comparisonQueries }: DiffDashboardProps)
         };
       }),
     ];
-  }, [baselineBundle.data, comparisons, paletteTheme]);
-  const diffLoading =
-    baselineBundle.isLoading ||
-    comparisonBundles.some(query => query.isLoading) ||
-    diffResponse.isLoading;
-  const diffError =
-    baselineBundle.error ??
-    comparisonBundles.find(query => query.error)?.error ??
-    diffResponse.error;
-  const baselineLabel = baselineBundle.data?.entities.query.instance_name ?? baselineQuery.queryId;
+  }, [comparisons, paletteTheme]);
+  const diffLoading = baselineBundle.isLoading || diffResponse.isLoading;
+  const diffError = baselineBundle.error ?? diffResponse.error;
+  const baselineLabel =
+    comparisons[0]?.baselineQuery.instance_name ??
+    baselineBundle.data?.entities.query.instance_name ??
+    baselineQuery.queryId;
   const comparisonCountLabel =
     comparisons.length === 1 ? '1 comparison query' : `${comparisons.length} comparison queries`;
 
@@ -568,7 +561,7 @@ function DiffDashboard({ baselineQuery, comparisonQueries }: DiffDashboardProps)
         <div className="flex h-full items-center justify-center text-sm text-destructive">
           Failed to load diff
         </div>
-      ) : baselineBundle.data && comparisons.length > 0 ? (
+      ) : comparisons.length > 0 ? (
         <div className="flex min-h-0 flex-1 flex-col">
           <div
             role="tablist"
@@ -613,23 +606,22 @@ function DiffDashboard({ baselineQuery, comparisonQueries }: DiffDashboardProps)
                     baselineQuery: comparison.baselineQuery,
                     comparisonQuery: comparison.comparisonQuery,
                     diff: comparison.diff,
-                    baselineBundle: comparison.baselineBundle,
-                    comparisonBundle: comparison.comparisonBundle,
                     comparisonIndex: comparison.comparisonIndex,
                   }))}
                 />
-                <QueryDiffTimelineList
-                  baselineEngineId={baselineQuery.engineId}
-                  baselineBundle={baselineBundle.data}
-                  comparisons={comparisons.map(comparison => ({
-                    id: comparison.id,
-                    comparisonIndex: comparison.comparisonIndex,
-                    comparisonEngineId: comparison.comparisonSelection.engineId,
-                    comparisonQuery: comparison.comparisonQuery,
-                    diff: comparison.diff,
-                    comparisonBundle: comparison.comparisonBundle,
-                  }))}
-                />
+                {baselineBundle.data ? (
+                  <QueryDiffTimelineList
+                    baselineEngineId={baselineQuery.engineId}
+                    baselineBundle={baselineBundle.data}
+                    comparisons={comparisons.map(comparison => ({
+                      id: comparison.id,
+                      comparisonIndex: comparison.comparisonIndex,
+                      comparisonEngineId: comparison.comparisonSelection.engineId,
+                      comparisonQuery: comparison.comparisonQuery,
+                      diff: comparison.diff,
+                    }))}
+                  />
+                ) : null}
               </div>
             ) : activeTab === 'operator' ? (
               <div className="h-full min-h-0 bg-muted/20 p-3">
@@ -646,18 +638,23 @@ function DiffDashboard({ baselineQuery, comparisonQueries }: DiffDashboardProps)
               </div>
             ) : (
               <div className="h-full min-h-0 overflow-y-auto">
-                <QueryDiffTimelineList
-                  baselineEngineId={baselineQuery.engineId}
-                  baselineBundle={baselineBundle.data}
-                  comparisons={comparisons.map(comparison => ({
-                    id: comparison.id,
-                    comparisonIndex: comparison.comparisonIndex,
-                    comparisonEngineId: comparison.comparisonSelection.engineId,
-                    comparisonQuery: comparison.comparisonQuery,
-                    diff: comparison.diff,
-                    comparisonBundle: comparison.comparisonBundle,
-                  }))}
-                />
+                {baselineBundle.data ? (
+                  <QueryDiffTimelineList
+                    baselineEngineId={baselineQuery.engineId}
+                    baselineBundle={baselineBundle.data}
+                    comparisons={comparisons.map(comparison => ({
+                      id: comparison.id,
+                      comparisonIndex: comparison.comparisonIndex,
+                      comparisonEngineId: comparison.comparisonSelection.engineId,
+                      comparisonQuery: comparison.comparisonQuery,
+                      diff: comparison.diff,
+                    }))}
+                  />
+                ) : (
+                  <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
+                    Loading timeline...
+                  </div>
+                )}
               </div>
             )}
           </div>

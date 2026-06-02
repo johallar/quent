@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-import { useMemo, useState, type CSSProperties } from 'react';
+import { useEffect, useMemo, useState, type CSSProperties } from 'react';
 import { Triangle } from 'lucide-react';
 import type { DiffQuerySummary, QueryDiff } from '@quent/client';
 import {
@@ -12,7 +12,7 @@ import {
   type StatisticMiniBarChartBar,
   type StatisticMiniBarChartRow,
 } from '@quent/components';
-import { cn, type EntityRef, type PaletteTheme, type QueryBundle } from '@quent/utils';
+import { cn, type PaletteTheme } from '@quent/utils';
 import { THEME_DARK, useTheme } from '@/contexts/ThemeContext';
 import {
   getDiffNegativeColor,
@@ -27,8 +27,8 @@ import {
   formatDurationSeconds,
   formatPercentDelta,
   formatSignedDurationSeconds,
-  getDefaultOperatorDiffStatName,
   getOperatorDiffStatNames,
+  resolveOperatorDiffStatSelection,
   type OperatorTypeRuntimeComparison,
   type RuntimeComparison,
 } from './QueryDiffStats.utils';
@@ -37,8 +37,6 @@ interface QueryDiffStatsProps {
   baselineQuery: DiffQuerySummary;
   comparisonQuery: DiffQuerySummary;
   diff: QueryDiff;
-  baselineBundle: QueryBundle<EntityRef>;
-  comparisonBundle: QueryBundle<EntityRef>;
   comparisonIndex?: number;
 }
 
@@ -47,8 +45,6 @@ export interface QueryDiffStatsOverviewComparison {
   baselineQuery: DiffQuerySummary;
   comparisonQuery: DiffQuerySummary;
   diff: QueryDiff;
-  baselineBundle: QueryBundle<EntityRef>;
-  comparisonBundle: QueryBundle<EntityRef>;
   comparisonIndex: number;
 }
 
@@ -144,12 +140,6 @@ function queryTooltipDetails(query: DiffQuerySummary): StatisticMiniBarChartBar[
       ? [{ id: 'query-group', label: 'Query group', value: queryGroupLabel }]
       : []),
   ];
-}
-
-function resolveOperatorStat(statNames: string[], requestedStat: string): string | null {
-  return statNames.includes(requestedStat)
-    ? requestedStat
-    : getDefaultOperatorDiffStatName(statNames);
 }
 
 function getOverviewStatColumnCount(statCardCount: number): number {
@@ -284,8 +274,6 @@ export function QueryDiffStats({
   baselineQuery,
   comparisonQuery,
   diff,
-  baselineBundle,
-  comparisonBundle,
   comparisonIndex = 0,
 }: QueryDiffStatsProps) {
   const { theme } = useTheme();
@@ -303,9 +291,12 @@ export function QueryDiffStats({
     [baselineQuery.id, comparisonQuery.id, comparisonIndex, paletteTheme]
   );
   const operatorStatNames = useMemo(() => getOperatorDiffStatNames([diff]), [diff]);
-  const [requestedOperatorStat, setRequestedOperatorStat] = useState('duration_s');
+  const [requestedOperatorStat, setRequestedOperatorStat] = useState<string | null>(null);
+  useEffect(() => {
+    setRequestedOperatorStat(null);
+  }, [baselineQuery.id, comparisonQuery.id]);
   const selectedOperatorStat = useMemo(
-    () => resolveOperatorStat(operatorStatNames, requestedOperatorStat),
+    () => resolveOperatorDiffStatSelection(operatorStatNames, requestedOperatorStat),
     [operatorStatNames, requestedOperatorStat]
   );
   const operatorRuntimeComparisons = useMemo(
@@ -314,13 +305,8 @@ export function QueryDiffStats({
     [diff, selectedOperatorStat]
   );
   const totalRuntimeComparison = useMemo(
-    () =>
-      buildRuntimeComparisonFromDelta(
-        diff.stat_diffs?.duration,
-        baselineBundle.duration_s,
-        comparisonBundle.duration_s
-      ),
-    [baselineBundle.duration_s, comparisonBundle.duration_s, diff.stat_diffs?.duration]
+    () => buildRuntimeComparisonFromDelta(diff.stat_diffs?.duration),
+    [diff.stat_diffs?.duration]
   );
 
   return (
@@ -373,9 +359,19 @@ export function QueryDiffOverviewStats({
     () => getOperatorDiffStatNames(comparisons.map(comparison => comparison.diff)),
     [comparisons]
   );
-  const [requestedOperatorStat, setRequestedOperatorStat] = useState('duration_s');
+  const comparisonStatKey = useMemo(
+    () =>
+      comparisons
+        .map(comparison => `${comparison.baselineQuery.id}:${comparison.comparisonQuery.id}`)
+        .join('|'),
+    [comparisons]
+  );
+  const [requestedOperatorStat, setRequestedOperatorStat] = useState<string | null>(null);
+  useEffect(() => {
+    setRequestedOperatorStat(null);
+  }, [comparisonStatKey]);
   const selectedOperatorStat = useMemo(
-    () => resolveOperatorStat(operatorStatNames, requestedOperatorStat),
+    () => resolveOperatorDiffStatSelection(operatorStatNames, requestedOperatorStat),
     [operatorStatNames, requestedOperatorStat]
   );
 
@@ -385,11 +381,7 @@ export function QueryDiffOverviewStats({
         ...comparison,
         baselineName: comparison.baselineQuery.instance_name ?? comparison.baselineQuery.id,
         comparisonName: comparison.comparisonQuery.instance_name ?? comparison.comparisonQuery.id,
-        runtimeComparison: buildRuntimeComparisonFromDelta(
-          comparison.diff.stat_diffs?.duration,
-          comparison.baselineBundle.duration_s,
-          comparison.comparisonBundle.duration_s
-        ),
+        runtimeComparison: buildRuntimeComparisonFromDelta(comparison.diff.stat_diffs?.duration),
         queryColors: getQueryDiffQueryColors({
           baselineQueryId: comparison.baselineQuery.id,
           comparisonQueryId: comparison.comparisonQuery.id,

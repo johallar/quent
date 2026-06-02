@@ -9,6 +9,8 @@ import {
   buildRuntimeComparisonFromDelta,
   getDefaultOperatorDiffStatName,
   getOperatorDiffStatNames,
+  resolveOperatorDiffStatSelection,
+  sortOperatorDiffStatNames,
   formatPercentDelta,
   formatSignedDurationSeconds,
   sumRuntimeComparisons,
@@ -26,12 +28,27 @@ describe('QueryDiffStats helpers', () => {
 
   it('builds runtime comparisons from contract deltas', () => {
     expect(
-      buildRuntimeComparisonFromDelta({ stats: [12, 10], delta: 2, percent_delta: 0.2 }, 0, 0)
+      buildRuntimeComparisonFromDelta({ stats: [12, 10], delta: 2, percent_delta: 0.2 })
     ).toEqual({
       a: 12,
       b: 10,
       delta: 2,
       percentDelta: 0.2,
+    });
+  });
+
+  it('unwraps tagged numeric stats from the diff API', () => {
+    expect(
+      buildRuntimeComparisonFromDelta({
+        stats: [{ F64: 40 }, { F64: 44 }],
+        delta: -4,
+        percent_delta: -10,
+      })
+    ).toEqual({
+      a: 40,
+      b: 44,
+      delta: -4,
+      percentDelta: -10,
     });
   });
 
@@ -74,7 +91,7 @@ describe('QueryDiffStats helpers', () => {
     });
   });
 
-  it('extracts numeric operator diff stat names in payload order', () => {
+  it('extracts numeric operator diff stat names with duration_s first', () => {
     expect(getOperatorDiffStatNames([equalPlanQueryDiffFixture])).toEqual([
       'duration_s',
       'input_rows',
@@ -82,10 +99,31 @@ describe('QueryDiffStats helpers', () => {
     ]);
   });
 
-  it('defaults operator stat selection to duration_s or the first available stat', () => {
+  it('defaults operator stat selection to duration_s or the first sorted stat', () => {
     expect(getDefaultOperatorDiffStatName(['input_rows', 'duration_s'])).toBe('duration_s');
-    expect(getDefaultOperatorDiffStatName(['input_rows', 'output_rows'])).toBe('input_rows');
+    expect(getDefaultOperatorDiffStatName(['output_rows', 'input_rows'])).toBe('input_rows');
     expect(getDefaultOperatorDiffStatName([])).toBeNull();
+  });
+
+  it('sorts operator stat names deterministically', () => {
+    expect(sortOperatorDiffStatNames(['zebra', 'alpha', 'middle'])).toEqual([
+      'alpha',
+      'middle',
+      'zebra',
+    ]);
+    expect(sortOperatorDiffStatNames(['output_rows', 'duration_s', 'input_rows'])).toEqual([
+      'duration_s',
+      'input_rows',
+      'output_rows',
+    ]);
+  });
+
+  it('prefers duration_s when resolving the selected operator stat', () => {
+    expect(resolveOperatorDiffStatSelection(['input_rows', 'duration_s'], null)).toBe('duration_s');
+    expect(resolveOperatorDiffStatSelection(['input_rows', 'duration_s'], 'input_rows')).toBe(
+      'input_rows'
+    );
+    expect(resolveOperatorDiffStatSelection(['input_rows', 'output_rows'], null)).toBe('input_rows');
   });
 
   it('extracts sorted per-operator-type comparisons for a selected stat', () => {

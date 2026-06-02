@@ -8,6 +8,7 @@ import {
   DEFAULT_STALE_TIME,
   fetchQueryProfileDiffTimeline,
   fetchSingleTimeline,
+  queryBundleQueryOptions,
   type DiffQuerySummary,
   type QueryDiff,
   type DiffTimelineRequest,
@@ -70,6 +71,9 @@ export interface QueryDiffTimelineListComparison {
   comparisonEngineId: string;
   comparisonQuery: DiffQuerySummary;
   diff: QueryDiff;
+}
+
+interface QueryDiffTimelineListComparisonWithBundle extends QueryDiffTimelineListComparison {
   comparisonBundle: QueryBundle<EntityRef>;
 }
 
@@ -268,7 +272,7 @@ function QueryDiffTimelinePairRows({
   resourceType,
   durationSeconds,
 }: {
-  comparison: QueryDiffTimelineListComparison;
+  comparison: QueryDiffTimelineListComparisonWithBundle;
   baselineEngineId: string;
   baselineQueryId: string;
   baselineTarget: TimelineTarget | null;
@@ -431,7 +435,7 @@ function QueryDiffTimelineHeatmapRows({
   baselineQueryId: string;
   baselineBundle: QueryBundle<EntityRef>;
   baselineTarget: TimelineTarget | null;
-  comparisons: QueryDiffTimelineListComparison[];
+  comparisons: QueryDiffTimelineListComparisonWithBundle[];
   resourceType: string;
   durationSeconds: number;
   fallbackTimestamps: number[];
@@ -600,6 +604,75 @@ export function QueryDiffTimelineList({
   baselineBundle,
   comparisons,
 }: QueryDiffTimelineListProps) {
+  const comparisonBundles = useQueries({
+    queries: comparisons.map(comparison => ({
+      ...queryBundleQueryOptions({
+        engineId: comparison.comparisonEngineId,
+        queryId: comparison.comparisonQuery.id,
+      }),
+      enabled: Boolean(comparison.comparisonEngineId && comparison.comparisonQuery.id),
+    })),
+  });
+  const comparisonsWithBundles = useMemo(
+    () =>
+      comparisons.flatMap((comparison, index) => {
+        const comparisonBundle = comparisonBundles[index]?.data;
+        if (!comparisonBundle) return [];
+        return [{ ...comparison, comparisonBundle }];
+      }),
+    [comparisonBundles, comparisons]
+  );
+  const comparisonBundlesLoading = comparisonBundles.some(query => query.isLoading);
+  const comparisonBundlesError = comparisonBundles.find(query => query.error)?.error;
+
+  if (comparisonBundlesLoading && comparisonsWithBundles.length === 0) {
+    return (
+      <div className="shrink-0 border-b border-border bg-card">
+        <div className="px-4 py-2">
+          <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            Timeline Delta
+          </div>
+        </div>
+        <div className="flex h-28 items-center justify-center border-t border-border text-xs text-muted-foreground">
+          Loading timeline...
+        </div>
+      </div>
+    );
+  }
+
+  if (comparisonBundlesError && comparisonsWithBundles.length === 0) {
+    return (
+      <div className="shrink-0 border-b border-border bg-card">
+        <div className="px-4 py-2">
+          <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            Timeline Delta
+          </div>
+        </div>
+        <div className="flex h-28 items-center justify-center border-t border-border text-xs text-destructive">
+          Failed to load timeline
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <QueryDiffTimelineListContent
+      baselineEngineId={baselineEngineId}
+      baselineBundle={baselineBundle}
+      comparisons={comparisonsWithBundles}
+    />
+  );
+}
+
+function QueryDiffTimelineListContent({
+  baselineEngineId,
+  baselineBundle,
+  comparisons,
+}: {
+  baselineEngineId: string;
+  baselineBundle: QueryBundle<EntityRef>;
+  comparisons: QueryDiffTimelineListComparisonWithBundle[];
+}) {
   const { theme } = useTheme();
   const isDark = theme === THEME_DARK;
   const paletteTheme = isDark ? 'dark' : 'light';

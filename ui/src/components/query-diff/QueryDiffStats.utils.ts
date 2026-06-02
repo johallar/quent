@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import type { DiffDelta, QueryDiff } from '@quent/client';
+import { unwrapTaggedValue } from '@quent/components';
 import { formatDuration } from '@quent/utils';
 
 export interface RuntimeComparison {
@@ -16,6 +17,23 @@ export interface OperatorTypeRuntimeComparison extends RuntimeComparison {
   label: string;
 }
 
+function unwrapNumericStat(value: unknown): number | null {
+  const unwrapped = unwrapTaggedValue(value);
+  return typeof unwrapped === 'number' ? unwrapped : null;
+}
+
+const OPERATOR_DIFF_STAT_DEFAULT_PRIORITY = ['duration_s', 'wall_time_ns'] as const;
+
+export function sortOperatorDiffStatNames(statNames: readonly string[]): string[] {
+  const sorted = [...new Set(statNames)].sort((a, b) => a.localeCompare(b));
+  for (const preferred of OPERATOR_DIFF_STAT_DEFAULT_PRIORITY) {
+    if (sorted.includes(preferred)) {
+      return [preferred, ...sorted.filter(name => name !== preferred)];
+    }
+  }
+  return sorted;
+}
+
 export function buildRuntimeComparison(a: number, b: number): RuntimeComparison {
   const delta = a - b;
   return {
@@ -26,14 +44,11 @@ export function buildRuntimeComparison(a: number, b: number): RuntimeComparison 
   };
 }
 
-export function buildRuntimeComparisonFromDelta(
-  diff: DiffDelta | undefined,
-  fallbackA: number,
-  fallbackB: number
-): RuntimeComparison {
-  const [a, b] = diff?.stats ?? [];
-  if (typeof a !== 'number' || typeof b !== 'number') {
-    return buildRuntimeComparison(fallbackA, fallbackB);
+export function buildRuntimeComparisonFromDelta(diff: DiffDelta | undefined): RuntimeComparison {
+  const a = unwrapNumericStat(diff?.stats?.[0]);
+  const b = unwrapNumericStat(diff?.stats?.[1]);
+  if (a === null || b === null) {
+    return buildRuntimeComparison(0, 0);
   }
 
   return {
@@ -59,8 +74,9 @@ export function buildOperatorTypeRuntimeComparisons(
     const [operatorA, operatorB] = entry.operators;
     const stat = entry.stats[statName];
     if (!stat) continue;
-    const [a, b] = stat.stats;
-    if (typeof a !== 'number' || typeof b !== 'number') continue;
+    const a = unwrapNumericStat(stat.stats[0]);
+    const b = unwrapNumericStat(stat.stats[1]);
+    if (a === null || b === null) continue;
 
     const operatorType = operatorA.operator_type_name ?? operatorB.operator_type_name ?? 'Unknown';
     const totals = totalsByOperatorType.get(operatorType) ?? { a: 0, b: 0 };
@@ -79,27 +95,38 @@ export function buildOperatorTypeRuntimeComparisons(
 }
 
 export function getOperatorDiffStatNames(diffs: QueryDiff[]): string[] {
-  const statNames: string[] = [];
-  const seen = new Set<string>();
+  const statNames = new Set<string>();
 
   for (const diff of diffs) {
     for (const entry of diff.operator_diffs ?? []) {
       for (const [statName, stat] of Object.entries(entry.stats)) {
-        if (seen.has(statName) || !stat) continue;
-        const [a, b] = stat.stats;
-        if (typeof a !== 'number' || typeof b !== 'number') continue;
-        seen.add(statName);
-        statNames.push(statName);
+        if (statNames.has(statName) || !stat) continue;
+        if (
+          unwrapNumericStat(stat.stats[0]) === null ||
+          unwrapNumericStat(stat.stats[1]) === null
+        ) {
+          continue;
+        }
+        statNames.add(statName);
       }
     }
   }
 
-  return statNames;
+  return sortOperatorDiffStatNames([...statNames]);
 }
 
 export function getDefaultOperatorDiffStatName(statNames: readonly string[]): string | null {
-  if (statNames.length === 0) return null;
-  return statNames.includes('duration_s') ? 'duration_s' : statNames[0]!;
+  return sortOperatorDiffStatNames(statNames)[0] ?? null;
+}
+
+export function resolveOperatorDiffStatSelection(
+  statNames: readonly string[],
+  requestedStat: string | null
+): string | null {
+  if (requestedStat && statNames.includes(requestedStat)) {
+    return requestedStat;
+  }
+  return getDefaultOperatorDiffStatName(statNames);
 }
 
 export function sumRuntimeComparisons(entries: RuntimeComparison[]): RuntimeComparison {
