@@ -189,21 +189,25 @@ describe('Diff routes', () => {
     renderWithRouter({ initialPath: '/diff' });
 
     expect(await screen.findByText('Baseline Query')).toBeInTheDocument();
-    expect(screen.getByText('Comparison Query 1')).toBeInTheDocument();
+    expect(screen.getByText('Comparison Queries')).toBeInTheDocument();
     expect(
-      screen.getByText('Select engines for Baseline Query and at least one comparison query.')
+      screen.getByText('Select Baseline Query and at least one comparison query.')
     ).toBeInTheDocument();
   });
 
-  it('adds another comparison query selector', async () => {
+  it('selects multiple comparison queries from one picker', async () => {
     const user = userEvent.setup();
-    renderWithRouter({ initialPath: '/diff' });
+    const { router } = renderWithRouter({ initialPath: '/diff/query/query-a' });
 
-    await screen.findByText('Comparison Query 1');
-    await user.click(screen.getByRole('button', { name: 'Add Comparison' }));
+    const comparisonPicker = await screen.findByRole('combobox', { name: 'Comparison Queries' });
+    await user.click(comparisonPicker);
 
-    expect(screen.getByText('Comparison Query 2')).toBeInTheDocument();
-    expect(screen.getAllByRole('combobox')).toHaveLength(9);
+    await user.click(await screen.findByRole('option', { name: /Query B/ }));
+    await user.click(await screen.findByRole('option', { name: /Query C/ }));
+
+    await waitFor(() => {
+      expect(router.state.location.pathname).toBe('/diff/query/query-a/compare/query-b,query-c');
+    });
   });
 
   it('renders a selected comparison route', async () => {
@@ -282,38 +286,17 @@ describe('Diff routes', () => {
     expect(within(legend).getByText('Query C')).toBeInTheDocument();
   });
 
-  it('preserves query group and query selections after the selector collapses', async () => {
+  it('preserves baseline and comparisons after the selector collapses', async () => {
     const user = userEvent.setup();
     renderWithRouter({ initialPath: '/diff' });
 
-    await waitFor(() => expect(screen.getAllByRole('combobox')).toHaveLength(6));
-    let selectors = screen.getAllByRole('combobox');
-    await user.click(selectors[0]);
-    await user.click(await screen.findByRole('option', { name: 'Engine 1' }));
+    const baselinePicker = await screen.findByRole('combobox', { name: 'Baseline Query' });
+    await user.click(baselinePicker);
+    await user.click(await screen.findByRole('option', { name: /Query A/ }));
 
-    await waitFor(() => expect(screen.getAllByRole('combobox')[1]).not.toBeDisabled());
-    selectors = screen.getAllByRole('combobox');
-    await user.click(selectors[1]);
-    await user.click(await screen.findByRole('option', { name: 'Group A' }));
-
-    await waitFor(() => expect(screen.getAllByRole('combobox')[2]).not.toBeDisabled());
-    selectors = screen.getAllByRole('combobox');
-    await user.click(selectors[2]);
-    await user.click(await screen.findByRole('option', { name: 'Query A' }));
-
-    selectors = screen.getAllByRole('combobox');
-    await user.click(selectors[3]);
-    await user.click(await screen.findByRole('option', { name: 'Engine 2' }));
-
-    await waitFor(() => expect(screen.getAllByRole('combobox')[4]).not.toBeDisabled());
-    selectors = screen.getAllByRole('combobox');
-    await user.click(selectors[4]);
-    await user.click(await screen.findByRole('option', { name: 'Group B' }));
-
-    await waitFor(() => expect(screen.getAllByRole('combobox')[5]).not.toBeDisabled());
-    selectors = screen.getAllByRole('combobox');
-    await user.click(selectors[5]);
-    await user.click(await screen.findByRole('option', { name: 'Query B' }));
+    const comparisonPicker = await screen.findByRole('combobox', { name: 'Comparison Queries' });
+    await user.click(comparisonPicker);
+    await user.click(await screen.findByRole('option', { name: /Query B/ }));
 
     expect(await screen.findByText('Total Run Time')).toBeInTheDocument();
 
@@ -327,17 +310,14 @@ describe('Diff routes', () => {
     expect(trigger).toHaveAttribute('aria-expanded', 'true');
 
     await waitFor(() => {
-      const reopenedSelectors = screen.getAllByRole('combobox');
-      expect(reopenedSelectors[0]).toHaveTextContent('Engine 1');
-      expect(reopenedSelectors[1]).toHaveTextContent('Group A');
-      expect(reopenedSelectors[2]).toHaveTextContent('Query A');
-      expect(reopenedSelectors[3]).toHaveTextContent('Engine 2');
-      expect(reopenedSelectors[4]).toHaveTextContent('Group B');
-      expect(reopenedSelectors[5]).toHaveTextContent('Query B');
+      expect(screen.getByRole('combobox', { name: 'Baseline Query' })).toHaveTextContent(/Query A/);
+      expect(screen.getByRole('combobox', { name: 'Comparison Queries' })).toHaveTextContent(
+        /1 query selected/
+      );
     });
   });
 
-  it('makes a comparison query the baseline from the selector', async () => {
+  it('makes a comparison query the baseline via its chip', async () => {
     const user = userEvent.setup();
     const { router } = renderWithRouter({
       initialPath: '/diff/query/query-a/compare/query-b',
@@ -349,7 +329,7 @@ describe('Diff routes', () => {
     expect(trigger).not.toBeNull();
     await user.click(trigger!);
 
-    await user.click(await screen.findByRole('button', { name: 'Make Baseline' }));
+    await user.click(await screen.findByRole('button', { name: /Make .* the baseline/i }));
 
     await waitFor(() => {
       expect(router.state.location.pathname).toBe('/diff/query/query-b/compare/query-a');

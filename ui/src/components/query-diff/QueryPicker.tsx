@@ -68,9 +68,7 @@ export function QueryPicker({
 
   const selectedSingle = useMemo(
     () =>
-      mode === 'single'
-        ? (options.find(opt => opt.queryId === selectedQueryIds[0]) ?? null)
-        : null,
+      mode === 'single' ? (options.find(opt => opt.queryId === selectedQueryIds[0]) ?? null) : null,
     [mode, options, selectedQueryIds]
   );
 
@@ -85,7 +83,9 @@ export function QueryPicker({
       )
     ) : selectedQueryIds.length > 0 ? (
       <span className="truncate">
-        {selectedQueryIds.length === 1 ? '1 query selected' : `${selectedQueryIds.length} queries selected`}
+        {selectedQueryIds.length === 1
+          ? '1 query selected'
+          : `${selectedQueryIds.length} queries selected`}
       </span>
     ) : (
       <span className="truncate text-muted-foreground">{triggerPlaceholder}</span>
@@ -116,10 +116,7 @@ export function QueryPicker({
           <ChevronDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground opacity-70" />
         </Button>
       </PopoverTrigger>
-      <PopoverContent
-        align="start"
-        className="w-[var(--radix-popover-trigger-width)] min-w-72 p-2"
-      >
+      <PopoverContent align="start" className="w-[var(--radix-popover-trigger-width)] min-w-72 p-2">
         <div className="relative mb-2">
           <Search
             aria-hidden

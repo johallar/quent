@@ -3,11 +3,7 @@
 
 import { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import {
-  fetchListCoordinators,
-  fetchListEngines,
-  fetchListQueries,
-} from '@quent/client';
+import { fetchListCoordinators, fetchListEngines, fetchListQueries } from '@quent/client';
 import type { Engine } from '@quent/utils';
 
 export interface QueryPickerOption {
@@ -59,8 +55,7 @@ export function useAllQueriesIndex(): UseAllQueriesIndexResult {
                   groupId: group.id,
                   groupName,
                   queryName,
-                  searchText:
-                    `${queryName} ${query.id} ${engineName} ${groupName}`.toLowerCase(),
+                  searchText: `${queryName} ${query.id} ${engineName} ${groupName}`.toLowerCase(),
                 });
               }
             })
