@@ -3,21 +3,23 @@
 
 import { http, HttpResponse } from 'msw';
 import { MAX_TIMELINE_BINS } from '@quent/utils';
-import { buildQueryProfileDiffResponseFromBundles } from '@quent/client';
 import type {
   BinnedSpanSec,
   BulkTimelineRequest,
   BulkTimelinesResponse,
-  EntityRef,
   QueryFilter,
-  QueryBundle,
   SingleTimelineRequest,
   SingleTimelineResponse,
   TaskFilter,
   TimelineConfig,
   TimelineRequest,
 } from '@quent/utils';
-import type { DiffRequest, DiffTimelineRequest, DiffTimelineResponse } from '@quent/client';
+import type {
+  DiffRequest,
+  DiffResponse,
+  DiffTimelineRequest,
+  DiffTimelineResponse,
+} from '@quent/client';
 
 const QUERY_A_HIGHER_SERIES = 'Query A higher';
 const QUERY_B_HIGHER_SERIES = 'Query B higher';
@@ -143,18 +145,6 @@ async function fetchJsonForDiff<T>(
   return (await response.json()) as T;
 }
 
-function queryBundlePath(engineId: string, queryId: string): string {
-  return `/api/engines/${encodeURIComponent(engineId)}/query/${encodeURIComponent(queryId)}`;
-}
-
-async function fetchQueryBundleForDiff(
-  request: Request,
-  engineId: string,
-  queryId: string
-): Promise<QueryBundle<EntityRef>> {
-  return fetchJsonForDiff<QueryBundle<EntityRef>>(request, queryBundlePath(engineId, queryId));
-}
-
 async function fetchSingleTimelineForDiff(
   request: Request,
   engineId: string,
@@ -238,21 +228,23 @@ export const handlers = [
     return HttpResponse.json({ entries } satisfies BulkTimelinesResponse);
   }),
 
-  http.post('*/api/query-profile-diff', async ({ request }) => {
+  http.post('*/api/workload-diff', async ({ request }) => {
     const body = (await request.json()) as DiffRequest;
-    const baselineBundle = await fetchQueryBundleForDiff(
-      request,
-      body.baseline_query.engine_id,
-      body.baseline_query.query_id
-    );
-    const comparisonBundles = await Promise.all(
-      body.comparison_queries.map(query =>
-        fetchQueryBundleForDiff(request, query.engine_id, query.query_id)
-      )
-    );
-    return HttpResponse.json(
-      buildQueryProfileDiffResponseFromBundles(baselineBundle, comparisonBundles)
-    );
+    return HttpResponse.json({
+      comparison_queries: body.comparison_queries.map(query => ({
+        compatibility: 'compatible',
+        query: {
+          id: query.query_id,
+          engine_id: query.engine_id,
+          instance_name: null,
+          query_group_id: null,
+          query_group_name: null,
+        },
+        operator_diffs: null,
+        stat_diffs: null,
+        warnings: null,
+      })),
+    } satisfies DiffResponse);
   }),
 
   http.post('*/api/timeline/diff', async ({ request }) => {

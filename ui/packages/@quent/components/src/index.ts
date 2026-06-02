@@ -112,6 +112,7 @@ export {
   ENTITY_REF_TO_ENTITIES_KEY,
   parseCustomStatistics,
   parsePortStatistics,
+  unwrapTaggedValue,
 } from './lib/queryBundle.utils';
 export { getIconForType, collectResourceTypesFromTree } from './lib/resource.utils';
 export {

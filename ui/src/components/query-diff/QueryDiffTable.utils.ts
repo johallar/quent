@@ -5,6 +5,7 @@ import type { DiffDelta, DiffQuerySummary, QueryDiff } from '@quent/client';
 import type { PaletteTheme, StatValue } from '@quent/utils';
 import { formatStatValue } from '@quent/components';
 import { getDiffNegativeColor, getDiffPositiveColor } from './QueryDiffColors';
+import { unwrapTaggedValue } from '@quent/components';
 
 export interface QueryDiffTableEngine {
   id: string;
@@ -62,8 +63,8 @@ function displayPercentDeltaValue(value: number | null): number | null {
 
 function buildCellValues(stat: DiffDelta): QueryDiffTableCellValues {
   return {
-    baseline: stat.stats[0] as StatValue,
-    comparison: stat.stats[1] as StatValue,
+    baseline: unwrapTaggedValue(stat.stats[0]) as StatValue,
+    comparison: unwrapTaggedValue(stat.stats[1]) as StatValue,
     delta: displayDeltaValue(stat.delta),
     percentDelta: displayPercentDeltaValue(stat.percent_delta),
   };

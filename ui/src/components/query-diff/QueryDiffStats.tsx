@@ -368,8 +368,7 @@ export function QueryDiffOverviewStats({
 }: {
   comparisons: QueryDiffStatsOverviewComparison[];
 }) {
-  const { theme } = useTheme();
-  const paletteTheme = theme === THEME_DARK ? 'dark' : 'light';
+  const { theme: paletteTheme } = useTheme();
   const operatorStatNames = useMemo(
     () => getOperatorDiffStatNames(comparisons.map(comparison => comparison.diff)),
     [comparisons]

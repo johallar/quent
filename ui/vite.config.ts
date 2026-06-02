@@ -8,10 +8,6 @@ import react from '@vitejs/plugin-react';
 import { TanStackRouterVite } from '@tanstack/router-vite-plugin';
 import { visualizer } from 'rollup-plugin-visualizer';
 import tailwindcss from '@tailwindcss/vite';
-import { buildQueryProfileDiffResponseFromBundles } from './packages/@quent/client/src/queryProfileDiffFromBundles';
-import type { DiffRequest } from './packages/@quent/client/src/queryProfileDiffTypes';
-import type { EntityRef, QueryBundle } from '@quent/utils';
-
 const API_TARGET = process.env.VITE_API_TARGET || 'http://localhost:8080';
 
 /** Ensures JS chunks get high fetch priority so they load before competing API requests. */
@@ -148,23 +144,6 @@ async function fetchSingleTimelineFromTarget(
   return (await response.json()) as SingleTimelineResponse;
 }
 
-async function fetchQueryBundleFromTarget(
-  engineId: string,
-  queryId: string
-): Promise<QueryBundle<EntityRef>> {
-  const response = await fetch(
-    apiTargetUrl(
-      `/api/engines/${encodeURIComponent(engineId)}/query/${encodeURIComponent(queryId)}`
-    )
-  );
-
-  if (!response.ok) {
-    throw new Error(`query bundle fetch failed: ${response.status} ${response.statusText}`);
-  }
-
-  return (await response.json()) as QueryBundle<EntityRef>;
-}
-
 function apiTargetUrl(pathname: string): string {
   return `${API_TARGET.replace(/\/$/, '')}${pathname}`;
 }
@@ -173,48 +152,6 @@ function writeJson(res: ServerResponse, statusCode: number, body: unknown) {
   res.statusCode = statusCode;
   res.setHeader('Content-Type', 'application/json');
   res.end(JSON.stringify(body));
-}
-
-function installQueryProfileDiffMock(server: ViteDevServer | PreviewServer) {
-  server.middlewares.use(async (req, res, next) => {
-    if (req.method !== 'POST' || !req.url) {
-      next();
-      return;
-    }
-
-    const match = req.url.match(/^\/api\/query-profile-diff(?:\?|$)/);
-    if (!match) {
-      next();
-      return;
-    }
-
-    try {
-      const body = JSON.parse(await readRequestBody(req)) as DiffRequest;
-      if (!body.baseline_query?.query_id || body.comparison_queries.length === 0) {
-        throw new Error('query profile diff requires a baseline query and comparison queries');
-      }
-
-      const baselineBundle = await fetchQueryBundleFromTarget(
-        body.baseline_query.engine_id,
-        body.baseline_query.query_id
-      );
-      const comparisonBundles = await Promise.all(
-        body.comparison_queries.map(query =>
-          fetchQueryBundleFromTarget(query.engine_id, query.query_id)
-        )
-      );
-
-      writeJson(
-        res,
-        200,
-        buildQueryProfileDiffResponseFromBundles(baselineBundle, comparisonBundles)
-      );
-    } catch (error) {
-      writeJson(res, 500, {
-        error: error instanceof Error ? error.message : 'Failed to build query profile diff',
-      });
-    }
-  });
 }
 
 function installTimelineDiffMock(server: ViteDevServer | PreviewServer) {
@@ -285,20 +222,11 @@ function vitePluginTimelineDiffMock() {
   };
 }
 
-function vitePluginQueryProfileDiffMock() {
-  return {
-    name: 'vite-plugin-query-profile-diff-mock',
-    configureServer: installQueryProfileDiffMock,
-    configurePreviewServer: installQueryProfileDiffMock,
-  };
-}
-
 // https://vitejs.dev/config/
 export default defineConfig({
   plugins: [
     react(),
     vitePluginScriptPriority(),
-    vitePluginQueryProfileDiffMock(),
     vitePluginTimelineDiffMock(),
     TanStackRouterVite({
       routeFileIgnorePattern: '.test.|.spec.',

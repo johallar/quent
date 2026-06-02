@@ -112,7 +112,7 @@ export async function fetchBulkTimelines(
 }
 
 export async function fetchQueryProfileDiff(request: DiffRequest): Promise<DiffResponse> {
-  return apiFetch<DiffResponse>('/query-profile-diff', {
+  return apiFetch<DiffResponse>('/workload-diff', {
     fetchOptions: {
       method: 'POST',
       body: JSON.stringify(request),

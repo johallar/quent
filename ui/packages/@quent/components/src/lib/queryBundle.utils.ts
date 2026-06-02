@@ -32,7 +32,7 @@ function unwrapToString(val: unknown): string {
   return Array.isArray(result) ? result.join('\n') : String(result ?? '');
 }
 
-function unwrapTaggedValue(val: unknown): StatValue {
+export function unwrapTaggedValue(val: unknown): StatValue {
   switch (true) {
     case val === null || val === undefined:
       return null;
@@ -58,10 +58,13 @@ function unwrapTaggedValue(val: unknown): StatValue {
   }
 }
 
-export function parseCustomStatistics(rawNode: unknown): Array<{ key: string; value: StatValue }> {
-  const statistics = (rawNode as Operator)?.statistics?.custom_statistics;
+export function parseCustomStatistics(rawNode: Operator): Array<{ key: string; value: StatValue }> {
+  const statistics = rawNode.statistics?.custom_statistics;
   if (!statistics) return [];
+  return parseStatistics(statistics);
+}
 
+export function parseStatistics(statistics: Record<string, unknown>) {
   return Object.entries(statistics).map(([key, tagged]) => ({
     key,
     value: tagged

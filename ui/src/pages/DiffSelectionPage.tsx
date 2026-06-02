@@ -9,7 +9,7 @@ import {
   fetchListCoordinators,
   fetchListEngines,
   fetchListQueries,
-  queryProfileDiffQueryOptions,
+  useQueryProfileDiff,
   queryBundleQueryOptions,
   type DiffQuerySummary,
   type DiffRequest,
@@ -471,7 +471,7 @@ function DiffDashboard({ baselineQuery, comparisonQueries }: DiffDashboardProps)
     }),
     [baselineQuery.engineId, baselineQuery.queryId, comparisonQueries]
   );
-  const diffResponse = useQuery(queryProfileDiffQueryOptions({ request: diffRequest }));
+  const diffResponse = useQueryProfileDiff({ request: diffRequest });
 
   const comparisons = useMemo(
     () =>
