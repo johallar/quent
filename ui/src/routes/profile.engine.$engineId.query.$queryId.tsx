@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { createFileRoute, Link, Outlet } from '@tanstack/react-router';
+import { ArrowLeftRight } from 'lucide-react';
 import { queryBundleQueryOptions } from '@quent/client';
 import { queryClient } from '@/lib/queryClient';
 import type { QueryBundle, EntityRef } from '@quent/utils';
@@ -30,22 +31,38 @@ function QueryLayout() {
   return (
     <div className="flex flex-col h-full w-full">
       <div className="shrink-0 border-b">
-        <div className="inline-flex h-9 w-full items-center justify-center p-1 text-muted-foreground gap-0">
+        <div className="relative flex h-9 w-full items-center p-1 text-muted-foreground">
+          <div className="inline-flex flex-1 items-center justify-center gap-0">
+            <Link
+              to="/profile/engine/$engineId/query/$queryId/timeline"
+              params={{ engineId, queryId }}
+              className={tabClass}
+              activeProps={{ className: activeTabClass }}
+            >
+              Timeline
+            </Link>
+            <Link
+              to="/profile/engine/$engineId/query/$queryId/operators"
+              params={{ engineId, queryId }}
+              className={tabClass}
+              activeProps={{ className: activeTabClass }}
+            >
+              Operators
+            </Link>
+          </div>
           <Link
-            to="/profile/engine/$engineId/query/$queryId/timeline"
-            params={{ engineId, queryId }}
-            className={tabClass}
-            activeProps={{ className: activeTabClass }}
+            to="/diff/query/$baselineQueryId"
+            params={{ baselineQueryId: queryId }}
+            className={cn(
+              'absolute right-2 inline-flex items-center gap-1.5 rounded-md px-2.5 py-1',
+              'text-xs font-medium text-muted-foreground transition-colors',
+              'hover:bg-muted hover:text-foreground',
+              'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2'
+            )}
+            title="Compare this query against others"
           >
-            Timeline
-          </Link>
-          <Link
-            to="/profile/engine/$engineId/query/$queryId/operators"
-            params={{ engineId, queryId }}
-            className={tabClass}
-            activeProps={{ className: activeTabClass }}
-          >
-            Operators
+            <ArrowLeftRight className="h-3.5 w-3.5" />
+            Compare to…
           </Link>
         </div>
       </div>

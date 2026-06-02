@@ -39,11 +39,7 @@ export function formatQueryDiffTimelineTooltipHtml(
         ? 'Comparison lower'
         : 'No change';
   const deltaColor =
-    bin.signedDelta > 0
-      ? colors.positive
-      : bin.signedDelta < 0
-        ? colors.negative
-        : colors.neutral;
+    bin.signedDelta > 0 ? colors.positive : bin.signedDelta < 0 ? colors.negative : colors.neutral;
   const deltaStyle = `color:${deltaColor};font-weight:600`;
   const relativeText = escapeTooltipText(formatRelativePercent(bin.relative));
   const deltaText = escapeTooltipText(bin.formatter(bin.signedDelta, 2));

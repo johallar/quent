@@ -123,7 +123,9 @@ describe('QueryDiffStats helpers', () => {
     expect(resolveOperatorDiffStatSelection(['input_rows', 'duration_s'], 'input_rows')).toBe(
       'input_rows'
     );
-    expect(resolveOperatorDiffStatSelection(['input_rows', 'output_rows'], null)).toBe('input_rows');
+    expect(resolveOperatorDiffStatSelection(['input_rows', 'output_rows'], null)).toBe(
+      'input_rows'
+    );
   });
 
   it('extracts sorted per-operator-type comparisons for a selected stat', () => {
