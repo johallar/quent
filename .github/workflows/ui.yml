@@ -223,7 +223,9 @@ jobs:
       # playwright-reports/<run_id>/ on the gh-pages branch and accumulate as
       # history; old runs can be pruned by deleting their subdirs.
       - name: Publish Playwright report to GitHub Pages
-        if: failure() && github.event.pull_request.head.repo.full_name == github.repository
+        # Run on any failed push/PR/dispatch *except* PRs from forks (those
+        # can't push to gh-pages and lack write perms anyway).
+        if: failure() && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
         id: publish-report
         uses: peaceiris/actions-gh-pages@84c30a85c19949d7eee79c4ff27748b70285e453 # v4.1.0
         with:
@@ -236,7 +238,7 @@ jobs:
           commit_message: "playwright report for run ${{ github.run_id }} (${{ github.sha }})"
 
       - name: Compute report URL
-        if: failure() && github.event.pull_request.head.repo.full_name == github.repository
+        if: failure() && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
         id: report-url
         # Route untrusted-ish template expressions through env vars so the
         # shell never expands `${{ ... }}` directly (zizmor template-injection).
