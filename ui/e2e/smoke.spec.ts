@@ -21,9 +21,3 @@ test('loads the query profiler page', async ({ page }) => {
   await page.getByRole('combobox').nth(2).click();
   await expect(page.getByRole('option', { name: 'test-query' })).toBeVisible();
 });
-
-test('intentionally fails to verify CI screenshots', async ({ page }) => {
-  await page.goto('/');
-
-  await expect(page.getByText('intentional screenshot failure sentinel')).toBeVisible();
-});
