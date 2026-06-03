@@ -1,0 +1,68 @@
+name: Playwright Report Cleanup
+
+# Prune Playwright HTML reports older than RETENTION_DAYS from the gh-pages
+# branch. Runs weekly and on demand.
+
+on:
+  schedule:
+    - cron: "17 6 * * 1" # Mondays 06:17 UTC
+  workflow_dispatch:
+    inputs:
+      retention_days:
+        description: "Delete reports older than this many days"
+        required: false
+        default: "30"
+
+permissions:
+  contents: write
+
+jobs:
+  prune:
+    name: Prune old reports
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout gh-pages
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          ref: gh-pages
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Delete old report directories
+        env:
+          RETENTION_DAYS: ${{ inputs.retention_days || '30' }}
+        run: |
+          set -euo pipefail
+          if [ ! -d playwright-reports ]; then
+            echo "No playwright-reports/ directory; nothing to do."
+            exit 0
+          fi
+          cutoff=$(date -u -d "${RETENTION_DAYS} days ago" +%s)
+          echo "Pruning reports older than ${RETENTION_DAYS} days (cutoff $(date -u -d @${cutoff} --iso-8601=seconds))"
+          deleted=0
+          for dir in playwright-reports/*/; do
+            [ -d "$dir" ] || continue
+            # Last commit that touched this dir; falls back to 'now' if not tracked yet.
+            last=$(git log -1 --format=%ct -- "$dir" || true)
+            if [ -z "$last" ]; then
+              echo "skip (untracked) $dir"
+              continue
+            fi
+            if [ "$last" -lt "$cutoff" ]; then
+              echo "delete $dir (last touched $(date -u -d @${last} --iso-8601=seconds))"
+              git rm -rqf "$dir"
+              deleted=$((deleted + 1))
+            fi
+          done
+          echo "deleted=${deleted}" >> "$GITHUB_ENV"
+
+      - name: Commit and push
+        if: env.deleted != '0' && env.deleted != ''
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "chore: prune ${deleted} playwright report(s) older than ${RETENTION_DAYS:-30}d"
+          git push origin gh-pages
+        env:
+          RETENTION_DAYS: ${{ inputs.retention_days || '30' }}
