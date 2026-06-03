@@ -159,10 +159,9 @@ jobs:
   e2e:
     name: UI E2E
     runs-on: ubuntu-latest
-    # Needs write perms so we can publish the Playwright HTML report to the
-    # gh-pages branch and post the link as a PR comment on failure.
+    # Write perm only for PR comments; artifact upload doesn't need it.
     permissions:
-      contents: write
+      contents: read
       pull-requests: write
     defaults:
       run:
@@ -208,7 +207,8 @@ jobs:
       - run: pnpm test:e2e
         env:
           PLAYWRIGHT_CARGO_COMMAND: pixi run cargo
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+      - id: upload-report
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         if: failure()
         with:
           name: ui-e2e-failure-report
@@ -218,40 +218,7 @@ jobs:
           if-no-files-found: warn
           retention-days: 7
 
-      # Publish the HTML report to GitHub Pages so it is viewable in a browser
-      # without downloading the artifact. Reports land under
-      # playwright-reports/<run_id>/ on the gh-pages branch and accumulate as
-      # history; old runs can be pruned by deleting their subdirs.
-      - name: Publish Playwright report to GitHub Pages
-        # Run on any failed push/PR/dispatch *except* PRs from forks (those
-        # can't push to gh-pages and lack write perms anyway).
-        if: failure() && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
-        id: publish-report
-        uses: peaceiris/actions-gh-pages@84c30a85c19949d7eee79c4ff27748b70285e453 # v4.1.0
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ui/playwright-report
-          destination_dir: playwright-reports/${{ github.run_id }}
-          keep_files: true
-          user_name: github-actions[bot]
-          user_email: 41898282+github-actions[bot]@users.noreply.github.com
-          commit_message: "playwright report for run ${{ github.run_id }} (${{ github.sha }})"
-
-      - name: Compute report URL
-        if: failure() && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
-        id: report-url
-        # Route untrusted-ish template expressions through env vars so the
-        # shell never expands `${{ ... }}` directly (zizmor template-injection).
-        env:
-          REPO_OWNER: ${{ github.repository_owner }}
-          RUN_ID: ${{ github.run_id }}
-        run: |
-          set -euo pipefail
-          owner_lc=$(printf '%s' "$REPO_OWNER" | tr '[:upper:]' '[:lower:]')
-          repo_name="${GITHUB_REPOSITORY##*/}"
-          echo "url=https://${owner_lc}.github.io/${repo_name}/playwright-reports/${RUN_ID}/" >> "$GITHUB_OUTPUT"
-
-      - name: Comment Playwright report link on PR
+      - name: Comment Playwright artifact link on PR
         if: failure() && github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
         uses: marocchino/sticky-pull-request-comment@0ea0beb66eb9baf113663a64ec522f60e49231c0 # v3.0.4
         with:
@@ -259,11 +226,14 @@ jobs:
           message: |
             ### Playwright E2E failed
 
-            HTML report: ${{ steps.report-url.outputs.url }}
+            Download the HTML report + screenshots + traces from the workflow run:
 
-            Commit: `${{ github.sha }}` · [Workflow run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
+            - [`ui-e2e-failure-report` artifact](${{ steps.upload-report.outputs.artifact-url }})
+            - [Workflow run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
 
-            > Report may take ~1 minute to be live after the `gh-pages` deploy.
+            Open `playwright-report/index.html` from the zip in a browser, or run `npx playwright show-trace test-results/**/trace.zip` to inspect a failed test.
+
+            Commit: `${{ github.sha }}`
 
   audit:
     name: Audit
