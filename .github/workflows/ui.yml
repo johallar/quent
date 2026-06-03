@@ -159,10 +159,6 @@ jobs:
   e2e:
     name: UI E2E
     runs-on: ubuntu-latest
-    # Write perm only for PR comments; artifact upload doesn't need it.
-    permissions:
-      contents: read
-      pull-requests: write
     defaults:
       run:
         working-directory: ui
@@ -207,8 +203,7 @@ jobs:
       - run: pnpm test:e2e
         env:
           PLAYWRIGHT_CARGO_COMMAND: pixi run cargo
-      - id: upload-report
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         if: failure()
         with:
           name: ui-e2e-failure-report
@@ -217,23 +212,6 @@ jobs:
             ui/test-results/
           if-no-files-found: warn
           retention-days: 7
-
-      - name: Comment Playwright artifact link on PR
-        if: failure() && github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
-        uses: marocchino/sticky-pull-request-comment@0ea0beb66eb9baf113663a64ec522f60e49231c0 # v3.0.4
-        with:
-          header: playwright-report
-          message: |
-            ### Playwright E2E failed
-
-            Download the HTML report + screenshots + traces from the workflow run:
-
-            - [`ui-e2e-failure-report` artifact](${{ steps.upload-report.outputs.artifact-url }})
-            - [Workflow run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
-
-            Open `playwright-report/index.html` from the zip in a browser, or run `npx playwright show-trace test-results/**/trace.zip` to inspect a failed test.
-
-            Commit: `${{ github.sha }}`
 
   audit:
     name: Audit
