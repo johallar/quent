@@ -164,6 +164,7 @@ export { ResourceTimeline } from './timeline/ResourceTimeline';
 
 // ─── DAG components ───────────────────────────────────────────────────────────
 export { DAGChart } from './dag/DAGChart';
+export type { LayoutEngine } from './dag/layout';
 export { DAGControls } from './dag/DAGControls';
 export { DAGLegend } from './dag/DAGLegend';
 export { DAGNodeInfoPanel } from './dag/DAGNodeInfoPanel';
