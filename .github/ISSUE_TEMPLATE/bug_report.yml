@@ -12,6 +12,8 @@ body:
 
         Do not report security vulnerabilities in public issues. Please follow the repository security policy instead.
 
+        https://github.com/rapidsai/quent/blob/main/SECURITY.md
+
   - type: textarea
     id: summary
     attributes:

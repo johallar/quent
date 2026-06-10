@@ -31,7 +31,7 @@ body:
         - Build, packaging, or tooling improvement
         - Other
     validations:
-      required: true
+      required: false
 
   - type: dropdown
     id: area
@@ -51,7 +51,7 @@ body:
         - Documentation
         - Other
     validations:
-      required: true
+      required: false
 
   - type: textarea
     id: problem
@@ -62,7 +62,7 @@ body:
         I am trying to ...
         Today this is difficult because ...
     validations:
-      required: true
+      required: false
 
   - type: textarea
     id: proposal
@@ -73,7 +73,7 @@ body:
         I would like ...
         A possible API/UI flow could be ...
     validations:
-      required: true
+      required: false
 
   - type: textarea
     id: alternatives
