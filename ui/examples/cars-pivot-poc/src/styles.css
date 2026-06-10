@@ -1,0 +1,28 @@
+/* SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved. */
+/* SPDX-License-Identifier: Apache-2.0 */
+
+/* Reuse the main app's Tailwind setup, CSS variables, and helper utilities. */
+@import '@/index.css';
+
+/*
+ * Tailwind v4 only auto-discovers source files under the Vite root
+ * (this example directory). The pivot table, OptionMultiSelect, popover,
+ * and select primitives live in `ui/src/**` and use classes like
+ * `bg-popover`, `bg-background`, `bg-accent`, `border-input`, etc.
+ *
+ * Without this `@source` directive those classes never make it into the
+ * compiled stylesheet and the dropdown/badges render unstyled (transparent
+ * background, no borders).
+ *
+ * If you split this example off to its own repo, point `@source` at
+ * whichever workspace path actually contains the consumed components — or
+ * publish them as a built package whose CSS ships alongside the JS so the
+ * consumer doesn't have to scan source at all.
+ */
+@source "../../../src/**/*.{ts,tsx}";
+
+html,
+body,
+#root {
+  height: 100%;
+}
