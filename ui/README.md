@@ -17,7 +17,9 @@ time, operator active time spans, and individual entities at high zoom levels.*
 can be viewed in a pivot table view. Configurable to show statistics grouped by
 different operator levels.*
 
-![Query Plan DAG](docs/screenshots/query-plan-operator-details.png)
+| Query Plan DAG | Query Plan DAG Heatmap |
+| --- | --- |
+| ![Query Plan DAG](docs/screenshots/query-plan-operator-details.png) | ![Query Plan DAG heatmap](docs/screenshots/query-plan-dag-heatmap.png) |
 
 *A tree of query plans, viewable as an interactive DAG. DAG nodes and edges can
 be configured to display a heatmap view of nodes based on collected statistics.*
