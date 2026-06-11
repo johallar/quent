@@ -2,10 +2,7 @@
 
 A front end for query profiling instrumentation
 
-## Screenshots
-
 ![Quent overview demo](../docs/demo.gif)
-
 
 ### Timelines
 ![Overview](docs/screenshots/overview.png) *Timeline view reveals the structure
@@ -21,12 +18,10 @@ can be viewed in a pivot table view. Configurable to show statistics grouped by
 different operator levels.*
 
 ### Query Plan Visualization
-| Query Plan DAG | Query Plan DAG Heatmap |
-| --- | --- |
-| ![Query Plan DAG](docs/screenshots/query-plan-operator-details.png) | ![Query Plan DAG heatmap](docs/screenshots/query-plan-dag-heatmap.png) |
+![Query Plan DAG heatmap](docs/screenshots/query-plan-dag-heatmap.png)
 
-*A tree of query plans, viewable as an interactive DAG. DAG nodes and edges can
-be configured to display a heatmap view of nodes based on collected statistics.*
+*A tree of query plans, viewable as an interactive DAG. Node color and edge width 
+configurable*
 
 ## Tech Stack
 
