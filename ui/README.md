@@ -2,6 +2,19 @@
 
 A front end for query profiling instrumentation
 
+## Screenshots
+
+![Resource Timelines](docs/screenshots/timeline-gpudecode-selection.png)
+Timeline view reveals the structure of resources used in the query in an interactive timeline tree. 
+Timelines show resource usage over time, operator active time spans, and individual entities at high enough zoom levels.
+
+
+![Statistics Table](docs/screenshots/operators-table.png)
+Statistics captured can be viewed in a pivot table view. Configurable to show statistics grouped by different operator levels.
+
+![Query Plan DAG](docs/screenshots/query-plan-operator-details.png)
+A tree of query plans that can be visualized as an interactive DAG. DAG nodes and edges can be configured to display a heatmap view of nodes based on collected statistics.
+
 ## Tech Stack
 
 - **React 18** - UI library
