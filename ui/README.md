@@ -4,14 +4,17 @@ A front end for query profiling instrumentation
 
 ## Screenshots
 
+![Quent overview demo](docs/demo.gif)
+
+
 ![Overview](docs/screenshots/overview.png)
 <p align="center">
-  <em>Timeline view reveals the structure of resources used in the query in an interactive timeline tree. Timelines show resource usage over time, operator active time spans, and individual entities at high enough zoom levels.</em>
+  <em>Timeline view reveals the structure of resources in an interactive timeline tree. Timelines show resource usage over time, operator active time spans, and individual entities at high zoom levels</em>
 </p>
 
 ![Resource Timelines](docs/screenshots/timeline-gpudecode-selection.png)
 <p align="center">
-  <em>Interactive query plan DAG visualizations crossfilter resource timelines.</em>
+  <em>Interactive query plan DAG visualizations crossfilter resource timelines</em>
 </p>
 
 ![Statistics Table](docs/screenshots/operators-table.png)
@@ -24,12 +27,12 @@ A front end for query profiling instrumentation
 </p>
 
 <p align="center">
-  <em>A tree of query plans that can be visualized as an interactive DAG. DAG nodes and edges can be configured to display a heatmap view of nodes based on collected statistics.</em>
+  <em>A tree of query plans, viewable as an interactive DAG. DAG nodes and edges can be configured to display a heatmap view of nodes based on collected statistics.</em>
 </p>
 
 ## Tech Stack
 
-- **React 18** - UI library
+- **React** - UI library
 - **TypeScript** - Type safety
 - **Vite** - Build tool and dev server
 - **TanStack Router** - Type-safe routing
@@ -45,11 +48,12 @@ A front end for query profiling instrumentation
 
 ### Prerequisites
 
-- **Node.js 24.11.0** (enforced via `.nvmrc` and `.node-version`)
+- **Node.js 24.11.0** (enforced via `.nvmrc`, `.node-version`, and Volta)
   - Using nvm: `nvm use` or `nvm install`
   - Using volta: Automatically switches to correct version
   - Using asdf/nodenv: Uses `.node-version` file
-- **pnpm 9.0.0+** (required) - Install with `npm install -g pnpm` or see
+- **pnpm 11.5.3** (pinned via `packageManager` and Volta; `>=11.5.3` required)
+  - Install with `npm install -g pnpm@11.5.3` or see
   [pnpm installation](https://pnpm.io/installation)
 
 ### Installation
@@ -96,29 +100,6 @@ Preview the production build:
 pnpm preview
 ```
 
-## Project Structure
-
-```text
-ui/
-├── src/
-│   ├── components/        # Reusable components
-│   │   ├── ui/           # shadcn/ui components
-│   ├── lib/              # Utility libraries
-│   │   └── utils.ts     # Tailwind class merging utility
-│   ├── pages/            # Page components
-│   ├── routes/           # TanStack Router routes
-│   ├── services/         # API services
-│   ├── main.tsx         # Application entry point
-│   └── index.css        # Global styles with Tailwind directives
-├── index.html           # HTML entry point
-├── vite.config.ts       # Vite configuration
-├── tsconfig.json        # TypeScript configuration
-├── tailwind.config.js   # Tailwind CSS configuration
-├── postcss.config.js    # PostCSS configuration
-├── components.json      # shadcn/ui configuration
-└── package.json         # Project dependencies
-```
-
 ## API Integration
 
 The application includes stub API functions in `src/services/api.ts`. These
@@ -150,14 +131,6 @@ the theme by editing the CSS variables in `src/index.css`:
 
 You can also customize Tailwind's configuration in `tailwind.config.js` to
 extend the default theme with custom colors, fonts, spacing, etc.
-
-### Adding New Charts
-
-1. Create a new component in `src/components/`
-2. Wrap it in a shadcn `Card` component for consistent styling
-3. Define the ECharts options with TypeScript
-4. Use the `ReactECharts` component to render
-5. Import and use in your dashboard pages
 
 ### Adding shadcn/ui Components
 
