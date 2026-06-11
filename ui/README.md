@@ -4,6 +4,9 @@ A front end for query profiling instrumentation
 
 ## Screenshots
 
+![Overview](docs/screenshots/overview.png)
+Overview of the Quent UI with the query plan explorer and resource timeline side by side.
+
 ![Resource Timelines](docs/screenshots/timeline-gpudecode-selection.png)
 Timeline view reveals the structure of resources used in the query in an interactive timeline tree. 
 Timelines show resource usage over time, operator active time spans, and individual entities at high enough zoom levels.
