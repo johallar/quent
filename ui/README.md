@@ -6,6 +6,8 @@ A front end for query profiling instrumentation
 
 ![Quent overview demo](../docs/demo.gif)
 
+
+### Timelines
 ![Overview](docs/screenshots/overview.png) *Timeline view reveals the structure
 of resources in an interactive timeline tree. Timelines show resource usage over
 time, operator active time spans, and individual entities at high zoom levels.*
@@ -13,10 +15,12 @@ time, operator active time spans, and individual entities at high zoom levels.*
 ![Resource Timelines](docs/screenshots/timeline-gpudecode-selection.png)
 *Interactive query plan DAG visualizations crossfilter resource timelines.*
 
+### Pivot Table Statistics
 ![Statistics Table](docs/screenshots/operators-table.png) *Statistics captured
 can be viewed in a pivot table view. Configurable to show statistics grouped by
 different operator levels.*
 
+### Query Plan Visualization
 | Query Plan DAG | Query Plan DAG Heatmap |
 | --- | --- |
 | ![Query Plan DAG](docs/screenshots/query-plan-operator-details.png) | ![Query Plan DAG heatmap](docs/screenshots/query-plan-dag-heatmap.png) |
