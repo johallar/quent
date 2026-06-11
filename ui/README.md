@@ -4,31 +4,23 @@ A front end for query profiling instrumentation
 
 ## Screenshots
 
-![Quent overview demo](docs/demo.gif)
+![Quent overview demo](../docs/demo.gif)
 
-
-![Overview](docs/screenshots/overview.png)
-<p align="center">
-  <em>Timeline view reveals the structure of resources in an interactive timeline tree. Timelines show resource usage over time, operator active time spans, and individual entities at high zoom levels</em>
-</p>
+![Overview](docs/screenshots/overview.png) *Timeline view reveals the structure
+of resources in an interactive timeline tree. Timelines show resource usage over
+time, operator active time spans, and individual entities at high zoom levels.*
 
 ![Resource Timelines](docs/screenshots/timeline-gpudecode-selection.png)
-<p align="center">
-  <em>Interactive query plan DAG visualizations crossfilter resource timelines</em>
-</p>
+*Interactive query plan DAG visualizations crossfilter resource timelines.*
 
-![Statistics Table](docs/screenshots/operators-table.png)
-<p align="center">
-  <em>Statistics captured can be viewed in a pivot table view. Configurable to show statistics grouped by different operator levels.</em>
-</p>
+![Statistics Table](docs/screenshots/operators-table.png) *Statistics captured
+can be viewed in a pivot table view. Configurable to show statistics grouped by
+different operator levels.*
 
-<p align="center">
-  <img src="docs/screenshots/query-plan-operator-details.png" alt="Query Plan DAG" width="575">
-</p>
+![Query Plan DAG](docs/screenshots/query-plan-operator-details.png)
 
-<p align="center">
-  <em>A tree of query plans, viewable as an interactive DAG. DAG nodes and edges can be configured to display a heatmap view of nodes based on collected statistics.</em>
-</p>
+*A tree of query plans, viewable as an interactive DAG. DAG nodes and edges can
+be configured to display a heatmap view of nodes based on collected statistics.*
 
 ## Tech Stack
 
@@ -186,5 +178,5 @@ To leave them on for every dev session on your machine, create a
 VITE_DEBUG=1
 ```
 
-Then a plain `pnpm dev` will pick it up. Restart the dev server after
-changing env vars — Vite does not hot-reload `import.meta.env` changes.
+Then a plain `pnpm dev` will pick it up. Restart the dev server after changing
+env vars; Vite does not hot-reload `import.meta.env` changes.
