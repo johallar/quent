@@ -55,6 +55,9 @@ pnpm dev
 
 The app will be available at `http://localhost:5173`
 
+The `pnpm start` script is also available as an alias for the Vite development
+server, which is what the end-to-end test runner uses.
+
 ### Build
 
 Build the production version:
@@ -70,6 +73,29 @@ Preview the production build:
 ```bash
 pnpm preview
 ```
+
+### End-to-End Tests
+
+Install Playwright browser binaries if they are not already present:
+
+```bash
+pnpm playwright:install
+```
+
+Run the Playwright smoke tests:
+
+```bash
+pnpm test:e2e
+```
+
+Playwright starts the Vite dev server on `http://127.0.0.1:5173` automatically
+unless `PLAYWRIGHT_BASE_URL` is set. The E2E global setup also starts
+`quent-simulator-server` on `http://127.0.0.1:18080`, runs the deterministic
+`quent-query-engine-fixed` emitter into its collector on `127.0.0.1:17836`, and
+stores generated event data in `ui/.e2e-data/`.
+
+In CI only, Playwright writes an HTML report and screenshots failures; the
+GitHub UI workflow uploads those files when the E2E job fails.
 
 ## Project Structure
 
@@ -159,11 +185,13 @@ pnpm dlx shadcn@latest add dropdown-menu
 ## Available Scripts
 
 - `pnpm dev` - Start development server
+- `pnpm start` - Start development server
 - `pnpm build` - Build for production
 - `pnpm preview` - Preview production build
 - `pnpm lint` - Run ESLint
 - `pnpm lint:fix` - Fix ESLint errors and format code
 - `pnpm format` - Format code with Prettier
+- `pnpm test:e2e` - Run Playwright end-to-end tests
 
 ## Development Tools
 
