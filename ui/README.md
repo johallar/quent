@@ -2,7 +2,7 @@
 
 A front end for query profiling instrumentation
 
-![Quent overview demo](../docs/demo.gif)
+![Quent overview demo](./docs/screenshots/demo.gif)
 
 ## Tech Stack
 
