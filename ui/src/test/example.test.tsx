@@ -17,11 +17,10 @@ describe('Test Setup', () => {
   });
 
   it('should have MSW handlers registered', async () => {
-    // This test verifies MSW is working by making a fetch request
     const response = await fetch('/api/engines');
-    const data = await response.json();
+    const data = (await response.json()) as Array<{ id: string }>;
 
     expect(response.ok).toBe(true);
-    expect(data).toEqual(['engine-1', 'engine-2', 'engine-3']);
+    expect(data.map(e => e.id)).toEqual(['engine-a', 'engine-b']);
   });
 });

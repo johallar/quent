@@ -32,7 +32,7 @@ function unwrapToString(val: unknown): string {
   return Array.isArray(result) ? result.join('\n') : String(result ?? '');
 }
 
-function unwrapTaggedValue(val: unknown): StatValue {
+export function unwrapTaggedValue(val: unknown): StatValue {
   switch (true) {
     case val === null || val === undefined:
       return null;

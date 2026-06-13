@@ -16,6 +16,7 @@ import type {
   EntityRef,
   Engine,
 } from '@quent/utils';
+import type { DiffRequest, DiffResponse } from './queryProfileDiffTypes';
 
 interface ApiFetchOptions {
   params?: Record<string, string | number | boolean>;
@@ -98,6 +99,15 @@ export async function fetchBulkTimelines(
   request: BulkTimelineRequest<QueryFilter, OperatorFilter>
 ): Promise<BulkTimelinesResponse> {
   return apiFetch<BulkTimelinesResponse>(`/engines/${engineId}/timeline/bulk`, {
+    fetchOptions: {
+      method: 'POST',
+      body: JSON.stringify(request),
+    },
+  });
+}
+
+export async function fetchQueryProfileDiff(request: DiffRequest): Promise<DiffResponse> {
+  return apiFetch<DiffResponse>('/workload-diff', {
     fetchOptions: {
       method: 'POST',
       body: JSON.stringify(request),

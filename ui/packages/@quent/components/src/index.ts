@@ -88,12 +88,32 @@ export { Tabs, TabsList, TabsTrigger, TabsContent } from './ui/tabs';
 export { echarts } from './lib/echarts';
 export type { EChartsOption } from './lib/echarts';
 
+// ─── Stat cards ───────────────────────────────────────────────────────────────
+export { StatisticCard, StatisticMiniBarChart } from './stat-card/StatisticCard';
+export { MultiStatStackedBarChart } from './stat-card/MultiStatStackedBarChart';
+export { NumberComparisonCard } from './stat-card/NumberComparisonCard';
+export type {
+  StatisticCardComparison,
+  StatisticCardProps,
+  StatisticCardValueTone,
+  StatisticMiniBarChartBar,
+  StatisticMiniBarChartBarDetail,
+  StatisticMiniBarChartProps,
+  StatisticMiniBarChartRelativeValueStyle,
+  StatisticMiniBarChartRow,
+  StatisticMiniBarChartValueFormatter,
+  StatisticMiniBarChartPercentDeltaFormatter,
+} from './stat-card/StatisticCard';
+export type { MultiStatStackedBarChartProps } from './stat-card/MultiStatStackedBarChart';
+export type { NumberComparisonCardProps } from './stat-card/NumberComparisonCard';
+
 // ─── Lib utilities ────────────────────────────────────────────────────────────
 export {
   entityRefToEntitiesKey,
   ENTITY_REF_TO_ENTITIES_KEY,
   parseCustomStatistics,
   parsePortStatistics,
+  unwrapTaggedValue,
 } from './lib/queryBundle.utils';
 export { getIconForType, collectResourceTypesFromTree } from './lib/resource.utils';
 export {
