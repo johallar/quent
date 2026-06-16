@@ -7,9 +7,9 @@ import { useQueryPlanVisualization } from '@/hooks/useQueryPlanVisualization';
 import { TreeView } from '@quent/components';
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@quent/components';
 import { thinScrollbarClass, type QueryPlanDataItem } from '@quent/components';
-import { Network } from 'lucide-react';
 import { useSelectedPlanId, useSetSelectedPlanId, useSetHoveredWorkerId } from '@quent/hooks';
 import { DAGControls, DAGNodeInfoPanel } from '@quent/components';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@quent/components';
 import {
   useDagNodeColoring,
   useDagEdgeWidthConfig,
@@ -28,6 +28,11 @@ import { useTheme, THEME_DARK } from '@/contexts/ThemeContext';
 
 // Lazy load DAGChart to split elkjs (~1.6MB) into a separate chunk
 const DAGChart = lazy(() => import('@quent/components').then(mod => ({ default: mod.DAGChart })));
+
+const TABS = {
+  PLAN: 'plan',
+  CONTROLS: 'controls',
+} as const;
 
 export function QueryPlan({ queryId, engineId }: { queryId: string; engineId: string }) {
   const { theme } = useTheme();
@@ -129,47 +134,43 @@ export function QueryPlan({ queryId, engineId }: { queryId: string; engineId: st
 
   return (
     <div className="w-full flex flex-col h-[calc(100vh-4rem)]">
-      <div className="flex items-center gap-2 px-4 py-1.5 border-b border-border bg-card flex-shrink-0">
-        <Network className="h-4 w-4 text-primary" />
-        <h3 className="text-xs font-semibold text-foreground">Query Plan Explorer</h3>
-        <div className="text-xs text-muted-foreground">
-          <DataText>{queryBundle.entities.query_group.instance_name}</DataText>
-          {' - '}
-          <DataText>{queryBundle.entities.query.instance_name}</DataText>
-        </div>
-      </div>
-
       <ResizablePanelGroup orientation="vertical" className="flex-1">
-        <ResizablePanel
-          defaultSize="20%"
-          minSize="10%"
-          collapsible
-          collapsedSize="0%"
-          className={`overflow-y-auto ${thinScrollbarClass}`}
-        >
-          <TreeView<QueryPlanDataItem>
-            data={treeData}
-            initialSelectedItemId={planId}
-            selectedItemId={planId}
-            onSelectChange={handlePlanSelect}
-            onItemHover={item => setHoveredWorkerId(item?.workerId ?? null)}
-            renderItem={renderItem}
-          />
+        <ResizablePanel defaultSize="15%" className="flex flex-col">
+          <Tabs defaultValue={TABS.PLAN}>
+            <TabsList>
+              <TabsTrigger value={TABS.PLAN}>Query Plan</TabsTrigger>
+              <TabsTrigger value={TABS.CONTROLS}>Settings</TabsTrigger>
+            </TabsList>
+            <TabsContent
+              value={TABS.PLAN}
+              className={`flex-1 overflow-y-auto ${thinScrollbarClass}`}
+            >
+              <TreeView<QueryPlanDataItem>
+                data={treeData}
+                initialSelectedItemId={planId}
+                selectedItemId={planId}
+                onSelectChange={handlePlanSelect}
+                onItemHover={item => setHoveredWorkerId(item?.workerId ?? null)}
+                renderItem={renderItem}
+              />
+            </TabsContent>
+            <TabsContent
+              value={TABS.CONTROLS}
+              className={`flex-1 overflow-y-auto ${thinScrollbarClass}`}
+            >
+              <DAGControls
+                operatorStatFields={operatorStatFields}
+                portStatFields={portStatFields}
+                isDark={isDark}
+              />
+            </TabsContent>
+          </Tabs>
         </ResizablePanel>
 
         <ResizableHandle withHandle data-panel-group-direction="vertical" />
 
-        <div className="border-t border-border">
-          <DAGControls
-            operatorStatFields={operatorStatFields}
-            portStatFields={portStatFields}
-            isDark={isDark}
-          />
-        </div>
-
-        {/* DAG Chart - lazy loaded to split elkjs into separate chunk */}
         <ResizablePanel
-          defaultSize="75%"
+          defaultSize="85%"
           minSize="25%"
           collapsible
           collapsedSize="0%"

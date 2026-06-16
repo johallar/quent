@@ -82,6 +82,7 @@ export {
   TableCell,
   TableCaption,
 } from './ui/table';
+export { Tabs, TabsList, TabsTrigger, TabsContent } from './ui/tabs';
 
 // ─── ECharts ──────────────────────────────────────────────────────────────────
 export { echarts } from './lib/echarts';
@@ -167,7 +168,6 @@ export { DAGChart } from './dag/DAGChart';
 export { DAGControls } from './dag/DAGControls';
 export { DAGLegend } from './dag/DAGLegend';
 export { DAGNodeInfoPanel } from './dag/DAGNodeInfoPanel';
-export { DAGSettingsPopover } from './dag/DAGSettingsPopover';
 
 // ─── Query-plan components ────────────────────────────────────────────────────
 export { QueryPlanNode } from './query-plan/QueryPlanNode';

@@ -420,7 +420,7 @@ function TreeLeaf<T extends TreeDataItem = TreeDataItem>({
   return (
     <div
       className={cn(
-        'ml-5 flex text-left items-center py-2 cursor-pointer before:right-1',
+        'ml-5 flex text-left items-center py-1 cursor-pointer before:right-1',
         treeVariants(),
         className,
         isSelected && selectedTreeVariants(),
@@ -474,7 +474,7 @@ const AccordionTrigger = React.forwardRef<
     <AccordionPrimitive.Trigger
       ref={ref}
       className={cn(
-        'flex flex-1 w-full items-center py-2 transition-all first:[&[data-state=open]>svg]:first-of-type:rotate-90 cursor-pointer',
+        'flex flex-1 w-full items-center py-0.5 transition-all first:[&[data-state=open]>svg]:first-of-type:rotate-90 cursor-pointer',
         className
       )}
       {...props}

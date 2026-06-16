@@ -33,6 +33,8 @@ export interface SelectFieldProps {
   className?: string;
   /** className forwarded to SelectTrigger */
   triggerClassName?: string;
+  /** Node rendered after the select trigger (e.g. a palette swatch button). */
+  trailingAdornment?: React.ReactNode;
 }
 
 /** Select dropdown with optional label, icon, and clear button. */
@@ -46,6 +48,7 @@ export const SelectField = ({
   clearable = true,
   className,
   triggerClassName,
+  trailingAdornment,
 }: SelectFieldProps) => (
   <div className={cn('flex items-center gap-1.5 min-w-0', className)}>
     {Icon && <Icon className="h-3 w-3 shrink-0 text-muted-foreground" />}
@@ -91,5 +94,6 @@ export const SelectField = ({
         </ScrollArea>
       </SelectContent>
     </Select>
+    {trailingAdornment}
   </div>
 );
