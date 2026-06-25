@@ -14,11 +14,13 @@ import {
   NavigationMenuLink,
 } from '@quent/components';
 import { cn } from '@quent/utils';
+import { isFeatureEnabled } from '@/lib/featureFlags';
 
 function AppNav() {
   const routerState = useRouterState();
   const isProfileActive = routerState.location.pathname.startsWith('/profile');
   const isDiffActive = routerState.location.pathname.startsWith('/diff');
+  const isQueryDiffEnabled = isFeatureEnabled('QUERY_DIFF');
   return (
     <nav className="sticky top-0 z-50 w-full border-b bg-card shadow-sm">
       <div className="w-full flex h-16 items-center justify-between px-4 sm:px-6 lg:px-8">
@@ -47,18 +49,22 @@ function AppNav() {
                   </Button>
                 </NavigationMenuLink>
               </NavigationMenuItem>
-              <NavigationMenuItem>
-                <NavigationMenuLink asChild>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    asChild
-                    className={cn(isDiffActive && 'bg-accent text-accent-foreground font-semibold')}
-                  >
-                    <Link to="/diff">Diff</Link>
-                  </Button>
-                </NavigationMenuLink>
-              </NavigationMenuItem>
+              {isQueryDiffEnabled && (
+                <NavigationMenuItem>
+                  <NavigationMenuLink asChild>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      asChild
+                      className={cn(
+                        isDiffActive && 'bg-accent text-accent-foreground font-semibold'
+                      )}
+                    >
+                      <Link to="/diff">Diff</Link>
+                    </Button>
+                  </NavigationMenuLink>
+                </NavigationMenuItem>
+              )}
             </NavigationMenuList>
           </NavigationMenu>
           <ThemeToggle />
