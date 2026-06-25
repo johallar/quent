@@ -206,42 +206,58 @@ export function OperatorTable({ queryBundle }: OperatorTableProps) {
   }, [rows, parentScopeLabelValue]);
 
   /* This should in the future be extended with all categorical/boolean type stats */
-  const indexLabels: Record<IndexKey, React.ReactNode> = useMemo(
+  const indexLabels: Record<IndexKey, { label: React.ReactNode; badgeLabel: React.ReactNode }> =
+    useMemo(() => {
+      const scopeBadge = (scope: string, kind: string) => (
+        <>
+          <span className="font-mono text-data">{scope}</span>
+          <span className="ml-1">{kind}</span>
+        </>
+      );
+      const scopeLabel = (scope: string, kind: string) => (
+        <div>
+          <div className="font-mono text-data">{scope}</div>
+          <div>{kind}</div>
+        </div>
+      );
+      return {
+        partition: { label: 'Worker / Plan', badgeLabel: 'Worker / Plan' },
+        parent_item_type: {
+          label: scopeLabel(parentScopeLabelValue, 'Operator Type'),
+          badgeLabel: scopeBadge(parentScopeLabelValue, 'Operator Type'),
+        },
+        parent_item: {
+          label: scopeLabel(parentScopeLabelValue, 'Operator Instance'),
+          badgeLabel: scopeBadge(parentScopeLabelValue, 'Operator Instance'),
+        },
+        item_type: {
+          label: scopeLabel(scopeLabelValue, 'Operator Type'),
+          badgeLabel: scopeBadge(scopeLabelValue, 'Operator Type'),
+        },
+        item: {
+          label: scopeLabel(scopeLabelValue, 'Operator Instance'),
+          badgeLabel: scopeBadge(scopeLabelValue, 'Operator Instance'),
+        },
+      };
+    }, [parentScopeLabelValue, scopeLabelValue]);
+
+  const fullIndexLabels = useMemo<Record<IndexKey, React.ReactNode>>(
     () => ({
-      partition: 'Worker / Plan',
-      parent_item_type: (
-        <div>
-          <div className="font-mono text-data">{parentScopeLabelValue}</div>
-          <div>Operator Type</div>
-        </div>
-      ),
-      parent_item: (
-        <div>
-          <div className="font-mono text-data">{parentScopeLabelValue}</div>
-          <div>Operator Instance</div>
-        </div>
-      ),
-      item_type: (
-        <div>
-          <div className="font-mono text-data">{scopeLabelValue}</div>
-          <div>Operator Type</div>
-        </div>
-      ),
-      item: (
-        <div>
-          <div className="font-mono text-data">{scopeLabelValue}</div>
-          <div>Operator Instance</div>
-        </div>
-      ),
+      partition: indexLabels.partition.label,
+      parent_item_type: indexLabels.parent_item_type.label,
+      parent_item: indexLabels.parent_item.label,
+      item_type: indexLabels.item_type.label,
+      item: indexLabels.item.label,
     }),
-    [parentScopeLabelValue, scopeLabelValue]
+    [indexLabels]
   );
 
   const indexConfig = useMemo(
     () =>
       visibleIndexOrder.map(key => ({
         key,
-        label: indexLabels[key],
+        label: indexLabels[key].label,
+        badgeLabel: indexLabels[key].badgeLabel,
         enabled: enabledIndices[key],
       })),
     [visibleIndexOrder, enabledIndices, indexLabels]
@@ -352,7 +368,7 @@ export function OperatorTable({ queryBundle }: OperatorTableProps) {
           visibleStats={visibleStats}
           isAggregating={isAggregating}
           aggMode={aggMode}
-          indexLabels={indexLabels}
+          indexLabels={fullIndexLabels}
           isDark={isDark}
           interaction={interactionConfig}
           renderConfig={renderConfig}

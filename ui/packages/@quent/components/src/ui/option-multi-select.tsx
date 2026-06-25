@@ -1,27 +1,60 @@
 // SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-import { useMemo, useState } from 'react';
+import { useMemo, useState, type ReactNode } from 'react';
 import { Check, ChevronDown, Search, X } from 'lucide-react';
 import { cn } from '@quent/utils';
+import { useColumnDragDrop } from '@quent/hooks';
 import { Badge } from './badge';
 import { Button } from './button';
 import { Input } from './input';
 import { Popover, PopoverContent, PopoverTrigger } from './popover';
 
-interface OptionMultiSelectProps {
+export interface OptionMultiSelectItem {
+  id: string;
+  label: ReactNode;
+  /** Optional override rendered inside the selected-badge. Defaults to `label`. */
+  badgeLabel?: ReactNode;
+  /** Optional override used for popover search filtering. Defaults to `id`. */
+  searchText?: string;
+}
+
+export interface OptionMultiSelectProps {
   label: string;
   triggerText: string;
-  options: string[];
+  /** Mixed-shape input: strings become `{ id, label: <mono>id</mono> }` items. */
+  options: ReadonlyArray<string | OptionMultiSelectItem>;
   selectedOptionIds: Set<string> | null;
   onToggleOption: (optionId: string) => void;
   onSelectAllOptions: () => void;
   onSelectNoOptions: () => void;
+  /** When provided, selected badges become drag-reorderable. */
+  onReorderOption?: (
+    fromOptionId: string,
+    toOptionId: string,
+    position: 'before' | 'after'
+  ) => void;
   searchPlaceholder?: string;
   emptyMessage?: string;
   noneSelectedText?: string;
   maxVisibleBadges?: number;
   showSelectedBadges?: boolean;
+  /** Overrides the default outer wrapper classes. */
+  wrapperClassName?: string;
+  /** Trailing slot rendered inside the wrapper (e.g. an Aggregate select). */
+  trailing?: ReactNode;
+}
+
+const DEFAULT_WRAPPER_CLASS = 'flex items-center gap-1 px-3 py-1.5 border-t border-border/50';
+
+function normalizeOption(opt: string | OptionMultiSelectItem): OptionMultiSelectItem {
+  if (typeof opt !== 'string') return opt;
+  const mono = <span className="font-mono">{opt}</span>;
+  return { id: opt, label: mono, badgeLabel: mono, searchText: opt };
+}
+
+function getSearchText(item: OptionMultiSelectItem): string {
+  return (item.searchText ?? item.id).toLowerCase();
 }
 
 export function OptionMultiSelect({
@@ -32,29 +65,42 @@ export function OptionMultiSelect({
   onToggleOption,
   onSelectAllOptions,
   onSelectNoOptions,
+  onReorderOption,
   searchPlaceholder = 'Search options…',
   emptyMessage = 'No options found',
   noneSelectedText = 'None selected',
   maxVisibleBadges = 6,
   showSelectedBadges = true,
+  wrapperClassName,
+  trailing,
 }: OptionMultiSelectProps) {
   const [search, setSearch] = useState('');
 
-  const isSelected = (option: string): boolean =>
-    selectedOptionIds ? selectedOptionIds.has(option) : true;
+  const items = useMemo(() => options.map(normalizeOption), [options]);
 
-  const selectedOptions = useMemo(() => options.filter(isSelected), [options, selectedOptionIds]);
-  const visibleSelectedOptions = selectedOptions.slice(0, maxVisibleBadges);
-  const hiddenSelectedCount = Math.max(0, selectedOptions.length - visibleSelectedOptions.length);
+  const isSelected = (id: string): boolean =>
+    selectedOptionIds ? selectedOptionIds.has(id) : true;
 
-  const filteredOptions = useMemo(() => {
-    if (!search) return options;
+  const selectedItems = useMemo(
+    () => items.filter(item => (selectedOptionIds ? selectedOptionIds.has(item.id) : true)),
+    [items, selectedOptionIds]
+  );
+  const visibleSelectedItems = selectedItems.slice(0, maxVisibleBadges);
+  const hiddenSelectedCount = Math.max(0, selectedItems.length - visibleSelectedItems.length);
+
+  const filteredItems = useMemo(() => {
+    if (!search) return items;
     const needle = search.toLowerCase();
-    return options.filter(option => option.toLowerCase().includes(needle));
-  }, [options, search]);
+    return items.filter(item => getSearchText(item).includes(needle));
+  }, [items, search]);
+
+  const dragDrop = useColumnDragDrop({
+    onDropCommit: (fromId, toId, position) => onReorderOption?.(fromId, toId, position),
+  });
+  const reorderable = Boolean(onReorderOption);
 
   return (
-    <div className="flex items-center gap-1 px-3 py-1.5 border-t border-border/50">
+    <div className={cn(wrapperClassName ?? DEFAULT_WRAPPER_CLASS)}>
       <span className="text-xs text-muted-foreground shrink-0 mr-1">{label}:</span>
       <Popover
         onOpenChange={open => {
@@ -69,9 +115,7 @@ export function OptionMultiSelect({
             className="h-7 min-w-36 justify-between gap-2 px-2 text-xs font-normal"
           >
             <span className="truncate">
-              {selectedOptions.length > 0
-                ? `${triggerText} (${selectedOptions.length})`
-                : triggerText}
+              {selectedItems.length > 0 ? `${triggerText} (${selectedItems.length})` : triggerText}
             </span>
             <ChevronDown className="text-muted-foreground shrink-0 opacity-70" />
           </Button>
@@ -109,18 +153,18 @@ export function OptionMultiSelect({
             </Button>
           </div>
           <div role="listbox" aria-multiselectable className="max-h-52 overflow-y-auto space-y-0.5">
-            {filteredOptions.map(option => {
-              const checked = isSelected(option);
+            {filteredItems.map(item => {
+              const checked = isSelected(item.id);
               return (
                 <button
-                  key={option}
+                  key={item.id}
                   type="button"
                   role="option"
                   aria-selected={checked}
                   data-state={checked ? 'checked' : 'unchecked'}
-                  onClick={() => onToggleOption(option)}
+                  onClick={() => onToggleOption(item.id)}
                   className={cn(
-                    'relative flex w-full cursor-pointer select-none items-center gap-2 rounded-sm px-2 py-1 text-xs font-mono outline-none',
+                    'relative flex w-full cursor-pointer select-none items-center gap-2 rounded-sm px-2 py-1 text-xs outline-none',
                     'transition-colors hover:bg-accent hover:text-accent-foreground',
                     'focus-visible:bg-accent focus-visible:text-accent-foreground'
                   )}
@@ -136,11 +180,11 @@ export function OptionMultiSelect({
                   >
                     {checked && <Check className="size-2.5" strokeWidth={3} />}
                   </span>
-                  <span className="truncate">{option}</span>
+                  <span className="truncate text-left">{item.label}</span>
                 </button>
               );
             })}
-            {filteredOptions.length === 0 && (
+            {filteredItems.length === 0 && (
               <p className="text-xs text-muted-foreground text-center py-2">{emptyMessage}</p>
             )}
           </div>
@@ -148,30 +192,58 @@ export function OptionMultiSelect({
       </Popover>
       {showSelectedBadges && (
         <div className="flex-1 min-w-0">
-          {selectedOptions.length === 0 ? (
+          {selectedItems.length === 0 ? (
             <span className="text-xs text-muted-foreground italic">{noneSelectedText}</span>
           ) : (
             <div className="flex flex-wrap items-center gap-1">
-              {visibleSelectedOptions.map(option => (
-                <Badge
-                  key={option}
-                  variant="outline"
-                  className="px-1.5 py-0 font-mono text-data bg-primary/10 border-primary/40 hover:bg-primary/15"
-                >
-                  <span className="truncate">{option}</span>
-                  <button
-                    type="button"
-                    onClick={e => {
-                      e.stopPropagation();
-                      onToggleOption(option);
-                    }}
-                    aria-label={`Remove ${option}`}
-                    className="ml-0.5 rounded-sm opacity-70 hover:opacity-100 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring cursor-pointer"
+              {visibleSelectedItems.map(item => {
+                const dropPosition = reorderable
+                  ? dragDrop.getDropTargetPosition(item.id)
+                  : undefined;
+                const dropIndicatorStyle = dropPosition
+                  ? {
+                      boxShadow:
+                        dropPosition === 'before'
+                          ? 'inset 3px 0 0 hsl(var(--primary))'
+                          : 'inset -3px 0 0 hsl(var(--primary))',
+                    }
+                  : undefined;
+                return (
+                  <Badge
+                    key={item.id}
+                    variant="outline"
+                    draggable={reorderable || undefined}
+                    onDragStart={
+                      reorderable ? e => dragDrop.handleDragStart(e, item.id) : undefined
+                    }
+                    onDragOver={reorderable ? e => dragDrop.handleDragOver(e, item.id) : undefined}
+                    onDragLeave={
+                      reorderable ? e => dragDrop.handleDragLeave(e, item.id) : undefined
+                    }
+                    onDrop={reorderable ? e => dragDrop.handleDrop(e, item.id) : undefined}
+                    onDragEnd={reorderable ? dragDrop.handleDragEnd : undefined}
+                    style={dropIndicatorStyle}
+                    className={cn(
+                      'px-1.5 py-0 text-data bg-primary/10 border-primary/40 hover:bg-primary/15',
+                      reorderable && 'cursor-grab active:cursor-grabbing select-none',
+                      reorderable && dragDrop.draggedId === item.id && 'opacity-45'
+                    )}
                   >
-                    <X className="size-2.5" />
-                  </button>
-                </Badge>
-              ))}
+                    <span className="truncate">{item.badgeLabel ?? item.label}</span>
+                    <button
+                      type="button"
+                      onClick={e => {
+                        e.stopPropagation();
+                        onToggleOption(item.id);
+                      }}
+                      aria-label={`Remove ${item.id}`}
+                      className="ml-0.5 rounded-sm opacity-70 hover:opacity-100 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring cursor-pointer"
+                    >
+                      <X className="size-2.5" />
+                    </button>
+                  </Badge>
+                );
+              })}
               {hiddenSelectedCount > 0 && (
                 <Badge variant="outline" className="px-1.5 py-0 bg-muted/40 text-muted-foreground">
                   +{hiddenSelectedCount} more
@@ -181,6 +253,7 @@ export function OptionMultiSelect({
           )}
         </div>
       )}
+      {trailing}
     </div>
   );
 }

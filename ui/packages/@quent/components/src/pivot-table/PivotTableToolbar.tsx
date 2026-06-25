@@ -1,16 +1,16 @@
 // SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-import { useCallback } from 'react';
-import { cn } from '@quent/utils';
-import { useColumnDragDrop } from '@quent/hooks';
+import { useCallback, useMemo, type ReactNode } from 'react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
-import { OptionMultiSelect } from '../ui/option-multi-select';
+import { OptionMultiSelect, type OptionMultiSelectItem } from '../ui/option-multi-select';
 import type { AggMode } from './types';
 
 export interface IndexConfigEntry {
   key: string;
-  label: React.ReactNode;
+  label: ReactNode;
+  /** Compact label shown in the selected-badge. Defaults to `label`. */
+  badgeLabel?: ReactNode;
   enabled: boolean;
 }
 
@@ -41,7 +41,34 @@ export function PivotTableToolbar({
   onSelectAllStats,
   onSelectNoStats,
 }: PivotTableToolbarProps) {
-  const commitDrop = useCallback(
+  const indexOptions = useMemo<OptionMultiSelectItem[]>(
+    () =>
+      indexConfig.map(entry => ({
+        id: entry.key,
+        label: entry.label,
+        badgeLabel: entry.badgeLabel ?? entry.label,
+      })),
+    [indexConfig]
+  );
+
+  const selectedIndexIds = useMemo(
+    () => new Set(indexConfig.filter(entry => entry.enabled).map(entry => entry.key)),
+    [indexConfig]
+  );
+
+  const handleSelectAllIndices = useCallback(() => {
+    for (const entry of indexConfig) {
+      if (!entry.enabled) onToggleIndex(entry.key);
+    }
+  }, [indexConfig, onToggleIndex]);
+
+  const handleSelectNoIndices = useCallback(() => {
+    for (const entry of indexConfig) {
+      if (entry.enabled) onToggleIndex(entry.key);
+    }
+  }, [indexConfig, onToggleIndex]);
+
+  const handleReorderIndexOption = useCallback(
     (fromKey: string, toKey: string, position: 'before' | 'after') => {
       if (fromKey === toKey) return;
       const keys = indexConfig.map(entry => entry.key);
@@ -61,71 +88,48 @@ export function PivotTableToolbar({
     [indexConfig, onReorderIndex]
   );
 
-  const dragDrop = useColumnDragDrop({ onDropCommit: commitDrop });
-
   return (
     <>
-      <div className="flex items-center gap-2 px-3 py-1.5">
-        <span className="text-xs text-muted-foreground shrink-0">Group by:</span>
-        {indexConfig.map(({ key, label, enabled }) => {
-          const dropPosition = dragDrop.getDropTargetPosition(key);
-          const dropIndicatorStyle = dropPosition
-            ? {
-                boxShadow:
-                  dropPosition === 'before'
-                    ? 'inset 3px 0 0 hsl(var(--primary))'
-                    : 'inset -3px 0 0 hsl(var(--primary))',
-              }
-            : undefined;
-          return (
-            <button
-              key={key}
-              draggable
-              onDragStart={e => dragDrop.handleDragStart(e, key)}
-              onDragOver={e => dragDrop.handleDragOver(e, key)}
-              onDragLeave={e => dragDrop.handleDragLeave(e, key)}
-              onDrop={e => dragDrop.handleDrop(e, key)}
-              onDragEnd={dragDrop.handleDragEnd}
-              onClick={() => onToggleIndex(key)}
-              className={cn(
-                'text-xs px-2 py-0.5 rounded border transition-colors cursor-pointer active:cursor-grabbing select-none whitespace-nowrap h-full',
-                {
-                  'bg-primary/10 border-primary/40 text-primary': enabled,
-                  'bg-muted/50 border-border text-muted-foreground': !enabled,
-                  'opacity-45': dragDrop.draggedId === key,
-                }
-              )}
-              style={dropIndicatorStyle}
+      <OptionMultiSelect
+        label="Group by"
+        triggerText="Select Group By"
+        options={indexOptions}
+        selectedOptionIds={selectedIndexIds}
+        onToggleOption={onToggleIndex}
+        onSelectAllOptions={handleSelectAllIndices}
+        onSelectNoOptions={handleSelectNoIndices}
+        onReorderOption={handleReorderIndexOption}
+        searchPlaceholder="Search groups…"
+        emptyMessage="No groups"
+        noneSelectedText="No grouping"
+        wrapperClassName="flex items-center gap-1 px-3 py-1.5"
+        trailing={
+          <div className="ml-auto flex items-center gap-2 pl-2">
+            <span className="text-xs text-muted-foreground shrink-0">Aggregate:</span>
+            <Select
+              value={isAggregating ? aggMode : '--'}
+              onValueChange={value => onSetAggMode(value as AggMode)}
+              disabled={!isAggregating}
             >
-              {label}
-            </button>
-          );
-        })}
-        <div className="ml-auto flex items-center gap-2">
-          <span className="text-xs text-muted-foreground shrink-0">Aggregate:</span>
-          <Select
-            value={isAggregating ? aggMode : '--'}
-            onValueChange={value => onSetAggMode(value as AggMode)}
-            disabled={!isAggregating}
-          >
-            <SelectTrigger className="h-7 w-[110px] rounded border border-input px-2 py-0 text-xs">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent align="start">
-              {!isAggregating && (
-                <SelectItem value="--" className="text-xs" disabled>
-                  --
-                </SelectItem>
-              )}
-              {(['sum', 'mean', 'min', 'max', 'stdev'] as AggMode[]).map(mode => (
-                <SelectItem key={mode} value={mode} className="text-xs">
-                  {mode}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-      </div>
+              <SelectTrigger className="h-7 w-[110px] rounded border border-input px-2 py-0 text-xs">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent align="start">
+                {!isAggregating && (
+                  <SelectItem value="--" className="text-xs" disabled>
+                    --
+                  </SelectItem>
+                )}
+                {(['sum', 'mean', 'min', 'max', 'stdev'] as AggMode[]).map(mode => (
+                  <SelectItem key={mode} value={mode} className="text-xs">
+                    {mode}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        }
+      />
       <OptionMultiSelect
         label="Columns"
         triggerText="Select Columns"
