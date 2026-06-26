@@ -31,7 +31,7 @@ export interface QueryPlanNodeData extends Record<string, unknown> {
   label: string;
   nodeId: string;
   operationType: string;
-  metadata?: { rawNode?: Operator };
+  metadata?: { rawNode?: Operator; relatedOperatorIds?: string[] };
   hasIncoming?: boolean;
   hasOutgoing?: boolean;
   /**
@@ -210,13 +210,7 @@ export const QueryPlanNode = memo(({ data }: { data: QueryPlanNodeData }) => {
     </div>
   );
 
-  return (
-    <div
-      className={cn(opacityClass, 'z-10')}
-    >
-      {nodeContent}
-    </div>
-  );
+  return <div className={cn(opacityClass, 'z-10')}>{nodeContent}</div>;
 });
 
 QueryPlanNode.displayName = 'QueryPlanNode';

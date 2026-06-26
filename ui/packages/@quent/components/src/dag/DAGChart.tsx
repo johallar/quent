@@ -306,6 +306,11 @@ const FlowLayout = ({
     [data.nodes]
   );
 
+  const getSelectionIds = useCallback((node: Node<QueryPlanNodeData>): string[] => {
+    const relatedOperatorIds = node.data.metadata?.relatedOperatorIds ?? [];
+    return relatedOperatorIds.length > 0 ? [...relatedOperatorIds, node.id] : [node.id];
+  }, []);
+
   // Convert DAGData to ReactFlow format
   const convertToReactFlow = useCallback(() => {
     // Determine which nodes have incoming/outgoing edges
@@ -357,7 +362,8 @@ const FlowLayout = ({
         setSelectedNodeData(null);
         onSelectionChange?.([]);
       } else {
-        const newSet = new Set([node.id]);
+        const selectionIds = getSelectionIds(node);
+        const newSet = new Set(selectionIds);
         setSelectedNodeIds(newSet);
         setSelectedOperatorLabel(node.data.label);
         setSelectedNodeData({
@@ -366,10 +372,11 @@ const FlowLayout = ({
           operationType: node.data.operationType,
           statistics: parseCustomStatistics(node.data.metadata?.rawNode),
         });
-        onSelectionChange?.([node.id]);
+        onSelectionChange?.(selectionIds);
       }
     },
     [
+      getSelectionIds,
       selectedNodeIds,
       setSelectedNodeIds,
       setSelectedOperatorLabel,
