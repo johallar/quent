@@ -112,7 +112,7 @@ jobs:
         with:
           cache: true
       - run: pixi run pnpm --dir ui install --frozen-lockfile
-      - run: pixi run pnpm --dir ui audit
+      - run: pixi run pnpm --dir ui audit --audit-level=high
 
   build:
     name: Build
