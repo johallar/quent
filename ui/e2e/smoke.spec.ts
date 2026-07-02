@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { expect, test } from '@playwright/test';
+import { API_ENDPOINTS, waitForRequestsSettled } from './helpers';
 
 const ENGINE_ID = '00000000-0000-0000-0000-000000000001';
 const QUERY_ID = '00000000-0000-0000-0000-000000000004';
@@ -42,6 +43,9 @@ test('pan-zooms the first timeline row and matches golden', async ({ page }) => 
   const wheelX = box.x + box.width * 0.7;
   const wheelY = box.y + box.height / 2;
 
+  // Install listener BEFORE zooming so the debounced fetch(es) can't slip past.
+  const bulkSettled = waitForRequestsSettled(page, API_ENDPOINTS.bulkTimelines);
+
   // Timeline rows require shift+wheel to zoom (see Timeline.tsx dataZoom config).
   // Wheel many times so we hit the built-in minSpan clamp regardless of duration.
   await page.mouse.move(wheelX, wheelY);
@@ -54,10 +58,8 @@ test('pan-zooms the first timeline row and matches golden', async ({ page }) => 
     await page.keyboard.up('Shift');
   }
 
-  // Let bulk-refetch complete and ECharts finish its zoom animation.
-  await page.waitForLoadState('networkidle');
-  await page.waitForTimeout(1500);
-
+  await bulkSettled;
+  await page.mouse.move(0, 0);
   await expect(firstRow).toHaveScreenshot('first-timeline-row-zoomed.png', {
     animations: 'disabled',
     maxDiffPixelRatio: 0.02,
