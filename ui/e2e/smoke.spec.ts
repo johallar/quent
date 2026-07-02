@@ -3,6 +3,10 @@
 
 import { expect, test } from '@playwright/test';
 
+const ENGINE_ID = '00000000-0000-0000-0000-000000000001';
+const QUERY_ID = '00000000-0000-0000-0000-000000000004';
+const TIMELINE_URL = `/profile/engine/${ENGINE_ID}/query/${QUERY_ID}/timeline`;
+
 test('loads the query profiler page', async ({ page }) => {
   await page.goto('/');
 
@@ -20,4 +24,42 @@ test('loads the query profiler page', async ({ page }) => {
 
   await page.getByRole('combobox').nth(2).click();
   await expect(page.getByRole('option', { name: 'test-query' })).toBeVisible();
+});
+
+test('pan-zooms the first timeline row and matches golden', async ({ page }) => {
+  await page.goto(TIMELINE_URL);
+
+  const firstRow = page.locator('div[role="tree"] [data-index="0"]').first();
+  await expect(firstRow).toBeVisible();
+  // Chart is rendered as SVG; wait until it's mounted before interacting.
+  await expect(firstRow.locator('svg').first()).toBeVisible();
+
+  await page.waitForLoadState('networkidle');
+
+  const box = await firstRow.boundingBox();
+  if (!box) throw new Error('First timeline row has no bounding box');
+  // Aim at the usage-column half of the row, where the timeline chart lives.
+  const wheelX = box.x + box.width * 0.7;
+  const wheelY = box.y + box.height / 2;
+
+  // Timeline rows require shift+wheel to zoom (see Timeline.tsx dataZoom config).
+  // Wheel many times so we hit the built-in minSpan clamp regardless of duration.
+  await page.mouse.move(wheelX, wheelY);
+  await page.keyboard.down('Shift');
+  try {
+    for (let i = 0; i < 120; i++) {
+      await page.mouse.wheel(0, -400);
+    }
+  } finally {
+    await page.keyboard.up('Shift');
+  }
+
+  // Let bulk-refetch complete and ECharts finish its zoom animation.
+  await page.waitForLoadState('networkidle');
+  await page.waitForTimeout(1500);
+
+  await expect(firstRow).toHaveScreenshot('first-timeline-row-zoomed.png', {
+    animations: 'disabled',
+    maxDiffPixelRatio: 0.02,
+  });
 });
