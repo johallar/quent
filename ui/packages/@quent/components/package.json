@@ -33,6 +33,17 @@
     "react-dom": "^19.0.0"
   },
   "devDependencies": {
+    "@tanstack/react-query": "catalog:",
+    "@tanstack/react-table": "catalog:",
+    "@tanstack/react-virtual": "catalog:",
+    "@types/react": "catalog:",
+    "@types/react-dom": "catalog:",
+    "@xyflow/react": "catalog:",
+    "echarts": "catalog:",
+    "echarts-for-react": "catalog:",
+    "jotai": "catalog:",
+    "react": "catalog:",
+    "react-dom": "catalog:",
     "tsdown": "^0.22.3",
     "typescript": "^5.9.3"
   }
