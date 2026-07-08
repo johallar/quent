@@ -1,11 +1,11 @@
 // SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-//! Build a [`ViewerSpec`] from a context's `model.qmi`: pinned git sources,
-//! analyzer package, and artifact format for generating/building a viewer.
+//! Build a [`ViewerSpec`] from a context's `model.qmi`: the pinned git sources
+//! and analyzer package needed to generate/build a viewer.
 
 use std::hash::{Hash, Hasher};
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
 use quent_build_info::{ArtifactInfo, BuildInfo, SIDECAR_FILE_NAME};
 use walkdir::WalkDir;
@@ -67,43 +67,6 @@ fn is_hidden(entry: &walkdir::DirEntry) -> bool {
         .is_some_and(|name| name.starts_with('.'))
 }
 
-/// Serialization format of an artifact's event streams.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Format {
-    Ndjson,
-    Msgpack,
-    Postcard,
-}
-
-impl Format {
-    /// File extension of an event stream in this format.
-    pub fn extension(self) -> &'static str {
-        match self {
-            Format::Ndjson => "ndjson",
-            Format::Msgpack => "msgpack",
-            Format::Postcard => "postcard",
-        }
-    }
-
-    /// The `quent_exporter::FileSystemFormat` variant name, for generated code.
-    pub fn variant(self) -> &'static str {
-        match self {
-            Format::Ndjson => "Ndjson",
-            Format::Msgpack => "Msgpack",
-            Format::Postcard => "Postcard",
-        }
-    }
-
-    fn from_extension(ext: &str) -> Option<Self> {
-        match ext {
-            "ndjson" => Some(Format::Ndjson),
-            "msgpack" => Some(Format::Msgpack),
-            "postcard" => Some(Format::Postcard),
-            _ => None,
-        }
-    }
-}
-
 /// A git source pinned to an exact commit, as recorded in the sidecar.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct GitPin {
@@ -114,38 +77,89 @@ pub struct GitPin {
 impl GitPin {
     /// Remote as a Cargo `git = "..."` URL.
     ///
-    /// Rewrite git's scp-style `git@host:path` to `ssh://git@host/path`, which
-    /// Cargo accepts. Leave URLs with a scheme (`https://`, `ssh://`, ...) and
-    /// local paths unchanged; like git, treat a remote as scp-style only when the
-    /// first colon has no earlier slash, so `/tmp/foo:bar` stays a path.
+    /// Cargo rejects git's scp-style `git@host:path`, which `gix-url` parses as
+    /// the SSH alternative form; re-serialize that to `ssh://git@host/path`.
+    /// Other forms (`https://`/`ssh://` URLs, local paths) pass through unchanged.
     pub fn cargo_url(&self) -> String {
-        if self.remote.contains("://") {
-            return self.remote.clone();
-        }
-        match self.remote.split_once(':') {
-            Some((host, path)) if !host.contains('/') => format!("ssh://{host}/{path}"),
+        match gix_url::Url::try_from(self.remote.as_str()) {
+            Ok(mut url)
+                if url.serialize_alternative_form && matches!(url.scheme, gix_url::Scheme::Ssh) =>
+            {
+                url.serialize_alternative_form = false;
+                url.to_bstring().to_string()
+            }
             _ => self.remote.clone(),
         }
     }
 
-    /// Extract a pin from a [`BuildInfo`], or report which provenance is missing.
+    /// Extract a pin from [`BuildInfo`], validating the untrusted remote and
+    /// commit so they cannot inject into generated `Cargo.toml`.
     fn from_build_info(info: &BuildInfo, what: &str) -> Result<Self> {
         match (&info.remote, &info.commit) {
-            (Some(remote), Some(commit)) => Ok(GitPin {
-                remote: remote.clone(),
-                commit: commit.clone(),
-            }),
+            (Some(remote), Some(commit)) => {
+                validate_remote(remote)?;
+                validate_commit(commit)?;
+                Ok(GitPin {
+                    remote: remote.clone(),
+                    commit: commit.clone(),
+                })
+            }
             _ => Err(OpenError::MissingProvenance { what: what.into() }),
         }
     }
+}
+
+/// A git commit must be a hex object id (sha-1 or sha-256, possibly abbreviated).
+fn validate_commit(commit: &str) -> Result<()> {
+    let ok = (7..=64).contains(&commit.len()) && commit.bytes().all(|b| b.is_ascii_hexdigit());
+    ok.then_some(())
+        .ok_or_else(|| OpenError::InvalidProvenance {
+            field: "commit".into(),
+            value: commit.into(),
+        })
+}
+
+/// A git remote must parse (via `gix-url`) as an integrity-checked transport
+/// (`https`, `ssh`, or scp-style `user@host:path`) with a host. Reject
+/// `http`/`git`/`file` and unknown schemes so trust canonicalization cannot
+/// silently downgrade a source. Special characters in the URL are neutralized by
+/// TOML string escaping when the wrapper manifest is generated; control
+/// characters are rejected outright since a newline would later corrupt the
+/// line-delimited trust allowlist when the remote is persisted.
+fn validate_remote(remote: &str) -> Result<()> {
+    let printable = !remote.bytes().any(|b| b.is_ascii_control());
+    gix_url::Url::try_from(remote)
+        .ok()
+        .filter(|url| {
+            printable
+                && matches!(url.scheme, gix_url::Scheme::Https | gix_url::Scheme::Ssh)
+                && url.host().is_some_and(|host| !host.is_empty())
+        })
+        .map(|_| ())
+        .ok_or_else(|| OpenError::InvalidProvenance {
+            field: "remote".into(),
+            value: remote.into(),
+        })
+}
+
+/// Cargo package name: ASCII alphanumerics, `-`, and `_`; safe for manifest
+/// interpolation and `use <crate>::Viewer`.
+fn validate_package(package: &str) -> Result<()> {
+    let ok = !package.is_empty()
+        && package
+            .bytes()
+            .all(|b| b.is_ascii_alphanumeric() || b == b'-' || b == b'_');
+    ok.then_some(())
+        .ok_or_else(|| OpenError::InvalidProvenance {
+            field: "analyzer_package".into(),
+            value: package.into(),
+        })
 }
 
 /// Viewer build inputs; contexts are tracked separately because one viewer can
 /// serve multiple same-spec contexts.
 #[derive(Debug, Clone)]
 pub struct ViewerSpec {
-    /// Event serialization format, detected from the on-disk streams.
-    pub format: Format,
     /// Cargo package of the analyzer crate providing `Viewer` (`QuentViewer`).
     pub analyzer_package: String,
     /// Quent framework source, pinned to the build commit.
@@ -155,8 +169,8 @@ pub struct ViewerSpec {
 }
 
 impl ViewerSpec {
-    /// Derive a spec from a sidecar and its context directory.
-    pub fn from_artifact(root: &Path, info: &ArtifactInfo) -> Result<Self> {
+    /// Derive a spec from a sidecar.
+    pub fn from_artifact(info: &ArtifactInfo) -> Result<Self> {
         let analyzer_package =
             info.model
                 .analyzer_package
@@ -164,8 +178,8 @@ impl ViewerSpec {
                 .ok_or_else(|| OpenError::NoAnalyzer {
                     model: info.model.name.clone(),
                 })?;
+        validate_package(&analyzer_package)?;
         Ok(Self {
-            format: detect_format(root)?,
             analyzer_package,
             quent: GitPin::from_build_info(&info.quent, "quent")?,
             analyzer: GitPin::from_build_info(&info.model.source, "analyzer source")?,
@@ -178,21 +192,20 @@ impl ViewerSpec {
         self.analyzer_package.replace('-', "_")
     }
 
-    /// Unambiguous build identity: analyzer package, format, and both git
-    /// remotes + full commits. Used to group/dedup contexts into viewers.
-    /// Short label distinguishing this build from other groups (package, format,
-    /// and short pins) so concurrent viewers with equal context counts are
-    /// still tellable apart.
+    /// Short label distinguishing this build from other groups (package and short
+    /// pins) so concurrent viewers with equal context counts are still tellable
+    /// apart.
     pub fn describe(&self) -> String {
         format!(
-            "{} ({}, quent@{} analyzer@{})",
+            "{} (quent@{} analyzer@{})",
             self.analyzer_package,
-            self.format.extension(),
             short_commit(&self.quent.commit),
             short_commit(&self.analyzer.commit),
         )
     }
 
+    /// Unambiguous build identity: analyzer package and both git remotes + full
+    /// commits. Used to group/dedup contexts into viewers.
     pub fn group_key(&self) -> String {
         // Key on the Cargo-normalized remotes so equivalent spellings (e.g.
         // scp-style vs `ssh://`) — which produce one dependency — share a build
@@ -200,7 +213,6 @@ impl ViewerSpec {
         // fields so values can't run together.
         [
             self.analyzer_package.as_str(),
-            self.format.extension(),
             self.quent.cargo_url().as_str(),
             &self.quent.commit,
             self.analyzer.cargo_url().as_str(),
@@ -216,10 +228,9 @@ impl ViewerSpec {
         let mut hasher = std::collections::hash_map::DefaultHasher::new();
         self.group_key().hash(&mut hasher);
         format!(
-            "{}-{}-{}-{:016x}",
+            "{}-{}-{:016x}",
             self.analyzer_package,
             short_commit(&self.analyzer.commit),
-            self.format.extension(),
             hasher.finish(),
         )
     }
@@ -231,36 +242,11 @@ fn short_commit(commit: &str) -> &str {
     &commit[..end]
 }
 
-/// Detect the artifact format from an `events.<ext>` stream in any per-entity
-/// subdirectory.
-fn detect_format(root: &Path) -> Result<Format> {
-    let entries = std::fs::read_dir(root).map_err(|source| OpenError::Sidecar {
-        path: root.to_path_buf(),
-        source,
-    })?;
-    for entry in entries.flatten() {
-        if !entry.file_type().map(|t| t.is_dir()).unwrap_or(false) {
-            continue;
-        }
-        if let Ok(files) = std::fs::read_dir(entry.path()) {
-            for file in files.flatten() {
-                if let Some(ext) = Path::new(&file.file_name()).extension()
-                    && let Some(format) = ext.to_str().and_then(Format::from_extension)
-                {
-                    return Ok(format);
-                }
-            }
-        }
-    }
-    Err(OpenError::UnknownFormat {
-        root: root.to_path_buf(),
-    })
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
     use quent_build_info::ModelInfo;
+    use std::path::Path;
 
     fn artifact_with(analyzer_package: Option<&str>, commit: &str) -> ArtifactInfo {
         let mut model = ModelInfo::unknown();
@@ -278,14 +264,6 @@ mod tests {
             ..BuildInfo::unknown()
         };
         info
-    }
-
-    fn ctx_with_stream(name: &str, file: &str) -> tempfile::TempDir {
-        let dir = tempfile::tempdir().unwrap();
-        let entity = dir.path().join(name);
-        std::fs::create_dir_all(&entity).unwrap();
-        std::fs::write(entity.join(file), b"").unwrap();
-        dir
     }
 
     fn make_context(dir: &Path) {
@@ -353,7 +331,6 @@ mod tests {
     #[test]
     fn group_key_normalizes_equivalent_remotes() {
         let scp = ViewerSpec {
-            format: Format::Ndjson,
             analyzer_package: "p".into(),
             quent: GitPin {
                 remote: "git@github.com:org/quent.git".into(),
@@ -393,26 +370,32 @@ mod tests {
     }
 
     #[test]
-    fn detects_format_from_entity_subdir() {
-        let ctx = ctx_with_stream("engine", "events.msgpack");
-        assert_eq!(detect_format(ctx.path()).unwrap(), Format::Msgpack);
-    }
+    fn validators_accept_good_and_reject_injection() {
+        assert!(validate_commit("0123456789abcdef0123456789abcdef01234567").is_ok());
+        assert!(validate_commit("deadbeef").is_ok());
+        assert!(validate_commit("nothex!!").is_err());
+        assert!(validate_commit("abc").is_err()); // too short
 
-    #[test]
-    fn unknown_format_when_no_streams() {
-        let ctx = ctx_with_stream("engine", "notes.txt");
-        assert!(matches!(
-            detect_format(ctx.path()),
-            Err(OpenError::UnknownFormat { .. })
-        ));
+        assert!(validate_remote("https://github.com/rapidsai/quent").is_ok());
+        assert!(validate_remote("git@github.com:rapidsai/quent.git").is_ok());
+        assert!(validate_remote("github.com:rapidsai/quent.git").is_ok()); // scp, no user
+        assert!(validate_remote("ssh://git@github.com/rapidsai/quent.git").is_ok());
+        assert!(validate_remote("https://x/y\"\n[dependencies]\nevil=\"1").is_err());
+        assert!(validate_remote("file:///etc/passwd").is_err());
+        // Unauthenticated transports are rejected (no silent downgrade).
+        assert!(validate_remote("http://github.com/rapidsai/quent").is_err());
+        assert!(validate_remote("git://github.com/rapidsai/quent").is_err());
+
+        assert!(validate_package("quent-simulator-analyzer").is_ok());
+        assert!(validate_package("evil\"]\nfoo = { path = \"/").is_err());
+        assert!(validate_package("").is_err());
     }
 
     #[test]
     fn spec_requires_analyzer_package() {
-        let ctx = ctx_with_stream("engine", "events.ndjson");
         let info = artifact_with(None, "abc");
         assert!(matches!(
-            ViewerSpec::from_artifact(ctx.path(), &info),
+            ViewerSpec::from_artifact(&info),
             Err(OpenError::NoAnalyzer { .. })
         ));
     }
@@ -439,34 +422,25 @@ mod tests {
 
     #[test]
     fn spec_derives_crate_ident_and_keys() {
-        let ctx = ctx_with_stream("engine", "events.ndjson");
         let info = artifact_with(Some("quent-simulator-analyzer"), "feedface99887766");
-        let spec = ViewerSpec::from_artifact(ctx.path(), &info).unwrap();
+        let spec = ViewerSpec::from_artifact(&info).unwrap();
         assert_eq!(spec.analyzer_crate(), "quent_simulator_analyzer");
-        assert_eq!(spec.format, Format::Ndjson);
         assert!(
             spec.cache_key()
-                .starts_with("quent-simulator-analyzer-feedface9988-ndjson-")
+                .starts_with("quent-simulator-analyzer-feedface9988-")
         );
     }
 
     #[test]
     fn keys_distinguish_full_pins_not_just_short_commit() {
-        let ctx = ctx_with_stream("engine", "events.ndjson");
-        // Same package, format, and 12-char commit prefix, but different full
-        // analyzer commits — must NOT collide.
-        let a =
-            ViewerSpec::from_artifact(ctx.path(), &artifact_with(Some("p"), "abcabcabcabc1111"))
-                .unwrap();
-        let b =
-            ViewerSpec::from_artifact(ctx.path(), &artifact_with(Some("p"), "abcabcabcabc2222"))
-                .unwrap();
+        // Same package and 12-char commit prefix, but different full analyzer
+        // commits — must NOT collide.
+        let a = ViewerSpec::from_artifact(&artifact_with(Some("p"), "abcabcabcabc1111")).unwrap();
+        let b = ViewerSpec::from_artifact(&artifact_with(Some("p"), "abcabcabcabc2222")).unwrap();
         assert_ne!(a.group_key(), b.group_key());
         assert_ne!(a.cache_key(), b.cache_key());
         // Identical inputs group together and are deterministic.
-        let a2 =
-            ViewerSpec::from_artifact(ctx.path(), &artifact_with(Some("p"), "abcabcabcabc1111"))
-                .unwrap();
+        let a2 = ViewerSpec::from_artifact(&artifact_with(Some("p"), "abcabcabcabc1111")).unwrap();
         assert_eq!(a.group_key(), a2.group_key());
         assert_eq!(a.cache_key(), a2.cache_key());
     }
