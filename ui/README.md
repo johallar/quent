@@ -28,7 +28,7 @@ A front end for query profiling instrumentation
   - Using asdf/nodenv: Uses `.node-version` file
 - **pnpm 11.5.3** (pinned via `packageManager` and Volta; `>=11.5.3` required)
   - Install with `npm install -g pnpm@11.5.3` or see
-  [pnpm installation](https://pnpm.io/installation)
+    [pnpm installation](https://pnpm.io/installation)
 
 ### Installation
 
@@ -90,6 +90,33 @@ Run the Playwright smoke tests:
 ```bash
 pnpm test:e2e
 ```
+
+Generate or update golden images:
+
+```bash
+pnpm test:e2e:update-snapshots --platform=darwin
+pnpm test:e2e:update-snapshots --platform=linux
+```
+
+Playwright includes the browser project and host platform in each snapshot name, such as
+`chromium-darwin` or `chromium-linux`. Darwin snapshots use native Playwright and must
+be generated on macOS. Linux snapshots run in a pinned Linux/amd64 Docker image matching
+CI, so Docker must be installed and running.
+
+On macOS, update both platforms in sequence with:
+
+```bash
+pnpm test:e2e:update-snapshots --platform=all
+```
+
+Without `--platform`, the command uses the host platform. To update one spec, append its
+path:
+
+```bash
+pnpm test:e2e:update-snapshots --platform=linux e2e/timelines.spec.ts
+```
+
+Commit the resulting `e2e/*.spec.ts-snapshots/` files and review all image changes.
 
 Playwright starts the Vite dev server on `http://127.0.0.1:5173` automatically
 unless `PLAYWRIGHT_BASE_URL` is set. The E2E global setup also starts
@@ -164,6 +191,7 @@ pnpm dlx shadcn@latest add dropdown-menu
 - `pnpm lint:fix` - Fix ESLint errors and format code
 - `pnpm format` - Format code with Prettier
 - `pnpm test:e2e` - Run Playwright end-to-end tests
+- `pnpm test:e2e:update-snapshots` - Generate Darwin or Dockerized Linux golden images
 
 ## Development Tools
 
