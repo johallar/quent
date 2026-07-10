@@ -9,7 +9,7 @@ const scriptDir = path.dirname(fileURLToPath(import.meta.url));
 const uiRoot = path.resolve(scriptDir, '..');
 const repoRoot = path.resolve(uiRoot, '..');
 const e2eDir = path.join(uiRoot, 'e2e');
-const dockerfile = path.join(e2eDir, 'Dockerfile.snapshots');
+const dockerfile = path.join(uiRoot, 'docker', 'Dockerfile.snapshots');
 const image = 'quent-playwright-snapshots:local';
 const supportedPlatforms = new Set(['darwin', 'linux', 'all']);
 
@@ -77,6 +77,14 @@ async function updateDarwin(playwrightArgs) {
 }
 
 async function updateLinux(playwrightArgs) {
+  if (process.platform === 'linux') {
+    console.log('Generating Linux golden images with native Playwright...');
+    await run('pnpm', ['exec', 'playwright', 'test', '--update-snapshots=all', ...playwrightArgs], {
+      cwd: uiRoot,
+    });
+    return;
+  }
+
   console.log('Building the Linux/amd64 Playwright snapshot image...');
   await run('docker', [
     'build',
@@ -99,11 +107,13 @@ async function updateLinux(playwrightArgs) {
     `HOST_UID=${process.getuid?.() ?? 0}`,
     '--env',
     `HOST_GID=${process.getgid?.() ?? 0}`,
+    '--env',
+    'PLAYWRIGHT_SNAPSHOT_DIR=/snapshots',
     '--volume',
-    `${e2eDir}:/quent/ui/e2e`,
+    `${e2eDir}:/snapshots`,
     image,
     'bash',
-    '/quent/ui/e2e/run-snapshot-container.sh',
+    '/quent/ui/scripts/run-snapshot-container.sh',
     ...playwrightArgs,
   ]);
 }

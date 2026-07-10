@@ -10,10 +10,11 @@ import { fileURLToPath } from 'node:url';
 
 const e2eDir = path.dirname(fileURLToPath(import.meta.url));
 const uiRoot = path.resolve(e2eDir, '..');
+const scriptsDir = path.join(uiRoot, 'scripts');
 const dataDir = process.env.PLAYWRIGHT_E2E_DATA_DIR ?? path.join(uiRoot, '.e2e-data');
 
 async function globalSetup(_config: FullConfig) {
-  const script = spawn('bash', [path.join(e2eDir, 'start-e2e-server.sh')], {
+  const script = spawn('bash', [path.join(scriptsDir, 'start-e2e-server.sh')], {
     stdio: 'inherit',
     env: process.env,
   });
