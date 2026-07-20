@@ -26,6 +26,12 @@ repos:
   hooks:
     - id: verify-copyright
       args: [--fix, --spdx]
+      exclude: |
+        (?x)
+          bridge/include/rust/cxx\.h$|
+          bridge/include/quent-bridge/gen/|
+          examples/simulator/server/ts-bindings/
       files: |
         (?x)
-          [.](rs|js|ts|tsx|jsx|mjs|cjs|py|sh)$
+          CMakeLists\.txt$|
+          [.](rs|js|ts|tsx|jsx|mjs|cjs|py|sh|cpp|h|proto|css)$
