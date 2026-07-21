@@ -1,34 +1,31 @@
 # syntax=docker/dockerfile:1
 
+# Playwright base for browsers; toolchain comes from the repo pixi lockfile (same as CI).
 FROM mcr.microsoft.com/playwright:v1.60.0-noble
 
-ARG PNPM_VERSION=11.6.0
-ARG RUST_VERSION=1.91.0
+ARG PIXI_VERSION=v0.73.0
 
-ENV PATH="/root/.cargo/bin:${PATH}"
-
+# curl is used by the pixi installer and by start-e2e-server.sh readiness checks.
 RUN apt-get update && \
-    apt-get install -y --no-install-recommends \
-      build-essential \
-      ca-certificates \
-      curl \
-      pkg-config \
-      protobuf-compiler && \
-    rm -rf /var/lib/apt/lists/*
-
-RUN npm install --global "pnpm@${PNPM_VERSION}" && \
-    curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | \
-      sh -s -- -y --profile minimal --default-toolchain "${RUST_VERSION}"
+    apt-get install -y --no-install-recommends ca-certificates curl && \
+    rm -rf /var/lib/apt/lists/* && \
+    curl -fsSL https://pixi.sh/install.sh | \
+      PIXI_VERSION="${PIXI_VERSION}" PIXI_BIN_DIR=/usr/local/bin PIXI_NO_PATH_UPDATE=1 bash
 
 WORKDIR /quent
+
+COPY pixi.toml pixi.lock ./
+RUN --mount=type=cache,target=/root/.cache/rattler/cache,sharing=locked \
+    pixi install --locked
 
 COPY Cargo.toml Cargo.lock ./
 COPY crates ./crates
 COPY domains ./domains
 COPY examples ./examples
+COPY integrations ./integrations
 COPY proto ./proto
 
-RUN cargo build -p quent-simulator-server -p quent-query-engine-fixed
+RUN pixi run cargo build -p quent-simulator-server -p quent-query-engine-fixed
 
 COPY ui/package.json ui/pnpm-lock.yaml ui/pnpm-workspace.yaml ./ui/
 COPY ui/packages/@quent/client/package.json ./ui/packages/@quent/client/package.json
@@ -36,6 +33,6 @@ COPY ui/packages/@quent/components/package.json ./ui/packages/@quent/components/
 COPY ui/packages/@quent/hooks/package.json ./ui/packages/@quent/hooks/package.json
 COPY ui/packages/@quent/utils/package.json ./ui/packages/@quent/utils/package.json
 
-RUN pnpm --dir ui install --frozen-lockfile
+RUN pixi run pnpm --dir ui install --frozen-lockfile
 
 COPY ui ./ui

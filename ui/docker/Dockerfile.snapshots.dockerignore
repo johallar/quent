@@ -1,4 +1,5 @@
 target/
+.pixi/
 data/
 server/data/*.ndjson
 
@@ -17,5 +18,6 @@ ui/test-results/
 .vscode/
 .idea/
 .claude/
+.cursor/
 **/.DS_Store
 *.log

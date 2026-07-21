@@ -13,4 +13,7 @@ restore_snapshot_ownership() {
 
 trap restore_snapshot_ownership EXIT
 
-pnpm --dir /quent/ui exec playwright test --update-snapshots=all "$@"
+# Match CI: cargo/pnpm come from the pixi env.
+export PLAYWRIGHT_CARGO_COMMAND="${PLAYWRIGHT_CARGO_COMMAND:-pixi run cargo}"
+
+pixi run pnpm --dir /quent/ui exec playwright test --update-snapshots=all "$@"
