@@ -193,8 +193,8 @@ pnpm dlx shadcn@latest add dropdown-menu
 - `pnpm lint:fix` - Fix ESLint errors and format code
 - `pnpm format` - Format code with Prettier
 - `pnpm test:e2e` - Run Playwright end-to-end tests
-- `pnpm test:e2e:update-snapshots` - Generate Darwin or Dockerized (pixi) Linux golden
-  images
+- `pnpm test:e2e:update-snapshots` - Generate Darwin or Dockerized (pixi) Linux
+  golden images
 
 ## Development Tools
 
