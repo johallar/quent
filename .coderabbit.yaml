@@ -107,7 +107,7 @@ reviews:
         - Packages are meant to be reusable outside this app. Prefer putting shared logic here over `ui/src/`.
         - Respect dependency direction: `@quent/utils` → `@quent/client` → `@quent/hooks` → `@quent/components`. Flag inverted imports.
         - Public API only via each package's `src/index.ts` barrel; flag deep imports into package internals.
-        - Cross-package deps must use `workspace:*`; peer deps must be declared for consumer-provided libraries (react, jotai, tanstack, echarts, etc.).
+        - Cross-package deps must use `workspace:*`. Consumer-provided libraries use `catalog:` in dependencies/devDependencies and declared peer ranges that stay in major lockstep with `ui/pnpm-workspace.yaml` `catalog:` (react, jotai, tanstack, echarts, etc.).
         - App-shell-only concerns (route chrome, theme toggle wiring, page composition) belong in `ui/src/`, not in `@quent/*`.
         - Search for an existing helper before adding one; consolidate overlapping utilities and tests into the lowest reusable package (usually `@quent/utils`).
         - Inside `@quent/*`, use relative sibling imports; do not use the app-shell `@/` alias (it is not configured in package tsconfigs).
@@ -136,12 +136,20 @@ reviews:
         ## App shell
         - `ui/src/` is routing, layout, and glue. Flag reusable visualizations, hooks, atoms, or API helpers that should live in `@quent/*` instead.
         - Prefer composing `@quent/components` / `@quent/hooks` / `@quent/client` over growing app-local duplicates.
+    - path: "ui/pnpm-workspace.yaml"
+      instructions: |
+        ## Workspace catalog
+        - Shared dependency versions live in the top-level `catalog:` block. Prefer `"catalog:"` in package deps/devDeps over duplicating version ranges.
+        - When bumping a catalog entry's major version, require matching major bumps (at least `^<major>.0.0`) for that package in every `@quent/*` `peerDependencies` declaration that lists it.
+        - Flag peer ranges whose major lags the catalog major (e.g. catalog `react: ^20.x` with peer `react: ^19.0.0`).
     - path: "ui/**/package.json"
       instructions: |
         ## Dependency updates
-        - Prefer resolving dependency bumps by updating the lockfile (`pnpm-lock.yaml`) only, within the existing semver range already declared in `package.json`.
-        - Flag new `overrides` / `pnpm.overrides` (or equivalent pin mechanisms) when the target version is already allowed by the current range — refresh the lockfile instead.
-        - Only change `package.json` version ranges or add overrides when the needed version is outside the existing range, or when an override is the only viable fix (document why).
+        - Shared versions come from `ui/pnpm-workspace.yaml` `catalog:`; use `"catalog:"` for catalogued deps/devDeps instead of inlining versions.
+        - Prefer resolving in-range bumps by updating the lockfile (`pnpm-lock.yaml`) only when the catalog range already allows the target.
+        - Flag new `overrides` / `pnpm.overrides` when the target version is already allowed by the catalog/range — refresh the lockfile instead.
+        - Only change catalog ranges, package.json ranges, or overrides when the needed version is outside the existing range, or when an override is the only viable fix (document why).
+        - When a catalogued package's major changes, keep every package's `peerDependencies` for that package in major lockstep with the catalog (at least `^<major>.0.0`).
     - path: "docs/**/*.md"
       instructions: |
         - Verify examples match the current API; new pages must be linked in SUMMARY.md.

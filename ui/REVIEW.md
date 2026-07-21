@@ -81,8 +81,9 @@ Dependency direction (do not invert):
   sibling imports.
 - The `@/` alias is app-shell only (`ui/src/`). `@quent/*` packages do not
   define it.
-- Cross-package deps use `"workspace:*"`. Declare peers that consumers must
-  provide.
+- Cross-package deps use `"workspace:*"`. Catalogued libs use `"catalog:"` in
+  deps/devDeps; declare peer ranges that stay in major lockstep with the
+  workspace catalog.
 - New shared UI belongs in `@quent/*`, not a one-off under `ui/src/components/`
   unless it is truly app-shell-only (nav chrome, route layout).
 - Search before adding helpers; consolidate duplicate utilities and tests into
@@ -151,13 +152,18 @@ When reviewing:
 
 ## Dependency updates
 
-- Prefer bumping transitive/direct resolutions by refreshing `pnpm-lock.yaml`
-  only, within the semver range already declared in `package.json`.
+- Shared versions live in `ui/pnpm-workspace.yaml` `catalog:`. Use `"catalog:"`
+  for catalogued deps/devDeps instead of inlining version ranges.
+- Prefer in-range bumps by refreshing `pnpm-lock.yaml` when the catalog range
+  already allows the target.
 - Do not add `overrides` / `pnpm.overrides` when the desired version is already
   in range — update the lockfile instead.
-- Change `package.json` ranges or add overrides only when the needed version is
-  outside the existing range, or when an override is the only viable fix (and
-  say why).
+- Change catalog ranges, `package.json` ranges, or overrides only when the
+  needed version is outside the existing range, or when an override is the only
+  viable fix (and say why).
+- When a catalog entry's major version changes, keep every `@quent/*`
+  `peerDependencies` range for that package in major lockstep with the catalog
+  (at least `^<major>.0.0`). Do not leave peers on an older major than catalog.
 
 ## Generated files
 
