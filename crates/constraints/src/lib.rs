@@ -5,6 +5,7 @@
 
 pub mod utils;
 
+mod entities_without_events;
 mod recursive_record;
 mod unregistered_constraints;
 mod unresolved_refs;
@@ -31,12 +32,12 @@ use quent_schema::{Schema, visitor::Visitor};
 pub trait Constraint: Visitor + Default {
     /// A unique name for this constraint.
     ///
-    /// While no restrictions are imposed on constraint names (other than that
-    /// they are valid UTF-8 strings) it is recommended to follow the
-    /// human-readable dot-separated pattern `project.constraint.version`. For
-    /// example: `quent.fsm.v1`. This reduces the probability of name clashes
-    /// between dependencies, and provides a means of easily detecting breaking
-    /// changes to the constraint's own schema.
+    /// While constraint names only need to be valid UTF-8, the recommended
+    /// pattern is `project.constraint.v<SEMVER>`, following [Semantic
+    /// Versioning]. Unstable constraints should use a major version of zero,
+    /// for example `quent.fsm.v0.1.0`.
+    ///
+    /// [Semantic Versioning]: https://semver.org/
     const NAME: &'static str;
 }
 
@@ -50,15 +51,18 @@ pub struct BaseConstraintsError {
     pub invalid_references: Vec<String>,
     /// Records that are recursive
     pub recursive_records: Vec<String>,
+    /// Entities that declare no events.
+    pub entities_without_events: Vec<String>,
 }
 impl Display for BaseConstraintsError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
             "base constraints failed to validate:\n{}",
-            &[
+            [
                 utils::bullet_list(&self.invalid_references),
-                utils::bullet_list(&self.recursive_records)
+                utils::bullet_list(&self.recursive_records),
+                utils::bullet_list(&self.entities_without_events),
             ]
             .join("\n")
         )
@@ -104,7 +108,7 @@ pub struct Report<R> {
 /// #     }
 /// # }
 /// # impl Constraint for DocConstraint {
-/// #     const NAME: &'static str = "quent.docs.constraint.v1";
+/// #     const NAME: &'static str = "quent.docs.constraint.v0.1.0";
 /// # }
 /// # type ConstraintA = DocConstraint;
 /// # type ConstraintB = DocConstraint;
@@ -120,19 +124,31 @@ pub struct Report<R> {
 /// assert!(report.unregistered_constraints.is_empty());
 /// ```
 pub fn validate<C: Constraints>(schema: &Schema) -> Report<C::Output> {
-    let (invalid_references, unregistered_constraints, recursive_records, results) = schema.walk((
+    let (
+        invalid_references,
+        unregistered_constraints,
+        recursive_records,
+        entities_without_events,
+        results,
+    ) = schema.walk((
         unresolved_refs::UnresolvedReferences::default(),
         unregistered_constraints::UnregisteredConstraints::new(C::NAMES),
         recursive_record::RecursiveRecords::default(),
+        entities_without_events::EntitiesWithoutEvents::default(),
         C::default(),
     ));
     Report {
         unregistered_constraints: unregistered_constraints.into_iter().collect(),
-        base_constraints: match (invalid_references.len(), recursive_records.len()) {
-            (0, 0) => Ok(()),
+        base_constraints: match (
+            invalid_references.len(),
+            recursive_records.len(),
+            entities_without_events.len(),
+        ) {
+            (0, 0, 0) => Ok(()),
             _ => Err(BaseConstraintsError {
                 invalid_references,
                 recursive_records,
+                entities_without_events,
             }),
         },
         results,

@@ -3,11 +3,19 @@
 
 use quent_constraints::{Constraint, validate};
 use quent_schema::{
-    Cardinality, DataType, Field, Schema,
+    Annotations, Cardinality, DataType, Field, Schema,
     builder::{AnnotationsBuilder, EntityBuilder, EventBuilder, RecordBuilder, SchemaBuilder},
-    test_utils::{self, entity, event, field, ident, schema},
+    test_utils::{self, entity, event, eventless_entity, field, ident, record, schema},
     visitor::{Cursor, Visitor},
 };
+
+/// Annotations carrying the constraint `name` without data.
+fn constraint(name: &str) -> Annotations {
+    AnnotationsBuilder::new()
+        .try_with_constraint(name, None)
+        .unwrap()
+        .build()
+}
 
 fn empty_schema() -> Schema {
     test_utils::schema("TestSchema", vec![], vec![])
@@ -88,12 +96,7 @@ fn passing_constraint_on_empty_schema() {
 #[test]
 fn constraint_without_validator_is_unregistered() {
     let schema = SchemaBuilder::new(ident("TestSchema"))
-        .annotations(
-            AnnotationsBuilder::new()
-                .constraint("unknown", None)
-                .unwrap()
-                .build(),
-        )
+        .with_annotations(constraint("unknown"))
         .build();
     let report = validate::<(NoopA,)>(&schema);
     assert_eq!(report.unregistered_constraints.len(), 1);
@@ -109,9 +112,9 @@ fn constraint_without_validator_is_unregistered() {
 #[test]
 fn metadata_is_never_validated() {
     let schema = SchemaBuilder::new(ident("TestSchema"))
-        .annotations(
+        .with_annotations(
             AnnotationsBuilder::new()
-                .metadata("not_validated", None)
+                .try_with_metadata("not_validated", None)
                 .unwrap()
                 .build(),
         )
@@ -122,35 +125,31 @@ fn metadata_is_never_validated() {
 
 #[test]
 fn unregistered_constraint_is_reported_once() {
-    let unknown = || {
-        AnnotationsBuilder::new()
-            .constraint("unknown", None)
-            .unwrap()
-            .build()
-    };
+    let unknown = || constraint("unknown");
     let field = Field::new(ident("ef"), DataType::U64, unknown());
     let event = EventBuilder::new(ident("Ev"), Cardinality::Once)
-        .field(field)
+        .try_with_field(field)
         .unwrap()
-        .annotations(unknown())
+        .with_annotations(unknown())
         .build();
     let entity = EntityBuilder::new(ident("E"))
-        .event(event)
+        .try_with_event(event)
         .unwrap()
-        .annotations(unknown())
-        .build();
+        .with_annotations(unknown())
+        .build()
+        .unwrap();
     let record_field = Field::new(ident("rf"), DataType::U64, unknown());
     let record = RecordBuilder::new(ident("R"))
-        .field(record_field)
+        .try_with_field(record_field)
         .unwrap()
-        .annotations(unknown())
+        .with_annotations(unknown())
         .build();
     let schema = SchemaBuilder::new(ident("S"))
-        .entity(entity)
+        .try_with_entity(entity)
         .unwrap()
-        .record(record)
+        .try_with_record(record)
         .unwrap()
-        .annotations(unknown())
+        .with_annotations(unknown())
         .build();
     let report = validate::<(NoopA,)>(&schema);
     // The same name used at six sites is deduplicated to a single entry.
@@ -174,12 +173,7 @@ fn constraint_failure_is_reported_per_constraint() {
 #[test]
 fn unregistered_and_failure_aggregate() {
     let schema = SchemaBuilder::new(ident("TestSchema"))
-        .annotations(
-            AnnotationsBuilder::new()
-                .constraint("unknown", None)
-                .unwrap()
-                .build(),
-        )
+        .with_annotations(constraint("unknown"))
         .build();
     let report = validate::<(Failing,)>(&schema);
     assert!(
@@ -226,4 +220,19 @@ fn validates_consistency_with_no_constraints() {
 
     let clean = validate::<()>(&empty_schema());
     assert!(clean.base_constraints.is_ok());
+}
+
+#[test]
+fn entity_without_events_fails_base_validation() {
+    let schema = schema("S", vec![eventless_entity("E")], vec![]);
+    let error = validate::<()>(&schema).base_constraints.unwrap_err();
+
+    assert_eq!(error.entities_without_events, vec!["E".to_string()]);
+    assert!(error.to_string().contains("  - E"));
+}
+
+#[test]
+fn empty_record_passes_base_validation() {
+    let schema = schema("S", vec![], vec![record("Empty", vec![])]);
+    assert!(validate::<()>(&schema).base_constraints.is_ok());
 }

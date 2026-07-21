@@ -124,9 +124,9 @@ mod tests {
                     opt: Option<i32>,
                     list: Vec<String>,
                     rec: SomeRecord,
-                    dynrec: ::quent_instrumentation::CustomAttributes,
-                    eref: ::quent_instrumentation::EntityRef,
-                    eref_payload: ::quent_instrumentation::EntityRef<u64>
+                    dynrec: ::quent_instrumentation::DynamicAttributes,
+                    eref: ::quent_instrumentation::EntityRef<AnyEntity>,
+                    eref_payload: ::quent_instrumentation::EntityRef<AnyEntity, u64>
                 }
             }
         };
@@ -135,20 +135,25 @@ mod tests {
 
     #[test]
     fn docs_annotations_become_doc_attributes() {
-        let docs = |text: &str| AnnotationsBuilder::new().docs(text).build();
+        let docs = |text: &str| {
+            let mut builder = AnnotationsBuilder::new();
+            builder.set_docs(text);
+            builder.build()
+        };
         let field_x = Field::new(ident("x"), DataType::U8, docs("field doc"));
         let ev = EventBuilder::new(ident("ev"), Cardinality::Once)
-            .fields([field_x])
+            .try_with_field(field_x)
             .unwrap()
-            .annotations(docs("event doc"))
+            .with_annotations(docs("event doc"))
             .build();
         let en = EntityBuilder::new(ident("E"))
-            .events([ev])
+            .try_with_event(ev)
             .unwrap()
-            .annotations(docs("entity doc"))
-            .build();
+            .with_annotations(docs("entity doc"))
+            .build()
+            .unwrap();
         let s = SchemaBuilder::new(ident("M"))
-            .entities([en])
+            .try_with_entity(en)
             .unwrap()
             .build();
 
@@ -191,16 +196,6 @@ mod tests {
     }
 
     #[test]
-    fn entity_without_events_emits_empty_enum() {
-        let s = schema("M", [entity("E", [])], []);
-        let expected = quote! {
-            #[doc = "Events emitted by `E` entities."]
-            pub enum EEvent {}
-        };
-        assert_eq!(events_src(&s), pretty(expected));
-    }
-
-    #[test]
     fn nested_container_types_recurse() {
         let s = schema(
             "M",
@@ -233,7 +228,7 @@ mod tests {
                 #[doc = "The `ev` event."]
                 Ev {
                     nested: Option<Vec<Option<u8>>>,
-                    eref_list: ::quent_instrumentation::EntityRef<Vec<String>>
+                    eref_list: ::quent_instrumentation::EntityRef<AnyEntity, Vec<String>>
                 }
             }
         };

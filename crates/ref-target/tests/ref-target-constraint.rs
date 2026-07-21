@@ -13,7 +13,7 @@ fn entity_ref(target: Option<&str>) -> DataType {
     DataType::EntityRef {
         data: None,
         annotations: AnnotationsBuilder::new()
-            .constraint(RefTargetConstraint::NAME, target.map(ToString::to_string))
+            .try_with_constraint(RefTargetConstraint::NAME, target.map(ToString::to_string))
             .unwrap()
             .build(),
     }
@@ -34,7 +34,7 @@ fn validate(schema: &Schema) -> Vec<RefTargetError> {
 
 #[test]
 fn ref_to_existing_entity_passes() {
-    let worker = entity("Worker", vec![]);
+    let worker = entity("Worker", vec![event("created", vec![])]);
     let task = entity(
         "Task",
         vec![event(
