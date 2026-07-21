@@ -25,7 +25,7 @@
     "@tanstack/react-router": "catalog:",
     "@types/react": "catalog:",
     "react": "catalog:",
-    "tsdown": "^0.22.3",
-    "typescript": "^5.9.3"
+    "tsdown": "catalog:",
+    "typescript": "catalog:"
   }
 }
