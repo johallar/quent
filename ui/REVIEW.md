@@ -21,15 +21,15 @@ and package boundaries over new dependencies or one-off app-shell code.
 
 ## Foundational stack (prefer these)
 
-| Concern | Use | Avoid |
-|---------|-----|--------|
-| Components / primitives | React 19 + shadcn/ui in `@quent/components/src/ui/` (Radix + `lucide-react`) | New UI kits, ad-hoc primitive wrappers |
-| Styling | Tailwind 4 + `cn()` from `@quent/utils` | String-concatenated classNames, inline style sprawl, CSS-in-JS |
-| Routing | TanStack Router file routes under `ui/src/routes/` | React Router / custom history hacks |
-| Server state | TanStack Query via `@quent/client` `queryOptions` / hooks | Ad-hoc `useEffect` + `fetch`, React Context as a data store |
-| UI / interaction state | Jotai atoms (in `@quent/hooks` or app `atoms/`) | Context stores for selection/zoom/viewport |
-| Large lists / tables | `@tanstack/react-table` + `@tanstack/react-virtual` | Rendering full trace/event arrays unvirtualized |
-| Charts | ECharts via `@quent/components` helpers | Parallel chart libs for the same timelines |
+| Concern                 | Use                                                                          | Avoid                                                          |
+| ----------------------- | ---------------------------------------------------------------------------- | -------------------------------------------------------------- |
+| Components / primitives | React 19 + shadcn/ui in `@quent/components/src/ui/` (Radix + `lucide-react`) | New UI kits, ad-hoc primitive wrappers                         |
+| Styling                 | Tailwind 4 + `cn()` from `@quent/utils`                                      | String-concatenated classNames, inline style sprawl, CSS-in-JS |
+| Routing                 | TanStack Router file routes under `ui/src/routes/`                           | React Router / custom history hacks                            |
+| Server state            | TanStack Query via `@quent/client` `queryOptions` / hooks                    | Ad-hoc `useEffect` + `fetch`, React Context as a data store    |
+| UI / interaction state  | Jotai atoms (in `@quent/hooks` or app `atoms/`)                              | Context stores for selection/zoom/viewport                     |
+| Large lists / tables    | `@tanstack/react-table` + `@tanstack/react-virtual`                          | Rendering full trace/event arrays unvirtualized                |
+| Charts                  | ECharts via `@quent/components` helpers                                      | Parallel chart libs for the same timelines                     |
 
 ### Library best practices
 

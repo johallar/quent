@@ -49,15 +49,15 @@ reviews:
         - Do not add custom methods that duplicate standard traits (`AsRef`, `From`, …); prefer the std traits.
         - Extract shared validation/test helpers duplicated across sibling crates instead of copy-pasting.
         - Integration tests should build fixtures through real setup paths (Context, exporter, etc.), not hand-crafted inputs that hardcode the property under test.
-        - Preserve full error cause chains in user-facing CLI/output; do not truncate messages.
         - Changes to persisted artifact formats must keep `quent open` working for prior-commit artifacts in the same PR.
         - No unnecessary trait bounds; do not constrain types or implementations more than needed.
-        - If changing Serialize/Deserialize request or response types used by the UI, require matching ts-rs (`#[derive(TS)]`) updates and regenerated bindings; flag hand-edited ts-bindings.
         - Optimized/batch paths must preserve the single-item path's failure, drop, and logging semantics unless the behavior change is explicit and tested; one bad item must not accidentally discard the remaining batch.
         - Tests belong at the layer that owns the behavior. Cover new public contracts and error/edge paths without duplicating tests for an inner implementation.
         - Builder APIs: infallible setters, fallible `build()`/`try_build()`; do not drop `Self` on setter `Err`.
         - Do not eagerly convert bulky static attributes to dynamic form for every instance; convert at the UI/analyzer boundary only when needed.
         - Comments: no opaque internal IDs (`D-01`, `CORE`, …) without explaining meaning; one or two terse why-lines, not narration.
+        - Comments: do not introduce context from coding agent threads that is opaque to other developers. It must be possible to reason and understand commentary based purely on what is in the source tree.
+        - Avoid magic sentinel strings that can collide with real identifiers; use typed variants, opaque IDs, or prove collision freedom.
     - path: "crates/**/Cargo.toml"
       instructions: |
         - Dependencies come from [workspace.dependencies] via `workspace = true`; no git deps.
@@ -65,18 +65,8 @@ reviews:
     - path: "domains/**/server/**/*.rs"
       instructions: |
         - UI HTTP routes (especially under `/api/engines`) must stay in sync with `@quent/client` fetchers.
-        - Flag new/changed routes without a matching `fetch*` + `queryOptions` update in `ui/packages/@quent/client`.
-        - Request/response bodies that cross the wire must use types with ts-rs `TS` derive; do not expose ad-hoc JSON shapes the client cannot type from `@quent/utils`.
-        - Scope response data and metadata to the requested engine/query/filter; do not leak engine-wide declarations into a filtered response.
         - Reject unknown requested enum/filter values rather than silently accepting them. Use typed unsupported errors for unsupported capabilities.
-        - Avoid magic sentinel strings that can collide with real identifiers; use typed variants, opaque IDs, or prove collision freedom.
         - Unsupported analyzer capabilities should use typed `AnalyzerError::Unsupported` (or equivalent) and map to HTTP 501, not ad-hoc response variants.
-    - path: "integrations/**/*.{rs,toml}"
-      instructions: |
-        - Keep integration/vocabulary crates agnostic: no Quent-specific traits in shared vocab crates; feature-gate serde behind explicit features.
-        - Prefer bindgen/build-time generation into `OUT_DIR` over checked-in generated sources when the Pixi toolchain provides headers/libclang.
-        - Platform-specific integration crates should not be in workspace `default-members` unless every contributor needs them.
-        - FFI/`extern "C"`: document `unsafe` for Rust callers, prevent hook/callback recursion, and avoid panics or `eprintln!` across the boundary.
     - path: "ui/**/*.{ts,tsx}"
       instructions: |
         ## Foundation (see ui/REVIEW.md)
