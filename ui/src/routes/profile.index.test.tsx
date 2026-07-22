@@ -66,7 +66,6 @@ describe('ProfileSearchPage', () => {
     expect(screen.getByLabelText(/search profiles/i)).toBeInTheDocument();
     expect(screen.getByLabelText(/filter by engine/i)).toBeInTheDocument();
     expect(screen.getByLabelText(/filter by query group/i)).toBeInTheDocument();
-    expect(screen.getByLabelText(/completed/i)).toBeInTheDocument();
   });
 
   it('aggregates and lists all profiles across engines', async () => {

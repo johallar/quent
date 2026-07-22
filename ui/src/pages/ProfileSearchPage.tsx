@@ -4,11 +4,9 @@
 import { useMemo, useState } from 'react';
 import { useNavigate } from '@tanstack/react-router';
 import { Search } from 'lucide-react';
-import { getProfileStatus, useAllProfiles } from '@quent/client';
-import type { ProfileRow, ProfileStatus } from '@quent/client';
+import { useAllProfiles } from '@quent/client';
+import type { ProfileRow } from '@quent/client';
 import {
-  Badge,
-  Checkbox,
   Combobox,
   DataText,
   Input,
@@ -37,22 +35,6 @@ import { cn, formatDuration } from '@quent/utils';
 
 const PAGE_SIZE_OPTIONS = [10, 25, 50, 100];
 const DEFAULT_PAGE_SIZE = 25;
-
-const STATUS_FILTERS: { value: ProfileStatus; label: string }[] = [
-  { value: 'completed', label: 'Completed' },
-  { value: 'executing', label: 'Executing' },
-  { value: 'planning', label: 'Planning' },
-];
-
-const STATUS_BADGE: Record<
-  ProfileStatus,
-  { label: string; variant: 'default' | 'secondary' | 'outline' }
-> = {
-  completed: { label: 'Completed', variant: 'default' },
-  executing: { label: 'Executing', variant: 'secondary' },
-  planning: { label: 'Planning', variant: 'outline' },
-  unknown: { label: 'Unknown', variant: 'outline' },
-};
 
 const NBSP_DASH = '—';
 
@@ -108,7 +90,6 @@ export function ProfileSearchPage() {
   const [text, setText] = useState('');
   const [engineId, setEngineId] = useState('');
   const [groupId, setGroupId] = useState('');
-  const [statuses, setStatuses] = useState<Set<ProfileStatus>>(new Set());
   const [page, setPage] = useState(0);
   const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
 
@@ -135,7 +116,6 @@ export function ProfileSearchPage() {
     return rows.filter(row => {
       if (engineId && row.engine.id !== engineId) return false;
       if (groupId && row.queryGroup?.id !== groupId) return false;
-      if (statuses.size && !statuses.has(getProfileStatus(row.query))) return false;
       if (needle) {
         const haystack = [
           row.query.id,
@@ -152,23 +132,13 @@ export function ProfileSearchPage() {
       }
       return true;
     });
-  }, [rows, text, engineId, groupId, statuses]);
+  }, [rows, text, engineId, groupId]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
   const safePage = Math.min(page, totalPages - 1);
   const pageRows = filtered.slice(safePage * pageSize, safePage * pageSize + pageSize);
 
   const resetToFirstPage = () => setPage(0);
-
-  const toggleStatus = (status: ProfileStatus) => {
-    setStatuses(prev => {
-      const next = new Set(prev);
-      if (next.has(status)) next.delete(status);
-      else next.add(status);
-      return next;
-    });
-    resetToFirstPage();
-  };
 
   const openProfile = (row: ProfileRow) => {
     navigate({
@@ -177,12 +147,11 @@ export function ProfileSearchPage() {
     });
   };
 
-  const activeFilters = Boolean(text || engineId || groupId || statuses.size);
+  const activeFilters = Boolean(text || engineId || groupId);
   const clearFilters = () => {
     setText('');
     setEngineId('');
     setGroupId('');
-    setStatuses(new Set());
     resetToFirstPage();
   };
 
@@ -240,31 +209,17 @@ export function ProfileSearchPage() {
           />
         </div>
 
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-          <span className="text-xs font-medium text-muted-foreground">Status:</span>
-          {STATUS_FILTERS.map(status => (
-            <label
-              key={status.value}
-              className="flex cursor-pointer items-center gap-1.5 text-sm select-none"
-            >
-              <Checkbox
-                checked={statuses.has(status.value)}
-                onCheckedChange={() => toggleStatus(status.value)}
-                aria-label={status.label}
-              />
-              {status.label}
-            </label>
-          ))}
-          {activeFilters && (
+        {activeFilters && (
+          <div className="flex items-center justify-end">
             <button
               type="button"
               onClick={clearFilters}
-              className="ml-auto text-xs text-primary hover:underline cursor-pointer"
+              className="text-xs text-primary hover:underline cursor-pointer"
             >
               Clear filters
             </button>
-          )}
-        </div>
+          </div>
+        )}
       </div>
 
       {/* Results summary */}
@@ -307,7 +262,6 @@ export function ProfileSearchPage() {
               <TableHead>Query</TableHead>
               <TableHead>Engine</TableHead>
               <TableHead>Query Group</TableHead>
-              <TableHead>Status</TableHead>
               <TableHead>Started</TableHead>
               <TableHead className="text-right">Planning</TableHead>
               <TableHead className="text-right">Executing</TableHead>
@@ -318,7 +272,7 @@ export function ProfileSearchPage() {
             {isLoading ? (
               Array.from({ length: 8 }).map((_, i) => (
                 <TableRow key={i}>
-                  {Array.from({ length: 8 }).map((__, j) => (
+                  {Array.from({ length: 7 }).map((__, j) => (
                     <TableCell key={j}>
                       <Skeleton className="h-4 w-full" />
                     </TableCell>
@@ -327,7 +281,7 @@ export function ProfileSearchPage() {
               ))
             ) : isError ? (
               <TableRow>
-                <TableCell colSpan={8} className="h-24 text-center text-muted-foreground">
+                <TableCell colSpan={7} className="h-24 text-center text-muted-foreground">
                   Failed to load profiles.{' '}
                   <button
                     type="button"
@@ -340,48 +294,42 @@ export function ProfileSearchPage() {
               </TableRow>
             ) : pageRows.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={8} className="h-24 text-center text-muted-foreground">
+                <TableCell colSpan={7} className="h-24 text-center text-muted-foreground">
                   {rows.length === 0 ? 'No profiles available.' : 'No profiles match your filters.'}
                 </TableCell>
               </TableRow>
             ) : (
-              pageRows.map(row => {
-                const badge = STATUS_BADGE[getProfileStatus(row.query)];
-                return (
-                  <TableRow
-                    key={`${row.engine.id}:${row.query.id}`}
-                    onClick={() => openProfile(row)}
-                    className="cursor-pointer"
-                  >
-                    <TableCell className="max-w-[22rem] truncate">
-                      <DataText>{queryName(row)}</DataText>
-                    </TableCell>
-                    <TableCell>
-                      <DataText>{engineName(row)}</DataText>
-                    </TableCell>
-                    <TableCell className="max-w-[16rem] truncate">
-                      <DataText>{groupName(row) || NBSP_DASH}</DataText>
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant={badge.variant}>{badge.label}</Badge>
-                    </TableCell>
-                    <TableCell>
-                      <DataText className="text-muted-foreground">
-                        {formatStart(row.query.start_unix_ns)}
-                      </DataText>
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <DataText>{formatPhase(row.query.planning_s)}</DataText>
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <DataText>{formatPhase(row.query.executing_s)}</DataText>
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <DataText>{formatPhase(row.query.completed_s)}</DataText>
-                    </TableCell>
-                  </TableRow>
-                );
-              })
+              pageRows.map(row => (
+                <TableRow
+                  key={`${row.engine.id}:${row.query.id}`}
+                  onClick={() => openProfile(row)}
+                  className="cursor-pointer"
+                >
+                  <TableCell className="max-w-[22rem] truncate">
+                    <DataText>{queryName(row)}</DataText>
+                  </TableCell>
+                  <TableCell>
+                    <DataText>{engineName(row)}</DataText>
+                  </TableCell>
+                  <TableCell className="max-w-[16rem] truncate">
+                    <DataText>{groupName(row) || NBSP_DASH}</DataText>
+                  </TableCell>
+                  <TableCell>
+                    <DataText className="text-muted-foreground">
+                      {formatStart(row.query.start_unix_ns)}
+                    </DataText>
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <DataText>{formatPhase(row.query.planning_s)}</DataText>
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <DataText>{formatPhase(row.query.executing_s)}</DataText>
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <DataText>{formatPhase(row.query.completed_s)}</DataText>
+                  </TableCell>
+                </TableRow>
+              ))
             )}
           </TableBody>
         </Table>
