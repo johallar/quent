@@ -38,13 +38,12 @@ import { MAX_TIMELINE_BINS } from '@quent/utils';
 void getColorForKey;
 const LONG_ENTITIES_BIN_MULTIPLIER = 30;
 
-/** Minimum bin duration in nanoseconds — prevents ECharts from stacking bins when zoomed too far. */
-export const MIN_BIN_DURATION_NS = 250;
+/** Minimum bin duration in nanoseconds — the backend cannot produce sub-1ns bins. */
+export const MIN_BIN_DURATION_NS = 1;
 
 /**
- * Minimum visible zoom window in seconds.
- * Below this, each bin would cover less than MIN_BIN_DURATION_NS nanoseconds.
- * 10 ns/bin × 400 bins = 4 μs
+ * Minimum visible zoom window in seconds: the smallest window the backend can
+ * bin at 1 ns/bin. 1 ns/bin × MAX_TIMELINE_BINS bins.
  */
 export const MIN_ZOOM_WINDOW_S = (MIN_BIN_DURATION_NS * MAX_TIMELINE_BINS) / 1_000_000_000;
 
