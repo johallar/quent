@@ -314,7 +314,6 @@ export function ResourceTimeline({
         <Timeline
           series={series}
           timestamps={timestamps ?? []}
-          startTime={startTime}
           durationSeconds={durationSeconds}
           showTooltip={showTooltip}
           marks={effectiveMarks}
@@ -327,7 +326,6 @@ export function ResourceTimeline({
             series={series}
             timestamps={timestamps ?? []}
             marks={effectiveMarks}
-            startTime={startTime}
           />
         )}
       </Suspense>

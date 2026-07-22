@@ -258,7 +258,7 @@ function QueryResourceTreeContent({ queryBundle, engineId }: QueryResourceTreePr
             />
           </div>
         ),
-        subHeaderContent: <TimelineRuler startTime={startTime} isDark={isDark} />,
+        subHeaderContent: <TimelineRuler isDark={isDark} />,
         render: ({ item }: { item: TreeTableItem }) => {
           switch (item.type) {
             case OPERATOR_TIMELINE_ROW_TYPE: {
@@ -268,7 +268,6 @@ function QueryResourceTreeContent({ queryBundle, engineId }: QueryResourceTreePr
               return (
                 <OperatorGanttChart
                   operators={operators}
-                  startTime={startTime}
                   durationSeconds={durationSeconds}
                   height={DEFAULT_TIMELINE_HEIGHT}
                   isDark={isDark}

@@ -19,7 +19,7 @@ import {
   TIMELINE_MONO_FONT,
   useTimelineEchartsTheme,
 } from './timelineEchartsTheme';
-import { MIN_ZOOM_WINDOW_S, nanosToMs } from '../lib/timeline.utils';
+import { MIN_ZOOM_WINDOW_S } from '../lib/timeline.utils';
 import { useVisibleMaxValue } from './useVisibleMaxValue';
 import { useChartConnect } from '../lib/useChartConnect';
 import { Opts } from 'echarts-for-react/lib/types';
@@ -40,7 +40,6 @@ export interface TimelineHoverPosition {
 
 /** Stacked-area timeline chart backed by ECharts, with zoom sync and optional tooltip. */
 export function Timeline({
-  startTime,
   durationSeconds,
   series,
   timestamps,
@@ -49,7 +48,6 @@ export function Timeline({
   isDark,
   onHoverChange,
 }: {
-  startTime: bigint;
   /** Full query duration — used to set xAxis range so dataZoom percentages align across all connected charts */
   durationSeconds: number;
   series: TimelineSeries;
@@ -177,9 +175,7 @@ export function Timeline({
     return (v: number) => firstEntry?.formatter(v, 0) ?? String(v);
   }, [series]);
 
-  const startTimeMs = useMemo(() => nanosToMs(startTime), [startTime]);
-
-  const maxValue = useVisibleMaxValue(series, timestamps, startTimeMs);
+  const maxValue = useVisibleMaxValue(series, timestamps);
 
   const yAxisOptions = useMemo(
     () => [
@@ -206,11 +202,11 @@ export function Timeline({
   const xAxisOptions = useMemo(
     () => ({
       boundaryGap: [0, 0] as [number, number],
-      type: 'time',
+      type: 'value',
       animation: false,
       show: true,
-      min: startTimeMs,
-      max: startTimeMs + durationSeconds * 1_000,
+      min: 0,
+      max: durationSeconds * 1_000,
       axisLine: { onZero: true },
       axisLabel: { show: false },
       axisPointer: {
@@ -220,7 +216,7 @@ export function Timeline({
         label: { show: false },
       },
     }),
-    [startTimeMs, durationSeconds]
+    [durationSeconds]
   );
 
   const gridOptions = useMemo(() => ({ ...TIMELINE_SPACING }), []);

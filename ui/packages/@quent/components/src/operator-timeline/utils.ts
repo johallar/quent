@@ -6,7 +6,6 @@ import type { EntityRef } from '@quent/utils';
 import type { Operator } from '@quent/utils';
 import type { PlanTree } from '@quent/utils';
 import type { OperatorActiveSpanEntry } from './types';
-import { nanosToMs } from '../lib/timeline.utils';
 import { parseCustomStatistics } from '../lib/queryBundle.utils';
 
 /** Clip a rect to bounds (same behavior as ECharts custom-gantt-flight example). */
@@ -94,15 +93,16 @@ export function stackOperatorsIntoRows<
 }
 
 /**
- * SpanSec from the API is in seconds relative to query start (epoch).
- * Convert to absolute ms using query start time.
+ * SpanSec from the API is in seconds relative to query start.
+ * Returns ms offsets relative to query start (no absolute epoch base) so the
+ * chart x-domain stays float64-exact.
  */
 export function spanToMs(
   span: { start: number; end: number },
-  startTimeNs: bigint
+  _startTimeNs: bigint
 ): { startMs: number; endMs: number } {
-  const startMs = nanosToMs(startTimeNs) + span.start * 1_000;
-  const endMs = nanosToMs(startTimeNs) + span.end * 1_000;
+  const startMs = span.start * 1_000;
+  const endMs = span.end * 1_000;
   return { startMs, endMs };
 }
 

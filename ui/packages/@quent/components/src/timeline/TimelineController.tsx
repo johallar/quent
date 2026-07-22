@@ -14,7 +14,6 @@ import {
   getAdaptiveNumBins,
   getTimelineXAxisIntervalMs,
   MIN_ZOOM_WINDOW_S,
-  nanosToMs,
   registerAxisPointerSync,
   unregisterAxisPointerSync,
 } from '../lib/timeline.utils';
@@ -60,8 +59,6 @@ export function TimelineController({
   const { themeName, controllerGridBackgroundColor } = useTimelineEchartsTheme(isDark);
   const paletteTheme: PaletteTheme = isDark ? 'dark' : 'light';
 
-  const startTimeMillis = useMemo(() => nanosToMs(startTime), [startTime]);
-
   const { timestamps, seriesData } = useMemo(() => {
     if (timelineData) {
       const { timestamps: ts, series } = buildBinnedTimelineSeries(
@@ -76,10 +73,10 @@ export function TimelineController({
     } else {
       const numBins = getAdaptiveNumBins();
       const binDurationMs = (durationSeconds * 1000) / numBins;
-      const ts = Array.from({ length: numBins }, (_, i) => startTimeMillis + i * binDurationMs);
+      const ts = Array.from({ length: numBins }, (_, i) => i * binDurationMs);
       return { timestamps: ts, seriesData: null };
     }
-  }, [timelineData, startTime, startTimeMillis, durationSeconds, paletteTheme]);
+  }, [timelineData, startTime, durationSeconds, paletteTheme]);
 
   const hasSeriesData = useMemo(() => Boolean(seriesData && seriesData.length > 0), [seriesData]);
 
@@ -123,7 +120,7 @@ export function TimelineController({
     return [staticDisplaySeries, zoomControlSeries];
   }, [timestamps, hasSeriesData, seriesData]);
 
-  const endTimeMillis = startTimeMillis + durationSeconds * 1000;
+  const endTimeMillis = durationSeconds * 1000;
 
   // Measured container width drives the label-count budget so narrow viewports don't crowd the axis.
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -148,14 +145,14 @@ export function TimelineController({
       CONTROLLER_MAX_LABELS,
       Math.max(CONTROLLER_MIN_LABELS, labelBudget)
     );
-    const interval = getTimelineXAxisIntervalMs(endTimeMillis - startTimeMillis, targetSplits);
+    const interval = getTimelineXAxisIntervalMs(endTimeMillis, targetSplits);
 
     return {
       boundaryGap: [0, 0] as [number, number],
       type: 'value',
       show: true,
       position: 'top',
-      min: startTimeMillis,
+      min: 0,
       max: endTimeMillis,
       interval,
       // Re-enable ticks the shared theme disables; default `inside: false`
@@ -167,7 +164,7 @@ export function TimelineController({
         alignMinLabel: 'left',
         alignMaxLabel: 'right',
         formatter: (value: number) => {
-          return formatDuration(Number(value) - startTimeMillis);
+          return formatDuration(Number(value));
         },
       },
       splitLine: { show: true, lineStyle: { type: 'solid' } },
@@ -179,14 +176,14 @@ export function TimelineController({
         handle: { show: false },
       },
     };
-  }, [startTimeMillis, endTimeMillis, containerWidth]);
+  }, [endTimeMillis, containerWidth]);
 
   const zoomXAxisOptions = useMemo(
     () => ({
       boundaryGap: [0, 0] as [number, number],
       type: 'value',
       show: false,
-      min: startTimeMillis,
+      min: 0,
       max: endTimeMillis,
       axisLine: { show: false },
       axisTick: { show: false },
@@ -195,7 +192,7 @@ export function TimelineController({
       // Suppress pointer on the dataZoom'd axis — only xAxis[0] draws the crosshair.
       axisPointer: { show: false },
     }),
-    [startTimeMillis, endTimeMillis]
+    [endTimeMillis]
   );
 
   const yAxisOptions = useMemo(() => {

@@ -299,31 +299,29 @@ describe('stackOperatorsIntoRows', () => {
 // ---- spanToMs --------------------------------------------------------------
 
 describe('spanToMs', () => {
-  it('converts a zero span at epoch zero to {startMs: 0, endMs: 0}', () => {
+  it('converts a zero span to {startMs: 0, endMs: 0}', () => {
     expect(spanToMs({ start: 0, end: 0 }, 0n)).toEqual({ startMs: 0, endMs: 0 });
   });
 
-  it('converts span seconds to milliseconds offset from startTimeNs', () => {
-    // startTimeNs = 1ms = 1_000_000n, span = {start: 1s, end: 2s}
+  it('converts span seconds to relative milliseconds (startTimeNs is ignored)', () => {
+    // span = {start: 1s, end: 2s}; offsets are relative to query start.
     expect(spanToMs({ start: 1, end: 2 }, 1_000_000n)).toEqual({
-      startMs: 1001,
-      endMs: 2001,
+      startMs: 1000,
+      endMs: 2000,
     });
   });
 
   it('handles fractional seconds in the span', () => {
-    // startTimeNs = 0, span = {start: 0.5s, end: 1.5s}
     expect(spanToMs({ start: 0.5, end: 1.5 }, 0n)).toEqual({
       startMs: 500,
       endMs: 1500,
     });
   });
 
-  it('handles a large epoch startTimeNs', () => {
-    // 1 second = 1_000_000_000n ns → 1000ms; span adds 0
+  it('ignores a large epoch startTimeNs (domain is relative)', () => {
     expect(spanToMs({ start: 0, end: 0 }, 1_000_000_000n)).toEqual({
-      startMs: 1000,
-      endMs: 1000,
+      startMs: 0,
+      endMs: 0,
     });
   });
 });
