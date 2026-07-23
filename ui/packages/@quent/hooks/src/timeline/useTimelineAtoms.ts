@@ -11,7 +11,6 @@ import {
   startTimeMsAtom,
   bulkInitializedAtom,
   visibleEntriesAtom,
-  hideTasksAtom,
 } from '../atoms/timeline';
 import type { ZoomRange, SingleTimelineResponse } from '@quent/utils';
 
@@ -33,8 +32,6 @@ export const useBulkInitialized = () => useAtomValue(bulkInitializedAtom);
 export const useSetBulkInitialized = () => useSetAtom(bulkInitializedAtom);
 export const useVisibleEntries = () => useAtomValue(visibleEntriesAtom);
 export const useSetVisibleEntries = () => useSetAtom(visibleEntriesAtom);
-export const useHideTasks = () => useAtomValue(hideTasksAtom);
-export const useSetHideTasks = () => useSetAtom(hideTasksAtom);
 
 /**
  * Hydrates the timeline atoms with initial values synchronously during render.

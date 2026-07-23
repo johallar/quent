@@ -676,8 +676,6 @@ export function buildBulkParamsForItem(
   } else {
     fsmTypeName = lookupFsmTypeName(item, entities);
   }
-  const threshold = getLongEntitiesThreshold(config.end - config.start);
-
   if (isGroup) {
     return {
       ResourceGroup: {
@@ -694,7 +692,7 @@ export function buildBulkParamsForItem(
   return {
     Resource: {
       resource_id: item.id,
-      long_entities_threshold_s: threshold,
+      long_entities_threshold_s: null,
       entity_filter: { entity_type_name: fsmTypeName },
       application: { operator_ids: operatorId ? [operatorId] : [] },
       config,
