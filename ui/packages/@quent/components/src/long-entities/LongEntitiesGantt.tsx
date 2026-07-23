@@ -16,11 +16,7 @@ import { useChartConnect } from '../lib/useChartConnect';
 import { echarts } from '../lib/echarts';
 import { CHART_GROUP } from '../timeline/Timeline';
 import { useTimelineEchartsTheme } from '../timeline/timelineEchartsTheme';
-import {
-  MARK_AREA_BORDER_OPACITY,
-  MARK_AREA_FILL_OPACITY,
-  MARK_LABEL_TEXT_COLOR,
-} from '../timeline/timelineEchartsTheme';
+import { MARK_AREA_BORDER_OPACITY, MARK_AREA_FILL_OPACITY } from '../timeline/timelineEchartsTheme';
 import { HiddenScroll } from '../ui/thin-scroll';
 import { withOpacity } from '@quent/utils';
 import type { LongEntityEntry } from './types';
@@ -29,9 +25,16 @@ import { TIMELINE_SPACING, TIMELINE_X_AXIS_ANIMATION } from '../timeline/types';
 
 const DEFAULT_HEIGHT = 120;
 const MAX_HEIGHT = 400;
-const BAR_FONT_SIZE = 9;
+const STATE_FONT_SIZE = 9;
+const TASK_FONT_SIZE = 10;
+/** Task-name line drawn above each bar. */
+const TASK_LABEL_HEIGHT = 12;
 const BAR_HEIGHT = 16;
-const BAR_GAP = 2;
+/** Vertical gap between stacked rows. */
+const ROW_GAP = 4;
+const ROW_HEIGHT = TASK_LABEL_HEIGHT + BAR_HEIGHT + ROW_GAP;
+/** Radius applied only to the outer corners of each entity's segment run. */
+const CORNER_RADIUS = 3;
 const SERIES_NAME = 'long-entity-segment';
 
 /** Flat segment datum: one ECharts custom-series item per state span. */
@@ -57,7 +60,7 @@ export function LongEntitiesGantt({
   height = DEFAULT_HEIGHT,
   isDark,
 }: LongEntitiesGanttProps) {
-  const { themeName } = useTimelineEchartsTheme(isDark);
+  const { themeName, textColor } = useTimelineEchartsTheme(isDark);
   const startTimeMs = useMemo(() => nanosToMs(startTime), [startTime]);
   const xAxisMax = useMemo(
     () => startTimeMs + durationSeconds * 1_000,
@@ -73,7 +76,7 @@ export function LongEntitiesGantt({
     };
   }, [entries]);
   // Chart paints every row; wrapper caps at MAX_HEIGHT and scrolls overflow.
-  const contentHeight = rowCount * BAR_HEIGHT;
+  const contentHeight = rowCount * ROW_HEIGHT;
   const chartHeight = Math.max(height, contentHeight);
   const wrapperHeight = Math.min(chartHeight, MAX_HEIGHT);
 
@@ -109,8 +112,9 @@ export function LongEntitiesGantt({
       const startPoint = api.coord([startMs, rowIndex]);
       const endPoint = api.coord([endMs, rowIndex]);
 
-      const barHeight = Math.max(1, BAR_HEIGHT - BAR_GAP);
-      const y = startPoint[1] - barHeight / 2;
+      // Center the task-label + bar cluster within the row band; bar sits below the label.
+      const clusterTop = startPoint[1] - (TASK_LABEL_HEIGHT + BAR_HEIGHT) / 2;
+      const barTop = clusterTop + TASK_LABEL_HEIGHT;
       const width = Math.max(1, endPoint[0] - startPoint[0]);
 
       const coord = params.coordSys as { x?: number; y?: number; width?: number; height?: number };
@@ -118,14 +122,24 @@ export function LongEntitiesGantt({
         typeof coord.width === 'number' && typeof coord.height === 'number'
           ? { x: coord.x ?? 0, y: coord.y ?? 0, width: coord.width, height: coord.height }
           : null;
-      const rectShape = { x: startPoint[0], y, width, height: barHeight };
+      const rectShape = { x: startPoint[0], y: barTop, width, height: BAR_HEIGHT };
       const clippedShape = clipBound ? clipRectByRect(rectShape, clipBound) : rectShape;
       if (!clippedShape) return null;
 
       const color = segment.color;
+      const isFirst = datum!.segmentIndex === 0;
+      const isLast = datum!.segmentIndex === entry.segments.length - 1;
+      // [topLeft, topRight, bottomRight, bottomLeft] — round only the run's outer corners
+      // so touching segments tile with square inner seams.
+      const r: [number, number, number, number] = [
+        isFirst ? CORNER_RADIUS : 0,
+        isLast ? CORNER_RADIUS : 0,
+        isLast ? CORNER_RADIUS : 0,
+        isFirst ? CORNER_RADIUS : 0,
+      ];
       const rect = {
         type: 'rect' as const,
-        shape: { ...clippedShape, r: 1 },
+        shape: { ...clippedShape, r },
         // Mirror timeline marks: faint fill, stronger border, same state color.
         style: {
           fill: withOpacity(color, MARK_AREA_FILL_OPACITY),
@@ -134,35 +148,58 @@ export function LongEntitiesGantt({
         },
       };
 
-      // Entity label chip on the first segment only (white text on state color).
-      const textX = clippedShape.x + 4;
-      const textY = clippedShape.y + clippedShape.height / 2;
-      const labelChildren =
-        datum!.segmentIndex === 0
+      // State name centered inside each segment box (skipped when too narrow to read).
+      const stateChildren =
+        clippedShape.width > 10
           ? [
               {
                 type: 'text' as const,
                 style: {
-                  text: entry.label,
-                  x: textX,
-                  y: textY,
+                  text: segment.stateName,
+                  x: clippedShape.x + clippedShape.width / 2,
+                  y: clippedShape.y + clippedShape.height / 2,
+                  textAlign: 'center' as const,
                   textVerticalAlign: 'middle' as const,
-                  fontSize: BAR_FONT_SIZE,
-                  fontWeight: 500,
-                  fill: MARK_LABEL_TEXT_COLOR,
-                  backgroundColor: withOpacity(color, 0.85),
-                  borderRadius: 1,
-                  padding: [1, 2] as [number, number],
+                  fontSize: STATE_FONT_SIZE,
+                  fill: textColor,
                   overflow: 'truncate' as const,
-                  width: Math.max(0, clippedShape.width - 8),
+                  width: Math.max(0, clippedShape.width - 6),
                 },
               },
             ]
           : [];
 
-      return { type: 'group' as const, children: [rect, ...labelChildren] };
+      // Task name above the bar, drawn once (first segment) spanning the whole entity.
+      const entityRight = api.coord([entry.endMs, rowIndex])[0];
+      const labelLeft = clippedShape.x;
+      const labelRight = clipBound
+        ? Math.min(entityRight, clipBound.x + clipBound.width)
+        : entityRight;
+      const labelWidth = Math.max(0, labelRight - labelLeft);
+      const taskChildren =
+        isFirst && labelWidth > 4
+          ? [
+              {
+                type: 'text' as const,
+                style: {
+                  text: entry.label,
+                  x: labelLeft + 1,
+                  y: clusterTop + TASK_LABEL_HEIGHT / 2,
+                  textAlign: 'left' as const,
+                  textVerticalAlign: 'middle' as const,
+                  fontSize: TASK_FONT_SIZE,
+                  fontWeight: 500 as const,
+                  fill: textColor,
+                  overflow: 'truncate' as const,
+                  width: Math.max(0, labelWidth - 2),
+                },
+              },
+            ]
+          : [];
+
+      return { type: 'group' as const, children: [rect, ...stateChildren, ...taskChildren] };
     },
-    [entries, customSeriesData]
+    [entries, customSeriesData, textColor]
   );
 
   const gridOptions = useMemo(
