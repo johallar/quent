@@ -39,7 +39,7 @@ void getColorForKey;
 const LONG_ENTITIES_BIN_MULTIPLIER = 30;
 
 /** Minimum bin duration in nanoseconds — the backend cannot produce sub-1ns bins. */
-export const MIN_BIN_DURATION_NS = 1;
+export const MIN_BIN_DURATION_NS = 10;
 
 /**
  * Minimum visible zoom window in seconds: the smallest window the backend can
