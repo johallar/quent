@@ -70,7 +70,6 @@ export function getLongEntitiesThreshold(windowSeconds: number): number {
 export function buildBinnedTimelineSeries(
   data: ResourceTimeline,
   config: BinnedSpanSec,
-  _startTime: bigint,
   theme: PaletteTheme,
   capacities?: CapacityDecl[],
   quantitySpecs?: { [key in string]?: QuantitySpec },
@@ -171,7 +170,6 @@ export function getLongFsms(data: ResourceTimeline): FiniteStateMachine[] {
  */
 export function buildTimelineMarks(
   longFsms: FiniteStateMachine[],
-  _startTime: bigint,
   theme: PaletteTheme,
   resourceIdsForFilter?: Set<string> | null,
   fsmTypes?: { [key in string]?: FsmTypeDecl },

@@ -191,7 +191,6 @@ export function ResourceTimeline({
     const base = buildBinnedTimelineSeries(
       data.data,
       data.config,
-      startTime,
       paletteTheme,
       capacities,
       quantitySpecs,
@@ -201,13 +200,7 @@ export function ResourceTimeline({
     const filterSet =
       resourceType === EntityTypeKey.Resource ? new Set([resourceId]) : new Set<string>();
 
-    const timelineMarks = buildTimelineMarks(
-      longFsms,
-      startTime,
-      paletteTheme,
-      filterSet,
-      fsmTypes
-    );
+    const timelineMarks = buildTimelineMarks(longFsms, paletteTheme, filterSet, fsmTypes);
 
     if (operatorId && operatorLabel) {
       if (overlayPreloadedData) {
@@ -218,7 +211,6 @@ export function ResourceTimeline({
           const opResult = buildBinnedTimelineSeries(
             overlayPreloadedData.data,
             overlayPreloadedData.config,
-            startTime,
             paletteTheme,
             capacities,
             quantitySpecs,
@@ -230,7 +222,6 @@ export function ResourceTimeline({
             series: mergeOverlaySeries(base.series, opResult.series, operatorLabel),
             marks: buildTimelineMarks(
               longFsms,
-              startTime,
               paletteTheme,
               filterSet,
               fsmTypes,

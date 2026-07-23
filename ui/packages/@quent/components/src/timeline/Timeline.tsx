@@ -80,7 +80,6 @@ export function Timeline({
         type: 'line',
         stack: isOverlay ? `overlay-total` : 'total',
         step: 'middle',
-        // `'none'` (not just showSymbol:false) so ECharts doesn't pop a symbol on hover.
         symbol: 'none',
         hoverAnimation: false,
         showSymbol: false,

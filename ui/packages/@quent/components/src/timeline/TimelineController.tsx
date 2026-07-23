@@ -64,7 +64,6 @@ export function TimelineController({
       const { timestamps: ts, series } = buildBinnedTimelineSeries(
         timelineData.data,
         timelineData.config,
-        startTime,
         paletteTheme
       );
       const entries = Object.entries(series);
@@ -76,7 +75,7 @@ export function TimelineController({
       const ts = Array.from({ length: numBins }, (_, i) => i * binDurationMs);
       return { timestamps: ts, seriesData: null };
     }
-  }, [timelineData, startTime, durationSeconds, paletteTheme]);
+  }, [timelineData, durationSeconds, paletteTheme]);
 
   const hasSeriesData = useMemo(() => Boolean(seriesData && seriesData.length > 0), [seriesData]);
 
