@@ -13,6 +13,7 @@ import {
   unregisterAxisPointerSync,
 } from '../lib/timeline.utils';
 import { useChartConnect } from '../lib/useChartConnect';
+import { useMinZoomSpanPct } from '../lib/useMinZoomSpanPct';
 import { echarts } from '../lib/echarts';
 import { CHART_GROUP } from '../timeline/Timeline';
 import { useTimelineEchartsTheme } from '../timeline/timelineEchartsTheme';
@@ -73,6 +74,7 @@ export function OperatorGanttChart({
     () => startTimeMs + durationSeconds * 1_000,
     [startTimeMs, durationSeconds]
   );
+  const minZoomSpanPct = useMinZoomSpanPct(durationSeconds);
 
   const { yAxisCategories, rowCount } = useMemo(() => {
     if (operators.length === 0) return { yAxisCategories: [] as number[], rowCount: 0 };
@@ -263,6 +265,7 @@ export function OperatorGanttChart({
           realtime: true,
           filterMode: 'none',
           xAxisIndex: [0],
+          minSpan: minZoomSpanPct,
         },
         {
           type: 'inside',
@@ -281,10 +284,19 @@ export function OperatorGanttChart({
           throttle: 30,
           filterMode: 'none',
           xAxisIndex: [0],
+          minSpan: minZoomSpanPct,
         },
       ],
     }),
-    [gridOptions, startTimeMs, xAxisMax, yAxisCategories, customSeriesData, renderItem]
+    [
+      gridOptions,
+      startTimeMs,
+      xAxisMax,
+      yAxisCategories,
+      customSeriesData,
+      renderItem,
+      minZoomSpanPct,
+    ]
   );
 
   const handleClick = useMemo(

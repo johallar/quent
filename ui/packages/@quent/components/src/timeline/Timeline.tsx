@@ -19,9 +19,10 @@ import {
   TIMELINE_MONO_FONT,
   useTimelineEchartsTheme,
 } from './timelineEchartsTheme';
-import { MIN_ZOOM_WINDOW_S, nanosToMs } from '../lib/timeline.utils';
+import { nanosToMs } from '../lib/timeline.utils';
 import { useVisibleMaxValue } from './useVisibleMaxValue';
 import { useChartConnect } from '../lib/useChartConnect';
+import { useMinZoomSpanPct } from '../lib/useMinZoomSpanPct';
 import { Opts } from 'echarts-for-react/lib/types';
 
 export const CHART_GROUP = 'timeline-sync-group';
@@ -225,10 +226,7 @@ export function Timeline({
 
   const gridOptions = useMemo(() => ({ ...TIMELINE_SPACING }), []);
 
-  const minZoomSpanPct = useMemo(() => {
-    if (durationSeconds <= 0) return 0;
-    return Math.min(100, (MIN_ZOOM_WINDOW_S / durationSeconds) * 100);
-  }, [durationSeconds]);
+  const minZoomSpanPct = useMinZoomSpanPct(durationSeconds);
 
   const minZoomSpanPctRef = useRef(minZoomSpanPct);
   minZoomSpanPctRef.current = minZoomSpanPct;

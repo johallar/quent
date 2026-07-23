@@ -13,12 +13,12 @@ import {
   buildBinnedTimelineSeries,
   getAdaptiveNumBins,
   getTimelineXAxisIntervalMs,
-  MIN_ZOOM_WINDOW_S,
   nanosToMs,
   registerAxisPointerSync,
   unregisterAxisPointerSync,
 } from '../lib/timeline.utils';
 import { useChartConnect } from '../lib/useChartConnect';
+import { useMinZoomSpanPct } from '../lib/useMinZoomSpanPct';
 import { TIMELINE_X_AXIS_ANIMATION, TIMELINE_SPACING } from './types';
 import type { SingleTimelineResponse } from '@quent/utils';
 import { useTimelineEchartsTheme } from './timelineEchartsTheme';
@@ -230,10 +230,7 @@ export function TimelineController({
     [controllerGridBackgroundColor]
   );
 
-  const minZoomSpanPct = useMemo(() => {
-    if (durationSeconds <= 0) return 0;
-    return Math.min(100, (MIN_ZOOM_WINDOW_S / durationSeconds) * 100);
-  }, [durationSeconds]);
+  const minZoomSpanPct = useMinZoomSpanPct(durationSeconds);
 
   const eChartOptions: EChartsOption = useMemo(() => {
     return {
