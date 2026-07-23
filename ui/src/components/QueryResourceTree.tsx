@@ -91,17 +91,20 @@ function createLongEntitiesRow(resourceId: string): TreeTableItem {
 }
 
 /**
- * Inject an expandable long-entities row under each leaf resource so its
- * timeline can reveal a compact Gantt of the resource's longest entities.
- * Groups (which aggregate multiple resources) are left untouched.
+ * Insert a long-entities row as a sibling immediately after each leaf resource,
+ * so its compact Gantt is always shown below the resource (whenever in view)
+ * rather than gated behind expansion. Leaf resources keep no synthetic children,
+ * so they stay non-expandable. Groups (which aggregate resources) are untouched.
  */
 function injectLongEntitiesRows(item: TreeTableItem): TreeTableItem {
-  const transformedChildren = item.children?.map(injectLongEntitiesRows);
-  if (item.type !== EntityTypeKey.Resource) {
-    return transformedChildren ? { ...item, children: transformedChildren } : { ...item };
+  if (!item.children?.length) return { ...item };
+  const children: TreeTableItem[] = [];
+  for (const child of item.children) {
+    children.push(injectLongEntitiesRows(child));
+    if (child.type === EntityTypeKey.Resource) {
+      children.push(createLongEntitiesRow(child.id));
+    }
   }
-  const longEntitiesRow = createLongEntitiesRow(item.id);
-  const children = [longEntitiesRow, ...(transformedChildren ?? [])];
   return { ...item, children };
 }
 
