@@ -77,6 +77,3 @@ export const bulkInitializedAtom = atom(false);
 
 /** Visible entries for bulk fetch — set in useEffect, read imperatively via store.get() */
 export const visibleEntriesAtom = atom<Record<string, TimelineRequest<OperatorFilter>>>({});
-
-/** When true, hides task annotation marks on timeline charts */
-export const hideTasksAtom = atom(false);

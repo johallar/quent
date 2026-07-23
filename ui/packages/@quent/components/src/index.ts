@@ -237,7 +237,12 @@ export type { GroupIndexDef, RowWithGroupKeys } from './pivot-table/utils';
 export { LongEntitiesGantt } from './long-entities/LongEntitiesGantt';
 export type { LongEntitiesGanttProps } from './long-entities/LongEntitiesGantt';
 export type { LongEntityEntry, LongEntitySegment } from './long-entities/types';
-export { buildLongEntityEntries } from './long-entities/utils';
+export {
+  buildLongEntityEntries,
+  LONG_ENTITIES_ROW_TYPE,
+  longEntitiesRowId,
+  resourceIdFromLongEntitiesRowId,
+} from './long-entities/utils';
 
 // ─── Operator-timeline components ────────────────────────────────────────────
 export { OperatorGanttChart } from './operator-timeline/OperatorGanttChart';

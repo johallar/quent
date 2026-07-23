@@ -6,7 +6,7 @@ import { useCallback, useEffect, useMemo } from 'react';
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { useAtom } from 'jotai';
 import { useHighlightedItemIds, useBulkTimelines, useHydrateTimelineAtoms } from '@quent/hooks';
-import { ResourceTree, QueryBundle } from '@quent/utils';
+import { ResourceTree, QueryBundle, EntityTypeKey } from '@quent/utils';
 import type { EntityRef, SingleTimelineRequest, QueryFilter, OperatorFilter } from '@quent/utils';
 import { TimelineController, TimelineRuler } from '@quent/components';
 import { collectResourceTypesFromTree } from '@quent/components';
@@ -40,6 +40,12 @@ import {
   operatorsWithActiveSpansForWorker,
   workerIdFromOperatorTimelineRowId,
 } from '@quent/components';
+import {
+  LONG_ENTITIES_ROW_TYPE,
+  longEntitiesRowId,
+  resourceIdFromLongEntitiesRowId,
+} from '@quent/components';
+import { LongEntitiesRow } from '@/components/LongEntitiesRow';
 
 function getRootResourceGroupId(resourceTree: ResourceTree<EntityRef>): string | null {
   if (!('ResourceGroup' in resourceTree)) return null;
@@ -72,6 +78,30 @@ function injectOperatorTimelineRows(item: TreeTableItem, workerIds: Set<string>)
   }
   const operatorTimelineRow = createOperatorTimelineRow(item.id);
   const children = [operatorTimelineRow, ...(transformedChildren ?? [])];
+  return { ...item, children };
+}
+
+/** Create the synthetic long-entities row for a leaf resource. */
+function createLongEntitiesRow(resourceId: string): TreeTableItem {
+  return {
+    id: longEntitiesRowId(resourceId),
+    type: LONG_ENTITIES_ROW_TYPE,
+    entity: {} as TreeTableItem['entity'],
+  };
+}
+
+/**
+ * Inject an expandable long-entities row under each leaf resource so its
+ * timeline can reveal a compact Gantt of the resource's longest entities.
+ * Groups (which aggregate multiple resources) are left untouched.
+ */
+function injectLongEntitiesRows(item: TreeTableItem): TreeTableItem {
+  const transformedChildren = item.children?.map(injectLongEntitiesRows);
+  if (item.type !== EntityTypeKey.Resource) {
+    return transformedChildren ? { ...item, children: transformedChildren } : { ...item };
+  }
+  const longEntitiesRow = createLongEntitiesRow(item.id);
+  const children = [longEntitiesRow, ...(transformedChildren ?? [])];
   return { ...item, children };
 }
 
@@ -186,7 +216,7 @@ function QueryResourceTreeContent({ queryBundle, engineId }: QueryResourceTreePr
   );
 
   const treeData = useMemo(
-    () => [injectOperatorTimelineRows(rootItem, workerIdsFromPlanTree)],
+    () => [injectLongEntitiesRows(injectOperatorTimelineRows(rootItem, workerIdsFromPlanTree))],
     [rootItem, workerIdsFromPlanTree]
   );
 
@@ -213,7 +243,8 @@ function QueryResourceTreeContent({ queryBundle, engineId }: QueryResourceTreePr
         ),
         render: ({ item }: { item: TreeTableItem; level: number }) => {
           switch (item.type) {
-            case OPERATOR_TIMELINE_ROW_TYPE: {
+            case OPERATOR_TIMELINE_ROW_TYPE:
+            case LONG_ENTITIES_ROW_TYPE: {
               return null;
             }
             default: {
@@ -271,6 +302,21 @@ function QueryResourceTreeContent({ queryBundle, engineId }: QueryResourceTreePr
                   startTime={startTime}
                   durationSeconds={durationSeconds}
                   height={DEFAULT_TIMELINE_HEIGHT}
+                  isDark={isDark}
+                />
+              );
+            }
+            case LONG_ENTITIES_ROW_TYPE: {
+              const resourceId = resourceIdFromLongEntitiesRowId(item.id);
+              if (resourceId == null) return null;
+              return (
+                <LongEntitiesRow
+                  engineId={engineId}
+                  queryId={queryBundle.query_id}
+                  resourceId={resourceId}
+                  startTime={startTime}
+                  durationSeconds={durationSeconds}
+                  fsmTypes={entities.fsm_types}
                   isDark={isDark}
                 />
               );

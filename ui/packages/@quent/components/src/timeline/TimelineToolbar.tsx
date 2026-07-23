@@ -2,19 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { Maximize2, Settings } from 'lucide-react';
-import {
-  useHideTasks,
-  useSetHideTasks,
-  useSetZoomRange,
-  useSetDebouncedZoomRange,
-} from '@quent/hooks';
+import { useSetZoomRange, useSetDebouncedZoomRange } from '@quent/hooks';
 import { Popover, PopoverTrigger, PopoverContent } from '../ui/popover';
 import { QueryToolbar } from './QueryToolbar';
 
 /** Toolbar for the timeline view: shows active operator filter, zoom reset, and settings. */
 export function TimelineToolbar({ durationSeconds }: { durationSeconds: number }) {
-  const hideTasks = useHideTasks();
-  const setHideTasks = useSetHideTasks();
   const setZoomRange = useSetZoomRange();
   const setDebouncedZoomRange = useSetDebouncedZoomRange();
 
@@ -46,17 +39,7 @@ export function TimelineToolbar({ durationSeconds }: { durationSeconds: number }
             <Settings className="h-3.5 w-3.5" />
           </button>
         </PopoverTrigger>
-        <PopoverContent className="text-xs">
-          <label className="flex items-center gap-2 cursor-pointer select-none">
-            <input
-              type="checkbox"
-              checked={hideTasks}
-              onChange={e => setHideTasks(e.target.checked)}
-              className="h-3 w-3 rounded-sm accent-primary cursor-pointer"
-            />
-            <span>Hide tasks</span>
-          </label>
-        </PopoverContent>
+        <PopoverContent className="text-xs text-muted-foreground">No settings yet.</PopoverContent>
       </Popover>
     </QueryToolbar>
   );

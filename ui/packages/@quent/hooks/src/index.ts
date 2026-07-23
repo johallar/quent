@@ -29,8 +29,6 @@ export {
   useSetBulkInitialized,
   useVisibleEntries,
   useSetVisibleEntries,
-  useHideTasks,
-  useSetHideTasks,
   useHydrateTimelineAtoms,
 } from './timeline/useTimelineAtoms';
 
