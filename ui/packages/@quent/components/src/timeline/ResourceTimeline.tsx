@@ -47,7 +47,6 @@ type ResourceTimelineProps = {
   queryId: string;
   resourceId: string;
   resourceType: string;
-  startTime: bigint;
   durationSeconds: number;
   fsmTypeName?: string | undefined;
   resourceTypeName?: string;
@@ -77,7 +76,6 @@ export function ResourceTimeline({
   queryId,
   resourceId,
   resourceType,
-  startTime,
   durationSeconds,
   fsmTypeName,
   resourceTypeName,
@@ -248,7 +246,6 @@ export function ResourceTimeline({
     fetchedData,
     operatorId,
     overlayPreloadedData,
-    startTime,
     capacities,
     quantitySpecs,
     fsmTypes,

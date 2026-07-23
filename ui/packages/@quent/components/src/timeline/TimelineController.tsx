@@ -39,7 +39,6 @@ const CONTROLLER_GRID_BOTTOM = 10;
 const DATAZOOM_TOP_OFFSET = 5;
 
 type TimelineControllerProps = {
-  startTime: bigint;
   durationSeconds: number;
   height?: number;
   timelineData?: SingleTimelineResponse | null;
@@ -49,7 +48,6 @@ type TimelineControllerProps = {
 
 /** Zoom controller bar with datazoom slider and optional background timeline data. */
 export function TimelineController({
-  startTime,
   durationSeconds,
   height = CONTROLLER_HEIGHT,
   timelineData,

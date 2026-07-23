@@ -300,28 +300,20 @@ describe('stackOperatorsIntoRows', () => {
 
 describe('spanToMs', () => {
   it('converts a zero span to {startMs: 0, endMs: 0}', () => {
-    expect(spanToMs({ start: 0, end: 0 }, 0n)).toEqual({ startMs: 0, endMs: 0 });
+    expect(spanToMs({ start: 0, end: 0 })).toEqual({ startMs: 0, endMs: 0 });
   });
 
-  it('converts span seconds to relative milliseconds (startTimeNs is ignored)', () => {
-    // span = {start: 1s, end: 2s}; offsets are relative to query start.
-    expect(spanToMs({ start: 1, end: 2 }, 1_000_000n)).toEqual({
+  it('converts span seconds to relative milliseconds', () => {
+    expect(spanToMs({ start: 1, end: 2 })).toEqual({
       startMs: 1000,
       endMs: 2000,
     });
   });
 
   it('handles fractional seconds in the span', () => {
-    expect(spanToMs({ start: 0.5, end: 1.5 }, 0n)).toEqual({
+    expect(spanToMs({ start: 0.5, end: 1.5 })).toEqual({
       startMs: 500,
       endMs: 1500,
-    });
-  });
-
-  it('ignores a large epoch startTimeNs (domain is relative)', () => {
-    expect(spanToMs({ start: 0, end: 0 }, 1_000_000_000n)).toEqual({
-      startMs: 0,
-      endMs: 0,
     });
   });
 });
@@ -331,35 +323,35 @@ describe('spanToMs', () => {
 describe('operatorsWithActiveSpans', () => {
   it('returns [] when operators is absent', () => {
     const bundle = { entities: {} } as unknown as QueryBundle<EntityRef>;
-    expect(operatorsWithActiveSpans(bundle, 0n, 'p1')).toEqual([]);
+    expect(operatorsWithActiveSpans(bundle, 'p1')).toEqual([]);
   });
 
   it('returns [] when planId is null', () => {
     const bundle = makeBundle({
       op1: makeOp({ plan_id: 'p1', active_span: { start: 0, end: 1 } }),
     });
-    expect(operatorsWithActiveSpans(bundle, 0n, null)).toEqual([]);
+    expect(operatorsWithActiveSpans(bundle, null)).toEqual([]);
   });
 
   it('returns [] when planId is empty string', () => {
     const bundle = makeBundle({
       op1: makeOp({ plan_id: 'p1', active_span: { start: 0, end: 1 } }),
     });
-    expect(operatorsWithActiveSpans(bundle, 0n, '')).toEqual([]);
+    expect(operatorsWithActiveSpans(bundle, '')).toEqual([]);
   });
 
   it('returns [] when no operator has a matching plan_id', () => {
     const bundle = makeBundle({
       op1: makeOp({ plan_id: 'p2', active_span: { start: 0, end: 1 } }),
     });
-    expect(operatorsWithActiveSpans(bundle, 0n, 'p1')).toEqual([]);
+    expect(operatorsWithActiveSpans(bundle, 'p1')).toEqual([]);
   });
 
   it('filters out operators without an active_span', () => {
     const bundle = makeBundle({
       op1: makeOp({ id: 'op1', plan_id: 'p1', active_span: null }),
     });
-    expect(operatorsWithActiveSpans(bundle, 0n, 'p1')).toEqual([]);
+    expect(operatorsWithActiveSpans(bundle, 'p1')).toEqual([]);
   });
 
   it('returns an entry for a matching operator with an active_span', () => {
@@ -372,7 +364,7 @@ describe('operatorsWithActiveSpans', () => {
         instance_name: 'my-scan',
       }),
     });
-    const result = operatorsWithActiveSpans(bundle, 0n, 'p1');
+    const result = operatorsWithActiveSpans(bundle, 'p1');
     expect(result).toHaveLength(1);
     expect(result[0]).toMatchObject({
       operatorId: 'op1',
@@ -395,13 +387,13 @@ describe('operatorsWithActiveSpans', () => {
         instance_name: null,
       }),
     });
-    const [entry] = operatorsWithActiveSpans(bundle, 0n, 'p1');
+    const [entry] = operatorsWithActiveSpans(bundle, 'p1');
     expect(entry.label).toBe('Join');
   });
 
   it('filters out null entries in the operators map', () => {
     const bundle = makeBundle({ op1: null });
-    expect(operatorsWithActiveSpans(bundle, 0n, 'p1')).toEqual([]);
+    expect(operatorsWithActiveSpans(bundle, 'p1')).toEqual([]);
   });
 
   it('stacks overlapping operators into multiple rows', () => {
@@ -409,7 +401,7 @@ describe('operatorsWithActiveSpans', () => {
       op1: makeOp({ id: 'op1', plan_id: 'p1', active_span: { start: 0, end: 10 } }),
       op2: makeOp({ id: 'op2', plan_id: 'p1', active_span: { start: 2, end: 8 } }),
     });
-    const result = operatorsWithActiveSpans(bundle, 0n, 'p1');
+    const result = operatorsWithActiveSpans(bundle, 'p1');
     expect(result).toHaveLength(2);
     const rows = new Set(result.map(e => e.rowIndex));
     expect(rows.size).toBe(2);
@@ -424,7 +416,7 @@ describe('operatorsWithActiveSpansForWorker', () => {
       entities: {},
       plan_tree: { id: 'root', worker: null, children: [] },
     } as unknown as QueryBundle<EntityRef>;
-    expect(operatorsWithActiveSpansForWorker(bundle, 0n, 'w1')).toEqual([]);
+    expect(operatorsWithActiveSpansForWorker(bundle, 'w1')).toEqual([]);
   });
 
   it('returns [] when no plan belongs to the worker', () => {
@@ -432,7 +424,7 @@ describe('operatorsWithActiveSpansForWorker', () => {
       { op1: makeOp({ plan_id: 'p1', active_span: { start: 0, end: 1 } }) },
       { id: 'root', worker: 'w2', children: [] }
     );
-    expect(operatorsWithActiveSpansForWorker(bundle, 0n, 'w1')).toEqual([]);
+    expect(operatorsWithActiveSpansForWorker(bundle, 'w1')).toEqual([]);
   });
 
   it('returns entries for operators whose plan belongs to the worker', () => {
@@ -452,7 +444,7 @@ describe('operatorsWithActiveSpansForWorker', () => {
       },
       planTree
     );
-    const result = operatorsWithActiveSpansForWorker(bundle, 0n, 'w1');
+    const result = operatorsWithActiveSpansForWorker(bundle, 'w1');
     expect(result).toHaveLength(1);
     expect(result[0].operatorId).toBe('op1');
     expect(result[0].planId).toBe('p1');
@@ -474,7 +466,7 @@ describe('operatorsWithActiveSpansForWorker', () => {
       },
       planTree
     );
-    const result = operatorsWithActiveSpansForWorker(bundle, 0n, 'w1');
+    const result = operatorsWithActiveSpansForWorker(bundle, 'w1');
     expect(result).toHaveLength(2);
   });
 
@@ -494,7 +486,7 @@ describe('operatorsWithActiveSpansForWorker', () => {
       },
       planTree
     );
-    const result = operatorsWithActiveSpansForWorker(bundle, 0n, 'w1');
+    const result = operatorsWithActiveSpansForWorker(bundle, 'w1');
     expect(result).toHaveLength(1);
     expect(result[0].operatorId).toBe('op1');
   });
@@ -509,6 +501,6 @@ describe('operatorsWithActiveSpansForWorker', () => {
       { op1: makeOp({ plan_id: 'p1', active_span: null }) },
       planTree
     );
-    expect(operatorsWithActiveSpansForWorker(bundle, 0n, 'w1')).toEqual([]);
+    expect(operatorsWithActiveSpansForWorker(bundle, 'w1')).toEqual([]);
   });
 });

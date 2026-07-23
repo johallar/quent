@@ -97,10 +97,10 @@ export function stackOperatorsIntoRows<
  * Returns ms offsets relative to query start (no absolute epoch base) so the
  * chart x-domain stays float64-exact.
  */
-export function spanToMs(
-  span: { start: number; end: number },
-  _startTimeNs: bigint
-): { startMs: number; endMs: number } {
+export function spanToMs(span: { start: number; end: number }): {
+  startMs: number;
+  endMs: number;
+} {
   const startMs = span.start * 1_000;
   const endMs = span.end * 1_000;
   return { startMs, endMs };
@@ -109,13 +109,12 @@ export function spanToMs(
 function buildOperatorActiveSpanEntry(
   operatorId: string,
   op: Operator,
-  startTimeNs: bigint,
   fallbackPlanId?: string
 ): OperatorActiveSpanEntry | null {
   const span = op.active_span;
   if (span == null) return null;
 
-  const { startMs, endMs } = spanToMs(span, startTimeNs);
+  const { startMs, endMs } = spanToMs(span);
   const typeName = op.operator_type_name ?? '';
   const label = op.instance_name ?? op.operator_type_name ?? operatorId.slice(0, 8);
 
@@ -138,7 +137,6 @@ function buildOperatorActiveSpanEntry(
  */
 export function operatorsWithActiveSpans(
   queryBundle: QueryBundle<EntityRef>,
-  startTimeNs: bigint,
   planId?: string | null
 ): OperatorActiveSpanEntry[] {
   const operators = queryBundle.entities.operators;
@@ -152,7 +150,7 @@ export function operatorsWithActiveSpans(
     .sort(([a], [b]) => a.localeCompare(b));
 
   for (const [operatorId, op] of sorted) {
-    const entry = buildOperatorActiveSpanEntry(operatorId, op, startTimeNs, planId);
+    const entry = buildOperatorActiveSpanEntry(operatorId, op, planId);
     if (entry) entries.push(entry);
   }
 
@@ -166,7 +164,6 @@ export function operatorsWithActiveSpans(
  */
 export function operatorsWithActiveSpansForWorker(
   queryBundle: QueryBundle<EntityRef>,
-  startTimeNs: bigint,
   workerId: string
 ): OperatorActiveSpanEntry[] {
   const operators = queryBundle.entities.operators;
@@ -182,7 +179,7 @@ export function operatorsWithActiveSpansForWorker(
     .sort(([a], [b]) => a.localeCompare(b));
 
   for (const [operatorId, op] of sorted) {
-    const entry = buildOperatorActiveSpanEntry(operatorId, op, startTimeNs);
+    const entry = buildOperatorActiveSpanEntry(operatorId, op);
     if (entry) entries.push(entry);
   }
 

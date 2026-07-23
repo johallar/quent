@@ -194,10 +194,10 @@ function QueryResourceTreeContent({ queryBundle, engineId }: QueryResourceTreePr
   const operatorEntriesByWorker = useMemo(() => {
     const map = new Map<string, ReturnType<typeof operatorsWithActiveSpansForWorker>>();
     for (const workerId of workerIdsFromPlanTree) {
-      map.set(workerId, operatorsWithActiveSpansForWorker(queryBundle, startTime, workerId));
+      map.set(workerId, operatorsWithActiveSpansForWorker(queryBundle, workerId));
     }
     return map;
-  }, [queryBundle, startTime, workerIdsFromPlanTree]);
+  }, [queryBundle, workerIdsFromPlanTree]);
 
   const columns = useMemo(() => {
     return [
@@ -250,7 +250,6 @@ function QueryResourceTreeContent({ queryBundle, engineId }: QueryResourceTreePr
         headerContent: (
           <div className="h-full overflow-hidden flex items-center py-1">
             <TimelineController
-              startTime={startTime}
               durationSeconds={durationSeconds}
               timelineData={fetchedRootTimeline}
               onZoomChange={handleZoomChange}
@@ -282,7 +281,6 @@ function QueryResourceTreeContent({ queryBundle, engineId }: QueryResourceTreePr
                   queryBundle={queryBundle}
                   selectedTypes={selectedTypes}
                   selectedFsmTypes={selectedFsmTypes}
-                  startTime={startTime}
                   durationSeconds={durationSeconds}
                   isDark={isDark}
                 />
@@ -293,7 +291,6 @@ function QueryResourceTreeContent({ queryBundle, engineId }: QueryResourceTreePr
       },
     ] satisfies Column<TreeTableItem>[];
   }, [
-    startTime,
     durationSeconds,
     fetchedRootTimeline,
     isDark,
