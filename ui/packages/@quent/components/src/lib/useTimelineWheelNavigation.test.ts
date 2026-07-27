@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { act, renderHook } from '@testing-library/react';
-import type { EChartsInstance } from 'echarts-for-react';
+import type { EChartsType } from 'echarts';
 import { describe, expect, it, vi } from 'vitest';
 import { useTimelineWheelNavigation } from './useTimelineWheelNavigation';
 
@@ -32,7 +32,7 @@ function createChart(dataZoom: { start: number; end: number }) {
       if (event === 'datazoom') dataZoomListener = listener;
     }),
     off,
-  } as unknown as EChartsInstance;
+  } as unknown as EChartsType;
 
   return { instance, dom, dispatchAction, off, emitDataZoom: () => dataZoomListener?.() };
 }

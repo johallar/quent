@@ -2,17 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { useCallback, useEffect, useRef } from 'react';
-import type { EChartsInstance } from 'echarts-for-react';
+import type { EChartsOption, EChartsType } from 'echarts';
+import type { DataZoomComponentOption } from 'echarts/components';
 import { TIMELINE_SPACING } from '../timeline/types';
 
-type DataZoomState = {
-  start?: number;
-  end?: number;
-};
-
-function getDataZoomState(instance: EChartsInstance): DataZoomState | undefined {
-  const option = instance.getOption() as { dataZoom?: DataZoomState[] };
-  return option.dataZoom?.[0];
+function getDataZoomState(instance: EChartsType): DataZoomComponentOption | undefined {
+  const dataZoom = (instance.getOption() as EChartsOption).dataZoom;
+  return Array.isArray(dataZoom) ? dataZoom[0] : dataZoom;
 }
 
 /**
@@ -25,7 +21,7 @@ export function useTimelineWheelNavigation(minZoomSpanPct: number) {
   const cleanupRef = useRef<(() => void) | null>(null);
 
   const attachWheelNavigation = useCallback(
-    (instance: EChartsInstance, wheelTarget: HTMLElement = instance.getDom()) => {
+    (instance: EChartsType, wheelTarget: HTMLElement = instance.getDom()) => {
       cleanupRef.current?.();
 
       let atZoomLimit = false;
