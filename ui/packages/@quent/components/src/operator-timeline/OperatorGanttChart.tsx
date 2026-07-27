@@ -354,10 +354,9 @@ export function OperatorGanttChart({
         instanceRef.current = null;
       }
     };
-  }, []);
+  }, [instanceRef]);
 
-  // Handle scrolling from the container, echarts captures wheel events and prevents the container
-  // from receiving.
+  // Keep vertical scrolling native; use horizontal trackpad scrolling to pan the time window.
   const wrapperRef = useRef<HTMLDivElement | null>(null);
   useEffect(() => {
     const wrapper = wrapperRef.current;
@@ -365,12 +364,40 @@ export function OperatorGanttChart({
     const handleWheel = (e: WheelEvent) => {
       if (e.shiftKey) return;
       e.stopPropagation();
+
+      if (e.deltaX === 0 || Math.abs(e.deltaX) <= Math.abs(e.deltaY)) return;
+
+      const instance = instanceRef.current;
+      if (!instance || instance.isDisposed?.()) return;
+
+      e.preventDefault();
+
+      const opt = instance.getOption() as {
+        dataZoom?: Array<{ start?: number; end?: number }>;
+      };
+      const dz = opt.dataZoom?.[0];
+      if (!dz) return;
+
+      const currentStart = dz.start ?? 0;
+      const currentEnd = dz.end ?? 100;
+      const spanPct = currentEnd - currentStart;
+      const rect = instance.getDom().getBoundingClientRect();
+      const usableWidth = Math.max(1, rect.width - TIMELINE_SPACING.left - TIMELINE_SPACING.right);
+      const deltaPct = (e.deltaX / usableWidth) * spanPct;
+      const newStart = Math.max(0, Math.min(100 - spanPct, currentStart + deltaPct));
+
+      instance.dispatchAction({
+        type: 'dataZoom',
+        dataZoomIndex: 0,
+        start: newStart,
+        end: newStart + spanPct,
+      });
     };
-    wrapper.addEventListener('wheel', handleWheel, { capture: true, passive: true });
+    wrapper.addEventListener('wheel', handleWheel, { capture: true, passive: false });
     return () => {
       wrapper.removeEventListener('wheel', handleWheel, { capture: true });
     };
-  }, []);
+  }, [instanceRef]);
 
   if (operators.length === 0) {
     return (
