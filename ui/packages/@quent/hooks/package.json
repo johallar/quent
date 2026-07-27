@@ -10,7 +10,10 @@
   },
   "sideEffects": false,
   "scripts": {
+    "prebuild": "pnpm --workspace-root bindings",
     "build": "tsdown",
+    "build:ci": "tsdown",
+    "pretypecheck": "pnpm --workspace-root bindings",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
@@ -30,7 +33,7 @@
     "@types/react": "catalog:",
     "jotai": "catalog:",
     "react": "catalog:",
-    "tsdown": "^0.22.3",
-    "typescript": "^5.9.3"
+    "tsdown": "catalog:",
+    "typescript": "catalog:"
   }
 }
