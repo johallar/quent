@@ -975,7 +975,7 @@ export function TreeTable<I extends TreeTableDataItem>({
       >
         <div
           ref={scrollContainerRef}
-          className="w-full min-w-0 max-h-full overflow-x-hidden overflow-y-auto overscroll-none"
+          className="w-full min-w-0 max-h-full overflow-x-auto overflow-y-auto overscroll-none"
         >
           <div style={{ minWidth: `${effectiveWidth}px` }}>
             {/* Sticky header container */}
