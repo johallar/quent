@@ -6,6 +6,8 @@ import type { EChartsOption, EChartsType } from 'echarts';
 import type { DataZoomComponentOption } from 'echarts/components';
 import { TIMELINE_SPACING } from '../timeline/types';
 
+const ZOOM_LIMIT_FLOAT_TOLERANCE = 1.01;
+
 function getDataZoomState(instance: EChartsType): DataZoomComponentOption | undefined {
   const dataZoom = (instance.getOption() as EChartsOption).dataZoom;
   return Array.isArray(dataZoom) ? dataZoom[0] : dataZoom;
@@ -24,19 +26,18 @@ export function useTimelineWheelNavigation(minZoomSpanPct: number) {
     (instance: EChartsType, wheelTarget: HTMLElement = instance.getDom()) => {
       cleanupRef.current?.();
 
-      let atZoomLimit = false;
-      const updateZoomLimit = () => {
-        if (instance.isDisposed?.()) return;
+      const isAtZoomLimit = () => {
+        if (instance.isDisposed?.()) return false;
         const dataZoom = getDataZoomState(instance);
-        if (!dataZoom) return;
+        if (!dataZoom) return false;
         const spanPct = (dataZoom.end ?? 100) - (dataZoom.start ?? 0);
-        atZoomLimit = spanPct <= minZoomSpanPctRef.current * 1.01;
+        return spanPct <= minZoomSpanPctRef.current * ZOOM_LIMIT_FLOAT_TOLERANCE;
       };
 
       const handleWheel = (event: WheelEvent) => {
         if (event.shiftKey) {
           const zoomDelta = event.deltaY || event.deltaX;
-          if (zoomDelta < 0 && atZoomLimit) {
+          if (zoomDelta < 0 && isAtZoomLimit()) {
             event.preventDefault();
             event.stopPropagation();
           }
@@ -70,13 +71,10 @@ export function useTimelineWheelNavigation(minZoomSpanPct: number) {
         });
       };
 
-      updateZoomLimit();
-      instance.on('datazoom', updateZoomLimit);
       wheelTarget.addEventListener('wheel', handleWheel, { capture: true, passive: false });
 
       cleanupRef.current = () => {
         wheelTarget.removeEventListener('wheel', handleWheel, { capture: true });
-        if (!instance.isDisposed?.()) instance.off('datazoom', updateZoomLimit);
       };
     },
     []
