@@ -35,9 +35,11 @@ export function useTimelineWheelNavigation(minZoomSpanPct: number) {
       };
 
       const handleWheel = (event: WheelEvent) => {
-        if (event.shiftKey) {
-          const zoomDelta = event.deltaY || event.deltaX;
-          if (zoomDelta < 0 && isAtZoomLimit()) {
+        const isHorizontalScroll =
+          event.deltaX !== 0 && Math.abs(event.deltaX) > Math.abs(event.deltaY);
+
+        if (event.shiftKey && !isHorizontalScroll) {
+          if (event.deltaY < 0 && isAtZoomLimit()) {
             event.preventDefault();
             event.stopPropagation();
           }
@@ -45,7 +47,7 @@ export function useTimelineWheelNavigation(minZoomSpanPct: number) {
         }
 
         event.stopPropagation();
-        if (event.deltaX === 0 || Math.abs(event.deltaX) <= Math.abs(event.deltaY)) return;
+        if (!isHorizontalScroll) return;
         if (instance.isDisposed?.()) return;
 
         event.preventDefault();

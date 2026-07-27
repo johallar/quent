@@ -59,6 +59,56 @@ describe('useTimelineWheelNavigation', () => {
     });
   });
 
+  it('pans instead of zooming on shifted horizontal wheel input', () => {
+    const chart = createChart({ start: 25, end: 75 });
+    const wheelTarget = document.createElement('div');
+    wheelTarget.appendChild(chart.dom);
+    const echartsWheel = vi.fn();
+    chart.dom.addEventListener('wheel', echartsWheel);
+    const { result } = renderHook(() => useTimelineWheelNavigation(10));
+    act(() => result.current(chart.instance, wheelTarget));
+
+    const event = new WheelEvent('wheel', {
+      deltaX: 100,
+      shiftKey: true,
+      bubbles: true,
+      cancelable: true,
+    });
+    act(() => chart.dom.dispatchEvent(event));
+
+    const spanPct = 50;
+    const usableWidth = CHART_WIDTH - TIMELINE_SPACING.left - TIMELINE_SPACING.right;
+    const expectedStart = 25 + (event.deltaX / usableWidth) * spanPct;
+    expect(echartsWheel).not.toHaveBeenCalled();
+    expect(chart.dispatchAction).toHaveBeenCalledWith(
+      expect.objectContaining({ start: expectedStart, end: expectedStart + spanPct })
+    );
+  });
+
+  it('allows shifted vertical wheel input to reach ECharts', () => {
+    const chart = createChart({ start: 25, end: 75 });
+    const wheelTarget = document.createElement('div');
+    wheelTarget.appendChild(chart.dom);
+    const echartsWheel = vi.fn();
+    chart.dom.addEventListener('wheel', echartsWheel);
+    const { result } = renderHook(() => useTimelineWheelNavigation(10));
+    act(() => result.current(chart.instance, wheelTarget));
+
+    act(() => {
+      chart.dom.dispatchEvent(
+        new WheelEvent('wheel', {
+          deltaY: 100,
+          shiftKey: true,
+          bubbles: true,
+          cancelable: true,
+        })
+      );
+    });
+
+    expect(echartsWheel).toHaveBeenCalledOnce();
+    expect(chart.dispatchAction).not.toHaveBeenCalled();
+  });
+
   it('leaves vertical wheel input to native scrolling', () => {
     const chart = createChart({ start: 25, end: 75 });
     const { result } = renderHook(() => useTimelineWheelNavigation(10));
