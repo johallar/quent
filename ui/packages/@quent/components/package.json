@@ -12,7 +12,10 @@
     "**/*.css"
   ],
   "scripts": {
+    "prebuild": "pnpm --workspace-root bindings",
     "build": "tsdown",
+    "build:ci": "tsdown",
+    "pretypecheck": "pnpm --workspace-root bindings",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
@@ -44,7 +47,7 @@
     "jotai": "catalog:",
     "react": "catalog:",
     "react-dom": "catalog:",
-    "tsdown": "^0.22.3",
-    "typescript": "^5.9.3"
+    "tsdown": "catalog:",
+    "typescript": "catalog:"
   }
 }

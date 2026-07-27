@@ -108,19 +108,14 @@ opinionated but replaceable implementation based on the modeling approach.
 
 ### Prerequisites
 
-- Rust (stable, >= 1.93)
-- Node.js (>= 24.11)
-- pnpm (>= 10)
-- protoc (protobuf compiler)
-
-Or use [pixi](https://pixi.sh) to manage all dependencies:
+Install [Pixi](https://pixi.sh), then enter the repository environment:
 
 ```bash
 pixi shell
 ```
 
-This installs the required toolchains and drops you into a shell with
-everything on `PATH`.
+Pixi provides the required Rust, Node.js, pnpm, and protoc versions. Run
+development and build commands from this environment.
 
 ### UI development
 
@@ -142,6 +137,10 @@ cd ui
 pnpm install
 pnpm dev
 ```
+
+`pnpm dev` generates the TypeScript bindings consumed by the UI before starting
+Vite. Run `pnpm bindings` after changing Rust types while the dev server remains
+open. The `start`, `typecheck`, and `build` scripts also ensure bindings exist.
 
 The dev server starts on <http://localhost:5173> by default.
 
@@ -171,8 +170,8 @@ stress testing on the UI.
 cargo build -p quent-simulator-server --features ui --release
 ```
 
-This runs `pnpm install && pnpm build` in `ui/` as part of the Cargo build and
-bundles the output into the binary.
+The Cargo build generates the TypeScript bindings, builds the UI, and bundles
+the output into the binary.
 
 ### Swagger UI
 

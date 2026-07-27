@@ -1,6 +1,10 @@
 // SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 // SPDX-License-Identifier: Apache-2.0
 
+//! TypeScript binding generation for the simulator UI.
+
+use std::path::Path;
+
 use quent_query_engine_ui::DataFlowTimelineBinned;
 use quent_query_engine_ui::{OperatorFilter, QueryBundle, QueryFilter};
 use quent_simulator_ui::EntityRef;
@@ -12,11 +16,15 @@ use quent_ui::timeline::{
 };
 use ts_rs::{Config, TS};
 
-const TS_OUT_DIR: &str = "./ts-bindings/";
-
-fn main() -> Result<(), Box<dyn std::error::Error>> {
-    // Export TypeScript bindings to ts-bindings directory
-    let cfg = Config::new().with_out_dir(TS_OUT_DIR);
+/// Generates simulator UI TypeScript bindings in `output_dir`.
+///
+/// Existing contents of `output_dir` are removed before generation.
+pub fn generate(output_dir: &Path) -> Result<(), Box<dyn std::error::Error>> {
+    if output_dir.exists() {
+        std::fs::remove_dir_all(output_dir)?;
+    }
+    std::fs::create_dir_all(output_dir)?;
+    let cfg = Config::new().with_out_dir(output_dir);
 
     <QueryBundle<EntityRef> as TS>::export_all(&cfg)?;
 
