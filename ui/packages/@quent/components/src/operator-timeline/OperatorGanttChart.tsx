@@ -14,6 +14,7 @@ import {
 } from '../lib/timeline.utils';
 import { useChartConnect } from '../lib/useChartConnect';
 import { useMinZoomSpanPct } from '../lib/useMinZoomSpanPct';
+import { useTimelineWheelNavigation } from '../lib/useTimelineWheelNavigation';
 import { echarts } from '../lib/echarts';
 import { CHART_GROUP } from '../timeline/Timeline';
 import { useTimelineEchartsTheme } from '../timeline/timelineEchartsTheme';
@@ -75,6 +76,8 @@ export function OperatorGanttChart({
     [startTimeMs, durationSeconds]
   );
   const minZoomSpanPct = useMinZoomSpanPct(durationSeconds);
+  const attachWheelNavigation = useTimelineWheelNavigation(minZoomSpanPct);
+  const wrapperRef = useRef<HTMLDivElement | null>(null);
 
   const { yAxisCategories, rowCount } = useMemo(() => {
     if (operators.length === 0) return { yAxisCategories: [] as number[], rowCount: 0 };
@@ -337,9 +340,13 @@ export function OperatorGanttChart({
   // Join timeline-sync-group for frame-rate-level x-axis zoom sync via ECharts connect().
   // The y-axis dataZoom (index 3, when present) has a unique component ID and does not
   // propagate to resource timelines that have no matching component.
-  const onChartReady = useCallback((instance: EChartsInstance) => {
-    registerAxisPointerSync(instance, 0, { receiveShowTip: false });
-  }, []);
+  const onChartReady = useCallback(
+    (instance: EChartsInstance) => {
+      registerAxisPointerSync(instance, 0, { receiveShowTip: false });
+      attachWheelNavigation(instance, wrapperRef.current ?? undefined);
+    },
+    [attachWheelNavigation]
+  );
 
   const { handleChartReady, instanceRef } = useChartConnect({
     durationSeconds,
@@ -353,49 +360,6 @@ export function OperatorGanttChart({
         unregisterAxisPointerSync(instanceRef.current);
         instanceRef.current = null;
       }
-    };
-  }, [instanceRef]);
-
-  // Keep vertical scrolling native; use horizontal trackpad scrolling to pan the time window.
-  const wrapperRef = useRef<HTMLDivElement | null>(null);
-  useEffect(() => {
-    const wrapper = wrapperRef.current;
-    if (!wrapper) return;
-    const handleWheel = (e: WheelEvent) => {
-      if (e.shiftKey) return;
-      e.stopPropagation();
-
-      if (e.deltaX === 0 || Math.abs(e.deltaX) <= Math.abs(e.deltaY)) return;
-
-      const instance = instanceRef.current;
-      if (!instance || instance.isDisposed?.()) return;
-
-      e.preventDefault();
-
-      const opt = instance.getOption() as {
-        dataZoom?: Array<{ start?: number; end?: number }>;
-      };
-      const dz = opt.dataZoom?.[0];
-      if (!dz) return;
-
-      const currentStart = dz.start ?? 0;
-      const currentEnd = dz.end ?? 100;
-      const spanPct = currentEnd - currentStart;
-      const rect = instance.getDom().getBoundingClientRect();
-      const usableWidth = Math.max(1, rect.width - TIMELINE_SPACING.left - TIMELINE_SPACING.right);
-      const deltaPct = (e.deltaX / usableWidth) * spanPct;
-      const newStart = Math.max(0, Math.min(100 - spanPct, currentStart + deltaPct));
-
-      instance.dispatchAction({
-        type: 'dataZoom',
-        dataZoomIndex: 0,
-        start: newStart,
-        end: newStart + spanPct,
-      });
-    };
-    wrapper.addEventListener('wheel', handleWheel, { capture: true, passive: false });
-    return () => {
-      wrapper.removeEventListener('wheel', handleWheel, { capture: true });
     };
   }, [instanceRef]);
 
