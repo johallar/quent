@@ -27,7 +27,7 @@ import { observeGanttHover, type GanttHover } from '../ui/gantt-hover';
 import { EntityTooltipContent, type ActiveMark } from '../timeline/TimelineTooltip';
 
 const DEFAULT_HEIGHT = 120;
-const MAX_HEIGHT = 400;
+const MAX_HEIGHT = 150;
 const STATE_FONT_SIZE = 9;
 const TASK_FONT_SIZE = 10;
 /** Task-name line drawn above each bar (~2px around the text). */
