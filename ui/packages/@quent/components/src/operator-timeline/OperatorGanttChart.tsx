@@ -344,10 +344,7 @@ export function OperatorGanttChart({
   const onChartReady = (instance: EChartsInstance) => {
     chartCleanupRef.current?.();
     registerAxisPointerSync(instance, 0, { receiveShowTip: false });
-    const detachWheelNavigation = attachWheelNavigation(
-      instance,
-      wrapperRef.current ?? undefined
-    );
+    const detachWheelNavigation = attachWheelNavigation(instance, wrapperRef.current ?? undefined);
     const cleanup = () => {
       unregisterAxisPointerSync(instance);
       detachWheelNavigation();
