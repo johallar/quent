@@ -96,7 +96,7 @@ export function ControlField({
   trailingAdornment,
   className,
   align = 'center',
-  labelWidth = '7rem',
+  labelWidth = 'fit-content(7rem)',
   adornmentWidth = '1.5rem',
   children,
 }: ControlFieldProps) {

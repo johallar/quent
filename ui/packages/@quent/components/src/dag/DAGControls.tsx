@@ -211,7 +211,7 @@ export const DAGControls = ({ operatorStatFields, portStatFields, isDark }: DAGC
                 label={dataFlowMeta.decl.dimension_name}
                 icon={Layers}
                 align="start"
-                className="col-span-2"
+                className="col-span-full"
               >
                 <RequiredMultiSelectField
                   label={dataFlowMeta.decl.dimension_name}

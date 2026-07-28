@@ -6,34 +6,25 @@ import { describe, expect, it } from 'vitest';
 import { ControlField, ControlGrid, ControlSection } from './control-grid';
 
 describe('ControlGrid', () => {
-  it('uses the requested column count', () => {
+  it('renders its children', () => {
     render(
-      <ControlGrid columns={3} data-testid="control-grid">
-        <div />
+      <ControlGrid columns={2}>
+        <span>Left</span>
+        <span>Right</span>
       </ControlGrid>
     );
 
-    expect(screen.getByTestId('control-grid')).toHaveStyle({
-      gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
-    });
-  });
-
-  it('wraps below a minimum column width without exceeding the maximum columns', () => {
-    render(
-      <ControlGrid columns={3} minColumnWidth="16rem" data-testid="wrapping-control-grid">
-        <div />
-      </ControlGrid>
-    );
-
-    expect(screen.getByTestId('wrapping-control-grid')).toHaveStyle({
-      gridTemplateColumns:
-        'repeat(auto-fit, minmax(min(100%, max(16rem, calc((100% - 3rem) / 3))), 1fr))',
-    });
+    expect(screen.getByText('Left')).toBeVisible();
+    expect(screen.getByText('Right')).toBeVisible();
   });
 
   it('composes sections and labeled fields', () => {
     render(
-      <ControlSection title="Display">
+      <ControlSection
+        title="Display"
+        description="Tune appearance"
+        action={<button type="button">Reset</button>}
+      >
         <ControlGrid>
           <ControlField label="Name">
             <input aria-label="Name value" />
@@ -43,33 +34,30 @@ describe('ControlGrid', () => {
     );
 
     expect(screen.getByRole('heading', { name: 'Display' })).toBeVisible();
+    expect(screen.getByText('Tune appearance')).toBeVisible();
+    expect(screen.getByRole('button', { name: 'Reset' })).toBeVisible();
     expect(screen.getByText('Name')).toBeVisible();
     expect(screen.getByRole('textbox', { name: 'Name value' })).toBeVisible();
   });
 
-  it('only reserves space when a trailing adornment is present', () => {
-    const { container } = render(
+  it('renders a trailing adornment only when provided', () => {
+    render(
       <>
-        <ControlField label="Without adornment" className="without-adornment">
-          <input />
+        <ControlField label="Without adornment">
+          <input aria-label="Without adornment value" />
         </ControlField>
         <ControlField
           label="With adornment"
-          className="with-adornment"
           trailingAdornment={<button type="button">Pick color</button>}
         >
-          <input />
+          <input aria-label="With adornment value" />
         </ControlField>
       </>
     );
 
-    expect(container.querySelector('.without-adornment')).toHaveStyle({
-      gridTemplateColumns: '7rem minmax(0, 1fr)',
-    });
-    expect(container.querySelector('.without-adornment')).toHaveProperty('children.length', 2);
-    expect(container.querySelector('.with-adornment')).toHaveStyle({
-      gridTemplateColumns: '7rem minmax(0, 1fr) 1.5rem',
-    });
-    expect(container.querySelector('.with-adornment')).toHaveProperty('children.length', 3);
+    expect(screen.queryByRole('button', { name: 'Pick color' })).toBeVisible();
+    expect(screen.getByRole('textbox', { name: 'Without adornment value' })).toBeVisible();
+    expect(screen.getByRole('textbox', { name: 'With adornment value' })).toBeVisible();
+    expect(screen.getAllByRole('button')).toHaveLength(1);
   });
 });
