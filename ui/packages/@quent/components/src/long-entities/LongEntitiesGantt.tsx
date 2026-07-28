@@ -1,27 +1,32 @@
 // SPDX-FileCopyrightText: Copyright (c) 2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 // SPDX-License-Identifier: Apache-2.0
 
+import { useCallback, useMemo } from 'react';
+
 import {
   MARK_AREA_BORDER_OPACITY,
   MARK_AREA_FILL_OPACITY,
   useTimelineEchartsTheme,
 } from '../timeline/timelineEchartsTheme';
-import { useCallback, useMemo } from 'react';
-
+import { useZoomRange } from '@quent/hooks';
 import { withOpacity } from '@quent/utils';
 import type { LongEntityEntry } from './types';
 import { GanttChart, type GanttRenderItem } from '../gantt-chart/GanttChart';
+import type { GanttHover } from '../gantt-chart/hover';
 import { clipRectByRect } from '../gantt-chart/utils';
+import { getLongEntitySegmentsAtTimestamp } from './utils';
+import { PointerTooltipPortal } from '../ui/gantt-tooltip';
+import { EntityTooltipContent, type ActiveMark } from '../timeline/TimelineTooltip';
 
 const DEFAULT_HEIGHT = 120;
 const MAX_HEIGHT = 400;
 const STATE_FONT_SIZE = 9;
 const TASK_FONT_SIZE = 10;
-/** Task-name line drawn above each bar. */
-const TASK_LABEL_HEIGHT = 12;
-const BAR_HEIGHT = 16;
+/** Task-name line drawn above each bar (~2px around the text). */
+const TASK_LABEL_HEIGHT = TASK_FONT_SIZE + 4;
+const BAR_HEIGHT = STATE_FONT_SIZE + 4;
 /** Vertical gap between stacked rows. */
-const ROW_GAP = 4;
+const ROW_GAP = 2;
 const ROW_HEIGHT = TASK_LABEL_HEIGHT + BAR_HEIGHT + ROW_GAP;
 /** Radius applied only to the outer corners of each entity's segment run. */
 const CORNER_RADIUS = 3;
@@ -49,6 +54,7 @@ export function LongEntitiesGantt({
   isDark,
 }: LongEntitiesGanttProps) {
   const { textColor } = useTimelineEchartsTheme(isDark);
+  const zoomRange = useZoomRange();
   // One custom-series datum per segment, tagged with its parent entry/segment.
   const customSeriesData = useMemo<SegmentDatum[]>(() => {
     const data: SegmentDatum[] = [];
@@ -63,6 +69,34 @@ export function LongEntitiesGantt({
     });
     return data;
   }, [entries]);
+  const renderTooltip = useCallback(
+    (hover: GanttHover | null) => {
+      const activeMarks: ActiveMark[] = hover
+        ? getLongEntitySegmentsAtTimestamp(entries, hover.timestampMs).map(
+            ({ entry, segment }) => ({
+              color: segment.color,
+              label: entry.label,
+              stateName: segment.stateName,
+              durationMs: segment.endMs - segment.startMs,
+              attributes: segment.attributes,
+              derivedAttributes: segment.derivedAttributes,
+            })
+          )
+        : [];
+      return (
+        <PointerTooltipPortal hover={activeMarks.length > 0 ? hover : null}>
+          {hover && (
+            <EntityTooltipContent
+              timestamp={hover.timestampMs}
+              windowMs={(zoomRange.end - zoomRange.start) * 1_000}
+              activeMarks={activeMarks}
+            />
+          )}
+        </PointerTooltipPortal>
+      );
+    },
+    [entries, zoomRange.end, zoomRange.start]
+  );
 
   const renderItem: GanttRenderItem = useCallback(
     (params, api) => {
@@ -180,6 +214,7 @@ export function LongEntitiesGantt({
       seriesName={SERIES_NAME}
       renderItem={renderItem}
       emptyMessage="No long entities"
+      renderTooltip={renderTooltip}
     />
   );
 }

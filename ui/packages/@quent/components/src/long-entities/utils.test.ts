@@ -3,7 +3,7 @@
 
 import { describe, it, expect } from 'vitest';
 import type { FiniteStateMachine, FsmTransition } from '@quent/utils';
-import { buildLongEntityEntries } from './utils';
+import { buildLongEntityEntries, getLongEntitySegmentsAtTimestamp } from './utils';
 
 function transition(
   name: string,
@@ -124,5 +124,40 @@ describe('buildLongEntityEntries', () => {
     const b = makeFsm('b', [transition('s', 2), transition('exit', 8)]);
     const entries = buildLongEntityEntries([a, b], {}, 'light');
     expect(new Set(entries.map(e => e.rowIndex)).size).toBe(2);
+  });
+});
+
+describe('getLongEntitySegmentsAtTimestamp', () => {
+  it('returns every entity and its active state', () => {
+    const first = makeFsm(
+      'first',
+      [transition('loading', 0), transition('running', 1), transition('exit', 3)],
+      { instance_name: 'task-1' }
+    );
+    const second = makeFsm('second', [transition('queued', 0.5), transition('done', 2)], {
+      instance_name: 'task-2',
+    });
+    const entries = buildLongEntityEntries([first, second], 0n, {}, 'light');
+
+    expect(
+      getLongEntitySegmentsAtTimestamp(entries, 1_500).map(({ entry, segment }) => [
+        entry.label,
+        segment.stateName,
+      ])
+    ).toEqual([
+      ['task-1', 'running'],
+      ['task-2', 'queued'],
+    ]);
+  });
+
+  it('uses half-open state boundaries', () => {
+    const fsm = makeFsm('entity', [
+      transition('loading', 0),
+      transition('running', 1),
+      transition('exit', 2),
+    ]);
+    const entries = buildLongEntityEntries([fsm], 0n, {}, 'light');
+    const [{ segment }] = getLongEntitySegmentsAtTimestamp(entries, 1_000);
+    expect(segment.stateName).toBe('running');
   });
 });
