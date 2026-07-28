@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-import { useCallback, useEffect, useMemo, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import EChartsReactCore from 'echarts-for-react/lib/core';
 
 import type { EChartsOption } from '../lib/echarts';
@@ -18,20 +18,25 @@ import { CHART_GROUP } from '../timeline/Timeline';
 import { useTimelineEchartsTheme } from '../timeline/timelineEchartsTheme';
 import { MARK_AREA_BORDER_OPACITY, MARK_AREA_FILL_OPACITY } from '../timeline/timelineEchartsTheme';
 import { HiddenScroll } from '../ui/thin-scroll';
+import { useZoomRange } from '@quent/hooks';
 import { withOpacity } from '@quent/utils';
 import type { LongEntityEntry } from './types';
 import { clipRectByRect } from '../operator-timeline/utils';
 import { TIMELINE_SPACING, TIMELINE_X_AXIS_ANIMATION } from '../timeline/types';
+import { getLongEntitySegmentsAtTimestamp } from './utils';
+import { PointerTooltipPortal } from '../ui/gantt-tooltip';
+import { observeGanttHover, type GanttHover } from '../ui/gantt-hover';
+import { EntityTooltipContent, type ActiveMark } from '../timeline/TimelineTooltip';
 
 const DEFAULT_HEIGHT = 120;
 const MAX_HEIGHT = 400;
 const STATE_FONT_SIZE = 9;
 const TASK_FONT_SIZE = 10;
-/** Task-name line drawn above each bar. */
-const TASK_LABEL_HEIGHT = 12;
-const BAR_HEIGHT = 16;
+/** Task-name line drawn above each bar (~2px around the text). */
+const TASK_LABEL_HEIGHT = TASK_FONT_SIZE + 4;
+const BAR_HEIGHT = STATE_FONT_SIZE + 4;
 /** Vertical gap between stacked rows. */
-const ROW_GAP = 4;
+const ROW_GAP = 2;
 const ROW_HEIGHT = TASK_LABEL_HEIGHT + BAR_HEIGHT + ROW_GAP;
 /** Radius applied only to the outer corners of each entity's segment run. */
 const CORNER_RADIUS = 3;
@@ -61,6 +66,8 @@ export function LongEntitiesGantt({
   isDark,
 }: LongEntitiesGanttProps) {
   const { themeName, textColor } = useTimelineEchartsTheme(isDark);
+  const [hover, setHover] = useState<GanttHover | null>(null);
+  const zoomRange = useZoomRange();
   const startTimeMs = useMemo(() => nanosToMs(startTime), [startTime]);
   const xAxisMax = useMemo(
     () => startTimeMs + durationSeconds * 1_000,
@@ -94,6 +101,19 @@ export function LongEntitiesGantt({
     });
     return data;
   }, [entries]);
+  const activeMarks = useMemo<ActiveMark[]>(() => {
+    if (!hover) return [];
+    return getLongEntitySegmentsAtTimestamp(entries, hover.timestampMs).map(
+      ({ entry, segment }) => ({
+        color: segment.color,
+        label: entry.label,
+        stateName: segment.stateName,
+        durationMs: segment.endMs - segment.startMs,
+        attributes: segment.attributes,
+        derivedAttributes: segment.derivedAttributes,
+      })
+    );
+  }, [entries, hover]);
 
   type RenderItem = NonNullable<CustomSeriesOption['renderItem']>;
 
@@ -214,7 +234,13 @@ export function LongEntitiesGantt({
   const option: EChartsOption = useMemo(
     () => ({
       animation: false,
-      tooltip: { show: false },
+      // Axis-triggered tooltip paints the crosshair without rendering tooltip content.
+      tooltip: {
+        show: true,
+        showContent: false,
+        trigger: 'axis',
+        transitionDuration: 0,
+      },
       axisPointer: {
         link: [{ xAxisIndex: 'all' }],
       },
@@ -249,6 +275,7 @@ export function LongEntitiesGantt({
           data: customSeriesData,
           renderItem: renderItem as never,
           coordinateSystem: 'cartesian2d',
+          encode: { x: [0, 1], y: 2 },
         },
       ],
       dataZoom: [
@@ -283,8 +310,11 @@ export function LongEntitiesGantt({
   );
 
   // Join timeline-sync-group for frame-rate-level x-axis zoom sync via ECharts connect().
+  const hoverCleanupRef = useRef<(() => void) | null>(null);
   const onChartReady = useCallback((instance: EChartsInstance) => {
-    registerAxisPointerSync(instance, 0, { receiveShowTip: false });
+    registerAxisPointerSync(instance);
+    hoverCleanupRef.current?.();
+    hoverCleanupRef.current = observeGanttHover(instance, setHover);
   }, []);
 
   const { handleChartReady, instanceRef } = useChartConnect({
@@ -295,12 +325,13 @@ export function LongEntitiesGantt({
 
   useEffect(() => {
     return () => {
+      hoverCleanupRef.current?.();
       if (instanceRef.current) {
         unregisterAxisPointerSync(instanceRef.current);
         instanceRef.current = null;
       }
     };
-  }, []);
+  }, [instanceRef]);
 
   // ECharts captures wheel events; forward non-shift wheel to the scroll container.
   const wrapperRef = useRef<HTMLDivElement | null>(null);
@@ -317,30 +348,36 @@ export function LongEntitiesGantt({
     };
   }, []);
 
-  if (entries.length === 0) {
-    return (
-      <div
-        className="flex items-center justify-center text-muted-foreground text-sm"
-        style={{ height }}
-      >
-        No long entities
-      </div>
-    );
-  }
-
   return (
-    <HiddenScroll ref={wrapperRef} style={{ height: wrapperHeight }}>
-      <EChartsReactCore
-        echarts={echarts}
-        theme={themeName}
-        option={option}
-        style={{ height: chartHeight }}
-        onChartReady={handleChartReady}
-        notMerge={false}
-        lazyUpdate={false}
-        replaceMerge={['series']}
-        autoResize={false}
-      />
-    </HiddenScroll>
+    <>
+      <HiddenScroll ref={wrapperRef} className="relative" style={{ height: wrapperHeight }}>
+        <EChartsReactCore
+          echarts={echarts}
+          theme={themeName}
+          option={option}
+          style={{ height: chartHeight }}
+          onChartReady={handleChartReady}
+          notMerge={false}
+          lazyUpdate={false}
+          replaceMerge={['series']}
+          autoResize={false}
+        />
+        {entries.length === 0 && (
+          <div className="pointer-events-none absolute inset-0 flex items-center justify-center text-sm text-muted-foreground">
+            No long entities
+          </div>
+        )}
+      </HiddenScroll>
+      <PointerTooltipPortal hover={activeMarks.length > 0 ? hover : null}>
+        {hover && (
+          <EntityTooltipContent
+            timestamp={hover.timestampMs}
+            startTime={startTime}
+            windowMs={(zoomRange.end - zoomRange.start) * 1_000}
+            activeMarks={activeMarks}
+          />
+        )}
+      </PointerTooltipPortal>
+    </>
   );
 }

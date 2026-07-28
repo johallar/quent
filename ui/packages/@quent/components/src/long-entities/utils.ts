@@ -92,3 +92,16 @@ export function buildLongEntityEntries(
 
   return stackOperatorsIntoRows(entries);
 }
+
+/** Return every entity state whose half-open segment contains the timestamp. */
+export function getLongEntitySegmentsAtTimestamp(
+  entries: LongEntityEntry[],
+  timestampMs: number
+): Array<{ entry: LongEntityEntry; segment: LongEntitySegment }> {
+  return entries.flatMap(entry => {
+    const segment = entry.segments.find(
+      candidate => candidate.startMs <= timestampMs && timestampMs < candidate.endMs
+    );
+    return segment ? [{ entry, segment }] : [];
+  });
+}

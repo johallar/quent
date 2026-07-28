@@ -9,6 +9,7 @@ import {
   type DynamicAttribute,
 } from '@quent/utils';
 import { nanosToMs } from '../lib/timeline.utils';
+import { ColorCircle } from '../ui/color-circle';
 import { DataText } from '../ui/data-text';
 
 /** A timeline mark under the hover cursor, as shown in the tooltip. */
@@ -44,9 +45,7 @@ const TooltipSeriesStat = ({
 }) => {
   return (
     <li className="flex items-center gap-1">
-      {series.color && (
-        <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: series.color }} />
-      )}
+      {series.color && <ColorCircle color={series.color} />}
       <DataText className="text-foreground">{series.name}</DataText>
       <DataText className="font-semibold ml-auto text-foreground">
         {fmt(series.value ?? 0)}
@@ -208,13 +207,7 @@ function ActiveMarksSection({ marks }: { marks: ActiveMark[] }) {
       {marks.map((m, i) => (
         <div key={i}>
           <div className="flex items-center gap-1">
-            <span
-              className="w-2 h-2 rounded-xs shrink-0 border"
-              style={{
-                backgroundColor: m.color + '20',
-                borderColor: m.color + 'cc',
-              }}
-            />
+            <ColorCircle color={m.color} />
             <DataText className="text-muted-foreground">{m.label}</DataText>
             <DataText className="text-foreground font-medium ml-auto">{m.stateName}</DataText>
           </div>
@@ -341,6 +334,28 @@ function OverlayBarTooltip({
           })()}
       </div>
       {activeMarks && <ActiveMarksSection marks={activeMarks} />}
+    </div>
+  );
+}
+
+/** ResourceTimeline entity-mark tooltip, reusable by entity Gantt charts. */
+export function EntityTooltipContent({
+  timestamp,
+  startTime,
+  windowMs,
+  activeMarks,
+}: {
+  timestamp: number;
+  startTime: bigint;
+  windowMs: number;
+  activeMarks: ActiveMark[];
+}) {
+  return (
+    <div className="px-2 py-1.5 bg-popover rounded text-[11px] text-foreground leading-tight shadow-md z-50">
+      <DataText as="div" className="font-semibold mb-1 text-muted-foreground">
+        {formatDurationForWindow(timestamp - nanosToMs(startTime), windowMs)}
+      </DataText>
+      <ActiveMarksSection marks={activeMarks} />
     </div>
   );
 }

@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-import { useCallback, useEffect, useMemo, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import EChartsReactCore from 'echarts-for-react/lib/core';
 
 import type { EChartsOption } from '../lib/echarts';
@@ -28,8 +28,10 @@ import {
 } from '@quent/hooks';
 import { continuousColor, withOpacity, getOperationTypeColor } from '@quent/utils';
 import type { OperatorActiveSpanEntry } from './types';
-import { clipRectByRect } from './utils';
+import { clipRectByRect, getOperatorsAtTimestamp } from './utils';
 import { TIMELINE_SPACING, TIMELINE_X_AXIS_ANIMATION } from '../timeline/types';
+import { GanttTooltipPortal, type GanttTooltipItem } from '../ui/gantt-tooltip';
+import { observeGanttHover, type GanttHover } from '../ui/gantt-hover';
 
 const DEFAULT_HEIGHT = 75;
 const MAX_HEIGHT = 200;
@@ -68,6 +70,7 @@ export function OperatorGanttChart({
   const [nodePalette] = useNodeColorPalette();
   const barLabelTextColor = textColor;
   const selectedNodeIds = useSelectedNodeIds();
+  const [hover, setHover] = useState<GanttHover | null>(null);
   const startTimeMs = useMemo(() => nanosToMs(startTime), [startTime]);
   const xAxisMax = useMemo(
     () => startTimeMs + durationSeconds * 1_000,
@@ -96,6 +99,14 @@ export function OperatorGanttChart({
       })),
     [operators]
   );
+  const tooltipItems = useMemo<GanttTooltipItem[]>(() => {
+    if (!hover) return [];
+    return getOperatorsAtTimestamp(operators, hover.timestampMs).map(operator => ({
+      id: operator.operatorId,
+      color: getOperatorBarColors(operator.typeName).stroke,
+      name: operator.label,
+    }));
+  }, [hover, operators]);
   const operatorFieldStyles = useMemo(() => {
     const styles = new Map<string, { stroke?: string; fieldDimmed: boolean }>();
     if (!nodeColoring) return styles;
@@ -218,7 +229,13 @@ export function OperatorGanttChart({
   const option: EChartsOption = useMemo(
     () => ({
       animation: false,
-      tooltip: { show: false },
+      // Axis-triggered tooltip paints the crosshair without rendering tooltip content.
+      tooltip: {
+        show: true,
+        showContent: false,
+        trigger: 'axis',
+        transitionDuration: 0,
+      },
       axisPointer: {
         link: [{ xAxisIndex: 'all' }],
       },
@@ -254,6 +271,7 @@ export function OperatorGanttChart({
           data: customSeriesData,
           renderItem: renderItem as never,
           coordinateSystem: 'cartesian2d',
+          encode: { x: [0, 1], y: 2 },
         },
       ],
       dataZoom: [
@@ -325,8 +343,11 @@ export function OperatorGanttChart({
   // Join timeline-sync-group for frame-rate-level x-axis zoom sync via ECharts connect().
   // The y-axis dataZoom (index 3, when present) has a unique component ID and does not
   // propagate to resource timelines that have no matching component.
+  const hoverCleanupRef = useRef<(() => void) | null>(null);
   const onChartReady = useCallback((instance: EChartsInstance) => {
-    registerAxisPointerSync(instance, 0, { receiveShowTip: false });
+    registerAxisPointerSync(instance);
+    hoverCleanupRef.current?.();
+    hoverCleanupRef.current = observeGanttHover(instance, setHover);
   }, []);
 
   const { handleChartReady, instanceRef } = useChartConnect({
@@ -337,12 +358,13 @@ export function OperatorGanttChart({
 
   useEffect(() => {
     return () => {
+      hoverCleanupRef.current?.();
       if (instanceRef.current) {
         unregisterAxisPointerSync(instanceRef.current);
         instanceRef.current = null;
       }
     };
-  }, []);
+  }, [instanceRef]);
 
   // Handle scrolling from the container, echarts captures wheel events and prevents the container
   // from receiving.
@@ -360,31 +382,28 @@ export function OperatorGanttChart({
     };
   }, []);
 
-  if (operators.length === 0) {
-    return (
-      <div
-        className="flex items-center justify-center text-muted-foreground text-sm"
-        style={{ height }}
-      >
-        No operator active spans
-      </div>
-    );
-  }
-
   return (
-    <HiddenScroll ref={wrapperRef} style={{ height: wrapperHeight }}>
-      <EChartsReactCore
-        echarts={echarts}
-        theme={themeName}
-        option={option}
-        style={{ height: chartHeight }}
-        onChartReady={handleChartReady}
-        onEvents={handleClick}
-        notMerge={false}
-        lazyUpdate={false}
-        replaceMerge={['series']}
-        autoResize={false}
-      />
-    </HiddenScroll>
+    <>
+      <HiddenScroll ref={wrapperRef} className="relative" style={{ height: wrapperHeight }}>
+        <EChartsReactCore
+          echarts={echarts}
+          theme={themeName}
+          option={option}
+          style={{ height: chartHeight }}
+          onChartReady={handleChartReady}
+          onEvents={handleClick}
+          notMerge={false}
+          lazyUpdate={false}
+          replaceMerge={['series']}
+          autoResize={false}
+        />
+        {operators.length === 0 && (
+          <div className="pointer-events-none absolute inset-0 flex items-center justify-center text-sm text-muted-foreground">
+            No operator active spans
+          </div>
+        )}
+      </HiddenScroll>
+      <GanttTooltipPortal hover={hover} items={tooltipItems} />
+    </>
   );
 }

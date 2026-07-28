@@ -3,7 +3,7 @@
 
 import { describe, it, expect } from 'vitest';
 import { render, screen } from '@testing-library/react';
-import { TooltipContent, type ActiveMark } from './TimelineTooltip';
+import { EntityTooltipContent, TooltipContent, type ActiveMark } from './TimelineTooltip';
 import type { DynamicValue } from '@quent/utils';
 
 // The Rust `DynamicValue` enum serializes externally tagged. This is the shape the
@@ -76,5 +76,26 @@ describe('TooltipContent active marks', () => {
     renderWithMarks([{ label: 'task-0', stateName: 'sending', color: '#0000ff' }]);
     expect(screen.getByText('task-0')).toBeInTheDocument();
     expect(screen.getByText('sending')).toBeInTheDocument();
+  });
+
+  it('renders entity-only content without a timeline total', () => {
+    render(
+      <EntityTooltipContent
+        timestamp={1_000}
+        startTime={0n}
+        windowMs={5_000}
+        activeMarks={[
+          {
+            label: 'task-0',
+            stateName: 'loading',
+            color: '#0000ff',
+            durationMs: 500,
+          },
+        ]}
+      />
+    );
+    expect(screen.getByText('task-0')).toBeInTheDocument();
+    expect(screen.getByText('loading')).toBeInTheDocument();
+    expect(screen.queryByText('Total')).not.toBeInTheDocument();
   });
 });

@@ -93,6 +93,16 @@ export function stackOperatorsIntoRows<
   return entries;
 }
 
+/** Return every operator whose half-open active span contains the timestamp. */
+export function getOperatorsAtTimestamp(
+  operators: OperatorActiveSpanEntry[],
+  timestampMs: number
+): OperatorActiveSpanEntry[] {
+  return operators.filter(
+    operator => operator.startMs <= timestampMs && timestampMs < operator.endMs
+  );
+}
+
 /**
  * SpanSec from the API is in seconds relative to query start (epoch).
  * Convert to absolute ms using query start time.
