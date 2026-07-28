@@ -221,7 +221,6 @@ export const DAGControls = ({ operatorStatFields, portStatFields, isDark }: DAGC
                   }))}
                   selected={dimensionSelection}
                   onToggle={toggleDimension}
-                  helperText="Select one or more. At least one location is required."
                   optionTestId="flow-tier-toggle"
                 />
               </ControlField>
