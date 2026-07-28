@@ -156,7 +156,7 @@ function Harness({
   return (
     children ?? (
       <>
-        <DagPlayhead startTimeUnixNs={BigInt(0)} />
+        <DagPlayhead />
         <NodeFlowBar operatorId="op-1" isDark={false} />
       </>
     )
@@ -456,7 +456,7 @@ describe('DAGLegend under tier selection', () => {
     return render(
       <Provider>
         <Harness response={response} selectedDimensions={selectedDimensions}>
-          <DagPlayhead startTimeUnixNs={BigInt(0)} />
+          <DagPlayhead />
           <ReactFlowProvider>
             <DAGLegend isDark={false} />
           </ReactFlowProvider>

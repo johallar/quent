@@ -7,11 +7,7 @@ import EChartsReactCore from 'echarts-for-react/lib/core';
 import type { EChartsOption } from '../lib/echarts';
 import type { EChartsInstance } from 'echarts-for-react';
 import type { CustomSeriesOption } from 'echarts/charts';
-import {
-  nanosToMs,
-  registerAxisPointerSync,
-  unregisterAxisPointerSync,
-} from '../lib/timeline.utils';
+import { registerAxisPointerSync, unregisterAxisPointerSync } from '../lib/timeline.utils';
 import { useChartConnect } from '../lib/useChartConnect';
 import { useMinZoomSpanPct } from '../lib/useMinZoomSpanPct';
 import { useTimelineWheelNavigation } from '../lib/useTimelineWheelNavigation';
@@ -47,7 +43,6 @@ function getOperatorBarColors(typeName: string | undefined): { fill: string; str
 
 export interface OperatorGanttChartProps {
   operators: OperatorActiveSpanEntry[];
-  startTime: bigint;
   durationSeconds: number;
   height?: number;
   /** Whether dark mode is active. Passed explicitly to decouple from ThemeContext. */
@@ -56,7 +51,6 @@ export interface OperatorGanttChartProps {
 
 export function OperatorGanttChart({
   operators,
-  startTime,
   durationSeconds,
   height = DEFAULT_HEIGHT,
   isDark,
@@ -70,11 +64,7 @@ export function OperatorGanttChart({
   const [nodePalette] = useNodeColorPalette();
   const barLabelTextColor = textColor;
   const selectedNodeIds = useSelectedNodeIds();
-  const startTimeMs = useMemo(() => nanosToMs(startTime), [startTime]);
-  const xAxisMax = useMemo(
-    () => startTimeMs + durationSeconds * 1_000,
-    [startTimeMs, durationSeconds]
-  );
+  const xAxisMax = useMemo(() => durationSeconds * 1_000, [durationSeconds]);
   const minZoomSpanPct = useMinZoomSpanPct(durationSeconds);
   const attachWheelNavigation = useTimelineWheelNavigation(minZoomSpanPct);
   const wrapperRef = useRef<HTMLDivElement | null>(null);
@@ -230,8 +220,8 @@ export function OperatorGanttChart({
       },
       grid: gridOptions,
       xAxis: {
-        type: 'time',
-        min: startTimeMs,
+        type: 'value',
+        min: 0,
         max: xAxisMax,
         show: true,
         axisLabel: { show: false },
@@ -292,15 +282,7 @@ export function OperatorGanttChart({
         },
       ],
     }),
-    [
-      gridOptions,
-      startTimeMs,
-      xAxisMax,
-      yAxisCategories,
-      customSeriesData,
-      renderItem,
-      minZoomSpanPct,
-    ]
+    [gridOptions, xAxisMax, yAxisCategories, customSeriesData, renderItem, minZoomSpanPct]
   );
 
   const handleClick = useMemo(
