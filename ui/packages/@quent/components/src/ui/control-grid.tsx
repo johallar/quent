@@ -100,6 +100,8 @@ export function ControlField({
   adornmentWidth = '1.5rem',
   children,
 }: ControlFieldProps) {
+  const hasTrailingAdornment = Boolean(trailingAdornment);
+
   return (
     <div
       className={cn(
@@ -108,7 +110,9 @@ export function ControlField({
         className
       )}
       style={{
-        gridTemplateColumns: `${toCssSize(labelWidth)} minmax(0, 1fr) ${toCssSize(adornmentWidth)}`,
+        gridTemplateColumns: `${toCssSize(labelWidth)} minmax(0, 1fr)${
+          hasTrailingAdornment ? ` ${toCssSize(adornmentWidth)}` : ''
+        }`,
       }}
     >
       <div className={cn('flex min-w-0 items-center gap-1.5', align === 'start' && 'pt-1')}>
@@ -116,7 +120,9 @@ export function ControlField({
         <span className="truncate text-xs text-muted-foreground">{label}</span>
       </div>
       <div className="min-w-0">{children}</div>
-      <div className="flex size-6 items-center justify-center">{trailingAdornment}</div>
+      {hasTrailingAdornment && (
+        <div className="flex size-6 items-center justify-center">{trailingAdornment}</div>
+      )}
     </div>
   );
 }

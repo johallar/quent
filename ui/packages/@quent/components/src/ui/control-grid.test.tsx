@@ -46,4 +46,30 @@ describe('ControlGrid', () => {
     expect(screen.getByText('Name')).toBeVisible();
     expect(screen.getByRole('textbox', { name: 'Name value' })).toBeVisible();
   });
+
+  it('only reserves space when a trailing adornment is present', () => {
+    const { container } = render(
+      <>
+        <ControlField label="Without adornment" className="without-adornment">
+          <input />
+        </ControlField>
+        <ControlField
+          label="With adornment"
+          className="with-adornment"
+          trailingAdornment={<button type="button">Pick color</button>}
+        >
+          <input />
+        </ControlField>
+      </>
+    );
+
+    expect(container.querySelector('.without-adornment')).toHaveStyle({
+      gridTemplateColumns: '7rem minmax(0, 1fr)',
+    });
+    expect(container.querySelector('.without-adornment')).toHaveProperty('children.length', 2);
+    expect(container.querySelector('.with-adornment')).toHaveStyle({
+      gridTemplateColumns: '7rem minmax(0, 1fr) 1.5rem',
+    });
+    expect(container.querySelector('.with-adornment')).toHaveProperty('children.length', 3);
+  });
 });
