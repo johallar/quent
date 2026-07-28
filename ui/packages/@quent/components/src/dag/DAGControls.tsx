@@ -95,7 +95,7 @@ export const DAGControls = ({ operatorStatFields, portStatFields, isDark }: DAGC
   };
 
   return (
-    <div className="space-y-3 bg-card p-3">
+    <div className="space-y-2 bg-card p-2">
       <ControlSection title="Plan controls">
         <ControlGrid columns={2} minColumnWidth="12rem">
           <ControlField

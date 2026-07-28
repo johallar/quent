@@ -46,7 +46,7 @@ export function ControlSection({
 }: ControlSectionProps) {
   return (
     <section className={cn('rounded-sm border border-border/70 bg-background/30', className)}>
-      <header className="flex min-h-9 items-center justify-between gap-3 border-b border-border/60 px-3 py-2">
+      <header className="flex min-h-7 items-center justify-between gap-3 border-b border-border/60 px-3 py-1">
         <div className="min-w-0">
           <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
             {title}
