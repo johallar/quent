@@ -340,13 +340,10 @@ export function OperatorGanttChart({
   // Join timeline-sync-group for frame-rate-level x-axis zoom sync via ECharts connect().
   // The y-axis dataZoom (index 3, when present) has a unique component ID and does not
   // propagate to resource timelines that have no matching component.
-  const onChartReady = useCallback(
-    (instance: EChartsInstance) => {
-      registerAxisPointerSync(instance, 0, { receiveShowTip: false });
-      attachWheelNavigation(instance, wrapperRef.current ?? undefined);
-    },
-    [attachWheelNavigation]
-  );
+  const onChartReady = (instance: EChartsInstance) => {
+    registerAxisPointerSync(instance, 0, { receiveShowTip: false });
+    attachWheelNavigation(instance, wrapperRef.current ?? undefined);
+  };
 
   const { handleChartReady, instanceRef } = useChartConnect({
     durationSeconds,
