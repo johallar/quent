@@ -315,7 +315,6 @@ function QueryResourceTreeContent({ queryBundle, engineId }: QueryResourceTreePr
                   engineId={engineId}
                   queryId={queryBundle.query_id}
                   resourceId={resourceId}
-                  startTime={startTime}
                   durationSeconds={durationSeconds}
                   fsmTypes={entities.fsm_types}
                   isDark={isDark}

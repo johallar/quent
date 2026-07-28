@@ -9,18 +9,18 @@ import {
   DEFAULT_TIMELINE_HEIGHT,
   LongEntitiesGantt,
   buildLongEntityEntries,
-  getLongEntitiesThreshold,
 } from '@quent/components';
 
 /** Max entities fetched per resource; longest-usage-first, so this keeps the top N. */
 const MAX_ENTITIES = 200;
+// Stress-test the Gantt with nearly every task.
+const MIN_USAGE_SECONDS = 0.001;
 
 type LongEntitiesRowProps = {
   engineId: string;
   queryId: string;
   /** The resource this row's entities are scoped to. */
   resourceId: string;
-  startTime: bigint;
   durationSeconds: number;
   fsmTypes: { [key in string]?: FsmTypeDecl };
   isDark: boolean;
@@ -35,7 +35,6 @@ export function LongEntitiesRow({
   engineId,
   queryId,
   resourceId,
-  startTime,
   durationSeconds,
   fsmTypes,
   isDark,
@@ -50,9 +49,7 @@ export function LongEntitiesRow({
     queryId,
     window: { start: 0, end: durationSeconds },
     operatorId,
-    // Match the resource timelines' "long entity" cutoff so the Gantt shows the
-    // same set of long-running entities.
-    minUsageSeconds: getLongEntitiesThreshold(durationSeconds),
+    minUsageSeconds: MIN_USAGE_SECONDS,
     sortDir: 'Desc',
     maxItems: MAX_ENTITIES,
     filter: { scope: { Resource: { resource_id: resourceId } } },
@@ -60,10 +57,8 @@ export function LongEntitiesRow({
 
   const entries = useMemo(
     () =>
-      data
-        ? buildLongEntityEntries(data.items, startTime, fsmTypes, isDark ? 'dark' : 'light')
-        : [],
-    [data, startTime, fsmTypes, isDark]
+      data ? buildLongEntityEntries(data.items, fsmTypes, isDark ? 'dark' : 'light') : [],
+    [data, fsmTypes, isDark]
   );
 
   if (!data && isFetching) {
@@ -80,7 +75,6 @@ export function LongEntitiesRow({
   return (
     <LongEntitiesGantt
       entries={entries}
-      startTime={startTime}
       durationSeconds={durationSeconds}
       height={DEFAULT_TIMELINE_HEIGHT}
       isDark={isDark}

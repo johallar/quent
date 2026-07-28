@@ -341,6 +341,7 @@ export function EntityTooltipContent({
   windowMs,
   activeMarks,
 }: {
+  /** Elapsed ms from query start. */
   timestamp: number;
   windowMs: number;
   activeMarks: ActiveMark[];
