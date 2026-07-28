@@ -7,12 +7,10 @@ import EChartsReactCore from 'echarts-for-react/lib/core';
 import type { EChartsOption } from '../lib/echarts';
 import type { EChartsInstance } from 'echarts-for-react';
 import type { CustomSeriesOption } from 'echarts/charts';
-import {
-  nanosToMs,
-  registerAxisPointerSync,
-  unregisterAxisPointerSync,
-} from '../lib/timeline.utils';
+import { registerAxisPointerSync, unregisterAxisPointerSync } from '../lib/timeline.utils';
 import { useChartConnect } from '../lib/useChartConnect';
+import { useMinZoomSpanPct } from '../lib/useMinZoomSpanPct';
+import { useTimelineWheelNavigation } from '../lib/useTimelineWheelNavigation';
 import { echarts } from '../lib/echarts';
 import { CHART_GROUP } from '../timeline/Timeline';
 import { useTimelineEchartsTheme } from '../timeline/timelineEchartsTheme';
@@ -51,7 +49,6 @@ type SegmentDatum = {
 
 export interface LongEntitiesGanttProps {
   entries: LongEntityEntry[];
-  startTime: bigint;
   durationSeconds: number;
   height?: number;
   /** Whether dark mode is active. Passed explicitly to decouple from ThemeContext. */
@@ -60,7 +57,6 @@ export interface LongEntitiesGanttProps {
 
 export function LongEntitiesGantt({
   entries,
-  startTime,
   durationSeconds,
   height = DEFAULT_HEIGHT,
   isDark,
@@ -68,11 +64,12 @@ export function LongEntitiesGantt({
   const { themeName, textColor } = useTimelineEchartsTheme(isDark);
   const [hover, setHover] = useState<GanttHover | null>(null);
   const zoomRange = useZoomRange();
-  const startTimeMs = useMemo(() => nanosToMs(startTime), [startTime]);
-  const xAxisMax = useMemo(
-    () => startTimeMs + durationSeconds * 1_000,
-    [startTimeMs, durationSeconds]
-  );
+  const xAxisMax = useMemo(() => durationSeconds * 1_000, [durationSeconds]);
+  const minZoomSpanPct = useMinZoomSpanPct(durationSeconds);
+  const attachWheelNavigation = useTimelineWheelNavigation(minZoomSpanPct);
+  const wrapperRef = useRef<HTMLDivElement | null>(null);
+  const chartCleanupRef = useRef<(() => void) | null>(null);
+  const hoverCleanupRef = useRef<(() => void) | null>(null);
 
   const { yAxisCategories, rowCount } = useMemo(() => {
     if (entries.length === 0) return { yAxisCategories: [] as number[], rowCount: 0 };
@@ -246,8 +243,8 @@ export function LongEntitiesGantt({
       },
       grid: gridOptions,
       xAxis: {
-        type: 'time',
-        min: startTimeMs,
+        type: 'value',
+        min: 0,
         max: xAxisMax,
         show: true,
         axisLabel: { show: false },
@@ -285,6 +282,7 @@ export function LongEntitiesGantt({
           realtime: true,
           filterMode: 'none',
           xAxisIndex: [0],
+          minSpan: minZoomSpanPct,
         },
         {
           type: 'inside',
@@ -303,19 +301,29 @@ export function LongEntitiesGantt({
           throttle: 30,
           filterMode: 'none',
           xAxisIndex: [0],
+          minSpan: minZoomSpanPct,
         },
       ],
     }),
-    [gridOptions, startTimeMs, xAxisMax, yAxisCategories, customSeriesData, renderItem]
+    [gridOptions, xAxisMax, yAxisCategories, customSeriesData, renderItem, minZoomSpanPct]
   );
 
   // Join timeline-sync-group for frame-rate-level x-axis zoom sync via ECharts connect().
-  const hoverCleanupRef = useRef<(() => void) | null>(null);
-  const onChartReady = useCallback((instance: EChartsInstance) => {
-    registerAxisPointerSync(instance);
+  const onChartReady = (instance: EChartsInstance) => {
+    chartCleanupRef.current?.();
     hoverCleanupRef.current?.();
+    registerAxisPointerSync(instance, 0, { receiveShowTip: false });
     hoverCleanupRef.current = observeGanttHover(instance, setHover);
-  }, []);
+    const detachWheelNavigation = attachWheelNavigation(instance, wrapperRef.current ?? undefined);
+    const cleanup = () => {
+      unregisterAxisPointerSync(instance);
+      detachWheelNavigation();
+      hoverCleanupRef.current?.();
+      hoverCleanupRef.current = null;
+      if (chartCleanupRef.current === cleanup) chartCleanupRef.current = null;
+    };
+    chartCleanupRef.current = cleanup;
+  };
 
   const { handleChartReady, instanceRef } = useChartConnect({
     durationSeconds,
@@ -324,29 +332,17 @@ export function LongEntitiesGantt({
   });
 
   useEffect(() => {
+    if (entries.length > 0) return;
+    chartCleanupRef.current?.();
+    instanceRef.current = null;
+  }, [entries.length, instanceRef]);
+
+  useEffect(() => {
     return () => {
-      hoverCleanupRef.current?.();
-      if (instanceRef.current) {
-        unregisterAxisPointerSync(instanceRef.current);
-        instanceRef.current = null;
-      }
+      chartCleanupRef.current?.();
+      instanceRef.current = null;
     };
   }, [instanceRef]);
-
-  // ECharts captures wheel events; forward non-shift wheel to the scroll container.
-  const wrapperRef = useRef<HTMLDivElement | null>(null);
-  useEffect(() => {
-    const wrapper = wrapperRef.current;
-    if (!wrapper) return;
-    const handleWheel = (e: WheelEvent) => {
-      if (e.shiftKey) return;
-      e.stopPropagation();
-    };
-    wrapper.addEventListener('wheel', handleWheel, { capture: true, passive: true });
-    return () => {
-      wrapper.removeEventListener('wheel', handleWheel, { capture: true });
-    };
-  }, []);
 
   return (
     <>
@@ -372,7 +368,6 @@ export function LongEntitiesGantt({
         {hover && (
           <EntityTooltipContent
             timestamp={hover.timestampMs}
-            startTime={startTime}
             windowMs={(zoomRange.end - zoomRange.start) * 1_000}
             activeMarks={activeMarks}
           />

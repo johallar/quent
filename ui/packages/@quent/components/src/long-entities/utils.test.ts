@@ -36,7 +36,7 @@ function makeFsm(
 
 describe('buildLongEntityEntries', () => {
   it('returns [] for no items', () => {
-    expect(buildLongEntityEntries([], 0n, {}, 'light')).toEqual([]);
+    expect(buildLongEntityEntries([], {}, 'light')).toEqual([]);
   });
 
   it('builds one segment per consecutive transition pair', () => {
@@ -45,10 +45,10 @@ describe('buildLongEntityEntries', () => {
       transition('computing', 1),
       transition('exit', 3),
     ]);
-    const [entry] = buildLongEntityEntries([fsm], 0n, {}, 'light');
+    const [entry] = buildLongEntityEntries([fsm], {}, 'light');
     expect(entry.segments).toHaveLength(2);
     expect(entry.segments.map(s => s.stateName)).toEqual(['queueing', 'computing']);
-    // seconds → ms, offset from epoch 0
+    // seconds → ms elapsed from query start
     expect(entry.segments[0]).toMatchObject({ startMs: 0, endMs: 1000 });
     expect(entry.segments[1]).toMatchObject({ startMs: 1000, endMs: 3000 });
   });
@@ -59,21 +59,20 @@ describe('buildLongEntityEntries', () => {
       transition('b', 1.5),
       transition('exit', 2.5),
     ]);
-    const [entry] = buildLongEntityEntries([fsm], 0n, {}, 'light');
+    const [entry] = buildLongEntityEntries([fsm], {}, 'light');
     expect(entry.startMs).toBe(500);
     expect(entry.endMs).toBe(2500);
   });
 
-  it('offsets by the query epoch (startTimeNs)', () => {
+  it('uses relative elapsed ms (no absolute epoch base)', () => {
     const fsm = makeFsm('e1', [transition('a', 0), transition('exit', 1)]);
-    // 1ms epoch = 1_000_000ns
-    const [entry] = buildLongEntityEntries([fsm], 1_000_000n, {}, 'light');
-    expect(entry.segments[0]).toMatchObject({ startMs: 1, endMs: 1001 });
+    const [entry] = buildLongEntityEntries([fsm], {}, 'light');
+    expect(entry.segments[0]).toMatchObject({ startMs: 0, endMs: 1000 });
   });
 
   it('drops single-transition FSMs (no state span)', () => {
     const fsm = makeFsm('e1', [transition('a', 0)]);
-    expect(buildLongEntityEntries([fsm], 0n, {}, 'light')).toEqual([]);
+    expect(buildLongEntityEntries([fsm], {}, 'light')).toEqual([]);
   });
 
   it('drops zero-duration segments', () => {
@@ -82,14 +81,14 @@ describe('buildLongEntityEntries', () => {
       transition('b', 1), // zero duration → dropped
       transition('exit', 2),
     ]);
-    const [entry] = buildLongEntityEntries([fsm], 0n, {}, 'light');
+    const [entry] = buildLongEntityEntries([fsm], {}, 'light');
     expect(entry.segments).toHaveLength(1);
     expect(entry.segments[0].stateName).toBe('b');
   });
 
   it('drops entities whose only segments are zero-duration', () => {
     const fsm = makeFsm('e1', [transition('a', 1), transition('exit', 1)]);
-    expect(buildLongEntityEntries([fsm], 0n, {}, 'light')).toEqual([]);
+    expect(buildLongEntityEntries([fsm], {}, 'light')).toEqual([]);
   });
 
   it('uses instance_name for the label, falling back to id', () => {
@@ -97,14 +96,14 @@ describe('buildLongEntityEntries', () => {
       instance_name: 'task-7',
     });
     const anon = makeFsm('e2', [transition('a', 0), transition('exit', 1)]);
-    const [n, a] = buildLongEntityEntries([named, anon], 0n, {}, 'light');
+    const [n, a] = buildLongEntityEntries([named, anon], {}, 'light');
     expect(n.label).toBe('task-7');
     expect(a.label).toBe('e2');
   });
 
   it('assigns a color to each segment', () => {
     const fsm = makeFsm('e1', [transition('a', 0), transition('exit', 1)]);
-    const [entry] = buildLongEntityEntries([fsm], 0n, {}, 'light');
+    const [entry] = buildLongEntityEntries([fsm], {}, 'light');
     expect(entry.segments[0].color).toMatch(/^#/);
   });
 
@@ -115,21 +114,21 @@ describe('buildLongEntityEntries', () => {
       }),
       transition('exit', 1),
     ]);
-    const [entry] = buildLongEntityEntries([fsm], 0n, {}, 'light');
+    const [entry] = buildLongEntityEntries([fsm], {}, 'light');
     expect(entry.segments[0].attributes).toHaveLength(1);
   });
 
   it('stacks non-overlapping entities onto the same row', () => {
     const a = makeFsm('a', [transition('s', 0), transition('exit', 1)]);
     const b = makeFsm('b', [transition('s', 2), transition('exit', 3)]);
-    const entries = buildLongEntityEntries([a, b], 0n, {}, 'light');
+    const entries = buildLongEntityEntries([a, b], {}, 'light');
     expect(entries.map(e => e.rowIndex).sort()).toEqual([0, 0]);
   });
 
   it('stacks overlapping entities onto different rows', () => {
     const a = makeFsm('a', [transition('s', 0), transition('exit', 10)]);
     const b = makeFsm('b', [transition('s', 2), transition('exit', 8)]);
-    const entries = buildLongEntityEntries([a, b], 0n, {}, 'light');
+    const entries = buildLongEntityEntries([a, b], {}, 'light');
     expect(new Set(entries.map(e => e.rowIndex)).size).toBe(2);
   });
 });
@@ -144,7 +143,7 @@ describe('getLongEntitySegmentsAtTimestamp', () => {
     const second = makeFsm('second', [transition('queued', 0.5), transition('done', 2)], {
       instance_name: 'task-2',
     });
-    const entries = buildLongEntityEntries([first, second], 0n, {}, 'light');
+    const entries = buildLongEntityEntries([first, second], {}, 'light');
 
     expect(
       getLongEntitySegmentsAtTimestamp(entries, 1_500).map(({ entry, segment }) => [
@@ -163,7 +162,7 @@ describe('getLongEntitySegmentsAtTimestamp', () => {
       transition('running', 1),
       transition('exit', 2),
     ]);
-    const entries = buildLongEntityEntries([fsm], 0n, {}, 'light');
+    const entries = buildLongEntityEntries([fsm], {}, 'light');
     const [{ segment }] = getLongEntitySegmentsAtTimestamp(entries, 1_000);
     expect(segment.stateName).toBe('running');
   });

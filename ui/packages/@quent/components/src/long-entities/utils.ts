@@ -3,7 +3,6 @@
 
 import type { FiniteStateMachine, FsmTypeDecl, PaletteTheme } from '@quent/utils';
 import { createFsmTypeColorFn } from '@quent/utils';
-import { nanosToMs } from '../lib/timeline.utils';
 import { stackOperatorsIntoRows } from '../operator-timeline/utils';
 import type { LongEntityEntry, LongEntitySegment } from './types';
 
@@ -27,11 +26,10 @@ export function resourceIdFromLongEntitiesRowId(id: string): string | null {
  * Convert an FSM's consecutive transition pairs into state-colored segments.
  * Each pair defines the time range of the state entered by the first
  * transition (identical semantics to timeline marks). Zero-duration spans are
- * dropped.
+ * dropped. Timestamps are ms elapsed from query start (no absolute epoch).
  */
 function buildSegments(
   fsm: FiniteStateMachine,
-  startTimeMs: number,
   colorFsm: (stateName: string) => string
 ): LongEntitySegment[] {
   return fsm.transitions
@@ -39,8 +37,8 @@ function buildSegments(
     .map((transition, i): LongEntitySegment | null => {
       const next = fsm.transitions[i + 1];
       if (!next) return null;
-      const startMs = startTimeMs + transition.timestamp * 1000;
-      const endMs = startTimeMs + next.timestamp * 1000;
+      const startMs = transition.timestamp * 1000;
+      const endMs = next.timestamp * 1000;
       if (endMs <= startMs) return null;
       return {
         stateName: transition.name,
@@ -66,16 +64,14 @@ function buildSegments(
  */
 export function buildLongEntityEntries(
   items: FiniteStateMachine[],
-  startTimeNs: bigint,
   fsmTypes: { [key in string]?: FsmTypeDecl } | undefined,
   theme: PaletteTheme
 ): LongEntityEntry[] {
-  const startTimeMs = nanosToMs(startTimeNs);
   const colorFsm = createFsmTypeColorFn(fsmTypes ?? {}, theme);
 
   const entries: LongEntityEntry[] = [];
   for (const fsm of items) {
-    const segments = buildSegments(fsm, startTimeMs, colorFsm);
+    const segments = buildSegments(fsm, colorFsm);
     if (segments.length === 0) continue;
     const startMs = segments[0]!.startMs;
     const endMs = segments[segments.length - 1]!.endMs;

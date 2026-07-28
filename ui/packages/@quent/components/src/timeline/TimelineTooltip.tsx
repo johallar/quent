@@ -8,7 +8,6 @@ import {
   cn,
   type DynamicAttribute,
 } from '@quent/utils';
-import { nanosToMs } from '../lib/timeline.utils';
 import { ColorCircle } from '../ui/color-circle';
 import { DataText } from '../ui/data-text';
 
@@ -339,19 +338,18 @@ function OverlayBarTooltip({
 /** ResourceTimeline entity-mark tooltip, reusable by entity Gantt charts. */
 export function EntityTooltipContent({
   timestamp,
-  startTime,
   windowMs,
   activeMarks,
 }: {
+  /** Elapsed ms from query start. */
   timestamp: number;
-  startTime: bigint;
   windowMs: number;
   activeMarks: ActiveMark[];
 }) {
   return (
     <div className="px-2 py-1.5 bg-popover rounded text-[11px] text-foreground leading-tight shadow-md z-50">
       <DataText as="div" className="font-semibold mb-1 text-muted-foreground">
-        {formatDurationForWindow(timestamp - nanosToMs(startTime), windowMs)}
+        {formatDurationForWindow(timestamp, windowMs)}
       </DataText>
       <ActiveMarksSection marks={activeMarks} />
     </div>

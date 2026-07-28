@@ -5,7 +5,7 @@ import type { DynamicAttribute } from '@quent/utils';
 
 /**
  * One state span within an entity, styled like a timeline mark.
- * Time is in milliseconds (aligned with timeline startTime).
+ * Time is ms elapsed from query start (same domain as resource timelines).
  */
 export type LongEntitySegment = {
   stateName: string;

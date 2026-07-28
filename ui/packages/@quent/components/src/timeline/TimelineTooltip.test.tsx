@@ -74,7 +74,6 @@ describe('TooltipContent active marks', () => {
     render(
       <EntityTooltipContent
         timestamp={1_000}
-        startTime={0n}
         windowMs={5_000}
         activeMarks={[
           {
