@@ -244,14 +244,12 @@ function ActiveMarksSection({ marks }: { marks: ActiveMark[] }) {
 function OverlayBarTooltip({
   timestamp,
   bars,
-  startTime,
   fmt,
   windowMs,
   activeMarks,
 }: {
   timestamp: number;
   bars: StateBar[];
-  startTime: bigint;
   fmt: ValueFormatter;
   windowMs: number;
   activeMarks?: ActiveMark[];
@@ -268,7 +266,7 @@ function OverlayBarTooltip({
       )}
     >
       <DataText as="div" className="font-semibold mb-1.5 text-muted-foreground">
-        {formatDurationForWindow(timestamp - nanosToMs(startTime), windowMs)}
+        {formatDurationForWindow(timestamp, windowMs)}
       </DataText>
       <div
         className="grid items-center gap-x-1.5 gap-y-1"
@@ -363,14 +361,12 @@ export function EntityTooltipContent({
 export function TooltipContent({
   timestamp,
   series,
-  startTime,
   fmt = defaultFormatter,
   windowMs,
   activeMarks,
 }: {
   timestamp: number;
   series: TooltipSeries[];
-  startTime: bigint;
   fmt?: ValueFormatter;
   windowMs: number;
   activeMarks?: ActiveMark[];
@@ -400,7 +396,6 @@ export function TooltipContent({
       <OverlayBarTooltip
         timestamp={timestamp}
         bars={bars}
-        startTime={startTime}
         fmt={fmt}
         windowMs={windowMs}
         activeMarks={activeMarks}
@@ -411,7 +406,7 @@ export function TooltipContent({
   return (
     <div className="px-2 py-1.5 bg-popover rounded text-[11px] text-foreground leading-tight shadow-md z-50">
       <DataText as="div" className="font-semibold mb-1 text-muted-foreground">
-        {formatDurationForWindow(timestamp - nanosToMs(startTime), windowMs)}
+        {formatDurationForWindow(timestamp, windowMs)}
       </DataText>
       <ul>
         {series

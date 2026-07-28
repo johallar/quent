@@ -227,10 +227,10 @@ function QueryResourceTreeContent({ queryBundle, engineId }: QueryResourceTreePr
   const operatorEntriesByWorker = useMemo(() => {
     const map = new Map<string, ReturnType<typeof operatorsWithActiveSpansForWorker>>();
     for (const workerId of workerIdsFromPlanTree) {
-      map.set(workerId, operatorsWithActiveSpansForWorker(queryBundle, startTime, workerId));
+      map.set(workerId, operatorsWithActiveSpansForWorker(queryBundle, workerId));
     }
     return map;
-  }, [queryBundle, startTime, workerIdsFromPlanTree]);
+  }, [queryBundle, workerIdsFromPlanTree]);
 
   const columns = useMemo(() => {
     return [
@@ -284,7 +284,6 @@ function QueryResourceTreeContent({ queryBundle, engineId }: QueryResourceTreePr
         headerContent: (
           <div className="h-full overflow-hidden flex items-center py-1">
             <TimelineController
-              startTime={startTime}
               durationSeconds={durationSeconds}
               timelineData={fetchedRootTimeline}
               onZoomChange={handleZoomChange}
@@ -292,7 +291,7 @@ function QueryResourceTreeContent({ queryBundle, engineId }: QueryResourceTreePr
             />
           </div>
         ),
-        subHeaderContent: <TimelineRuler startTime={startTime} isDark={isDark} />,
+        subHeaderContent: <TimelineRuler isDark={isDark} />,
         render: ({ item }: { item: TreeTableItem }) => {
           switch (item.type) {
             case OPERATOR_TIMELINE_ROW_TYPE: {
@@ -302,7 +301,6 @@ function QueryResourceTreeContent({ queryBundle, engineId }: QueryResourceTreePr
               return (
                 <OperatorGanttChart
                   operators={operators}
-                  startTime={startTime}
                   durationSeconds={durationSeconds}
                   height={DEFAULT_TIMELINE_HEIGHT}
                   isDark={isDark}
@@ -332,7 +330,6 @@ function QueryResourceTreeContent({ queryBundle, engineId }: QueryResourceTreePr
                   queryBundle={queryBundle}
                   selectedTypes={selectedTypes}
                   selectedFsmTypes={selectedFsmTypes}
-                  startTime={startTime}
                   durationSeconds={durationSeconds}
                   isDark={isDark}
                 />
@@ -343,7 +340,6 @@ function QueryResourceTreeContent({ queryBundle, engineId }: QueryResourceTreePr
       },
     ] satisfies Column<TreeTableItem>[];
   }, [
-    startTime,
     durationSeconds,
     fetchedRootTimeline,
     isDark,
@@ -361,9 +357,9 @@ function QueryResourceTreeContent({ queryBundle, engineId }: QueryResourceTreePr
   ]);
 
   return (
-    <div className="flex flex-col h-full w-full">
+    <div className="flex min-w-0 flex-col h-full w-full">
       <TimelineToolbar durationSeconds={durationSeconds} />
-      <div className="flex-1 min-h-0">
+      <div className="min-w-0 flex-1 min-h-0">
         <TreeTable<TreeTableItem>
           data={treeData}
           columns={columns}

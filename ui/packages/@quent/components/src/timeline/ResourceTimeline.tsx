@@ -43,7 +43,6 @@ type ResourceTimelineProps = {
   queryId: string;
   resourceId: string;
   resourceType: string;
-  startTime: bigint;
   durationSeconds: number;
   fsmTypeName?: string | undefined;
   resourceTypeName?: string;
@@ -73,7 +72,6 @@ export function ResourceTimeline({
   queryId,
   resourceId,
   resourceType,
-  startTime,
   durationSeconds,
   fsmTypeName,
   resourceTypeName,
@@ -184,7 +182,6 @@ export function ResourceTimeline({
     const base = buildBinnedTimelineSeries(
       data.data,
       data.config,
-      startTime,
       paletteTheme,
       capacities,
       quantitySpecs,
@@ -200,7 +197,6 @@ export function ResourceTimeline({
           const opResult = buildBinnedTimelineSeries(
             overlayPreloadedData.data,
             overlayPreloadedData.config,
-            startTime,
             paletteTheme,
             capacities,
             quantitySpecs,
@@ -228,7 +224,6 @@ export function ResourceTimeline({
     fetchedData,
     operatorId,
     overlayPreloadedData,
-    startTime,
     capacities,
     quantitySpecs,
     fsmTypes,
@@ -281,7 +276,6 @@ export function ResourceTimeline({
         <Timeline
           series={series}
           timestamps={timestamps ?? []}
-          startTime={startTime}
           durationSeconds={durationSeconds}
           showTooltip={showTooltip}
           isDark={isDark}
@@ -292,7 +286,6 @@ export function ResourceTimeline({
             ownerId={ownerId}
             series={series}
             timestamps={timestamps ?? []}
-            startTime={startTime}
           />
         )}
       </Suspense>

@@ -44,6 +44,7 @@ export {
   formatAttributeValue,
   unwrapTaggedValue,
   inferFieldFormatter,
+  isNumericValue,
 } from './formatters';
 
 // Rust-generated TypeScript types

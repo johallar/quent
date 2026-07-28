@@ -14,15 +14,7 @@ describe('TooltipContent active marks', () => {
   const series = [{ color: '#8884d8', name: 'computing', value: 1 }];
 
   const renderWithMarks = (marks: ActiveMark[]) =>
-    render(
-      <TooltipContent
-        timestamp={3360}
-        series={series}
-        startTime={0n}
-        windowMs={5300}
-        activeMarks={marks}
-      />
-    );
+    render(<TooltipContent timestamp={3360} series={series} windowMs={5300} activeMarks={marks} />);
 
   it('renders attribute rows with byte and rate formatting', () => {
     renderWithMarks([
