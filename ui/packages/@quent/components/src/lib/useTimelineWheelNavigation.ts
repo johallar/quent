@@ -15,7 +15,7 @@ function getDataZoomState(instance: EChartsType): DataZoomComponentOption | unde
 
 /**
  * Adds native vertical scrolling, horizontal trackpad panning, and minimum-zoom guarding.
- * Call the returned function from the chart's `onReady` callback.
+ * Returns a cleanup handle for charts removed while the hook remains mounted.
  */
 export function useTimelineWheelNavigation(minZoomSpanPct: number) {
   const minZoomSpanPctRef = useRef(minZoomSpanPct);
@@ -75,9 +75,12 @@ export function useTimelineWheelNavigation(minZoomSpanPct: number) {
 
       wheelTarget.addEventListener('wheel', handleWheel, { capture: true, passive: false });
 
-      cleanupRef.current = () => {
+      const cleanup = () => {
         wheelTarget.removeEventListener('wheel', handleWheel, { capture: true });
+        if (cleanupRef.current === cleanup) cleanupRef.current = null;
       };
+      cleanupRef.current = cleanup;
+      return cleanup;
     },
     []
   );

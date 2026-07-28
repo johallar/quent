@@ -200,6 +200,21 @@ describe('useTimelineWheelNavigation', () => {
     expect(chart.dispatchAction).toHaveBeenCalledOnce();
   });
 
+  it('returns a cleanup function for removing the listener explicitly', () => {
+    const chart = createChart({ start: 25, end: 75 });
+    const { result } = renderHook(() => useTimelineWheelNavigation(10));
+    const cleanup = result.current(chart.instance);
+    cleanup();
+
+    act(() => {
+      chart.dom.dispatchEvent(
+        new WheelEvent('wheel', { deltaX: 100, bubbles: true, cancelable: true })
+      );
+    });
+
+    expect(chart.dispatchAction).not.toHaveBeenCalled();
+  });
+
   it('removes the wheel listener on unmount', () => {
     const chart = createChart({ start: 25, end: 75 });
     const { result, unmount } = renderHook(() => useTimelineWheelNavigation(10));
