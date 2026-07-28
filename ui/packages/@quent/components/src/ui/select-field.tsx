@@ -23,6 +23,8 @@ export interface SelectFieldProps {
   icon?: React.ElementType;
   /** Optional label rendered before the trigger */
   label?: string;
+  /** Accessible label when the visible label is rendered externally. */
+  ariaLabel?: string;
   options: SelectFieldOption[];
   value: string;
   onValueChange: (value: string | null) => void;
@@ -41,6 +43,7 @@ export interface SelectFieldProps {
 export const SelectField = ({
   icon: Icon,
   label,
+  ariaLabel,
   options,
   value,
   onValueChange,
@@ -56,12 +59,15 @@ export const SelectField = ({
       <span className="text-xs text-muted-foreground shrink-0 whitespace-nowrap">{label}</span>
     )}
     <Select value={value} onValueChange={onValueChange}>
-      <SelectTrigger className={cn('flex-1 min-w-0', triggerClassName)}>
+      <SelectTrigger
+        aria-label={ariaLabel ?? label}
+        className={cn('flex-1 min-w-0', triggerClassName)}
+      >
         <SelectValue placeholder={placeholder} />
         {clearable && value && (
           <span
             role="button"
-            aria-label={`Clear ${label ?? 'selection'}`}
+            aria-label={`Clear ${ariaLabel ?? label ?? 'selection'}`}
             className="ml-auto mr-1 shrink-0 text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
             onPointerDown={e => {
               e.stopPropagation();

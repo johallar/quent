@@ -32,7 +32,7 @@ export const dataFlowLabelMeasureAtom = atom<string | null>(null);
 /**
  * Dimension keys (tiers) included in the data-flow overlay. `null` = all
  * declared keys. Selections that are empty or reference only unknown keys
- * are treated as "all" defensively (the DAGControls chips additionally
+ * are treated as "all" defensively (the DAG controls additionally
  * prevent unchecking the last selected key). `useDataFlowSync` resets this
  * to `null` whenever the declared key set changes (query/engine switch).
  */
