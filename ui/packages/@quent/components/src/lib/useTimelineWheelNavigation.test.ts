@@ -179,6 +179,27 @@ describe('useTimelineWheelNavigation', () => {
     );
   });
 
+  it('removes the previous listener when attach is called again', () => {
+    const chart = createChart({ start: 25, end: 75 });
+    const addSpy = vi.spyOn(chart.dom, 'addEventListener');
+    const removeSpy = vi.spyOn(chart.dom, 'removeEventListener');
+    const { result } = renderHook(() => useTimelineWheelNavigation(10));
+
+    act(() => result.current(chart.instance));
+    act(() => result.current(chart.instance));
+
+    expect(addSpy.mock.calls.filter(([type]) => type === 'wheel')).toHaveLength(2);
+    expect(removeSpy.mock.calls.filter(([type]) => type === 'wheel')).toHaveLength(1);
+
+    act(() => {
+      chart.dom.dispatchEvent(
+        new WheelEvent('wheel', { deltaX: 100, bubbles: true, cancelable: true })
+      );
+    });
+
+    expect(chart.dispatchAction).toHaveBeenCalledOnce();
+  });
+
   it('removes the wheel listener on unmount', () => {
     const chart = createChart({ start: 25, end: 75 });
     const { result, unmount } = renderHook(() => useTimelineWheelNavigation(10));
