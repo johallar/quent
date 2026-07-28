@@ -18,6 +18,19 @@ describe('ControlGrid', () => {
     });
   });
 
+  it('wraps below a minimum column width without exceeding the maximum columns', () => {
+    render(
+      <ControlGrid columns={3} minColumnWidth="16rem" data-testid="wrapping-control-grid">
+        <div />
+      </ControlGrid>
+    );
+
+    expect(screen.getByTestId('wrapping-control-grid')).toHaveStyle({
+      gridTemplateColumns:
+        'repeat(auto-fit, minmax(min(100%, max(16rem, calc((100% - 3rem) / 3))), 1fr))',
+    });
+  });
+
   it('composes sections and labeled fields', () => {
     render(
       <ControlSection title="Display">

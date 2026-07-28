@@ -97,7 +97,7 @@ export const DAGControls = ({ operatorStatFields, portStatFields, isDark }: DAGC
   return (
     <div className="space-y-3 bg-card p-3">
       <ControlSection title="Plan controls">
-        <ControlGrid columns={2}>
+        <ControlGrid columns={2} minColumnWidth="12rem">
           <ControlField
             label="Node color"
             icon={Palette}
@@ -180,7 +180,7 @@ export const DAGControls = ({ operatorStatFields, portStatFields, isDark }: DAGC
             </label>
           }
         >
-          <ControlGrid columns={2}>
+          <ControlGrid columns={2} minColumnWidth="12rem">
             {measureOptions.length > 1 && (
               <ControlField label="Flow measure" icon={Gauge}>
                 <SelectField

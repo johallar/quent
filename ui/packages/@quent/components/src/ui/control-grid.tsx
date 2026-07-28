@@ -14,7 +14,10 @@ export interface ControlSectionProps {
 }
 
 export interface ControlGridProps extends HTMLAttributes<HTMLDivElement> {
+  /** Maximum number of columns. */
   columns?: number;
+  /** Wrap into fewer columns when one would be narrower than this value. */
+  minColumnWidth?: CSSProperties['width'];
 }
 
 export interface ControlFieldProps {
@@ -62,18 +65,22 @@ export function ControlSection({
 /** Grid with an explicit, caller-configured column count. */
 export function ControlGrid({
   columns = 1,
+  minColumnWidth,
   className,
   style,
   children,
   ...props
 }: ControlGridProps) {
   const columnCount = Math.max(1, Math.floor(columns));
+  const columnTemplate = minColumnWidth
+    ? `repeat(auto-fit, minmax(min(100%, max(${toCssSize(minColumnWidth)}, calc((100% - ${(columnCount - 1) * 1.5}rem) / ${columnCount}))), 1fr))`
+    : `repeat(${columnCount}, minmax(0, 1fr))`;
   return (
     <div
       className={cn('grid gap-x-6 gap-y-2', className)}
       style={{
         ...style,
-        gridTemplateColumns: `repeat(${columnCount}, minmax(0, 1fr))`,
+        gridTemplateColumns: columnTemplate,
       }}
       {...props}
     >
