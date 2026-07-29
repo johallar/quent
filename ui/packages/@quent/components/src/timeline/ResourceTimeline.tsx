@@ -288,11 +288,7 @@ export function ResourceTimeline({
           onHoverChange={handleHoverChange}
         />
         {showTooltip && (
-          <TimelineTooltipPortal
-            ownerId={ownerId}
-            series={series}
-            timestamps={timestamps ?? []}
-          />
+          <TimelineTooltipPortal ownerId={ownerId} series={series} timestamps={timestamps ?? []} />
         )}
       </Suspense>
     </div>

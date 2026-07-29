@@ -29,6 +29,7 @@ import {
   selectedTypesAtom,
   selectedFsmTypesAtom,
   rootResourceTypeAtom,
+  resourceChartsByResourceIdAtom,
 } from '@/atoms/resourceTree';
 import { TimelineToolbar } from '@quent/components';
 import { useTheme, THEME_DARK } from '@/contexts/ThemeContext';
@@ -36,58 +37,31 @@ import {
   OperatorGanttChart,
   OPERATOR_TIMELINE_ROW_TYPE,
   getWorkerIdsFromPlanTree,
-  operatorTimelineRowId,
   operatorsWithActiveSpansForWorker,
   workerIdFromOperatorTimelineRowId,
 } from '@quent/components';
-import {
-  LONG_ENTITIES_ROW_TYPE,
-  longEntitiesRowId,
-  resourceIdFromLongEntitiesRowId,
-} from '@quent/components';
+import { LONG_ENTITIES_ROW_TYPE, resourceIdFromLongEntitiesRowId } from '@quent/components';
 import { LongEntitiesRow } from '@/components/LongEntitiesRow';
+import { ResourceChartMenu } from '@/components/ResourceChartMenu';
+import { ResourceChartGlobalMenu } from '@/components/ResourceChartGlobalMenu';
+import { AnimatedResourceChartRow } from '@/components/AnimatedResourceChartRow';
+import { useAnimatedResourceCharts } from '@/hooks/useAnimatedResourceCharts';
+import {
+  RESOURCE_CHART_ORDER,
+  collectItemIds,
+  collectResourceIds,
+  getEffectiveResourceCharts,
+  getResourceChartAggregateState,
+  injectResourceChartRows,
+  setAllResourceCharts,
+  setChartForResources,
+} from '@/lib/resourceCharts';
+import type { ResourceChartType } from '@/lib/resourceCharts';
 
 function getRootResourceGroupId(resourceTree: ResourceTree<EntityRef>): string | null {
   if (!('ResourceGroup' in resourceTree)) return null;
   const [, entityId] = Object.entries(resourceTree.ResourceGroup.id)[0] as [EntityRefKey, string];
   return entityId;
-}
-
-/** Create the synthetic operator-timeline row for a worker. Defaults to collapsed (no children). */
-function createOperatorTimelineRow(workerId: string): TreeTableItem {
-  return {
-    id: operatorTimelineRowId(workerId),
-    type: OPERATOR_TIMELINE_ROW_TYPE,
-    entity: {} as TreeTableItem['entity'],
-  };
-}
-
-/**
- * Inject an expandable "Operator timeline" row under each resource whose id matches a plan_tree worker.
- * Injected rows default to collapsed.
- *
- * If we have more than just operator timelines we should create a section for each of a certain type of
- * resource that can handle multiple tabbed sections, something like that.
- */
-function injectOperatorTimelineRows(item: TreeTableItem, workerIds: Set<string>): TreeTableItem {
-  const transformedChildren = item.children?.map(child =>
-    injectOperatorTimelineRows(child, workerIds)
-  );
-  if (!workerIds.has(item.id)) {
-    return transformedChildren?.length ? { ...item, children: transformedChildren } : { ...item };
-  }
-  const operatorTimelineRow = createOperatorTimelineRow(item.id);
-  const children = [operatorTimelineRow, ...(transformedChildren ?? [])];
-  return { ...item, children };
-}
-
-/** Create the synthetic long-entities row for a leaf resource. */
-function createLongEntitiesRow(resourceId: string): TreeTableItem {
-  return {
-    id: longEntitiesRowId(resourceId),
-    type: LONG_ENTITIES_ROW_TYPE,
-    entity: {} as TreeTableItem['entity'],
-  };
 }
 
 function GanttRowLabel({ children }: { children: string }) {
@@ -98,25 +72,6 @@ function GanttRowLabel({ children }: { children: string }) {
     </span>
   );
 }
-
-/**
- * Insert a long-entities row as a sibling immediately after each leaf resource,
- * so its compact Gantt is always shown below the resource (whenever in view)
- * rather than gated behind expansion. Leaf resources keep no synthetic children,
- * so they stay non-expandable. Groups (which aggregate resources) are untouched.
- */
-function injectLongEntitiesRows(item: TreeTableItem): TreeTableItem {
-  if (!item.children?.length) return { ...item };
-  const children: TreeTableItem[] = [];
-  for (const child of item.children) {
-    children.push(injectLongEntitiesRows(child));
-    if (child.type === EntityTypeKey.Resource) {
-      children.push(createLongEntitiesRow(child.id));
-    }
-  }
-  return { ...item, children };
-}
-
 interface QueryResourceTreeProps {
   engineId: string;
   queryBundle: QueryBundle<EntityRef>;
@@ -132,6 +87,9 @@ function QueryResourceTreeContent({ queryBundle, engineId }: QueryResourceTreePr
   const { entities, resource_tree: resourceTree } = queryBundle;
   const [selectedTypes, setSelectedTypes] = useAtom(selectedTypesAtom);
   const [selectedFsmTypes, setSelectedFsmTypes] = useAtom(selectedFsmTypesAtom);
+  const [resourceChartsByResourceId, setResourceChartsByResourceId] = useAtom(
+    resourceChartsByResourceIdAtom
+  );
 
   const startTime = queryBundle.start_time_unix_ns;
   const durationSeconds = queryBundle.duration_s;
@@ -227,9 +185,101 @@ function QueryResourceTreeContent({ queryBundle, engineId }: QueryResourceTreePr
     [queryBundle.plan_tree]
   );
 
+  const itemIds = useMemo(() => collectItemIds(rootItem), [rootItem]);
+  const resourceIds = useMemo(() => collectResourceIds(rootItem), [rootItem]);
+  const operatorItemIds = useMemo(
+    () => itemIds.filter(itemId => workerIdsFromPlanTree.has(itemId)),
+    [itemIds, workerIdsFromPlanTree]
+  );
+  const chartTargetIds = useMemo(() => {
+    const resourceIdSet = new Set(resourceIds);
+    return itemIds.filter(itemId => resourceIdSet.has(itemId) || workerIdsFromPlanTree.has(itemId));
+  }, [itemIds, resourceIds, workerIdsFromPlanTree]);
+  const selectedResourceCharts = useMemo(() => {
+    const resourceIdSet = new Set(resourceIds);
+    const selections = new Map<string, ResourceChartType[]>();
+
+    for (const itemId of chartTargetIds) {
+      selections.set(
+        itemId,
+        getEffectiveResourceCharts(
+          resourceChartsByResourceId,
+          itemId,
+          workerIdsFromPlanTree
+        ).filter(
+          chart =>
+            (chart === 'operators' && workerIdsFromPlanTree.has(itemId)) ||
+            (chart === 'entities' && resourceIdSet.has(itemId))
+        )
+      );
+    }
+
+    return selections;
+  }, [chartTargetIds, resourceChartsByResourceId, resourceIds, workerIdsFromPlanTree]);
+  const renderedResourceCharts = useAnimatedResourceCharts(selectedResourceCharts);
+
+  const availableGlobalCharts = useMemo(
+    () => RESOURCE_CHART_ORDER.filter(chart => chart !== 'operators' || operatorItemIds.length > 0),
+    [operatorItemIds]
+  );
+
+  const globalChartStates = useMemo(
+    () => ({
+      operators: getResourceChartAggregateState(
+        'operators',
+        operatorItemIds,
+        resourceChartsByResourceId,
+        workerIdsFromPlanTree
+      ),
+      entities: getResourceChartAggregateState(
+        'entities',
+        resourceIds,
+        resourceChartsByResourceId,
+        workerIdsFromPlanTree
+      ),
+    }),
+    [operatorItemIds, resourceChartsByResourceId, resourceIds, workerIdsFromPlanTree]
+  );
+
+  const handleResourceChartSelectionChange = useCallback(
+    (resourceId: string, charts: ResourceChartType[]) => {
+      setResourceChartsByResourceId(previous => new Map(previous).set(resourceId, charts));
+    },
+    [setResourceChartsByResourceId]
+  );
+
+  const handleToggleGlobalChart = useCallback(
+    (chart: ResourceChartType, selected: boolean) => {
+      const eligibleResourceIds = chart === 'operators' ? operatorItemIds : resourceIds;
+      setResourceChartsByResourceId(previous =>
+        setChartForResources(previous, eligibleResourceIds, workerIdsFromPlanTree, chart, selected)
+      );
+    },
+    [operatorItemIds, resourceIds, setResourceChartsByResourceId, workerIdsFromPlanTree]
+  );
+
+  const handleShowAllCharts = useCallback(() => {
+    setResourceChartsByResourceId(
+      setAllResourceCharts(chartTargetIds, workerIdsFromPlanTree, true)
+    );
+  }, [chartTargetIds, setResourceChartsByResourceId, workerIdsFromPlanTree]);
+
+  const handleHideAllCharts = useCallback(() => {
+    setResourceChartsByResourceId(
+      setAllResourceCharts(chartTargetIds, workerIdsFromPlanTree, false)
+    );
+  }, [chartTargetIds, setResourceChartsByResourceId, workerIdsFromPlanTree]);
+
   const treeData = useMemo(
-    () => [injectLongEntitiesRows(injectOperatorTimelineRows(rootItem, workerIdsFromPlanTree))],
-    [rootItem, workerIdsFromPlanTree]
+    () => [
+      injectResourceChartRows(
+        rootItem,
+        renderedResourceCharts,
+        workerIdsFromPlanTree,
+        selectedResourceCharts
+      ),
+    ],
+    [renderedResourceCharts, rootItem, selectedResourceCharts, workerIdsFromPlanTree]
   );
 
   /** Operator entries per worker id (for expandable gantt under each worker resource). */
@@ -249,8 +299,16 @@ function QueryResourceTreeContent({ queryBundle, engineId }: QueryResourceTreePr
         widthIndex: 0,
         isFirst: true,
         headerContent: (
-          <div className="flex items-center h-full px-3 text-xs font-semibold text-muted-foreground select-none">
-            Resource
+          <div className="flex h-full w-full items-center gap-2 px-3 text-xs font-semibold text-muted-foreground select-none">
+            <span>Resource</span>
+            <div className="flex-1" />
+            <ResourceChartGlobalMenu
+              availableCharts={availableGlobalCharts}
+              chartStates={globalChartStates}
+              onToggleChart={handleToggleGlobalChart}
+              onShowAll={handleShowAllCharts}
+              onHideAll={handleHideAllCharts}
+            />
           </div>
         ),
         render: ({ item }: { item: TreeTableItem; level: number }) => {
@@ -264,9 +322,26 @@ function QueryResourceTreeContent({ queryBundle, engineId }: QueryResourceTreePr
             default: {
               const selectedType =
                 selectedTypes.get(item.id) || item.availableResourceTypes?.[0] || '';
-              const availableFsmTypes = selectedType
-                ? entities.resource_types[selectedType]?.used_by
+              const isResource = item.type === EntityTypeKey.Resource;
+              const resourceTypeName =
+                isResource && 'type_name' in item.entity
+                  ? (item.entity.type_name as string)
+                  : selectedType;
+              const availableFsmTypes = resourceTypeName
+                ? entities.resource_types[resourceTypeName]?.used_by
                 : undefined;
+              const availableCharts = RESOURCE_CHART_ORDER.filter(
+                chart =>
+                  (chart === 'operators' && workerIdsFromPlanTree.has(item.id)) ||
+                  (chart === 'entities' && isResource)
+              );
+              const selectedCharts = getEffectiveResourceCharts(
+                resourceChartsByResourceId,
+                item.id,
+                workerIdsFromPlanTree
+              );
+              const itemLabel =
+                (item.entity as { instance_name?: string }).instance_name || item.id;
               return (
                 <ResourceColumn
                   item={item}
@@ -282,6 +357,18 @@ function QueryResourceTreeContent({ queryBundle, engineId }: QueryResourceTreePr
                   onFsmChange={(itemId, fsmType) => {
                     setSelectedFsmTypes(prev => new Map(prev).set(itemId, fsmType));
                   }}
+                  trailingActions={
+                    availableCharts.length > 0 ? (
+                      <ResourceChartMenu
+                        resourceLabel={itemLabel}
+                        availableCharts={availableCharts}
+                        selectedCharts={selectedCharts}
+                        onSelectionChange={charts =>
+                          handleResourceChartSelectionChange(item.id, charts)
+                        }
+                      />
+                    ) : undefined
+                  }
                 />
               );
             }
@@ -310,26 +397,30 @@ function QueryResourceTreeContent({ queryBundle, engineId }: QueryResourceTreePr
               const operators =
                 workerId != null ? (operatorEntriesByWorker.get(workerId) ?? []) : [];
               return (
-                <OperatorGanttChart
-                  operators={operators}
-                  durationSeconds={durationSeconds}
-                  height={DEFAULT_TIMELINE_HEIGHT}
-                  isDark={isDark}
-                />
+                <AnimatedResourceChartRow expanded={item.isChartExpanded ?? true}>
+                  <OperatorGanttChart
+                    operators={operators}
+                    durationSeconds={durationSeconds}
+                    height={DEFAULT_TIMELINE_HEIGHT}
+                    isDark={isDark}
+                  />
+                </AnimatedResourceChartRow>
               );
             }
             case LONG_ENTITIES_ROW_TYPE: {
               const resourceId = resourceIdFromLongEntitiesRowId(item.id);
               if (resourceId == null) return null;
               return (
-                <LongEntitiesRow
-                  engineId={engineId}
-                  queryId={queryBundle.query_id}
-                  resourceId={resourceId}
-                  durationSeconds={durationSeconds}
-                  fsmTypes={entities.fsm_types}
-                  isDark={isDark}
-                />
+                <AnimatedResourceChartRow expanded={item.isChartExpanded ?? true}>
+                  <LongEntitiesRow
+                    engineId={engineId}
+                    queryId={queryBundle.query_id}
+                    resourceId={resourceId}
+                    durationSeconds={durationSeconds}
+                    fsmTypes={entities.fsm_types}
+                    isDark={isDark}
+                  />
+                </AnimatedResourceChartRow>
               );
             }
             default: {
@@ -364,6 +455,14 @@ function QueryResourceTreeContent({ queryBundle, engineId }: QueryResourceTreePr
     queryBundle,
     handleZoomChange,
     operatorEntriesByWorker,
+    availableGlobalCharts,
+    globalChartStates,
+    handleToggleGlobalChart,
+    handleShowAllCharts,
+    handleHideAllCharts,
+    workerIdsFromPlanTree,
+    resourceChartsByResourceId,
+    handleResourceChartSelectionChange,
   ]);
 
   return (

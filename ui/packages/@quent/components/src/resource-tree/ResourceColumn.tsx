@@ -13,6 +13,7 @@ type ResourceColumnProps = {
   availableFsmTypes?: string[];
   selectedFsmType?: string | null;
   onFsmChange?: (itemId: string, fsmType: string | null) => void;
+  trailingActions?: React.ReactNode;
   className?: string;
   verbose?: boolean;
 };
@@ -25,13 +26,14 @@ export function ResourceColumn({
   availableFsmTypes,
   selectedFsmType,
   onFsmChange,
+  trailingActions,
   className,
 }: ResourceColumnProps): React.ReactNode {
   return (
-    <div className={cn('text-foreground flex truncate items-center', className)}>
+    <div className={cn('text-foreground flex w-full min-w-0 items-center truncate', className)}>
       <div>{item.icon && <item.icon className="h-4 w-4 shrink-0 mr-4" />}</div>
-      <div>
-        {item?.children?.length ? (
+      <div className="min-w-0 flex-1">
+        {item.children?.length ? (
           <ResourceGroupRow
             group={item.entity as ResourceGroup}
             id={item.id}
@@ -43,9 +45,10 @@ export function ResourceColumn({
             onFsmChange={onFsmChange}
           />
         ) : (
-          <ResourceRow resource={item.entity as Resource} />
+          <ResourceRow resource={item.entity as Resource} availableFsmTypes={availableFsmTypes} />
         )}
       </div>
+      {trailingActions}
     </div>
   );
 }

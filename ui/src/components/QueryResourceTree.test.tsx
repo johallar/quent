@@ -10,6 +10,8 @@ import { QueryResourceTree } from './QueryResourceTree';
 import { applyBulkTimelineResponse, timelineCacheKey } from '@quent/hooks';
 import { timelineDataMapAtom } from '@quent/hooks/testing';
 import type { SingleTimelineResponse, QueryBundle, EntityRef } from '@quent/utils';
+import { longEntitiesRowId, operatorTimelineRowId, type TreeTableItem } from '@quent/components';
+import { resourceChartsByResourceIdAtom } from '@/atoms/resourceTree';
 
 // ---------------------------------------------------------------------------
 // Mock heavy/visual dependencies so tests run without a real browser/canvas
@@ -36,6 +38,7 @@ vi.mock('@/contexts/ThemeContext', () => ({
 
 // Capture the timelineData prop passed to TimelineController on every render
 let capturedTimelineData: SingleTimelineResponse | null | undefined = undefined;
+let capturedTreeData: TreeTableItem[] | undefined;
 
 // Mock @quent/components: keep all actual exports but override heavy/visual ones
 vi.mock('@quent/components', async importOriginal => {
@@ -48,18 +51,23 @@ vi.mock('@quent/components', async importOriginal => {
     },
     TreeTable: ({
       columns,
+      data,
     }: {
       columns: Array<{ headerContent?: React.ReactNode; subHeaderContent?: React.ReactNode }>;
-    }) => (
-      <>
-        {columns.map((col, i) => (
-          <React.Fragment key={i}>
-            {col.headerContent}
-            {col.subHeaderContent}
-          </React.Fragment>
-        ))}
-      </>
-    ),
+      data: TreeTableItem[];
+    }) => {
+      capturedTreeData = data;
+      return (
+        <>
+          {columns.map((col, i) => (
+            <React.Fragment key={i}>
+              {col.headerContent}
+              {col.subHeaderContent}
+            </React.Fragment>
+          ))}
+        </>
+      );
+    },
     ResourceColumn: () => null,
     UsageColumn: () => null,
     TimelineToolbar: () => null,
@@ -82,7 +90,7 @@ const RESOURCE_ID = 'res-1';
 const RESOURCE_TYPE = 'GPU';
 
 /** Minimal QueryBundle that causes the root timeline query to be enabled. */
-const makeBundle = (): QueryBundle<EntityRef> =>
+const makeBundle = (isWorker = false): QueryBundle<EntityRef> =>
   ({
     query_id: 'test-query',
     entities: {
@@ -105,7 +113,7 @@ const makeBundle = (): QueryBundle<EntityRef> =>
         children: [{ Resource: { Resource: RESOURCE_ID } }],
       },
     },
-    plan_tree: { id: 'plan-1', worker: null, children: [] },
+    plan_tree: { id: 'plan-1', worker: isWorker ? RESOURCE_ID : null, children: [] },
     unique_operator_names: [],
     quantity_specs: {},
     start_time_unix_ns: 0n,
@@ -121,6 +129,7 @@ const makeTimeline = (start: number, end: number): SingleTimelineResponse =>
 describe('QueryResourceTree — TimelineController always shows full-range data', () => {
   beforeEach(() => {
     capturedTimelineData = undefined;
+    capturedTreeData = undefined;
     vi.mocked(clientApi.fetchBulkTimelines).mockResolvedValue({ entries: {} } as never);
   });
 
@@ -195,5 +204,85 @@ describe('QueryResourceTree — TimelineController always shows full-range data'
     // TimelineController must still show the full-range data — not the atom value.
     expect(capturedTimelineData?.config.span.start).toBe(0);
     expect(capturedTimelineData?.config.span.end).toBe(DURATION_S);
+  });
+
+  it('uses contextual chart defaults for resource rows', async () => {
+    vi.mocked(clientApi.fetchSingleTimeline).mockResolvedValue(makeTimeline(0, DURATION_S));
+
+    const store = createStore();
+    const { rerender } = renderWithQuery(
+      <JotaiProvider store={store}>
+        <QueryResourceTree engineId="engine-1" queryBundle={makeBundle()} />
+      </JotaiProvider>
+    );
+
+    expect(capturedTreeData?.[0]?.children?.map(item => item.id)).toEqual([
+      RESOURCE_ID,
+      longEntitiesRowId(RESOURCE_ID),
+    ]);
+
+    rerender(
+      <JotaiProvider store={store}>
+        <QueryResourceTree engineId="engine-1" queryBundle={makeBundle(true)} />
+      </JotaiProvider>
+    );
+
+    expect(capturedTreeData?.[0]?.children?.map(item => item.id)).toEqual([
+      RESOURCE_ID,
+      operatorTimelineRowId(RESOURCE_ID),
+      longEntitiesRowId(RESOURCE_ID),
+    ]);
+    expect(capturedTreeData?.[0]?.children?.slice(1).map(item => item.isChartExpanded)).toEqual([
+      true,
+      false,
+    ]);
+
+    await waitFor(() => {
+      expect(capturedTreeData?.[0]?.children?.map(item => item.id)).toEqual([
+        RESOURCE_ID,
+        operatorTimelineRowId(RESOURCE_ID),
+      ]);
+    });
+  });
+
+  it('shows multiple selected charts and collapses explicit empty selections', async () => {
+    vi.mocked(clientApi.fetchSingleTimeline).mockResolvedValue(makeTimeline(0, DURATION_S));
+
+    const store = createStore();
+    store.set(resourceChartsByResourceIdAtom, new Map([[RESOURCE_ID, ['operators', 'entities']]]));
+    const { rerender } = renderWithQuery(
+      <JotaiProvider store={store}>
+        <QueryResourceTree engineId="engine-1" queryBundle={makeBundle(true)} />
+      </JotaiProvider>
+    );
+
+    expect(capturedTreeData?.[0]?.children?.map(item => item.id)).toEqual([
+      RESOURCE_ID,
+      operatorTimelineRowId(RESOURCE_ID),
+      longEntitiesRowId(RESOURCE_ID),
+    ]);
+
+    act(() => {
+      store.set(resourceChartsByResourceIdAtom, new Map([[RESOURCE_ID, []]]));
+    });
+    rerender(
+      <JotaiProvider store={store}>
+        <QueryResourceTree engineId="engine-1" queryBundle={makeBundle(true)} />
+      </JotaiProvider>
+    );
+
+    expect(capturedTreeData?.[0]?.children?.map(item => item.id)).toEqual([
+      RESOURCE_ID,
+      operatorTimelineRowId(RESOURCE_ID),
+      longEntitiesRowId(RESOURCE_ID),
+    ]);
+    expect(capturedTreeData?.[0]?.children?.slice(1).map(item => item.isChartExpanded)).toEqual([
+      false,
+      false,
+    ]);
+
+    await waitFor(() => {
+      expect(capturedTreeData?.[0]?.children?.map(item => item.id)).toEqual([RESOURCE_ID]);
+    });
   });
 });

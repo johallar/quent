@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { atom } from 'jotai';
+import type { ResourceChartType } from '@/lib/resourceCharts';
 
 /**
  * Per-query resource-tree state. Lives at the per-query Jotai provider scope
@@ -16,3 +17,6 @@ export const selectedFsmTypesAtom = atom<Map<string, string | null>>(
   new Map<string, string | null>()
 );
 export const rootResourceTypeAtom = atom<string | null>(null);
+export const resourceChartsByResourceIdAtom = atom<Map<string, ResourceChartType[]>>(
+  new Map<string, ResourceChartType[]>()
+);

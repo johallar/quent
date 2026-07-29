@@ -11,4 +11,7 @@ export type TreeTableItem = {
   icon?: LucideIcon;
   children?: TreeTableItem[];
   availableResourceTypes?: string[];
+  rowMinHeight?: number;
+  estimatedRowHeight?: number;
+  isChartExpanded?: boolean;
 };

@@ -82,6 +82,8 @@
   --radius-lg: var(--radius);
   --animate-accordion-down: accordion-down 0.2s ease-out;
   --animate-accordion-up: accordion-up 0.2s ease-out;
+  --animate-chart-row-down: chart-row-down 0.2s ease-out;
+  --animate-chart-row-up: chart-row-up 0.2s ease-out;
 }
 
 @keyframes accordion-down {
@@ -99,6 +101,28 @@
   }
   to {
     height: 0;
+  }
+}
+
+@keyframes chart-row-down {
+  from {
+    height: 0;
+    opacity: 0;
+  }
+  to {
+    height: var(--radix-collapsible-content-height);
+    opacity: 1;
+  }
+}
+
+@keyframes chart-row-up {
+  from {
+    height: var(--radix-collapsible-content-height);
+    opacity: 1;
+  }
+  to {
+    height: 0;
+    opacity: 0;
   }
 }
 

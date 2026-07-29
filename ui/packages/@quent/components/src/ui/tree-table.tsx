@@ -26,6 +26,8 @@ interface TreeTableDataItem {
   actions?: React.ReactNode;
   onClick?: () => void;
   disabled?: boolean;
+  rowMinHeight?: number;
+  estimatedRowHeight?: number;
 }
 
 type TreeTableRenderItemParams = {
@@ -577,7 +579,7 @@ const VirtualizedTreeView = React.forwardRef<HTMLDivElement, TreeViewProps>(
     const rowVirtualizer = useVirtualizer({
       count: visibleRows.length,
       getScrollElement: () => scrollContainerRef?.current ?? null,
-      estimateSize: () => rowHeight,
+      estimateSize: index => visibleRows[index]?.item.estimatedRowHeight ?? rowHeight,
       overscan: overscanRows,
       getItemKey: index => visibleRows[index]?.item.id ?? index,
     });
@@ -619,7 +621,7 @@ const VirtualizedTreeView = React.forwardRef<HTMLDivElement, TreeViewProps>(
                   top: 0,
                   left: 0,
                   right: 0,
-                  minHeight: `${rowHeight}px`,
+                  minHeight: `${item.rowMinHeight ?? rowHeight}px`,
                   transform: `translateY(${virtualRow.start}px)`,
                 }}
                 onClick={() => {
