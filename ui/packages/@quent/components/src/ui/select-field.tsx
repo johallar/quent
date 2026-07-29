@@ -61,14 +61,16 @@ export const SelectField = ({
     <Select value={value} onValueChange={onValueChange}>
       <SelectTrigger
         aria-label={ariaLabel ?? label}
-        className={cn('flex-1 min-w-0', triggerClassName)}
+        className={cn('min-w-0 flex-1 pr-1.5 text-left [&>svg]:shrink-0', triggerClassName)}
       >
-        <SelectValue placeholder={placeholder} />
+        <span className="min-w-0 flex-1 truncate text-left">
+          <SelectValue placeholder={placeholder} />
+        </span>
         {clearable && value && (
           <span
             role="button"
             aria-label={`Clear ${ariaLabel ?? label ?? 'selection'}`}
-            className="ml-auto mr-1 shrink-0 text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+            className="ml-1 mr-1 shrink-0 cursor-pointer text-muted-foreground transition-colors hover:text-foreground"
             onPointerDown={e => {
               e.stopPropagation();
               e.preventDefault();

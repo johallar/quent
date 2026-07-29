@@ -180,52 +180,58 @@ export const DAGControls = ({ operatorStatFields, portStatFields, isDark }: DAGC
             </label>
           }
         >
-          <ControlGrid columns={2} minColumnWidth="12rem">
-            {measureOptions.length > 1 && (
-              <ControlField label="Flow measure" icon={Gauge}>
-                <SelectField
-                  ariaLabel="Flow measure"
-                  options={measureOptions}
-                  value={effectiveMeasure ?? ''}
-                  onValueChange={v => v && setSelectedDataFlowMeasure(v)}
-                  placeholder="Measure"
-                  clearable={false}
-                  triggerClassName="h-6 text-xs"
-                />
-              </ControlField>
-            )}
-            {measureOptions.length > 1 && (
-              <ControlField label="Bar labels" icon={Tags}>
-                <SelectField
-                  ariaLabel="Bar labels"
-                  options={measureOptions}
-                  value={dataFlowLabelMeasure ?? ''}
-                  onValueChange={setDataFlowLabelMeasure}
-                  placeholder="Follow measure"
-                  triggerClassName="h-6 text-xs"
-                />
-              </ControlField>
-            )}
-            {dimensionSelection && dimensionKeys.length > 1 && (
-              <ControlField
-                label={dataFlowMeta.decl.dimension_name}
-                icon={Layers}
-                align="start"
-                className="col-span-full"
-              >
-                <RequiredMultiSelectField
+          <fieldset
+            disabled={!dataFlowEnabled}
+            className="m-0 min-w-0 border-0 p-0 disabled:pointer-events-none disabled:opacity-50"
+          >
+            <legend className="sr-only">Data flow settings</legend>
+            <ControlGrid columns={2} minColumnWidth="12rem">
+              {measureOptions.length > 1 && (
+                <ControlField label="Flow measure" icon={Gauge}>
+                  <SelectField
+                    ariaLabel="Flow measure"
+                    options={measureOptions}
+                    value={effectiveMeasure ?? ''}
+                    onValueChange={v => v && setSelectedDataFlowMeasure(v)}
+                    placeholder="Measure"
+                    clearable={false}
+                    triggerClassName="h-6 text-xs"
+                  />
+                </ControlField>
+              )}
+              {measureOptions.length > 1 && (
+                <ControlField label="Bar labels" icon={Tags}>
+                  <SelectField
+                    ariaLabel="Bar labels"
+                    options={measureOptions}
+                    value={dataFlowLabelMeasure ?? ''}
+                    onValueChange={setDataFlowLabelMeasure}
+                    placeholder="Follow measure"
+                    triggerClassName="h-6 text-xs"
+                  />
+                </ControlField>
+              )}
+              {dimensionSelection && dimensionKeys.length > 1 && (
+                <ControlField
                   label={dataFlowMeta.decl.dimension_name}
-                  options={dimensionKeys.map(option => ({
-                    value: option.key,
-                    label: option.display_name,
-                  }))}
-                  selected={dimensionSelection}
-                  onToggle={toggleDimension}
-                  optionTestId="flow-tier-toggle"
-                />
-              </ControlField>
-            )}
-          </ControlGrid>
+                  icon={Layers}
+                  align="start"
+                  className="col-span-full"
+                >
+                  <RequiredMultiSelectField
+                    label={dataFlowMeta.decl.dimension_name}
+                    options={dimensionKeys.map(option => ({
+                      value: option.key,
+                      label: option.display_name,
+                    }))}
+                    selected={dimensionSelection}
+                    onToggle={toggleDimension}
+                    optionTestId="flow-tier-toggle"
+                  />
+                </ControlField>
+              )}
+            </ControlGrid>
+          </fieldset>
         </ControlSection>
       )}
     </div>
