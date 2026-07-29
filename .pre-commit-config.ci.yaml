@@ -1,7 +1,9 @@
 # SPDX-FileCopyrightText: Copyright (c) 2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
 #
-# CI check-only config. --force-spdx required: without it the hook only diffs vs base.
+# CI-only config for verify-copyright: check-only (no --fix), and --force-spdx
+# so --all-files actually inspects every matched file (hook otherwise only
+# diffs against the target branch).
 
 exclude: |
   (?x)
