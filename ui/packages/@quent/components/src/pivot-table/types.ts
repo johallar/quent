@@ -53,6 +53,7 @@ export interface DataCellProps<TRow extends GroupedDataTableRowBase> {
 export interface PivotTableGroupCellHoverHandlers {
   onMouseEnter?: () => void;
   onMouseLeave?: () => void;
+  onClick?: () => void;
 }
 
 export interface PivotTableInteractionConfig<TRow extends GroupedDataTableRowBase> {

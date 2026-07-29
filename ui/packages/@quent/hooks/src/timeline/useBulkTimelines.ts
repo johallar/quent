@@ -1,17 +1,16 @@
 // SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-import { useCallback, useEffect, useMemo, useRef } from 'react';
+import { useCallback, useEffect, useMemo } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useAtomValue, useStore } from 'jotai';
 import { fetchBulkTimelines, DEFAULT_STALE_TIME } from '@quent/client';
-import type { QueryEntities, TimelineRequest, OperatorFilter, ZoomRange } from '@quent/utils';
+import type { QueryEntities, TimelineRequest, OperatorFilter } from '@quent/utils';
 import { MAX_TIMELINE_BINS } from '@quent/utils';
 import { getResourceTypeName, getFsmTypeName } from './timeline.utils';
 import {
   timelineCacheKey,
   timelineDataMapAtom,
-  zoomRangeAtom,
   debouncedZoomRangeAtom,
   bulkInitializedAtom,
   visibleEntriesAtom,
@@ -22,6 +21,7 @@ import {
   buildMergedBulkEntries,
   applyBulkTimelineResponse,
 } from './useBulkTimelineFetch';
+import { useTimelineZoomHandler } from './useTimelineZoomHandler';
 
 /**
  * Minimal tree node interface.
@@ -31,8 +31,6 @@ export interface TreeNode {
   id: string;
   children?: TreeNode[];
 }
-
-const ZOOM_DEBOUNCE_MS = 150;
 
 /**
  * useBulkTimelines — manages bulk fetching via Jotai atoms + TanStack Query.
@@ -78,15 +76,9 @@ export function useBulkTimelines<T extends TreeNode>({
 }) {
   const store = useStore();
   const queryClient = useQueryClient();
-  const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const handleZoomChange = useTimelineZoomHandler();
   const selectedNodeIds = useAtomValue(selectedNodeIdsAtom);
   const operatorId = selectedNodeIds.size > 0 ? selectedNodeIds.values().next().value! : null;
-
-  useEffect(() => {
-    return () => {
-      if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
-    };
-  }, []);
 
   const debouncedZoomRange = useAtomValue(debouncedZoomRangeAtom);
   const bulkConfig = useMemo(
@@ -137,20 +129,6 @@ export function useBulkTimelines<T extends TreeNode>({
       store.set(bulkInitializedAtom, true);
     }
   }, [bulkData, store]);
-
-  // Zoom change handler — stable, uses store imperatively
-  const handleZoomChange = useCallback(
-    (range: ZoomRange) => {
-      store.set(zoomRangeAtom, range);
-
-      if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
-      debounceTimerRef.current = setTimeout(() => {
-        store.set(debouncedZoomRangeAtom, range);
-        debounceTimerRef.current = null;
-      }, ZOOM_DEBOUNCE_MS);
-    },
-    [store]
-  );
 
   // Expand handler — fetches base + operator data for newly expanded children
   const handleExpand = useCallback(

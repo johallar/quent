@@ -47,6 +47,14 @@ function QueryLayout() {
           >
             Operators
           </Link>
+          <div className="mx-2 h-4 w-px bg-border" />
+          <Link
+            to="/explorer/engine/$engineId/query/$queryId"
+            params={{ engineId, queryId }}
+            className={tabClass}
+          >
+            Explorer POC
+          </Link>
         </div>
       </div>
       <div className="min-w-0 flex-1 min-h-0">

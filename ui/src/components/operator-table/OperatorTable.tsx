@@ -23,10 +23,10 @@ import {
   useHoveredStat,
   useStatGroupTableControls,
 } from '@quent/hooks';
-import type { QueryBundle, EntityRef } from '@quent/utils';
+import type { QueryBundle, EntityRef, ZoomRange } from '@quent/utils';
 import { useTheme, THEME_DARK } from '@/contexts/ThemeContext';
 import type { OperatorTableRow } from './types';
-import { buildOperatorRows, buildItemIdIndex } from './utils';
+import { buildOperatorRows, buildItemIdIndex, operatorRowOverlapsWindow } from './utils';
 
 type IndexKey = 'partition' | 'parent_item_type' | 'parent_item' | 'item_type' | 'item';
 
@@ -88,9 +88,11 @@ const VIRTUALIZATION_CONFIG = { enabled: true, overscan: 12 } as const;
 
 interface OperatorTableProps {
   queryBundle: QueryBundle<EntityRef>;
+  window?: ZoomRange;
+  onOperatorSelect?: (operatorId: string) => void;
 }
 
-export function OperatorTable({ queryBundle }: OperatorTableProps) {
+export function OperatorTable({ queryBundle, window, onOperatorSelect }: OperatorTableProps) {
   const selectedPlanId = useSelectedPlanId();
   const selectedNodeIds = useSelectedNodeIds();
   const [highlightState, setHighlightState] = useHighlightedNodeIds();
@@ -128,16 +130,20 @@ export function OperatorTable({ queryBundle }: OperatorTableProps) {
     () => buildOperatorRows(entities, includedPlanIds),
     [entities, includedPlanIds]
   );
+  const rowsInWindow = useMemo(
+    () => (window ? allRows.filter(row => operatorRowOverlapsWindow(row, window)) : allRows),
+    [allRows, window]
+  );
 
   // When the DAG has a selection, narrow the table to just the matching
   // operator rows. If the selection is non-empty but matches nothing in the
   // current sibling-plan scope (e.g. a stage node was selected), fall back to
   // the unfiltered rows so the table doesn't appear inexplicably empty.
   const rows = useMemo(() => {
-    if (selectedNodeIds.size === 0) return allRows;
-    const filtered = allRows.filter(r => selectedNodeIds.has(r.itemId));
-    return filtered.length > 0 ? filtered : allRows;
-  }, [allRows, selectedNodeIds]);
+    if (selectedNodeIds.size === 0) return rowsInWindow;
+    const filtered = rowsInWindow.filter(r => selectedNodeIds.has(r.itemId));
+    return filtered.length > 0 ? filtered : rowsInWindow;
+  }, [rowsInWindow, selectedNodeIds]);
 
   // Per-group-key lookup of `gk.id -> Set<itemId>`. Used by the group-cell
   // hover handlers to highlight every operator that belongs to the group.
@@ -266,7 +272,10 @@ export function OperatorTable({ queryBundle }: OperatorTableProps) {
       });
 
       if (gk.key === 'item' && firstItemId) {
-        return makeGroupHoverHandlers(new Set([firstItemId]), firstItemId);
+        return {
+          ...makeGroupHoverHandlers(new Set([firstItemId]), firstItemId),
+          ...(onOperatorSelect && { onClick: () => onOperatorSelect(firstItemId) }),
+        };
       }
       const groupItems = itemIdsByGroupKey.get(gk.key);
       if (groupItems) {
@@ -274,7 +283,7 @@ export function OperatorTable({ queryBundle }: OperatorTableProps) {
       }
       return {};
     },
-    [setHighlightState, itemIdsByGroupKey]
+    [setHighlightState, itemIdsByGroupKey, onOperatorSelect]
   );
 
   const handleTableMouseLeave = useCallback(() => {
