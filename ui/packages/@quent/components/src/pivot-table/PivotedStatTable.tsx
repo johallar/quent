@@ -137,6 +137,7 @@ function GroupCell({
       className={cn(
         'table-header-overlay px-3 py-1.5 whitespace-nowrap align-top border-r border-border/30',
         isRowHighlightedFromDag && 'table-header-overlay-active',
+        handlers?.onClick && 'cursor-pointer',
         className
       )}
       rowSpan={rowSpan}
@@ -150,6 +151,9 @@ function GroupCell({
       }}
       onPointerLeave={() => {
         handlers?.onMouseLeave?.();
+      }}
+      onClick={() => {
+        handlers?.onClick?.();
       }}
     >
       <span className="relative z-10">{gk.label}</span>

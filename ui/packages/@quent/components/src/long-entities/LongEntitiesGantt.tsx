@@ -14,59 +14,56 @@ import { useTimelineWheelNavigation } from '../lib/useTimelineWheelNavigation';
 import { echarts } from '../lib/echarts';
 import { CHART_GROUP } from '../timeline/Timeline';
 import { useTimelineEchartsTheme } from '../timeline/timelineEchartsTheme';
+import { MARK_AREA_BORDER_OPACITY, MARK_AREA_FILL_OPACITY } from '../timeline/timelineEchartsTheme';
 import { HiddenScroll } from '../ui/thin-scroll';
-import {
-  useSelectedNodeIds,
-  useSetSelectedNodeIds,
-  useSetSelectedOperatorLabel,
-  useSetSelectedNodeData,
-  useSetSelectedPlanId,
-  useNodeColoringValue,
-  useNodeColorPalette,
-} from '@quent/hooks';
-import { continuousColor, withOpacity, getOperationTypeColor } from '@quent/utils';
-import type { OperatorActiveSpanEntry } from './types';
-import { clipRectByRect, getOperatorsAtTimestamp } from './utils';
+import { useZoomRange } from '@quent/hooks';
+import { withOpacity } from '@quent/utils';
+import type { LongEntityEntry } from './types';
+import { clipRectByRect } from '../operator-timeline/utils';
 import { TIMELINE_SPACING, TIMELINE_X_AXIS_ANIMATION } from '../timeline/types';
-import { GanttTooltipPortal, type GanttTooltipItem } from '../ui/gantt-tooltip';
+import { getLongEntitySegmentsAtTimestamp } from './utils';
+import { PointerTooltipPortal } from '../ui/gantt-tooltip';
 import { observeGanttHover, type GanttHover } from '../ui/gantt-hover';
+import { EntityTooltipContent, type ActiveMark } from '../timeline/TimelineTooltip';
 
-const DEFAULT_HEIGHT = 75;
-const MAX_HEIGHT = 200;
-const BAR_FONT_SIZE = 10;
-const BAR_HEIGHT = 16;
-const BAR_GAP = 2;
+const DEFAULT_HEIGHT = 120;
+const MAX_HEIGHT = 150;
+const STATE_FONT_SIZE = 9;
+const TASK_FONT_SIZE = 10;
+/** Task-name line drawn above each bar (~2px around the text). */
+const TASK_LABEL_HEIGHT = TASK_FONT_SIZE + 4;
+const BAR_HEIGHT = STATE_FONT_SIZE + 4;
+/** Vertical gap between stacked rows. */
+const ROW_GAP = 2;
+const ROW_HEIGHT = TASK_LABEL_HEIGHT + BAR_HEIGHT + ROW_GAP;
+/** Radius applied only to the outer corners of each entity's segment run. */
+const CORNER_RADIUS = 3;
+const SERIES_NAME = 'long-entity-segment';
 
-function getOperatorBarColors(typeName: string | undefined): { fill: string; stroke: string } {
-  const key = typeName?.toLowerCase().replace(/\s+/g, '') ?? '';
-  const stroke = getOperationTypeColor(key);
-  return { stroke, fill: withOpacity(stroke, 0.45) };
-}
+/** Flat segment datum: one ECharts custom-series item per state span. */
+type SegmentDatum = {
+  value: [number, number, number];
+  entryIndex: number;
+  segmentIndex: number;
+};
 
-export interface OperatorGanttChartProps {
-  operators: OperatorActiveSpanEntry[];
+export interface LongEntitiesGanttProps {
+  entries: LongEntityEntry[];
   durationSeconds: number;
   height?: number;
   /** Whether dark mode is active. Passed explicitly to decouple from ThemeContext. */
   isDark: boolean;
 }
 
-export function OperatorGanttChart({
-  operators,
+export function LongEntitiesGantt({
+  entries,
   durationSeconds,
   height = DEFAULT_HEIGHT,
   isDark,
-}: OperatorGanttChartProps) {
-  const setSelectedNodeIds = useSetSelectedNodeIds();
-  const setSelectedOperatorLabel = useSetSelectedOperatorLabel();
-  const setSelectedPlanId = useSetSelectedPlanId();
-  const setSelectedNodeData = useSetSelectedNodeData();
+}: LongEntitiesGanttProps) {
   const { themeName, textColor } = useTimelineEchartsTheme(isDark);
-  const nodeColoring = useNodeColoringValue();
-  const [nodePalette] = useNodeColorPalette();
-  const barLabelTextColor = textColor;
-  const selectedNodeIds = useSelectedNodeIds();
   const [hover, setHover] = useState<GanttHover | null>(null);
+  const zoomRange = useZoomRange();
   const xAxisMax = useMemo(() => durationSeconds * 1_000, [durationSeconds]);
   const minZoomSpanPct = useMinZoomSpanPct(durationSeconds);
   const attachWheelNavigation = useTimelineWheelNavigation(minZoomSpanPct);
@@ -75,61 +72,46 @@ export function OperatorGanttChart({
   const hoverCleanupRef = useRef<(() => void) | null>(null);
 
   const { yAxisCategories, rowCount } = useMemo(() => {
-    if (operators.length === 0) return { yAxisCategories: [] as number[], rowCount: 0 };
-    const maxRow = Math.max(...operators.map(op => op.rowIndex));
+    if (entries.length === 0) return { yAxisCategories: [] as number[], rowCount: 0 };
+    const maxRow = Math.max(...entries.map(e => e.rowIndex));
     return {
       yAxisCategories: Array.from({ length: maxRow + 1 }, (_, i) => i),
       rowCount: maxRow + 1,
     };
-  }, [operators]);
-  // Chart paints every operator row; wrapper caps at MAX_HEIGHT and scrolls overflow.
-  const contentHeight = rowCount * BAR_HEIGHT;
+  }, [entries]);
+  // Chart paints every row; wrapper caps at MAX_HEIGHT and scrolls overflow.
+  const contentHeight = rowCount * ROW_HEIGHT;
   const chartHeight = Math.max(height, contentHeight);
-  // Explicit (not max-) height so the virtualizer measures the row correctly on first commit.
   const wrapperHeight = Math.min(chartHeight, MAX_HEIGHT);
 
-  const customSeriesData = useMemo(
-    () =>
-      operators.map(op => ({
-        value: [op.startMs, op.endMs, op.rowIndex] as [number, number, number],
-        name: op.label,
-      })),
-    [operators]
-  );
-  const tooltipItems = useMemo<GanttTooltipItem[]>(() => {
-    if (!hover) return [];
-    return getOperatorsAtTimestamp(operators, hover.timestampMs).map(operator => ({
-      id: operator.operatorId,
-      color: getOperatorBarColors(operator.typeName).stroke,
-      name: operator.label,
-    }));
-  }, [hover, operators]);
-  const operatorFieldStyles = useMemo(() => {
-    const styles = new Map<string, { stroke?: string; fieldDimmed: boolean }>();
-    if (!nodeColoring) return styles;
-    for (const op of operators) {
-      if (styles.has(op.operatorId)) continue;
-      if (nodeColoring.type === 'continuous') {
-        const v = nodeColoring.values.get(op.operatorId);
-        if (v === undefined) {
-          styles.set(op.operatorId, { stroke: undefined, fieldDimmed: true });
-          continue;
-        }
-        const t =
-          nodeColoring.max > nodeColoring.min
-            ? (v - nodeColoring.min) / (nodeColoring.max - nodeColoring.min)
-            : 0.5;
-        styles.set(op.operatorId, {
-          stroke: continuousColor(t, nodePalette, isDark),
-          fieldDimmed: false,
+  // One custom-series datum per segment, tagged with its parent entry/segment.
+  const customSeriesData = useMemo<SegmentDatum[]>(() => {
+    const data: SegmentDatum[] = [];
+    entries.forEach((entry, entryIndex) => {
+      entry.segments.forEach((seg, segmentIndex) => {
+        data.push({
+          value: [seg.startMs, seg.endMs, entry.rowIndex],
+          entryIndex,
+          segmentIndex,
         });
-      } else {
-        const stroke = nodeColoring.colorMap.get(op.operatorId);
-        styles.set(op.operatorId, { stroke, fieldDimmed: !stroke });
-      }
-    }
-    return styles;
-  }, [operators, nodeColoring, nodePalette, isDark]);
+      });
+    });
+    return data;
+  }, [entries]);
+  const activeMarks = useMemo<ActiveMark[]>(() => {
+    if (!hover) return [];
+    return getLongEntitySegmentsAtTimestamp(entries, hover.timestampMs).map(
+      ({ entry, segment }) => ({
+        color: segment.color,
+        label: entry.label,
+        stateName: segment.stateName,
+        durationMs: segment.endMs - segment.startMs,
+        attributes: segment.attributes,
+        derivedAttributes: segment.derivedAttributes,
+      })
+    );
+  }, [entries, hover]);
+
   type RenderItem = NonNullable<CustomSeriesOption['renderItem']>;
 
   const renderItem: RenderItem = useCallback(
@@ -138,80 +120,103 @@ export function OperatorGanttChart({
       const endMs = api.value(1) as number;
       const rowIndex = api.value(2) as number;
       if (endMs <= startMs) return null;
+
+      const datum = customSeriesData[params.dataIndex];
+      const entry = datum ? entries[datum.entryIndex] : undefined;
+      const segment = entry?.segments[datum!.segmentIndex];
+      if (!entry || !segment) return null;
+
       const startPoint = api.coord([startMs, rowIndex]);
       const endPoint = api.coord([endMs, rowIndex]);
 
-      // Full band height
-      const barHeight = Math.max(1, BAR_HEIGHT - BAR_GAP);
-      const y = startPoint[1] - barHeight / 2;
+      // Center the task-label + bar cluster within the row band; bar sits below the label.
+      const clusterTop = startPoint[1] - (TASK_LABEL_HEIGHT + BAR_HEIGHT) / 2;
+      const barTop = clusterTop + TASK_LABEL_HEIGHT;
       const width = Math.max(1, endPoint[0] - startPoint[0]);
 
-      // Clips boxes to the chart container
       const coord = params.coordSys as { x?: number; y?: number; width?: number; height?: number };
       const clipBound =
         typeof coord.width === 'number' && typeof coord.height === 'number'
-          ? {
-              x: coord.x ?? 0,
-              y: coord.y ?? 0,
-              width: coord.width,
-              height: coord.height,
-            }
+          ? { x: coord.x ?? 0, y: coord.y ?? 0, width: coord.width, height: coord.height }
           : null;
-      const rectShape = {
-        x: startPoint[0],
-        y,
-        width,
-        height: barHeight,
-      };
+      const rectShape = { x: startPoint[0], y: barTop, width, height: BAR_HEIGHT };
       const clippedShape = clipBound ? clipRectByRect(rectShape, clipBound) : rectShape;
       if (!clippedShape) return null;
 
-      const op = operators[params.dataIndexInside];
-      const barLabel =
-        op?.typeName && op.typeName !== op.label
-          ? `${op.typeName}: ${op.label}`
-          : (op?.label ?? '');
-      const { fill } = getOperatorBarColors(op?.typeName);
-      const fieldStyle = op ? operatorFieldStyles.get(op.operatorId) : undefined;
-      const hasSelection = selectedNodeIds.size > 0;
-      const isSelected = op != null && selectedNodeIds.has(op.operatorId);
-      const fieldDimmed = fieldStyle?.fieldDimmed ?? false;
-      const opacity = fieldDimmed || (hasSelection && !isSelected) ? 0.35 : 1;
-
+      const color = segment.color;
+      const isFirst = datum!.segmentIndex === 0;
+      const isLast = datum!.segmentIndex === entry.segments.length - 1;
+      // [topLeft, topRight, bottomRight, bottomLeft] — round only the run's outer corners
+      // so touching segments tile with square inner seams.
+      const r: [number, number, number, number] = [
+        isFirst ? CORNER_RADIUS : 0,
+        isLast ? CORNER_RADIUS : 0,
+        isLast ? CORNER_RADIUS : 0,
+        isFirst ? CORNER_RADIUS : 0,
+      ];
       const rect = {
         type: 'rect' as const,
-        shape: { ...clippedShape, r: 2 },
+        shape: { ...clippedShape, r },
+        // Mirror timeline marks: faint fill, stronger border, same state color.
         style: {
-          fill,
+          fill: withOpacity(color, MARK_AREA_FILL_OPACITY),
+          stroke: withOpacity(color, MARK_AREA_BORDER_OPACITY),
           lineWidth: 1,
-          opacity,
         },
       };
 
-      const textX = clippedShape.x + 6;
-      const textY = clippedShape.y + clippedShape.height / 2;
+      // State name centered inside each segment box (skipped when too narrow to read).
+      const stateChildren =
+        clippedShape.width > 10
+          ? [
+              {
+                type: 'text' as const,
+                style: {
+                  text: segment.stateName,
+                  x: clippedShape.x + clippedShape.width / 2,
+                  y: clippedShape.y + clippedShape.height / 2,
+                  textAlign: 'center' as const,
+                  textVerticalAlign: 'middle' as const,
+                  fontSize: STATE_FONT_SIZE,
+                  fill: textColor,
+                  overflow: 'truncate' as const,
+                  width: Math.max(0, clippedShape.width - 6),
+                },
+              },
+            ]
+          : [];
 
-      const text = {
-        type: 'text' as const,
-        style: {
-          text: barLabel,
-          x: textX,
-          y: textY,
-          textVerticalAlign: 'middle' as const,
-          fontSize: BAR_FONT_SIZE,
-          fill: barLabelTextColor,
-          overflow: 'truncate' as const,
-          width: Math.max(0, clippedShape.width - 12),
-          opacity,
-        },
-      };
+      // Task name above the bar, drawn once (first segment) spanning the whole entity.
+      const entityRight = api.coord([entry.endMs, rowIndex])[0];
+      const labelLeft = clippedShape.x;
+      const labelRight = clipBound
+        ? Math.min(entityRight, clipBound.x + clipBound.width)
+        : entityRight;
+      const labelWidth = Math.max(0, labelRight - labelLeft);
+      const taskChildren =
+        isFirst && labelWidth > 4
+          ? [
+              {
+                type: 'text' as const,
+                style: {
+                  text: entry.label,
+                  x: labelLeft + 1,
+                  y: clusterTop + TASK_LABEL_HEIGHT / 2,
+                  textAlign: 'left' as const,
+                  textVerticalAlign: 'middle' as const,
+                  fontSize: TASK_FONT_SIZE,
+                  fontWeight: 500 as const,
+                  fill: textColor,
+                  overflow: 'truncate' as const,
+                  width: Math.max(0, labelWidth - 2),
+                },
+              },
+            ]
+          : [];
 
-      return {
-        type: 'group' as const,
-        children: [rect, text],
-      };
+      return { type: 'group' as const, children: [rect, ...stateChildren, ...taskChildren] };
     },
-    [operators, operatorFieldStyles, barLabelTextColor, selectedNodeIds]
+    [entries, customSeriesData, textColor]
   );
 
   const gridOptions = useMemo(
@@ -262,9 +267,8 @@ export function OperatorGanttChart({
       series: [
         {
           type: 'custom',
-          name: 'operator-span',
+          name: SERIES_NAME,
           animation: false,
-          cursor: 'pointer',
           data: customSeriesData,
           renderItem: renderItem as never,
           coordinateSystem: 'cartesian2d',
@@ -304,44 +308,7 @@ export function OperatorGanttChart({
     [gridOptions, xAxisMax, yAxisCategories, customSeriesData, renderItem, minZoomSpanPct]
   );
 
-  const handleClick = useMemo(
-    () => ({
-      click: (params: { dataIndex: number; seriesName?: string }) => {
-        if (params.seriesName !== 'operator-span') return;
-        const op = operators[params.dataIndex];
-        if (!op) return;
-        if (selectedNodeIds.has(op.operatorId)) {
-          setSelectedNodeIds(new Set());
-          setSelectedOperatorLabel(null);
-          setSelectedNodeData(null);
-        } else {
-          setSelectedNodeIds(new Set([op.operatorId]));
-          setSelectedOperatorLabel(op.label);
-          setSelectedNodeData({
-            nodeId: op.operatorId,
-            label: op.label,
-            operationType: op.typeName,
-            statistics: op.statistics,
-          });
-          if (op.planId) {
-            setSelectedPlanId(op.planId);
-          }
-        }
-      },
-    }),
-    [
-      operators,
-      selectedNodeIds,
-      setSelectedNodeIds,
-      setSelectedOperatorLabel,
-      setSelectedPlanId,
-      setSelectedNodeData,
-    ]
-  );
-
   // Join timeline-sync-group for frame-rate-level x-axis zoom sync via ECharts connect().
-  // The y-axis dataZoom (index 3, when present) has a unique component ID and does not
-  // propagate to resource timelines that have no matching component.
   const onChartReady = (instance: EChartsInstance) => {
     chartCleanupRef.current?.();
     hoverCleanupRef.current?.();
@@ -364,12 +331,11 @@ export function OperatorGanttChart({
     onReady: onChartReady,
   });
 
-  // Empty data replaces the chart without unmounting this component.
   useEffect(() => {
-    if (operators.length > 0) return;
+    if (entries.length > 0) return;
     chartCleanupRef.current?.();
     instanceRef.current = null;
-  }, [operators.length, instanceRef]);
+  }, [entries.length, instanceRef]);
 
   useEffect(() => {
     return () => {
@@ -387,19 +353,26 @@ export function OperatorGanttChart({
           option={option}
           style={{ height: chartHeight }}
           onChartReady={handleChartReady}
-          onEvents={handleClick}
           notMerge={false}
           lazyUpdate={false}
           replaceMerge={['series']}
           autoResize={false}
         />
-        {operators.length === 0 && (
+        {entries.length === 0 && (
           <div className="pointer-events-none absolute inset-0 flex items-center justify-center text-sm text-muted-foreground">
-            No operator active spans
+            No long entities
           </div>
         )}
       </HiddenScroll>
-      <GanttTooltipPortal hover={hover} items={tooltipItems} />
+      <PointerTooltipPortal hover={activeMarks.length > 0 ? hover : null}>
+        {hover && (
+          <EntityTooltipContent
+            timestamp={hover.timestampMs}
+            windowMs={(zoomRange.end - zoomRange.start) * 1_000}
+            activeMarks={activeMarks}
+          />
+        )}
+      </PointerTooltipPortal>
     </>
   );
 }

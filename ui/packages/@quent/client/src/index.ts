@@ -14,6 +14,7 @@ export {
   fetchSingleTimeline,
   fetchBulkTimelines,
   fetchDataFlow,
+  fetchEntityList,
 } from './api';
 
 // queryOptions factories
@@ -24,6 +25,7 @@ export { queriesQueryOptions } from './queries';
 export { singleTimelineQueryOptions } from './timeline';
 export { bulkTimelineQueryOptions } from './bulkTimelines';
 export { dataFlowQueryOptions } from './dataFlow';
+export { entityListQueryOptions } from './entityList';
 
 // Hooks
 export { useQueryBundle } from './queryBundle';
@@ -32,3 +34,4 @@ export { useQueryGroups } from './queryGroups';
 export { useQueries } from './queries';
 export { useTimeline } from './timeline';
 export { useDataFlow } from './dataFlow';
+export { useEntityList } from './entityList';

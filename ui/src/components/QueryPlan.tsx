@@ -213,7 +213,7 @@ export function QueryPlan({ queryId, engineId }: { queryId: string; engineId: st
                 <DAGChart data={dagData} height="100%" isDark={isDark} />
               </Suspense>
             </div>
-            <DagPlayhead startTimeUnixNs={queryBundle.start_time_unix_ns} />
+            <DagPlayhead />
             <DAGNodeInfoPanel isDark={isDark} />
           </div>
         </ResizablePanel>

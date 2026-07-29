@@ -4,6 +4,7 @@
 import type { StatValue } from '@quent/utils';
 
 export interface OperatorTableRow {
+  activeSpan: { start: number; end: number } | null;
   partitionId: string;
   partitionLabel: string;
   scopeId: string;

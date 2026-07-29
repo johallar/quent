@@ -6,7 +6,6 @@ import { DEFAULT_STALE_TIME, fetchSingleTimeline } from '@quent/client';
 import {
   useBulkInitialized,
   useDebouncedZoomRange,
-  useHideTasks,
   timelineCacheKey,
   useTimelineData,
   useSelectedNodeIds,
@@ -20,15 +19,12 @@ import type { TimelineHoverPosition } from './Timeline';
 import { useCallback, useEffect, useId, useMemo, useRef, lazy, Suspense } from 'react';
 import {
   buildBinnedTimelineSeries,
-  buildTimelineMarks,
   dimSeries,
-  getLongFsms,
   mergeOverlaySeries,
   getAdaptiveNumBins,
   getTimelineConfig,
-  getLongEntitiesThreshold,
 } from '../lib/timeline.utils';
-import { TimelineSeries, TimelineMark } from './types';
+import { TimelineSeries } from './types';
 import { EntityTypeKey } from '@quent/utils';
 import { WHITE, withOpacity, type PaletteTheme } from '@quent/utils';
 import type {
@@ -47,7 +43,6 @@ type ResourceTimelineProps = {
   queryId: string;
   resourceId: string;
   resourceType: string;
-  startTime: bigint;
   durationSeconds: number;
   fsmTypeName?: string | undefined;
   resourceTypeName?: string;
@@ -77,7 +72,6 @@ export function ResourceTimeline({
   queryId,
   resourceId,
   resourceType,
-  startTime,
   durationSeconds,
   fsmTypeName,
   resourceTypeName,
@@ -92,7 +86,6 @@ export function ResourceTimeline({
   const zoomRange = useDebouncedZoomRange();
   const bulkInitialized = useBulkInitialized();
   const operatorLabel = useSelectedOperatorLabel();
-  const hideTasks = useHideTasks();
 
   const selectedNodeIds = useSelectedNodeIds();
   const operatorId = selectedNodeIds.size > 0 ? selectedNodeIds.values().next().value! : null;
@@ -144,7 +137,6 @@ export function ResourceTimeline({
       const isGroup = resourceType === EntityTypeKey.ResourceGroup;
       const start = zoomRange?.start ?? 0;
       const end = zoomRange?.end ?? durationSeconds;
-      const windowSeconds = end - start;
       const config = {
         num_bins: getAdaptiveNumBins(),
         start,
@@ -156,7 +148,7 @@ export function ResourceTimeline({
               ResourceGroup: {
                 resource_group_id: resourceId,
                 resource_type_name: resourceTypeName ?? '',
-                long_entities_threshold_s: getLongEntitiesThreshold(windowSeconds),
+                long_entities_threshold_s: null,
                 entity_filter: { entity_type_name: fsmTypeName ?? null },
                 app_params: { operator_id: null },
                 config,
@@ -165,7 +157,7 @@ export function ResourceTimeline({
           : {
               Resource: {
                 resource_id: resourceId,
-                long_entities_threshold_s: getLongEntitiesThreshold(windowSeconds),
+                long_entities_threshold_s: null,
                 entity_filter: { entity_type_name: fsmTypeName ?? null },
                 application: { operator_id: null },
                 config,
@@ -180,10 +172,9 @@ export function ResourceTimeline({
     placeholderData: keepPreviousData,
   });
 
-  const { timestamps, series, marks } = useMemo<{
+  const { timestamps, series } = useMemo<{
     timestamps: number[];
     series: TimelineSeries;
-    marks?: TimelineMark[];
   }>(() => {
     const data = preloadedData ?? fetchedData;
     if (!data) return { timestamps: [], series: EMPTY_TIMELINE_SERIES };
@@ -191,21 +182,9 @@ export function ResourceTimeline({
     const base = buildBinnedTimelineSeries(
       data.data,
       data.config,
-      startTime,
       paletteTheme,
       capacities,
       quantitySpecs,
-      fsmTypes
-    );
-    const longFsms = getLongFsms(data.data);
-    const filterSet =
-      resourceType === EntityTypeKey.Resource ? new Set([resourceId]) : new Set<string>();
-
-    const timelineMarks = buildTimelineMarks(
-      longFsms,
-      startTime,
-      paletteTheme,
-      filterSet,
       fsmTypes
     );
 
@@ -218,25 +197,14 @@ export function ResourceTimeline({
           const opResult = buildBinnedTimelineSeries(
             overlayPreloadedData.data,
             overlayPreloadedData.config,
-            startTime,
             paletteTheme,
             capacities,
             quantitySpecs,
             fsmTypes
           );
-          const opLongFsmIds = new Set(getLongFsms(overlayPreloadedData.data).map(f => f.id));
           return {
             timestamps: base.timestamps,
             series: mergeOverlaySeries(base.series, opResult.series, operatorLabel),
-            marks: buildTimelineMarks(
-              longFsms,
-              startTime,
-              paletteTheme,
-              filterSet,
-              fsmTypes,
-              opLongFsmIds,
-              operatorLabel
-            ),
           };
         }
       }
@@ -247,22 +215,18 @@ export function ResourceTimeline({
       return {
         timestamps: base.timestamps,
         series: dimSeries(base.series),
-        marks: timelineMarks,
       };
     }
 
-    return { ...base, marks: timelineMarks };
+    return base;
   }, [
     preloadedData,
     fetchedData,
     operatorId,
     overlayPreloadedData,
-    startTime,
     capacities,
     quantitySpecs,
     fsmTypes,
-    resourceType,
-    resourceId,
     operatorLabel,
     paletteTheme,
   ]);
@@ -306,18 +270,14 @@ export function ResourceTimeline({
     );
   }
 
-  const effectiveMarks = hideTasks ? undefined : marks;
-
   return (
     <div className="h-full w-full">
       <Suspense fallback={<TimelineSkeleton />}>
         <Timeline
           series={series}
           timestamps={timestamps ?? []}
-          startTime={startTime}
           durationSeconds={durationSeconds}
           showTooltip={showTooltip}
-          marks={effectiveMarks}
           isDark={isDark}
           onHoverChange={handleHoverChange}
         />
@@ -326,8 +286,6 @@ export function ResourceTimeline({
             ownerId={ownerId}
             series={series}
             timestamps={timestamps ?? []}
-            marks={effectiveMarks}
-            startTime={startTime}
           />
         )}
       </Suspense>

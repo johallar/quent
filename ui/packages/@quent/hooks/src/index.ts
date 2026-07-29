@@ -29,8 +29,6 @@ export {
   useSetBulkInitialized,
   useVisibleEntries,
   useSetVisibleEntries,
-  useHideTasks,
-  useSetHideTasks,
   useHydrateTimelineAtoms,
 } from './timeline/useTimelineAtoms';
 
@@ -42,6 +40,7 @@ export { bulkEntryId } from './timeline/timeline.utils';
 // Complex timeline hooks
 export { useBulkTimelines } from './timeline/useBulkTimelines';
 export type { TreeNode } from './timeline/useBulkTimelines';
+export { useTimelineZoomHandler } from './timeline/useTimelineZoomHandler';
 export {
   useBulkTimelineFetch,
   applyBulkTimelineResponse,

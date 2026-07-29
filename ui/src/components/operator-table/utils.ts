@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import type { QueryEntities } from '~quent/types/QueryEntities';
-import type { StatValue } from '@quent/utils';
+import type { StatValue, ZoomRange } from '@quent/utils';
 import { parseCustomStatistics } from '@quent/components';
 import type { OperatorTableRow } from './types';
 
@@ -75,6 +75,7 @@ export function buildOperatorRows(
         stats[stat.key] = stat.value;
       }
       rows.push({
+        activeSpan: op.active_span,
         partitionId,
         partitionLabel,
         scopeId: plan.id,
@@ -90,6 +91,12 @@ export function buildOperatorRows(
     }
   }
   return rows;
+}
+
+export function operatorRowOverlapsWindow(row: OperatorTableRow, window: ZoomRange): boolean {
+  return (
+    row.activeSpan != null && row.activeSpan.start < window.end && row.activeSpan.end > window.start
+  );
 }
 
 /**
