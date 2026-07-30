@@ -213,7 +213,7 @@ export function LongEntitiesGantt({
       isDark={isDark}
       seriesName={SERIES_NAME}
       renderItem={renderItem}
-      emptyMessage="No long entities"
+      emptyMessage="No entities"
       renderTooltip={renderTooltip}
     />
   );

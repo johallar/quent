@@ -67,7 +67,7 @@ export function LongEntitiesRow({
         className="flex items-center px-2 text-sm text-muted-foreground"
         style={{ height: DEFAULT_TIMELINE_HEIGHT }}
       >
-        Loading long entities…
+        Loading entities…
       </div>
     );
   }
