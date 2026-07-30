@@ -137,7 +137,7 @@ describe('getLongEntitySegmentsAtTimestamp', () => {
     const second = makeFsm('second', [transition('queued', 0.5), transition('done', 2)], {
       instance_name: 'task-2',
     });
-    const entries = buildLongEntityEntries([first, second], 0n, {}, 'light');
+    const entries = buildLongEntityEntries([first, second], {}, 'light');
 
     expect(
       getLongEntitySegmentsAtTimestamp(entries, 1_500).map(({ entry, segment }) => [
@@ -156,7 +156,7 @@ describe('getLongEntitySegmentsAtTimestamp', () => {
       transition('running', 1),
       transition('exit', 2),
     ]);
-    const entries = buildLongEntityEntries([fsm], 0n, {}, 'light');
+    const entries = buildLongEntityEntries([fsm], {}, 'light');
     const [{ segment }] = getLongEntitySegmentsAtTimestamp(entries, 1_000);
     expect(segment.stateName).toBe('running');
   });
