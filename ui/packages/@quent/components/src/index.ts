@@ -244,14 +244,17 @@ export { OperatorGanttChart } from './operator-timeline/OperatorGanttChart';
 export type { OperatorGanttChartProps } from './operator-timeline/OperatorGanttChart';
 export type { OperatorActiveSpanEntry } from './operator-timeline/types';
 export {
-  clipRectByRect,
   OPERATOR_TIMELINE_ROW_TYPE,
   operatorTimelineRowId,
   workerIdFromOperatorTimelineRowId,
   getWorkerIdsFromPlanTree,
   getPlanIdsForWorker,
-  stackOperatorsIntoRows,
   spanToMs,
   operatorsWithActiveSpans,
   operatorsWithActiveSpansForWorker,
 } from './operator-timeline/utils';
+export {
+  clipRectByRect,
+  stackIntervalsIntoRows,
+  stackIntervalsIntoRows as stackOperatorsIntoRows,
+} from './gantt-chart/utils';
