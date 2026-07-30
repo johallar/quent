@@ -1,8 +1,15 @@
-// SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+// SPDX-FileCopyrightText: Copyright (c) 2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-import { keepPreviousData, queryOptions, useQuery } from '@tanstack/react-query';
-import type { EntityListRequest, EntityScope, EntitySortKey, SortDir } from '@quent/utils';
+import { queryOptions, useQuery } from '@tanstack/react-query';
+import type {
+  EntityListRequest,
+  EntityScope,
+  EntitySortKey,
+  OperatorFilter,
+  QueryFilter,
+  SortDir,
+} from '@quent/utils';
 import { fetchEntityList } from './api';
 import { DEFAULT_STALE_TIME } from './constants';
 
@@ -32,7 +39,7 @@ function buildRequest({
   sortKey = 'UsageDuration',
   sortDir = 'Desc',
   maxItems = null,
-}: EntityListParams): EntityListRequest<{ query_id: string }, { operator_id: string | null }> {
+}: EntityListParams): EntityListRequest<QueryFilter, OperatorFilter> {
   return {
     entry: {
       window,
@@ -43,7 +50,7 @@ function buildRequest({
       },
       sort: { key: sortKey, dir: sortDir },
       page: maxItems != null ? { page: 0, max: maxItems } : null,
-      application: { operator_id: operatorId },
+      application: { operator_ids: operatorId == null ? [] : [operatorId] },
     },
     app_params: { query_id: queryId },
   };
@@ -59,8 +66,6 @@ export const entityListQueryOptions = (
     queryFn: () => fetchEntityList(params.engineId, request),
     staleTime: options?.staleTime ?? DEFAULT_STALE_TIME,
     enabled: options?.enabled ?? true,
-    // Avoid flicker to empty while a filter/selection change refetches.
-    placeholderData: keepPreviousData,
   });
 };
 export const useEntityList = (
