@@ -52,29 +52,17 @@ function buildRequest({
 export const entityListQueryOptions = (
   params: EntityListParams,
   options?: { staleTime?: number; enabled?: boolean }
-) =>
-  queryOptions({
-    queryKey: [
-      'entityList',
-      params.engineId,
-      params.queryId,
-      params.window.start,
-      params.window.end,
-      params.operatorId ?? null,
-      params.filter?.scope ?? null,
-      params.filter?.entityTypeName ?? null,
-      params.minUsageSeconds ?? null,
-      params.sortKey ?? 'UsageDuration',
-      params.sortDir ?? 'Desc',
-      params.maxItems ?? null,
-    ],
-    queryFn: () => fetchEntityList(params.engineId, buildRequest(params)),
+) => {
+  const request = buildRequest(params);
+  return queryOptions({
+    queryKey: ['entityList', params.engineId, request],
+    queryFn: () => fetchEntityList(params.engineId, request),
     staleTime: options?.staleTime ?? DEFAULT_STALE_TIME,
     enabled: options?.enabled ?? true,
     // Avoid flicker to empty while a filter/selection change refetches.
     placeholderData: keepPreviousData,
   });
-
+};
 export const useEntityList = (
   params: EntityListParams,
   options?: { staleTime?: number; enabled?: boolean }
