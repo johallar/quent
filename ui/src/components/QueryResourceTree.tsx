@@ -5,7 +5,13 @@ import { Column, TreeTable } from '@quent/components';
 import { useCallback, useEffect, useMemo } from 'react';
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { useAtom } from 'jotai';
-import { useHighlightedItemIds, useBulkTimelines, useHydrateTimelineAtoms } from '@quent/hooks';
+import {
+  useHighlightedItemIds,
+  useBulkTimelines,
+  useHydrateTimelineAtoms,
+  useLongEntityThresholdSeconds,
+  useLongEntityThresholdAuto,
+} from '@quent/hooks';
 import { ResourceTree, QueryBundle } from '@quent/utils';
 import type { EntityRef, SingleTimelineRequest, QueryFilter, OperatorFilter } from '@quent/utils';
 import { TimelineController, TimelineRuler } from '@quent/components';
@@ -23,6 +29,7 @@ import {
   collectVisibleEntries,
   buildBulkParamsForItem,
   findItemById,
+  getLongEntitiesThreshold,
 } from '@quent/components';
 import { useExpandedIds } from '@/hooks/useExpandedIds';
 import {
@@ -94,6 +101,12 @@ function QueryResourceTreeContent({ queryBundle, engineId }: QueryResourceTreePr
   const startTime = queryBundle.start_time_unix_ns;
   const durationSeconds = queryBundle.duration_s;
   const startTimeMs = useMemo(() => nanosToMs(startTime), [startTime]);
+  const manualLongEntityThresholdSeconds = useLongEntityThresholdSeconds();
+  const longEntityThresholdAuto = useLongEntityThresholdAuto();
+  const longEntitiesThresholdSeconds = getLongEntitiesThreshold(durationSeconds, {
+    auto: longEntityThresholdAuto,
+    seconds: manualLongEntityThresholdSeconds,
+  });
 
   useHydrateTimelineAtoms({
     zoomRange: { start: 0, end: durationSeconds },
@@ -154,6 +167,7 @@ function QueryResourceTreeContent({ queryBundle, engineId }: QueryResourceTreePr
       rootResourceGroupId,
       durationSeconds,
       rootResourceType,
+      longEntitiesThresholdSeconds,
     ],
     queryFn: () => {
       const request: SingleTimelineRequest<QueryFilter, OperatorFilter> = {
@@ -161,7 +175,7 @@ function QueryResourceTreeContent({ queryBundle, engineId }: QueryResourceTreePr
           ResourceGroup: {
             resource_group_id: rootResourceGroupId!,
             resource_type_name: rootResourceType ?? '',
-            long_entities_threshold_s: null,
+            long_entities_threshold_s: longEntitiesThresholdSeconds,
             entity_filter: { entity_type_name: null },
             app_params: { operator_ids: [] },
             config: {

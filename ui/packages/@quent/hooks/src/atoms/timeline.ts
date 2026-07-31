@@ -2,11 +2,17 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { atom } from 'jotai';
+import { atomWithStorage } from 'jotai/utils';
 import type {
   ZoomRange,
   SingleTimelineResponse,
   TimelineRequest,
   OperatorFilter,
+} from '@quent/utils';
+import {
+  DEFAULT_LONG_ENTITY_THRESHOLD_AUTO,
+  DEFAULT_LONG_ENTITY_THRESHOLD_SECONDS,
+  clampLongEntityThresholdSeconds,
 } from '@quent/utils';
 
 /**
@@ -21,6 +27,7 @@ export interface TimelineCacheParams {
   resourceTypeName: string;
   operatorId?: string | null;
   fsmTypeName?: string | null;
+  longEntitiesThresholdSeconds?: number | null;
 }
 
 /** Build a composite cache key for per-item timeline data */
@@ -30,6 +37,7 @@ export function timelineCacheKey(params: TimelineCacheParams): string {
     params.resourceTypeName,
     params.operatorId ?? '',
     params.fsmTypeName ?? '',
+    params.longEntitiesThresholdSeconds ?? '',
   ].join('|');
 }
 
@@ -80,3 +88,21 @@ export const visibleEntriesAtom = atom<Record<string, TimelineRequest<OperatorFi
 
 /** When true, hides task annotation marks on timeline charts */
 export const hideTasksAtom = atom(false);
+
+const storedLongEntityThresholdSecondsAtom = atomWithStorage(
+  'quent-long-entity-threshold-seconds',
+  DEFAULT_LONG_ENTITY_THRESHOLD_SECONDS
+);
+
+/** Persisted manual threshold for long-entity annotations. */
+export const longEntityThresholdSecondsAtom = atom(
+  get => clampLongEntityThresholdSeconds(get(storedLongEntityThresholdSecondsAtom)),
+  (_get, set, value: number) =>
+    set(storedLongEntityThresholdSecondsAtom, clampLongEntityThresholdSeconds(value))
+);
+
+/** When true, derives the threshold from the current timeline bin duration. */
+export const longEntityThresholdAutoAtom = atomWithStorage(
+  'quent-long-entity-threshold-auto',
+  DEFAULT_LONG_ENTITY_THRESHOLD_AUTO
+);

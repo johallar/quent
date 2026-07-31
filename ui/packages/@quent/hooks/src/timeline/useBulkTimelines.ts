@@ -15,6 +15,8 @@ import {
   debouncedZoomRangeAtom,
   bulkInitializedAtom,
   visibleEntriesAtom,
+  longEntityThresholdSecondsAtom,
+  longEntityThresholdAutoAtom,
 } from '../atoms/timeline';
 import { selectedNodeIdsAtom } from '../atoms/dag';
 import {
@@ -65,14 +67,16 @@ export function useBulkTimelines<T extends TreeNode>({
     selectedTypes: Map<string, string>,
     entities: QueryEntities,
     config: { num_bins: number; start: number; end: number },
-    groupFsmFilters?: Map<string, string | null>
+    groupFsmFilters?: Map<string, string | null>,
+    longEntityThresholdSetting?: { auto: boolean; seconds: number }
   ) => Record<string, TimelineRequest<OperatorFilter>>;
   buildBulkParamsFn: (
     item: T,
     selectedTypes: Map<string, string>,
     entities: QueryEntities,
     config: { num_bins: number; start: number; end: number },
-    groupFsmFilters?: Map<string, string | null>
+    groupFsmFilters?: Map<string, string | null>,
+    longEntityThresholdSetting?: { auto: boolean; seconds: number }
   ) => TimelineRequest<OperatorFilter>;
   findItemByIdFn: (root: T, id: string) => T | undefined;
 }) {
@@ -81,6 +85,12 @@ export function useBulkTimelines<T extends TreeNode>({
   const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const selectedNodeIds = useAtomValue(selectedNodeIdsAtom);
   const operatorId = selectedNodeIds.size > 0 ? selectedNodeIds.values().next().value! : null;
+  const longEntityThresholdSeconds = useAtomValue(longEntityThresholdSecondsAtom);
+  const longEntityThresholdAuto = useAtomValue(longEntityThresholdAutoAtom);
+  const longEntityThresholdSetting = useMemo(
+    () => ({ auto: longEntityThresholdAuto, seconds: longEntityThresholdSeconds }),
+    [longEntityThresholdAuto, longEntityThresholdSeconds]
+  );
 
   useEffect(() => {
     return () => {
@@ -106,7 +116,8 @@ export function useBulkTimelines<T extends TreeNode>({
         selectedTypes,
         entities,
         bulkConfig,
-        groupFsmFilters
+        groupFsmFilters,
+        longEntityThresholdSetting
       ),
 
     [
@@ -116,6 +127,7 @@ export function useBulkTimelines<T extends TreeNode>({
       entities,
       bulkConfig,
       groupFsmFilters,
+      longEntityThresholdSetting,
       collectVisibleEntriesFn,
     ]
   );
@@ -174,11 +186,21 @@ export function useBulkTimelines<T extends TreeNode>({
           selectedTypes,
           entities,
           expandConfig,
-          groupFsmFilters
+          groupFsmFilters,
+          longEntityThresholdSetting
         );
         const resourceTypeName = getResourceTypeName(params);
         const fsmTypeName = getFsmTypeName(params);
-        const key = timelineCacheKey({ resourceId: child.id, resourceTypeName, fsmTypeName });
+        const longEntitiesThresholdSeconds =
+          'ResourceGroup' in params
+            ? params.ResourceGroup.long_entities_threshold_s
+            : params.Resource.long_entities_threshold_s;
+        const key = timelineCacheKey({
+          resourceId: child.id,
+          resourceTypeName,
+          fsmTypeName,
+          longEntitiesThresholdSeconds,
+        });
         if (!store.get(timelineDataMapAtom)[key]) {
           newBaseEntries[child.id] = params;
         }
@@ -213,6 +235,7 @@ export function useBulkTimelines<T extends TreeNode>({
       store,
       selectedTypes,
       groupFsmFilters,
+      longEntityThresholdSetting,
       entities,
       queryClient,
       engineId,

@@ -31,6 +31,10 @@ export {
   useSetVisibleEntries,
   useHideTasks,
   useSetHideTasks,
+  useLongEntityThresholdSeconds,
+  useSetLongEntityThresholdSeconds,
+  useLongEntityThresholdAuto,
+  useSetLongEntityThresholdAuto,
   useHydrateTimelineAtoms,
 } from './timeline/useTimelineAtoms';
 

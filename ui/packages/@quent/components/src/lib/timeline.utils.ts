@@ -25,7 +25,7 @@ import type {
   OperatorFilter,
   TimelineConfig,
 } from '@quent/utils';
-import { QueryEntities, ResourceTree } from '@quent/utils';
+import { QueryEntities, ResourceTree, clampLongEntityThresholdSeconds } from '@quent/utils';
 import { entityRefToEntitiesKey } from './queryBundle.utils';
 import { collectResourceTypesFromTree, getIconForType } from './resource.utils';
 import { EntityTypeValue, EntityRefKey, EntityTypeKey } from '@quent/utils';
@@ -61,8 +61,18 @@ export function getAdaptiveNumBins(): number {
   return MAX_TIMELINE_BINS;
 }
 
-/** Threshold for "long" entities: 10x the current bin duration in seconds. */
-export function getLongEntitiesThreshold(windowSeconds: number): number {
+export type LongEntityThresholdSetting = {
+  auto: boolean;
+  seconds: number;
+};
+
+/** Resolve the long-entity threshold in seconds for the current mode. */
+export function getLongEntitiesThreshold(
+  windowSeconds: number,
+  setting?: LongEntityThresholdSetting
+): number {
+  if (setting && !setting.auto) return clampLongEntityThresholdSeconds(setting.seconds);
+
   const numBins = getAdaptiveNumBins();
   return LONG_ENTITIES_BIN_MULTIPLIER * (windowSeconds / numBins);
 }
@@ -634,6 +644,7 @@ export function buildBulkParamsForItem(
   entities: QueryEntities,
   config: TimelineConfig,
   groupFsmFilters?: Map<string, string | null>,
+  longEntityThresholdSetting?: LongEntityThresholdSetting,
   operatorId: string | null = null
 ): TimelineRequest<OperatorFilter> {
   const isGroup = item.type !== EntityTypeKey.Resource;
@@ -649,14 +660,14 @@ export function buildBulkParamsForItem(
   } else {
     fsmTypeName = lookupFsmTypeName(item, entities);
   }
-  const threshold = getLongEntitiesThreshold(config.end - config.start);
+  const threshold = getLongEntitiesThreshold(config.end - config.start, longEntityThresholdSetting);
 
   if (isGroup) {
     return {
       ResourceGroup: {
         resource_group_id: item.id,
         resource_type_name: resourceTypeName || '',
-        long_entities_threshold_s: null,
+        long_entities_threshold_s: threshold,
         entity_filter: { entity_type_name: fsmTypeName },
         app_params: { operator_ids: operatorId ? [operatorId] : [] },
         config,
@@ -686,6 +697,7 @@ export function collectVisibleEntries(
   entities: QueryEntities,
   config: TimelineConfig,
   groupFsmFilters?: Map<string, string | null>,
+  longEntityThresholdSetting?: LongEntityThresholdSetting,
   operatorId: string | null = null
 ): Record<string, TimelineRequest<OperatorFilter>> {
   const result: Record<string, TimelineRequest<OperatorFilter>> = {};
@@ -697,6 +709,7 @@ export function collectVisibleEntries(
       entities,
       config,
       groupFsmFilters,
+      longEntityThresholdSetting,
       operatorId
     );
 

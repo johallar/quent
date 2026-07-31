@@ -13,6 +13,8 @@ import {
   useSelectedOperatorLabel,
   useDeferredReady,
   useSetTimelineHover,
+  useLongEntityThresholdSeconds,
+  useLongEntityThresholdAuto,
 } from '@quent/hooks';
 import { TimelineSkeleton } from './TimelineSkeleton';
 import { TimelineTooltipPortal } from './TimelineTooltipPortal';
@@ -91,9 +93,17 @@ export function ResourceTimeline({
   const bulkInitialized = useBulkInitialized();
   const operatorLabel = useSelectedOperatorLabel();
   const hideTasks = useHideTasks();
+  const manualLongEntityThresholdSeconds = useLongEntityThresholdSeconds();
+  const longEntityThresholdAuto = useLongEntityThresholdAuto();
 
   const selectedNodeIds = useSelectedNodeIds();
   const operatorId = selectedNodeIds.size > 0 ? selectedNodeIds.values().next().value! : null;
+  const windowStart = zoomRange?.start ?? 0;
+  const windowEnd = zoomRange?.end ?? durationSeconds;
+  const longEntitiesThresholdSeconds = getLongEntitiesThreshold(windowEnd - windowStart, {
+    auto: longEntityThresholdAuto,
+    seconds: manualLongEntityThresholdSeconds,
+  });
 
   const cacheResourceTypeName =
     resourceType === EntityTypeKey.ResourceGroup ? (resourceTypeName ?? '') : '';
@@ -101,6 +111,7 @@ export function ResourceTimeline({
     resourceId,
     resourceTypeName: cacheResourceTypeName,
     fsmTypeName,
+    longEntitiesThresholdSeconds,
   });
   const preloadedData = useTimelineData(baseCacheKey);
 
@@ -109,6 +120,7 @@ export function ResourceTimeline({
     resourceTypeName: cacheResourceTypeName,
     fsmTypeName,
     operatorId,
+    longEntitiesThresholdSeconds,
   });
   const operatorTimelineData = useTimelineData(operatorCacheKey);
   // Preserve the last non-undefined overlay data while an operator is selected.
@@ -137,16 +149,14 @@ export function ResourceTimeline({
       fsmTypeName,
       resourceTypeName,
       zoomRange,
+      longEntitiesThresholdSeconds,
     ],
     queryFn: () => {
       const isGroup = resourceType === EntityTypeKey.ResourceGroup;
-      const start = zoomRange?.start ?? 0;
-      const end = zoomRange?.end ?? durationSeconds;
-      const windowSeconds = end - start;
       const config = {
         num_bins: getAdaptiveNumBins(),
-        start,
-        end,
+        start: windowStart,
+        end: windowEnd,
       };
       const request: SingleTimelineRequest<QueryFilter, OperatorFilter> = {
         entry: isGroup
@@ -154,7 +164,7 @@ export function ResourceTimeline({
               ResourceGroup: {
                 resource_group_id: resourceId,
                 resource_type_name: resourceTypeName ?? '',
-                long_entities_threshold_s: getLongEntitiesThreshold(windowSeconds),
+                long_entities_threshold_s: longEntitiesThresholdSeconds,
                 entity_filter: { entity_type_name: fsmTypeName ?? null },
                 app_params: { operator_ids: [] },
                 config,
@@ -163,7 +173,7 @@ export function ResourceTimeline({
           : {
               Resource: {
                 resource_id: resourceId,
-                long_entities_threshold_s: getLongEntitiesThreshold(windowSeconds),
+                long_entities_threshold_s: longEntitiesThresholdSeconds,
                 entity_filter: { entity_type_name: fsmTypeName ?? null },
                 application: { operator_ids: [] },
                 config,

@@ -12,6 +12,8 @@ import {
   bulkInitializedAtom,
   visibleEntriesAtom,
   hideTasksAtom,
+  longEntityThresholdSecondsAtom,
+  longEntityThresholdAutoAtom,
 } from '../atoms/timeline';
 import type { ZoomRange, SingleTimelineResponse } from '@quent/utils';
 
@@ -35,6 +37,10 @@ export const useVisibleEntries = () => useAtomValue(visibleEntriesAtom);
 export const useSetVisibleEntries = () => useSetAtom(visibleEntriesAtom);
 export const useHideTasks = () => useAtomValue(hideTasksAtom);
 export const useSetHideTasks = () => useSetAtom(hideTasksAtom);
+export const useLongEntityThresholdSeconds = () => useAtomValue(longEntityThresholdSecondsAtom);
+export const useSetLongEntityThresholdSeconds = () => useSetAtom(longEntityThresholdSecondsAtom);
+export const useLongEntityThresholdAuto = () => useAtomValue(longEntityThresholdAutoAtom);
+export const useSetLongEntityThresholdAuto = () => useSetAtom(longEntityThresholdAutoAtom);
 
 /**
  * Hydrates the timeline atoms with initial values synchronously during render.

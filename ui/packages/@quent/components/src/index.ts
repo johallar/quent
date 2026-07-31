@@ -127,6 +127,7 @@ export {
   findItemById,
   transformResourceTree,
 } from './lib/timeline.utils';
+export type { LongEntityThresholdSetting } from './lib/timeline.utils';
 export type { AxisPointerSyncOptions } from './lib/timeline.utils';
 
 // ─── Services – query-plan ────────────────────────────────────────────────────

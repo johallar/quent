@@ -168,6 +168,7 @@ describe('QueryResourceTree — TimelineController always shows full-range data'
           resourceTypeName: RESOURCE_TYPE,
           operatorId: null,
           fsmTypeName: null,
+          longEntitiesThresholdSeconds: null,
         },
       ],
     ]);

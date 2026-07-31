@@ -134,6 +134,16 @@ describe('getLongEntitiesThreshold', () => {
   it('returns 0 for a zero-second window', () => {
     expect(getLongEntitiesThreshold(0)).toBe(0);
   });
+
+  it('preserves the dynamic calculation in auto mode', () => {
+    expect(getLongEntitiesThreshold(200, { auto: true, seconds: 60 })).toBe(30);
+    expect(getLongEntitiesThreshold(100, { auto: true, seconds: 120 })).toBe(15);
+  });
+
+  it('uses and clamps the manual threshold when auto mode is off', () => {
+    expect(getLongEntitiesThreshold(200, { auto: false, seconds: 60 })).toBe(60);
+    expect(getLongEntitiesThreshold(200, { auto: false, seconds: 1_000 })).toBe(600);
+  });
 });
 
 // ---- getTimelineXAxisIntervalMs --------------------------------------------

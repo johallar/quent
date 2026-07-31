@@ -29,6 +29,7 @@ export interface BulkTimelineIdMeta {
   resourceTypeName: string;
   operatorId: string | null;
   fsmTypeName: string | null;
+  longEntitiesThresholdSeconds: number | null;
 }
 
 export interface MergedBulkEntries {
@@ -73,14 +74,30 @@ export function buildMergedBulkEntries(
   for (const [resourceId, params] of Object.entries(baseEntries)) {
     const resourceTypeName = getResourceTypeName(params);
     const fsmTypeName = getFsmTypeName(params);
+    const longEntitiesThresholdSeconds =
+      'ResourceGroup' in params
+        ? params.ResourceGroup.long_entities_threshold_s
+        : params.Resource.long_entities_threshold_s;
     const baseId = bulkEntryId(resourceId);
     entries[baseId] = params;
-    idToMeta.set(baseId, { resourceId, resourceTypeName, operatorId: null, fsmTypeName });
+    idToMeta.set(baseId, {
+      resourceId,
+      resourceTypeName,
+      operatorId: null,
+      fsmTypeName,
+      longEntitiesThresholdSeconds,
+    });
     if (operatorId) {
       const opId = bulkEntryId(resourceId, operatorId);
       const withOperator = setOperatorOnEntry(params, operatorId);
       entries[opId] = withOperator;
-      idToMeta.set(opId, { resourceId, resourceTypeName, operatorId, fsmTypeName });
+      idToMeta.set(opId, {
+        resourceId,
+        resourceTypeName,
+        operatorId,
+        fsmTypeName,
+        longEntitiesThresholdSeconds,
+      });
     }
   }
 
@@ -93,6 +110,9 @@ export function buildMergedBulkEntries(
         'ResourceGroup' in params
           ? params.ResourceGroup.entity_filter.entity_type_name
           : params.Resource.entity_filter.entity_type_name,
+        'ResourceGroup' in params
+          ? params.ResourceGroup.long_entities_threshold_s
+          : params.Resource.long_entities_threshold_s,
       ]),
     operatorId: operatorId ?? null,
   });

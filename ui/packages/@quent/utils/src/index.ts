@@ -4,6 +4,14 @@
 // Utilities
 export { cn } from './cn';
 export { parseJsonWithBigInt } from './parseJsonWithBigInt';
+export {
+  DEFAULT_LONG_ENTITY_THRESHOLD_SECONDS,
+  MIN_LONG_ENTITY_THRESHOLD_SECONDS,
+  MAX_LONG_ENTITY_THRESHOLD_SECONDS,
+  LONG_ENTITY_THRESHOLD_STEP_SECONDS,
+  DEFAULT_LONG_ENTITY_THRESHOLD_AUTO,
+  clampLongEntityThresholdSeconds,
+} from './longEntityThreshold';
 
 // Color utilities
 export {
