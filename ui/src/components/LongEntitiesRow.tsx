@@ -2,18 +2,18 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { useMemo } from 'react';
-import { useEntityList } from '@quent/client';
+import { useInfiniteEntityList } from '@quent/client';
 import { useDebouncedZoomRange, useSelectedNodeIds } from '@quent/hooks';
 import type { FsmTypeDecl } from '@quent/utils';
 import {
+  Button,
   LONG_ENTITIES_TIMELINE_HEIGHT,
   LongEntitiesGantt,
   buildLongEntityEntries,
   getLongEntitiesThreshold,
 } from '@quent/components';
 
-/** Max entities fetched per resource; longest-usage-first, so this keeps the top N. */
-const MAX_ENTITIES = 200;
+const ENTITIES_PER_PAGE = 100;
 
 type LongEntitiesRowProps = {
   engineId: string;
@@ -47,21 +47,25 @@ export function LongEntitiesRow({
       : { start: 0, end: durationSeconds };
   const minUsageSeconds = getLongEntitiesThreshold(window.end - window.start);
 
-  const { data, isFetching } = useEntityList({
-    engineId,
-    queryId,
-    window,
-    operatorIds,
-    minUsageSeconds,
-    sortDir: 'Desc',
-    maxItems: MAX_ENTITIES,
-    filter: { scope: { Resource: { resource_id: resourceId } } },
-  });
-
-  const entries = useMemo(
-    () => (data ? buildLongEntityEntries(data.items, fsmTypes, isDark ? 'dark' : 'light') : []),
-    [data, fsmTypes, isDark]
+  const { data, fetchNextPage, hasNextPage, isFetching, isPlaceholderData } = useInfiniteEntityList(
+    {
+      engineId,
+      queryId,
+      window,
+      operatorIds,
+      minUsageSeconds,
+      sortDir: 'Desc',
+      maxItems: ENTITIES_PER_PAGE,
+      filter: { scope: { Resource: { resource_id: resourceId } } },
+    }
   );
+
+  const entities = useMemo(() => data?.pages.flatMap(page => page.items) ?? [], [data]);
+  const entries = useMemo(
+    () => buildLongEntityEntries(entities, fsmTypes, isDark ? 'dark' : 'light'),
+    [entities, fsmTypes, isDark]
+  );
+  const totalEntities = data?.pages[data.pages.length - 1]?.total ?? entities.length;
 
   if (!data && isFetching) {
     return (
@@ -75,11 +79,31 @@ export function LongEntitiesRow({
   }
 
   return (
-    <LongEntitiesGantt
-      entries={entries}
-      durationSeconds={durationSeconds}
-      height={LONG_ENTITIES_TIMELINE_HEIGHT}
-      isDark={isDark}
-    />
+    <div>
+      <LongEntitiesGantt
+        entries={entries}
+        durationSeconds={durationSeconds}
+        height={LONG_ENTITIES_TIMELINE_HEIGHT}
+        isDark={isDark}
+      />
+
+      {hasNextPage && !isPlaceholderData && (
+        <div className="flex justify-center border-t border-border/50 py-1">
+          <Button
+            type="button"
+            variant="ghost"
+            size="xs"
+            className="h-4 px-1 text-[10px]"
+            disabled={isFetching}
+            onClick={event => {
+              event.stopPropagation();
+              void fetchNextPage();
+            }}
+          >
+            Show more ({entities.length} of {totalEntities})
+          </Button>
+        </div>
+      )}
+    </div>
   );
 }
