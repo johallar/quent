@@ -9,6 +9,7 @@ import {
   Button,
   LONG_ENTITIES_TIMELINE_HEIGHT,
   LongEntitiesGantt,
+  Skeleton,
   buildLongEntityEntries,
   getLongEntitiesThreshold,
 } from '@quent/components';
@@ -70,10 +71,14 @@ export function LongEntitiesRow({
   if (!data && isFetching) {
     return (
       <div
-        className="flex items-center px-2 text-sm text-muted-foreground"
+        role="status"
+        aria-label="Loading entities"
+        className="flex flex-col justify-center gap-1.5 overflow-hidden px-2"
         style={{ height: LONG_ENTITIES_TIMELINE_HEIGHT }}
       >
-        Loading entities…
+        <Skeleton className="h-3 w-2/5" />
+        <Skeleton className="ml-[18%] h-3 w-1/2" />
+        <Skeleton className="ml-[55%] h-3 w-1/4" />
       </div>
     );
   }

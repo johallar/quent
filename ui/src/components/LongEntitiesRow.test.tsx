@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: Copyright (c) 2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-import type { ButtonHTMLAttributes } from 'react';
+import type { ButtonHTMLAttributes, HTMLAttributes } from 'react';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { LongEntitiesRow } from './LongEntitiesRow';
@@ -32,6 +32,7 @@ vi.mock('@quent/components', () => ({
     mocks.longEntitiesGantt(props);
     return <div data-testid="long-entities-gantt" />;
   },
+  Skeleton: (props: HTMLAttributes<HTMLDivElement>) => <div {...props} />,
   buildLongEntityEntries: mocks.buildLongEntityEntries,
   getLongEntitiesThreshold: mocks.getLongEntitiesThreshold,
 }));
@@ -67,12 +68,38 @@ describe('LongEntitiesRow', () => {
         window: { start: 0.2, end: 0.6 },
         operatorIds: ['operator-1'],
         minUsageSeconds: 0.06,
-        maxItems: 200,
+        maxItems: 100,
       })
     );
     expect(mocks.longEntitiesGantt.mock.calls[0]?.[0]).toEqual(
       expect.objectContaining({ height: 110 })
     );
+  });
+
+  it('renders a chart-shaped skeleton during the initial load', () => {
+    mocks.useInfiniteEntityList.mockReturnValue({
+      data: undefined,
+      fetchNextPage: mocks.fetchNextPage,
+      hasNextPage: false,
+      isFetching: true,
+      isFetchingNextPage: false,
+      isPlaceholderData: false,
+    });
+
+    render(
+      <LongEntitiesRow
+        engineId="engine-1"
+        queryId="query-1"
+        resourceId="resource-1"
+        durationSeconds={1}
+        fsmTypes={{}}
+        isDark={false}
+      />
+    );
+
+    const skeleton = screen.getByRole('status', { name: 'Loading entities' });
+    expect(skeleton.children).toHaveLength(3);
+    expect(screen.queryByText('Loading entities…')).not.toBeInTheDocument();
   });
 
   it('loads the next page and appends its entities', () => {
