@@ -90,6 +90,15 @@ function createLongEntitiesRow(resourceId: string): TreeTableItem {
   };
 }
 
+function GanttRowLabel({ children }: { children: string }) {
+  return (
+    <span className="flex items-center">
+      <span aria-hidden className="mr-4 h-4 w-4 shrink-0" />
+      <span className="text-xs leading-none text-muted-foreground">{children}</span>
+    </span>
+  );
+}
+
 /**
  * Insert a long-entities row as a sibling immediately after each leaf resource,
  * so its compact Gantt is always shown below the resource (whenever in view)
@@ -246,9 +255,11 @@ function QueryResourceTreeContent({ queryBundle, engineId }: QueryResourceTreePr
         ),
         render: ({ item }: { item: TreeTableItem; level: number }) => {
           switch (item.type) {
-            case OPERATOR_TIMELINE_ROW_TYPE:
+            case OPERATOR_TIMELINE_ROW_TYPE: {
+              return <GanttRowLabel>Operators</GanttRowLabel>;
+            }
             case LONG_ENTITIES_ROW_TYPE: {
-              return null;
+              return <GanttRowLabel>Entities</GanttRowLabel>;
             }
             default: {
               const selectedType =
