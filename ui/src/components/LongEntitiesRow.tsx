@@ -3,18 +3,17 @@
 
 import { useMemo } from 'react';
 import { useEntityList } from '@quent/client';
-import { useSelectedNodeIds } from '@quent/hooks';
+import { useDebouncedZoomRange, useSelectedNodeIds } from '@quent/hooks';
 import type { FsmTypeDecl } from '@quent/utils';
 import {
-  DEFAULT_TIMELINE_HEIGHT,
+  LONG_ENTITIES_TIMELINE_HEIGHT,
   LongEntitiesGantt,
   buildLongEntityEntries,
+  getLongEntitiesThreshold,
 } from '@quent/components';
 
 /** Max entities fetched per resource; longest-usage-first, so this keeps the top N. */
 const MAX_ENTITIES = 200;
-// Stress-test the Gantt with nearly every task.
-const MIN_USAGE_SECONDS = 0.001;
 
 type LongEntitiesRowProps = {
   engineId: string;
@@ -40,24 +39,27 @@ export function LongEntitiesRow({
   isDark,
 }: LongEntitiesRowProps) {
   const selectedNodeIds = useSelectedNodeIds();
-  // The entity endpoint filters by a single operator; honor the DAG selection
-  // only when exactly one operator is picked, otherwise show all.
-  const operatorId = selectedNodeIds.size === 1 ? [...selectedNodeIds][0]! : null;
+  const debouncedZoomRange = useDebouncedZoomRange();
+  const operatorIds = useMemo(() => [...selectedNodeIds], [selectedNodeIds]);
+  const window =
+    debouncedZoomRange.end > debouncedZoomRange.start
+      ? debouncedZoomRange
+      : { start: 0, end: durationSeconds };
+  const minUsageSeconds = getLongEntitiesThreshold(window.end - window.start);
 
   const { data, isFetching } = useEntityList({
     engineId,
     queryId,
-    window: { start: 0, end: durationSeconds },
-    operatorId,
-    minUsageSeconds: MIN_USAGE_SECONDS,
+    window,
+    operatorIds,
+    minUsageSeconds,
     sortDir: 'Desc',
     maxItems: MAX_ENTITIES,
     filter: { scope: { Resource: { resource_id: resourceId } } },
   });
 
   const entries = useMemo(
-    () =>
-      data ? buildLongEntityEntries(data.items, fsmTypes, isDark ? 'dark' : 'light') : [],
+    () => (data ? buildLongEntityEntries(data.items, fsmTypes, isDark ? 'dark' : 'light') : []),
     [data, fsmTypes, isDark]
   );
 
@@ -65,7 +67,7 @@ export function LongEntitiesRow({
     return (
       <div
         className="flex items-center px-2 text-sm text-muted-foreground"
-        style={{ height: DEFAULT_TIMELINE_HEIGHT }}
+        style={{ height: LONG_ENTITIES_TIMELINE_HEIGHT }}
       >
         Loading entities…
       </div>
@@ -76,7 +78,7 @@ export function LongEntitiesRow({
     <LongEntitiesGantt
       entries={entries}
       durationSeconds={durationSeconds}
-      height={DEFAULT_TIMELINE_HEIGHT}
+      height={LONG_ENTITIES_TIMELINE_HEIGHT}
       isDark={isDark}
     />
   );

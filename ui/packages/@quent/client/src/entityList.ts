@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: Copyright (c) 2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-import { queryOptions, useQuery } from '@tanstack/react-query';
+import { keepPreviousData, queryOptions, useQuery } from '@tanstack/react-query';
 import type {
   EntityListRequest,
   EntityScope,
@@ -18,8 +18,8 @@ interface EntityListParams {
   queryId: string;
   /** Window bounds in seconds relative to the query epoch. */
   window: { start: number; end: number };
-  /** Restrict to a single operator; `null` returns entities across all. */
-  operatorId?: string | null;
+  /** Restrict entities to the selected operators; empty returns entities across all. */
+  operatorIds?: string[];
   /** Restrict entities to a resource / resource-group scope; `null` for all. */
   filter?: { scope?: EntityScope | null; entityTypeName?: string | null };
   /** Keep only entities whose longest usage span exceeds this (seconds). */
@@ -33,7 +33,7 @@ interface EntityListParams {
 function buildRequest({
   queryId,
   window,
-  operatorId = null,
+  operatorIds = [],
   filter,
   minUsageSeconds = null,
   sortKey = 'UsageDuration',
@@ -50,7 +50,7 @@ function buildRequest({
       },
       sort: { key: sortKey, dir: sortDir },
       page: maxItems != null ? { page: 0, max: maxItems } : null,
-      application: { operator_ids: operatorId == null ? [] : [operatorId] },
+      application: { operator_ids: operatorIds },
     },
     app_params: { query_id: queryId },
   };
@@ -66,6 +66,7 @@ export const entityListQueryOptions = (
     queryFn: () => fetchEntityList(params.engineId, request),
     staleTime: options?.staleTime ?? DEFAULT_STALE_TIME,
     enabled: options?.enabled ?? true,
+    placeholderData: keepPreviousData,
   });
 };
 export const useEntityList = (

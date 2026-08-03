@@ -240,7 +240,10 @@ export {
 export type { GroupIndexDef, RowWithGroupKeys } from './pivot-table/utils';
 
 // ─── Long-entities components ─────────────────────────────────────────────────
-export { LongEntitiesGantt } from './long-entities/LongEntitiesGantt';
+export {
+  LongEntitiesGantt,
+  LONG_ENTITIES_TIMELINE_HEIGHT,
+} from './long-entities/LongEntitiesGantt';
 export type { LongEntitiesGanttProps } from './long-entities/LongEntitiesGantt';
 export type { LongEntityEntry, LongEntitySegment } from './long-entities/types';
 export {

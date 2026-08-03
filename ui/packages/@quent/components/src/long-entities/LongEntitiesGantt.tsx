@@ -18,8 +18,7 @@ import { getLongEntitySegmentsAtTimestamp } from './utils';
 import { PointerTooltipPortal } from '../ui/gantt-tooltip';
 import { EntityTooltipContent, type ActiveMark } from '../timeline/TimelineTooltip';
 
-const DEFAULT_HEIGHT = 120;
-const MAX_HEIGHT = 150;
+export const LONG_ENTITIES_TIMELINE_HEIGHT = 110;
 const STATE_FONT_SIZE = 9;
 const TASK_FONT_SIZE = 10;
 /** Task-name line drawn above each bar (~2px around the text). */
@@ -50,7 +49,7 @@ export interface LongEntitiesGanttProps {
 export function LongEntitiesGantt({
   entries,
   durationSeconds,
-  height = DEFAULT_HEIGHT,
+  height = LONG_ENTITIES_TIMELINE_HEIGHT,
   isDark,
 }: LongEntitiesGanttProps) {
   const { textColor } = useTimelineEchartsTheme(isDark);
@@ -208,7 +207,7 @@ export function LongEntitiesGantt({
       data={customSeriesData}
       durationSeconds={durationSeconds}
       height={height}
-      maxHeight={MAX_HEIGHT}
+      maxHeight={height}
       rowHeight={ROW_HEIGHT}
       isDark={isDark}
       seriesName={SERIES_NAME}
