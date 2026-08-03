@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+// SPDX-FileCopyrightText: Copyright (c) 2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 // SPDX-License-Identifier: Apache-2.0
 
 //! Simulator instrumentation: model definitions, event types, and context.
@@ -20,8 +20,9 @@ pub use quent_stdlib::{channel, memory, processor};
 pub use task::TaskEvent;
 
 model! {
-    Simulator {
-        root: quent_query_engine_model::engine::Engine,
+    name: Simulator,
+    root: quent_query_engine_model::engine::Engine,
+    entities: {
         quent_query_engine_model::worker::Worker,
         quent_query_engine_model::query_group::QueryGroup,
         quent_query_engine_model::query::Query,
@@ -34,7 +35,10 @@ model! {
         quent_stdlib::memory::Memory,
         quent_stdlib::processor::Processor,
         quent_stdlib::channel::Channel,
-    }
+    },
+    analyzer: "quent-simulator-analyzer",
 }
 
 instrumentation!(Simulator);
+
+pub mod test_utils;

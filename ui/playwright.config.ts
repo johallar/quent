@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+// SPDX-FileCopyrightText: Copyright (c) 2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 // SPDX-License-Identifier: Apache-2.0
 
 import { defineConfig, devices } from '@playwright/test';
@@ -23,7 +23,7 @@ export default defineConfig({
   webServer: process.env.PLAYWRIGHT_BASE_URL
     ? undefined
     : {
-        command: 'pnpm start --host 127.0.0.1 --port 5173 --strictPort',
+        command: 'pnpm build && pnpm preview --host 127.0.0.1 --port 5173 --strictPort',
         env: {
           ...process.env,
           VITE_API_TARGET: apiTarget,

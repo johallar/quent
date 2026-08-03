@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+// SPDX-FileCopyrightText: Copyright (c) 2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 // SPDX-License-Identifier: Apache-2.0
 
 //! Proc macros for defining Quent application models.
@@ -63,14 +63,15 @@ pub fn derive_resizable_resource(input: TokenStream) -> TokenStream {
 
 /// Composes a model's entities into a model type and event enum.
 ///
+/// Fields may appear in any order; `name` and `root` are required, `entities` is
+/// optional.
+///
 /// ```ignore
 /// model! {
-///     App {
-///         root: Cluster,
-///         Worker,
-///         Thread,
-///         Task,
-///     }
+///     name: App,
+///     root: Cluster,
+///     entities: { Worker, Thread, Task },
+///     analyzer: "my-analyzer", // optional: crate providing the QuentViewer
 /// }
 /// ```
 #[proc_macro]

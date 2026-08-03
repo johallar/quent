@@ -1,16 +1,22 @@
-// SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+// SPDX-FileCopyrightText: Copyright (c) 2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 // SPDX-License-Identifier: Apache-2.0
 
 use std::collections::HashMap;
+use std::path::Path;
 
-use quent_analyzer::AnalyzerResult;
+use quent_analyzer::{AnalyzerError, AnalyzerResult};
 use quent_events::Event;
+use quent_model::io::ImporterResult;
 use quent_query_engine_ui as ui;
-use quent_ui::timeline::{
-    request::{BulkChunkedTimelineRequest, BulkTimelineRequest, SingleTimelineRequest},
-    response::{
-        BulkChunkedTimelinesResponse, BulkTimelinesResponse, BulkTimelinesResponseEntry,
-        SingleTimelineResponse,
+use quent_ui::{
+    entities::{request::EntityListRequest, response::EntityListResponse},
+    timeline::{
+        categorical::CategoricalTimelineRequest,
+        request::{BulkChunkedTimelineRequest, BulkTimelineRequest, SingleTimelineRequest},
+        response::{
+            BulkChunkedTimelinesResponse, BulkTimelinesResponse, BulkTimelinesResponseEntry,
+            SingleTimelineResponse,
+        },
     },
 };
 use uuid::Uuid;
@@ -59,6 +65,13 @@ pub trait UiAnalyzer {
         request: SingleTimelineRequest<ui::QueryFilter, ui::OperatorFilter>,
     ) -> AnalyzerResult<SingleTimelineResponse>;
 
+    /// List the entities matching a scope, window, and filter, ranked by the
+    /// requested sort key and sliced to the requested page.
+    fn list_entities(
+        &self,
+        request: EntityListRequest<ui::QueryFilter, ui::OperatorFilter>,
+    ) -> AnalyzerResult<EntityListResponse>;
+
     /// Return a set of resource timelines in bulk.
     fn bulk_resource_timeline(
         &self,
@@ -104,4 +117,47 @@ pub trait UiAnalyzer {
 
         Ok(BulkChunkedTimelinesResponse { entries })
     }
+
+    /// Return, for every operator of a query, a binned categorical timeline
+    /// over (entity state, analyzer-defined dimension), for one or more
+    /// analyzer-declared measures. Powers the UI's data-flow-over-time view of
+    /// the query plan.
+    ///
+    /// The default implementation returns [`AnalyzerError::Unsupported`]
+    /// (served as HTTP 501), so existing analyzers keep compiling and the UI
+    /// hides the view.
+    fn data_flow_timeline(
+        &self,
+        _request: CategoricalTimelineRequest<ui::QueryFilter>,
+    ) -> AnalyzerResult<ui::DataFlowTimelineBinned> {
+        Err(AnalyzerError::Unsupported)
+    }
+}
+
+/// Boxed owned stream of an analyzer's [`UiAnalyzer::Event`] from
+/// [`QuentViewer::import_events`].
+pub type ViewerEventStream<A> = Box<dyn Iterator<Item = Event<<A as UiAnalyzer>::Event>>>;
+
+/// Model viewer entry point for `quent-open`: connects the event importer to
+/// the rendering [`UiAnalyzer`].
+///
+/// `quent-open` builds a viewer knowing only the analyzer's *crate name*: it
+/// names `<crate>::Viewer` in the generated wrapper and reaches the analyzer
+/// through the associated [`Analyzer`](Self::Analyzer) type. So the model
+/// records only its analyzer package — never the analyzer's concrete type path,
+/// which the model couldn't name anyway (the marker's instrumentation crate does
+/// not depend on the analyzer crate).
+///
+/// Implement it on a local unit type named `Viewer` at the analyzer crate root
+/// (the path `quent-open` requires). The associated [`Analyzer`](Self::Analyzer)
+/// and the model's `import_events` share an event type, so the wiring is checked
+/// at compile time.
+pub trait QuentViewer {
+    /// The analyzer that renders this model's events.
+    type Analyzer: UiAnalyzer + Send + Sync + 'static;
+
+    /// Reconstruct the model's event stream from one context directory, yielding
+    /// events of the [`Analyzer`](Self::Analyzer)'s event type. Wraps the model
+    /// marker's generated `import_events`.
+    fn import_events(dir: &Path) -> ImporterResult<ViewerEventStream<Self::Analyzer>>;
 }

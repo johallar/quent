@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+// SPDX-FileCopyrightText: Copyright (c) 2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 // SPDX-License-Identifier: Apache-2.0
 
 // Constants
@@ -13,6 +13,8 @@ export {
   fetchListQueries,
   fetchSingleTimeline,
   fetchBulkTimelines,
+  fetchDataFlow,
+  fetchEntityList,
 } from './api';
 
 // queryOptions factories
@@ -22,6 +24,8 @@ export { queryGroupsQueryOptions } from './queryGroups';
 export { queriesQueryOptions } from './queries';
 export { singleTimelineQueryOptions } from './timeline';
 export { bulkTimelineQueryOptions } from './bulkTimelines';
+export { dataFlowQueryOptions } from './dataFlow';
+export { entityListQueryOptions } from './entityList';
 
 // Hooks
 export { useQueryBundle } from './queryBundle';
@@ -29,3 +33,5 @@ export { useEngines } from './engines';
 export { useQueryGroups } from './queryGroups';
 export { useQueries } from './queries';
 export { useTimeline } from './timeline';
+export { useDataFlow } from './dataFlow';
+export { useEntityList } from './entityList';

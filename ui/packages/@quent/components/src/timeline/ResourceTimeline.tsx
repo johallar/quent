@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+// SPDX-FileCopyrightText: Copyright (c) 2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 // SPDX-License-Identifier: Apache-2.0
 
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
@@ -36,9 +36,9 @@ import type {
   SingleTimelineRequest,
   QueryFilter,
   OperatorFilter,
-  CapacityDecl,
   QuantitySpec,
   FsmTypeDecl,
+  ResourceTypeDecl,
 } from '@quent/utils';
 const Timeline = lazy(() => import('./Timeline').then(mod => ({ default: mod.Timeline })));
 
@@ -47,7 +47,6 @@ type ResourceTimelineProps = {
   queryId: string;
   resourceId: string;
   resourceType: string;
-  startTime: bigint;
   durationSeconds: number;
   fsmTypeName?: string | undefined;
   resourceTypeName?: string;
@@ -55,7 +54,7 @@ type ResourceTimelineProps = {
   showTooltip?: boolean;
   /** Pre-fetched timeline data from bulk endpoint; skips individual fetch when present */
   preloadedData?: SingleTimelineResponse;
-  capacities?: CapacityDecl[];
+  resourceTypeDecl?: ResourceTypeDecl;
   quantitySpecs?: { [key in string]?: QuantitySpec };
   fsmTypes?: { [key in string]?: FsmTypeDecl };
   /** Whether dark mode is active. Passed explicitly to decouple from ThemeContext. */
@@ -77,12 +76,11 @@ export function ResourceTimeline({
   queryId,
   resourceId,
   resourceType,
-  startTime,
   durationSeconds,
   fsmTypeName,
   resourceTypeName,
   showTooltip = true,
-  capacities,
+  resourceTypeDecl,
   quantitySpecs,
   fsmTypes,
   isDark,
@@ -158,7 +156,7 @@ export function ResourceTimeline({
                 resource_type_name: resourceTypeName ?? '',
                 long_entities_threshold_s: getLongEntitiesThreshold(windowSeconds),
                 entity_filter: { entity_type_name: fsmTypeName ?? null },
-                app_params: { operator_id: null },
+                app_params: { operator_ids: [] },
                 config,
               },
             }
@@ -167,7 +165,7 @@ export function ResourceTimeline({
                 resource_id: resourceId,
                 long_entities_threshold_s: getLongEntitiesThreshold(windowSeconds),
                 entity_filter: { entity_type_name: fsmTypeName ?? null },
-                application: { operator_id: null },
+                application: { operator_ids: [] },
                 config,
               },
             },
@@ -180,10 +178,11 @@ export function ResourceTimeline({
     placeholderData: keepPreviousData,
   });
 
-  const { timestamps, series, marks } = useMemo<{
+  const { timestamps, series, marks, yAxisLabel } = useMemo<{
     timestamps: number[];
     series: TimelineSeries;
     marks?: TimelineMark[];
+    yAxisLabel?: string;
   }>(() => {
     const data = preloadedData ?? fetchedData;
     if (!data) return { timestamps: [], series: EMPTY_TIMELINE_SERIES };
@@ -191,9 +190,8 @@ export function ResourceTimeline({
     const base = buildBinnedTimelineSeries(
       data.data,
       data.config,
-      startTime,
       paletteTheme,
-      capacities,
+      resourceTypeDecl,
       quantitySpecs,
       fsmTypes
     );
@@ -201,13 +199,7 @@ export function ResourceTimeline({
     const filterSet =
       resourceType === EntityTypeKey.Resource ? new Set([resourceId]) : new Set<string>();
 
-    const timelineMarks = buildTimelineMarks(
-      longFsms,
-      startTime,
-      paletteTheme,
-      filterSet,
-      fsmTypes
-    );
+    const timelineMarks = buildTimelineMarks(longFsms, paletteTheme, filterSet, fsmTypes);
 
     if (operatorId && operatorLabel) {
       if (overlayPreloadedData) {
@@ -218,9 +210,8 @@ export function ResourceTimeline({
           const opResult = buildBinnedTimelineSeries(
             overlayPreloadedData.data,
             overlayPreloadedData.config,
-            startTime,
             paletteTheme,
-            capacities,
+            resourceTypeDecl,
             quantitySpecs,
             fsmTypes
           );
@@ -228,9 +219,9 @@ export function ResourceTimeline({
           return {
             timestamps: base.timestamps,
             series: mergeOverlaySeries(base.series, opResult.series, operatorLabel),
+            yAxisLabel: base.yAxisLabel,
             marks: buildTimelineMarks(
               longFsms,
-              startTime,
               paletteTheme,
               filterSet,
               fsmTypes,
@@ -247,6 +238,7 @@ export function ResourceTimeline({
       return {
         timestamps: base.timestamps,
         series: dimSeries(base.series),
+        yAxisLabel: base.yAxisLabel,
         marks: timelineMarks,
       };
     }
@@ -257,8 +249,7 @@ export function ResourceTimeline({
     fetchedData,
     operatorId,
     overlayPreloadedData,
-    startTime,
-    capacities,
+    resourceTypeDecl,
     quantitySpecs,
     fsmTypes,
     resourceType,
@@ -307,6 +298,7 @@ export function ResourceTimeline({
   }
 
   const effectiveMarks = hideTasks ? undefined : marks;
+  const effectiveYAxisLabel = yAxisLabel ?? fsmTypeName;
 
   return (
     <div className="h-full w-full">
@@ -314,11 +306,11 @@ export function ResourceTimeline({
         <Timeline
           series={series}
           timestamps={timestamps ?? []}
-          startTime={startTime}
           durationSeconds={durationSeconds}
           showTooltip={showTooltip}
           marks={effectiveMarks}
           isDark={isDark}
+          yAxisLabel={effectiveYAxisLabel}
           onHoverChange={handleHoverChange}
         />
         {showTooltip && (
@@ -327,7 +319,6 @@ export function ResourceTimeline({
             series={series}
             timestamps={timestamps ?? []}
             marks={effectiveMarks}
-            startTime={startTime}
           />
         )}
       </Suspense>

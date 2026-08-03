@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+// SPDX-FileCopyrightText: Copyright (c) 2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 // SPDX-License-Identifier: Apache-2.0
 
 import { describe, it, expect, beforeEach } from 'vitest';
@@ -12,6 +12,7 @@ import {
   createCapacitiesColorFn,
   getColorByIndex,
   createFsmTypeColorFn,
+  createDataFlowStateColorFn,
   withOpacity,
   resetColorAssignments,
   darkenColor,
@@ -379,12 +380,12 @@ describe('buildOperatorColorMap', () => {
 
 describe('continuousColor', () => {
   it('returns the neutral color at t=0 (light mode, blue)', () => {
-    // blendToColor(59, 130, 246, 0, [229, 231, 235]) → #e5e7eb
-    expect(continuousColor(0, 'blue')).toBe('#e5e7eb');
+    // blendToColor(59, 130, 246, 0, [255, 255, 255]) → #ffffff
+    expect(continuousColor(0, 'blue')).toBe('#ffffff');
   });
 
   it('returns the full color at t=1 (light mode, blue)', () => {
-    // blendToColor(59, 130, 246, 1, [229,231,235]) → #3b82f6
+    // blendToColor(59, 130, 246, 1, [255, 255, 255]) → #3b82f6
     expect(continuousColor(1, 'blue')).toBe('#3b82f6');
   });
 
@@ -465,5 +466,42 @@ describe('getLegendGradientStops', () => {
     const light = getLegendGradientStops('blue', false);
     const dark = getLegendGradientStops('blue', true);
     expect(light[0]).not.toBe(dark[0]);
+  });
+});
+
+describe('createDataFlowStateColorFn', () => {
+  const fsmType = {
+    name: 'batch',
+    states: [
+      { name: 'batch_registered', usages: [] },
+      { name: 'batch_queued', usages: [] },
+      { name: 'batch_packaged', usages: [] },
+      { name: 'batch_processing', usages: [] },
+      { name: 'batch_consumed', usages: [] },
+    ],
+    transitions: [],
+  } as never;
+
+  it('gives appended synthetic states colors distinct from every declared state', () => {
+    const resolved = ['batch_queued', 'batch_packaged', 'batch_processing', 'task_working_space'];
+    const colorFn = createDataFlowStateColorFn(fsmType, resolved, 'light');
+    const declaredColors = [
+      'batch_registered',
+      'batch_queued',
+      'batch_packaged',
+      'batch_processing',
+      'batch_consumed',
+    ].map(colorFn);
+    expect(declaredColors).not.toContain(colorFn('task_working_space'));
+  });
+
+  it('keeps declared states on their FSM declaration palette indices', () => {
+    const withSynthetic = createDataFlowStateColorFn(
+      fsmType,
+      ['batch_queued', 'task_working_space'],
+      'light'
+    );
+    const withoutSynthetic = createDataFlowStateColorFn(fsmType, ['batch_queued'], 'light');
+    expect(withSynthetic('batch_queued')).toBe(withoutSynthetic('batch_queued'));
   });
 });

@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+// SPDX-FileCopyrightText: Copyright (c) 2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 // SPDX-License-Identifier: Apache-2.0
 
 //! Tests for `model!` macro.
@@ -43,11 +43,12 @@ quent_model::entity! {
 }
 
 quent_model::model! {
-    Test {
-        root: TestRoot,
+    name: Test,
+    root: TestRoot,
+    entities: {
         SimpleFsm,
         SimpleEntity,
-    }
+    },
 }
 
 #[test]

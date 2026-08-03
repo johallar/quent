@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-FileCopyrightText: Copyright (c) 2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
 set -euo pipefail
 
@@ -61,7 +61,7 @@ wait_for_record() {
 
 wait_for_url "$ANALYZER_URL/api/engines"
 
-(cd "$REPO_ROOT" && "${CARGO[@]}" run -p quent-query-engine-fixed -- --collector-address "$COLLECTOR_URL")
+(cd "$REPO_ROOT" && "${CARGO[@]}" run -p quent-query-engine-fixed -- --exporter collector --collector-address "$COLLECTOR_URL")
 
 wait_for_record "$ANALYZER_URL/api/engines?with_metadata=true" "$ENGINE_ID" "test-engine"
 wait_for_record "$ANALYZER_URL/api/engines/$ENGINE_ID/query-groups" "$QUERY_GROUP_ID" "test-group"
