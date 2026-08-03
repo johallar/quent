@@ -8,11 +8,66 @@ import {
   useDataFlowEnabled,
   useDataFlowMeta,
   useDataFlowFrame,
+  type InspectedOperatorData,
 } from '@quent/hooks';
 import { DataText } from '../ui/data-text';
 import { thinScrollbarClass } from '../ui/thin-scroll';
 import { formatStatWithQuantity, type QuantitySpec } from '@quent/utils';
 import { DataFlowMatrix } from './DataFlowMatrix';
+
+const OperatorStatistics = ({
+  operator,
+  quantitySpecs,
+  showHeader = false,
+}: {
+  operator: InspectedOperatorData;
+  quantitySpecs?: { [key: string]: QuantitySpec | undefined };
+  showHeader?: boolean;
+}) => (
+  <div className={showHeader ? 'border-t pt-1.5 mt-1.5' : ''}>
+    {showHeader && (
+      <div className="flex items-center gap-2 min-w-0 mb-1">
+        <DataText className="text-xs font-medium truncate">{operator.label}</DataText>
+        <DataText className="text-xs text-muted-foreground capitalize px-1.5 py-0.5 bg-muted rounded flex-shrink-0">
+          {operator.operationType}
+        </DataText>
+      </div>
+    )}
+    <div className="text-xs flex items-center justify-between">
+      <DataText className="capitalize">ID:</DataText>
+      <DataText className="text-muted-foreground ml-1 truncate">{operator.nodeId}</DataText>
+    </div>
+    {operator.statistics.map(({ key, value, quantity }) => (
+      <div key={key} className="text-xs">
+        {Array.isArray(value) ? (
+          <div className="flex items-center justify-between gap-0.5">
+            <DataText className="capitalize">{key.replace(/_/g, ' ')}:</DataText>
+            <div className="ml-2 flex flex-col gap-0.5">
+              {value.map((item, i) => (
+                <DataText key={i} className="text-muted-foreground whitespace-pre-line">
+                  {String(item)}
+                </DataText>
+              ))}
+            </div>
+          </div>
+        ) : (
+          <div className="flex items-center justify-between">
+            <DataText className="capitalize">{key.replace(/_/g, ' ')}:</DataText>
+            <DataText className="text-muted-foreground ml-1">
+              {typeof value === 'number'
+                ? formatStatWithQuantity(
+                    value,
+                    key,
+                    quantity && quantitySpecs ? quantitySpecs[quantity] : undefined
+                  )
+                : String(value)}
+            </DataText>
+          </div>
+        )}
+      </div>
+    ))}
+  </div>
+);
 
 export const DAGNodeInfoPanel = ({
   isDark = false,
@@ -26,6 +81,7 @@ export const DAGNodeInfoPanel = ({
   const dataFlowMeta = useDataFlowMeta();
   const dataFlowFrame = useDataFlowFrame();
   const [isExpanded, setIsExpanded] = useState(false);
+  const selectedNodeId = selectedNodeData?.nodeId;
 
   const operatorFrame =
     dataFlowEnabled && selectedNodeData && dataFlowMeta && dataFlowFrame
@@ -33,8 +89,8 @@ export const DAGNodeInfoPanel = ({
       : undefined;
 
   useEffect(() => {
-    setIsExpanded(!!selectedNodeData);
-  }, [selectedNodeData?.nodeId]);
+    setIsExpanded(selectedNodeId !== undefined);
+  }, [selectedNodeId]);
 
   return (
     <div className="border-t bg-card flex-shrink-0">
@@ -78,40 +134,14 @@ export const DAGNodeInfoPanel = ({
             />
           )}
           <div className="flex flex-col gap-1 pr-2 pt-1.5">
-            <div className="text-xs flex items-center justify-between">
-              <DataText className="capitalize">ID:</DataText>
-              <DataText className="text-muted-foreground ml-1 truncate">
-                {selectedNodeData.nodeId}
-              </DataText>
-            </div>
-            {selectedNodeData.statistics?.map(({ key, value, quantity }) => (
-              <div key={key} className="text-xs">
-                {Array.isArray(value) ? (
-                  <div className="flex items-center justify-between gap-0.5">
-                    <DataText className="capitalize">{key.replace(/_/g, ' ')}:</DataText>
-                    <div className="ml-2 flex flex-col gap-0.5">
-                      {value.map((item, i) => (
-                        <DataText key={i} className="text-muted-foreground whitespace-pre-line">
-                          {String(item)}
-                        </DataText>
-                      ))}
-                    </div>
-                  </div>
-                ) : (
-                  <div className="flex items-center justify-between">
-                    <DataText className="capitalize">{key.replace(/_/g, ' ')}:</DataText>
-                    <DataText className="text-muted-foreground ml-1">
-                      {typeof value === 'number'
-                        ? formatStatWithQuantity(
-                            value,
-                            key,
-                            quantity && quantitySpecs ? quantitySpecs[quantity] : undefined
-                          )
-                        : String(value)}
-                    </DataText>
-                  </div>
-                )}
-              </div>
+            <OperatorStatistics operator={selectedNodeData} quantitySpecs={quantitySpecs} />
+            {selectedNodeData.relatedOperators?.map(operator => (
+              <OperatorStatistics
+                key={operator.nodeId}
+                operator={operator}
+                quantitySpecs={quantitySpecs}
+                showHeader
+              />
             ))}
           </div>
         </div>

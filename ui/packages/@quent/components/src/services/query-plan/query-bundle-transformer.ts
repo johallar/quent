@@ -32,13 +32,18 @@ const getNodeEntity = (
       ? bundle?.entities?.operators?.[port.operator_id]
       : undefined;
     if (operator) {
+      const relatedOperatorIds = relatedOperatorIdsById.get(operator.id) ?? [];
       return {
         id: operator.id,
         label: operator.instance_name ?? operator.operator_type_name ?? 'Node',
         type: operator.operator_type_name?.toLowerCase() ?? 'operator',
         metadata: {
           rawNode: operator,
-          relatedOperatorIds: relatedOperatorIdsById.get(operator.id) ?? [],
+          relatedOperatorIds,
+          relatedOperators: relatedOperatorIds.flatMap(id => {
+            const relatedOperator = bundle.entities.operators[id];
+            return relatedOperator ? [relatedOperator] : [];
+          }),
         },
       };
     }

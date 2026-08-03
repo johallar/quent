@@ -398,6 +398,9 @@ describe('getPlanDAG', () => {
     expect(result.nodes.find(n => n.id === 'logical')!.metadata!.relatedOperatorIds).toEqual([
       'physical',
     ]);
+    expect(result.nodes.find(n => n.id === 'logical')!.metadata!.relatedOperators).toEqual([
+      physical,
+    ]);
   });
 
   it('includes transitive related operator IDs', () => {
@@ -437,5 +440,12 @@ describe('getPlanDAG', () => {
       .relatedOperatorIds as string[];
 
     expect(new Set(relatedOperatorIds)).toEqual(new Set(['intermediate', 'physical']));
+    expect(
+      new Set(
+        (result.nodes.find(n => n.id === 'logical')!.metadata!.relatedOperators as Operator[]).map(
+          operator => operator.id
+        )
+      )
+    ).toEqual(new Set(['intermediate', 'physical']));
   });
 });

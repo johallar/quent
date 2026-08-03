@@ -93,7 +93,8 @@ export function ResourceTimeline({
   const hideTasks = useHideTasks();
 
   const selectedNodeIds = useSelectedNodeIds();
-  const operatorId = selectedNodeIds.size > 0 ? selectedNodeIds.values().next().value! : null;
+  const operatorIds = useMemo(() => [...selectedNodeIds].sort(), [selectedNodeIds]);
+  const hasOperatorFilter = operatorIds.length > 0;
 
   const cacheResourceTypeName =
     resourceType === EntityTypeKey.ResourceGroup ? (resourceTypeName ?? '') : '';
@@ -108,7 +109,7 @@ export function ResourceTimeline({
     resourceId,
     resourceTypeName: cacheResourceTypeName,
     fsmTypeName,
-    operatorId,
+    operatorIds,
   });
   const operatorTimelineData = useTimelineData(operatorCacheKey);
   // Preserve the last non-undefined overlay data while an operator is selected.
@@ -117,10 +118,10 @@ export function ResourceTimeline({
   const lastOverlayRef = useRef<typeof operatorTimelineData>(undefined);
   if (operatorTimelineData !== undefined) {
     lastOverlayRef.current = operatorTimelineData;
-  } else if (!operatorId) {
+  } else if (!hasOperatorFilter) {
     lastOverlayRef.current = undefined;
   }
-  const overlayPreloadedData = operatorId
+  const overlayPreloadedData = hasOperatorFilter
     ? (operatorTimelineData ?? lastOverlayRef.current)
     : undefined;
 
@@ -201,7 +202,7 @@ export function ResourceTimeline({
 
     const timelineMarks = buildTimelineMarks(longFsms, paletteTheme, filterSet, fsmTypes);
 
-    if (operatorId && operatorLabel) {
+    if (hasOperatorFilter && operatorLabel) {
       if (overlayPreloadedData) {
         const baseSpan = getTimelineConfig(data).span;
         const opSpan = getTimelineConfig(overlayPreloadedData).span;
@@ -247,7 +248,7 @@ export function ResourceTimeline({
   }, [
     preloadedData,
     fetchedData,
-    operatorId,
+    hasOperatorFilter,
     overlayPreloadedData,
     resourceTypeDecl,
     quantitySpecs,

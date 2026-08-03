@@ -389,6 +389,12 @@ const FlowLayout = ({
           label: node.data.label,
           operationType: node.data.operationType,
           statistics: parseCustomStatistics(node.data.metadata?.rawNode),
+          relatedOperators: node.data.metadata?.relatedOperators?.map(operator => ({
+            nodeId: operator.id,
+            label: operator.instance_name ?? operator.operator_type_name ?? 'Operator',
+            operationType: operator.operator_type_name?.toLowerCase() ?? 'operator',
+            statistics: parseCustomStatistics(operator),
+          })),
         });
         onSelectionChange?.(selectionIds);
       }

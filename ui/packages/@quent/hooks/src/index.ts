@@ -90,6 +90,7 @@ export {
 export type {
   HoveredStatInfo,
   HighlightedNodeIdsState,
+  InspectedOperatorData,
   InspectedNodeData,
 } from './atoms/dagControls';
 

@@ -299,33 +299,33 @@ export function getFsmTypeName(params: TimelineRequest<OperatorFilter>): string 
   return params.Resource.entity_filter.entity_type_name;
 }
 
-/** Clone entries and set operator_id on each TimelineRequest */
+/** Clone an entry and set its operator filter. */
 export function setOperatorOnEntry(
   entry: TimelineRequest<OperatorFilter>,
-  operatorId: string
+  operatorIds: readonly string[]
 ): TimelineRequest<OperatorFilter> {
   if ('ResourceGroup' in entry) {
     return {
       ResourceGroup: {
         ...entry.ResourceGroup,
-        app_params: { ...entry.ResourceGroup.app_params, operator_ids: [operatorId] },
+        app_params: { ...entry.ResourceGroup.app_params, operator_ids: [...operatorIds] },
       },
     };
   }
   return {
     Resource: {
       ...entry.Resource,
-      application: { ...entry.Resource.application, operator_ids: [operatorId] },
+      application: { ...entry.Resource.application, operator_ids: [...operatorIds] },
     },
   };
 }
 
 export function setOperatorOnEntries(
   baseEntries: Record<string, TimelineRequest<OperatorFilter>>,
-  operatorId: string
+  operatorIds: readonly string[]
 ): Record<string, TimelineRequest<OperatorFilter>> {
   return Object.fromEntries(
-    Object.entries(baseEntries).map(([id, entry]) => [id, setOperatorOnEntry(entry, operatorId)])
+    Object.entries(baseEntries).map(([id, entry]) => [id, setOperatorOnEntry(entry, operatorIds)])
   );
 }
 
@@ -661,7 +661,7 @@ export function buildBulkParamsForItem(
   entities: QueryEntities,
   config: TimelineConfig,
   groupFsmFilters?: Map<string, string | null>,
-  operatorId: string | null = null
+  operatorIds: readonly string[] = []
 ): TimelineRequest<OperatorFilter> {
   const isGroup = item.type !== EntityTypeKey.Resource;
   const resourceTypeName = isGroup
@@ -685,7 +685,7 @@ export function buildBulkParamsForItem(
         resource_type_name: resourceTypeName || '',
         long_entities_threshold_s: null,
         entity_filter: { entity_type_name: fsmTypeName },
-        app_params: { operator_ids: operatorId ? [operatorId] : [] },
+        app_params: { operator_ids: [...operatorIds] },
         config,
       },
     };
@@ -696,7 +696,7 @@ export function buildBulkParamsForItem(
       resource_id: item.id,
       long_entities_threshold_s: threshold,
       entity_filter: { entity_type_name: fsmTypeName },
-      application: { operator_ids: operatorId ? [operatorId] : [] },
+      application: { operator_ids: [...operatorIds] },
       config,
     },
   };
@@ -713,7 +713,7 @@ export function collectVisibleEntries(
   entities: QueryEntities,
   config: TimelineConfig,
   groupFsmFilters?: Map<string, string | null>,
-  operatorId: string | null = null
+  operatorIds: readonly string[] = []
 ): Record<string, TimelineRequest<OperatorFilter>> {
   const result: Record<string, TimelineRequest<OperatorFilter>> = {};
 
@@ -724,7 +724,7 @@ export function collectVisibleEntries(
       entities,
       config,
       groupFsmFilters,
-      operatorId
+      operatorIds
     );
 
     if (item.children && expandedIds.has(item.id)) {

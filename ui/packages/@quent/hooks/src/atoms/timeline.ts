@@ -19,7 +19,7 @@ import type {
 export interface TimelineCacheParams {
   resourceId: string;
   resourceTypeName: string;
-  operatorId?: string | null;
+  operatorIds?: readonly string[] | null;
   fsmTypeName?: string | null;
 }
 
@@ -28,7 +28,7 @@ export function timelineCacheKey(params: TimelineCacheParams): string {
   return [
     params.resourceId,
     params.resourceTypeName,
-    params.operatorId ?? '',
+    JSON.stringify([...new Set(params.operatorIds ?? [])].sort()),
     params.fsmTypeName ?? '',
   ].join('|');
 }

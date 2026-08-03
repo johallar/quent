@@ -254,28 +254,28 @@ describe('mergeOverlaySeries', () => {
 describe('setOperatorOnEntry', () => {
   it('sets operator_ids on a Resource entry', () => {
     const entry = makeResourceEntry();
-    const updated = setOperatorOnEntry(entry, 'op-42');
+    const updated = setOperatorOnEntry(entry, ['op-42', 'op-43']);
     const opIds = 'Resource' in updated ? updated.Resource.application.operator_ids : [];
-    expect(opIds).toEqual(['op-42']);
+    expect(opIds).toEqual(['op-42', 'op-43']);
   });
 
   it('sets operator_ids on a ResourceGroup entry', () => {
     const entry = makeGroupEntry();
-    const updated = setOperatorOnEntry(entry, 'op-42');
+    const updated = setOperatorOnEntry(entry, ['op-42', 'op-43']);
     const opIds = 'ResourceGroup' in updated ? updated.ResourceGroup.app_params.operator_ids : [];
-    expect(opIds).toEqual(['op-42']);
+    expect(opIds).toEqual(['op-42', 'op-43']);
   });
 
   it('does not mutate the original Resource entry', () => {
     const entry = makeResourceEntry();
-    setOperatorOnEntry(entry, 'op-42');
+    setOperatorOnEntry(entry, ['op-42']);
     const origOpIds = 'Resource' in entry ? entry.Resource.application.operator_ids : ['mutated'];
     expect(origOpIds).toEqual([]);
   });
 
   it('does not mutate the original ResourceGroup entry', () => {
     const entry = makeGroupEntry();
-    setOperatorOnEntry(entry, 'op-42');
+    setOperatorOnEntry(entry, ['op-42']);
     const origOpIds =
       'ResourceGroup' in entry ? entry.ResourceGroup.app_params.operator_ids : ['mutated'];
     expect(origOpIds).toEqual([]);
@@ -283,14 +283,14 @@ describe('setOperatorOnEntry', () => {
 
   it('preserves other fields on a Resource entry', () => {
     const entry = makeResourceEntry();
-    const updated = setOperatorOnEntry(entry, 'op-42');
+    const updated = setOperatorOnEntry(entry, ['op-42']);
     const id = 'Resource' in updated ? updated.Resource.resource_id : null;
     expect(id).toBe('r1');
   });
 
   it('preserves other fields on a ResourceGroup entry', () => {
     const entry = makeGroupEntry();
-    const updated = setOperatorOnEntry(entry, 'op-42');
+    const updated = setOperatorOnEntry(entry, ['op-42']);
     const typeName = 'ResourceGroup' in updated ? updated.ResourceGroup.resource_type_name : null;
     expect(typeName).toBe('disk');
   });
@@ -301,24 +301,24 @@ describe('setOperatorOnEntry', () => {
 describe('setOperatorOnEntries', () => {
   it('applies the operator to all entries in the record', () => {
     const entries = { r1: makeResourceEntry(), g1: makeGroupEntry() };
-    const updated = setOperatorOnEntries(entries, 'op-99');
+    const updated = setOperatorOnEntries(entries, ['op-98', 'op-99']);
     const r1OpIds = 'Resource' in updated.r1 ? updated.r1.Resource.application.operator_ids : [];
     const g1OpIds =
       'ResourceGroup' in updated.g1 ? updated.g1.ResourceGroup.app_params.operator_ids : [];
-    expect(r1OpIds).toEqual(['op-99']);
-    expect(g1OpIds).toEqual(['op-99']);
+    expect(r1OpIds).toEqual(['op-98', 'op-99']);
+    expect(g1OpIds).toEqual(['op-98', 'op-99']);
   });
 
   it('returns a new record without mutating the input', () => {
     const entries = { r1: makeResourceEntry() };
-    setOperatorOnEntries(entries, 'op-99');
+    setOperatorOnEntries(entries, ['op-99']);
     const origOpIds =
       'Resource' in entries.r1 ? entries.r1.Resource.application.operator_ids : ['mutated'];
     expect(origOpIds).toEqual([]);
   });
 
   it('returns an empty record for an empty input', () => {
-    expect(setOperatorOnEntries({}, 'op-1')).toEqual({});
+    expect(setOperatorOnEntries({}, ['op-1'])).toEqual({});
   });
 });
 
