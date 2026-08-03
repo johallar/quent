@@ -119,15 +119,13 @@ describe('nanosToMs', () => {
 // ---- getLongEntitiesThreshold ----------------------------------------------
 
 describe('getLongEntitiesThreshold', () => {
-  // Formula: 30 * (windowSeconds / MAX_TIMELINE_BINS) = 30 * (windowSeconds / 200)
-
-  it('returns the correct threshold for a 200-second window', () => {
-    expect(getLongEntitiesThreshold(200)).toBe(30);
+  it('returns the bin-scaled threshold for a 200-second window', () => {
+    expect(getLongEntitiesThreshold(200)).toBe(0.00001);
   });
 
-  it('scales linearly with window size', () => {
-    expect(getLongEntitiesThreshold(100)).toBe(15);
-    expect(getLongEntitiesThreshold(400)).toBe(60);
+  it('scales linearly with the visible window', () => {
+    expect(getLongEntitiesThreshold(100)).toBe(0.000005);
+    expect(getLongEntitiesThreshold(400)).toBe(0.00002);
   });
 
   it('returns 0 for a zero-second window', () => {

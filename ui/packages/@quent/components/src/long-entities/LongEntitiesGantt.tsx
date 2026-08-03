@@ -18,17 +18,14 @@ import { getLongEntitySegmentsAtTimestamp } from './utils';
 import { PointerTooltipPortal } from '../ui/gantt-tooltip';
 import { EntityTooltipContent, type ActiveMark } from '../timeline/TimelineTooltip';
 
-export const LONG_ENTITIES_TIMELINE_HEIGHT = 110;
-const STATE_FONT_SIZE = 9;
-const TASK_FONT_SIZE = 10;
-/** Task-name line drawn above each bar (~2px around the text). */
-const TASK_LABEL_HEIGHT = TASK_FONT_SIZE + 4;
-const BAR_HEIGHT = STATE_FONT_SIZE + 4;
+export const LONG_ENTITIES_TIMELINE_HEIGHT = 75;
+const LABEL_FONT_SIZE = 9;
+const BAR_HEIGHT = LABEL_FONT_SIZE + 4;
 /** Vertical gap between stacked rows. */
-const ROW_GAP = 2;
-const ROW_HEIGHT = TASK_LABEL_HEIGHT + BAR_HEIGHT + ROW_GAP;
+const ROW_GAP = 1;
+const ROW_HEIGHT = BAR_HEIGHT + ROW_GAP;
 /** Radius applied only to the outer corners of each entity's segment run. */
-const CORNER_RADIUS = 3;
+const CORNER_RADIUS = 2;
 const SERIES_NAME = 'long-entity-segment';
 
 /** Flat segment datum: one ECharts custom-series item per state span. */
@@ -112,9 +109,7 @@ export function LongEntitiesGantt({
       const startPoint = api.coord([startMs, rowIndex]);
       const endPoint = api.coord([endMs, rowIndex]);
 
-      // Center the task-label + bar cluster within the row band; bar sits below the label.
-      const clusterTop = startPoint[1] - (TASK_LABEL_HEIGHT + BAR_HEIGHT) / 2;
-      const barTop = clusterTop + TASK_LABEL_HEIGHT;
+      const barTop = startPoint[1] - BAR_HEIGHT / 2;
       const width = Math.max(1, endPoint[0] - startPoint[0]);
 
       const coord = params.coordSys as { x?: number; y?: number; width?: number; height?: number };
@@ -148,19 +143,18 @@ export function LongEntitiesGantt({
         },
       };
 
-      // State name centered inside each segment box (skipped when too narrow to read).
-      const stateChildren =
+      const labelChildren =
         clippedShape.width > 10
           ? [
               {
                 type: 'text' as const,
                 style: {
-                  text: segment.stateName,
+                  text: `${entry.label} (${segment.stateName})`,
                   x: clippedShape.x + clippedShape.width / 2,
                   y: clippedShape.y + clippedShape.height / 2,
                   textAlign: 'center' as const,
                   textVerticalAlign: 'middle' as const,
-                  fontSize: STATE_FONT_SIZE,
+                  fontSize: LABEL_FONT_SIZE,
                   fill: textColor,
                   overflow: 'truncate' as const,
                   width: Math.max(0, clippedShape.width - 6),
@@ -169,35 +163,7 @@ export function LongEntitiesGantt({
             ]
           : [];
 
-      // Task name above the bar, drawn once (first segment) spanning the whole entity.
-      const entityRight = api.coord([entry.endMs, rowIndex])[0];
-      const labelLeft = clippedShape.x;
-      const labelRight = clipBound
-        ? Math.min(entityRight, clipBound.x + clipBound.width)
-        : entityRight;
-      const labelWidth = Math.max(0, labelRight - labelLeft);
-      const taskChildren =
-        isFirst && labelWidth > 4
-          ? [
-              {
-                type: 'text' as const,
-                style: {
-                  text: entry.label,
-                  x: labelLeft + 1,
-                  y: clusterTop + TASK_LABEL_HEIGHT / 2,
-                  textAlign: 'left' as const,
-                  textVerticalAlign: 'middle' as const,
-                  fontSize: TASK_FONT_SIZE,
-                  fontWeight: 500 as const,
-                  fill: textColor,
-                  overflow: 'truncate' as const,
-                  width: Math.max(0, labelWidth - 2),
-                },
-              },
-            ]
-          : [];
-
-      return { type: 'group' as const, children: [rect, ...stateChildren, ...taskChildren] };
+      return { type: 'group' as const, children: [rect, ...labelChildren] };
     },
     [entries, customSeriesData, textColor]
   );

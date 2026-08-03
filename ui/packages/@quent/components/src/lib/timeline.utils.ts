@@ -36,7 +36,7 @@ import { MAX_TIMELINE_BINS } from '@quent/utils';
 
 // Suppress unused import warning — getColorForKey is used by consumers of this module
 void getColorForKey;
-const LONG_ENTITIES_BIN_MULTIPLIER = 30;
+const LONG_ENTITIES_BIN_MULTIPLIER = 2;
 
 /** Minimum bin duration in nanoseconds — the backend cannot produce sub-1ns bins. */
 export const MIN_BIN_DURATION_NS = 10;
@@ -61,7 +61,7 @@ export function getAdaptiveNumBins(): number {
   return MAX_TIMELINE_BINS;
 }
 
-/** Threshold for "long" entities: 10x the current bin duration in seconds. */
+/** Threshold for "long" entities as a fraction of the current bin duration. */
 export function getLongEntitiesThreshold(windowSeconds: number): number {
   const numBins = getAdaptiveNumBins();
   return LONG_ENTITIES_BIN_MULTIPLIER * (windowSeconds / numBins);
