@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { describe, expect, it, vi } from 'vitest';
+import { TIMELINE_SPACING } from '../timeline/types';
 import { buildGanttOption, type GanttRenderItem } from './options';
 
 describe('buildGanttOption', () => {
@@ -36,5 +37,18 @@ describe('buildGanttOption', () => {
       ],
     });
     expect((option.dataZoom as object[])[0]).toMatchObject({ type: 'slider', minSpan: 2 });
+  });
+
+  it('uses the timeline spacing defaults when grid spacing is omitted', () => {
+    const option = buildGanttOption({
+      data: [],
+      durationSeconds: 12,
+      yAxisCategories: [],
+      seriesName: 'test-series',
+      renderItem: vi.fn(() => null) as GanttRenderItem,
+      minZoomSpanPct: 2,
+    });
+
+    expect(option.grid).toMatchObject(TIMELINE_SPACING);
   });
 });
