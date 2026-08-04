@@ -18,7 +18,7 @@ import { registerAxisPointerSync, unregisterAxisPointerSync } from '../lib/timel
 import { useChartConnect } from '../lib/useChartConnect';
 import { useMinZoomSpanPct } from '../lib/useMinZoomSpanPct';
 import { useTimelineWheelNavigation } from '../lib/useTimelineWheelNavigation';
-import { CHART_GROUP } from '../timeline/Timeline';
+import { CHART_GROUP } from '../timeline/types';
 import { useTimelineEchartsTheme } from '../timeline/timelineEchartsTheme';
 import { HiddenScroll } from '../ui/thin-scroll';
 import { observeGanttHover, type GanttHover } from './hover';
