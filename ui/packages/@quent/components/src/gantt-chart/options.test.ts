@@ -38,7 +38,6 @@ describe('buildGanttOption', () => {
     });
     expect((option.dataZoom as object[])[0]).toMatchObject({ type: 'slider', minSpan: 2 });
   });
-
   it('uses the timeline spacing defaults when grid spacing is omitted', () => {
     const option = buildGanttOption({
       data: [],
