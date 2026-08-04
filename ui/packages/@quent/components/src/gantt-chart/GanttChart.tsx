@@ -73,7 +73,7 @@ export function GanttChart<T extends GanttDatum>({
 
   const { yAxisCategories, rowCount } = useMemo(() => {
     if (data.length === 0) return { yAxisCategories: [] as number[], rowCount: 0 };
-    const maxRow = Math.max(...data.map(datum => datum.value[2]));
+    const maxRow = data.reduce((max, datum) => Math.max(max, datum.value[2]), 0);
     return {
       yAxisCategories: Array.from({ length: maxRow + 1 }, (_, index) => index),
       rowCount: maxRow + 1,

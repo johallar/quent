@@ -37,12 +37,6 @@ export function buildGanttOption<T extends GanttDatum>({
 }: BuildGanttOptionParams<T>): EChartsOption {
   return {
     animation: false,
-    tooltip: {
-      show: true,
-      showContent: false,
-      trigger: 'axis',
-      transitionDuration: 0,
-    },
     axisPointer: {
       link: [{ xAxisIndex: 'all' }],
     },
