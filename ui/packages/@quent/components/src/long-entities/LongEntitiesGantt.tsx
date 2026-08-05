@@ -15,7 +15,7 @@ import { GanttChart, type GanttRenderItem } from '../gantt-chart/GanttChart';
 import type { GanttHover } from '../gantt-chart/hover';
 import { clipRectByRect } from '../gantt-chart/utils';
 import { getLongEntitySegmentsAtTimestamp } from './utils';
-import { PointerTooltipPortal } from '../ui/gantt-tooltip';
+import { PointerTooltipPortal } from '../ui/pointer-tooltip-portal';
 import { EntityTooltipContent, type ActiveMark } from '../timeline/TimelineTooltip';
 
 export const LONG_ENTITIES_TIMELINE_HEIGHT = 75;

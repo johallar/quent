@@ -14,8 +14,8 @@ import {
   formatDuration,
   type PaletteTheme,
 } from '@quent/utils';
+import { ColorSwatch } from '../ui/color-swatch';
 import { DataText } from '../ui/data-text';
-import { ColorDot } from './ColorDot';
 
 /**
  * State × dimension matrix of the data-flow distribution for the selected
@@ -84,7 +84,7 @@ export const DataFlowMatrix = ({
                 className="text-right font-normal text-muted-foreground px-1.5"
               >
                 <span className="inline-flex items-center gap-1">
-                  <ColorDot color={dimensionColor(k.key)} />
+                  <ColorSwatch color={dimensionColor(k.key)} shape="square" />
                   <DataText>{k.display_name}</DataText>
                 </span>
               </th>
@@ -99,7 +99,7 @@ export const DataFlowMatrix = ({
             <tr key={state}>
               <th scope="row" className="pr-2 text-left font-normal">
                 <span className="inline-flex items-center gap-1">
-                  <ColorDot color={stateColor(state)} />
+                  <ColorSwatch color={stateColor(state)} shape="square" />
                   <DataText>{state}</DataText>
                 </span>
               </th>

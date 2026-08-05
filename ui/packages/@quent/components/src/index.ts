@@ -44,6 +44,8 @@ export {
   NavigationMenuViewport,
 } from './ui/navigation-menu';
 export { Popover, PopoverTrigger, PopoverContent } from './ui/popover';
+export { PointerTooltipPortal } from './ui/pointer-tooltip-portal';
+export type { PointerPosition } from './ui/pointer-tooltip-portal';
 export { ResizablePanelGroup, ResizablePanel, ResizableHandle } from './ui/resizable';
 export { ScrollArea, ScrollBar } from './ui/scroll-area';
 export {

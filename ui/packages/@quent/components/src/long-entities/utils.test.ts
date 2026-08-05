@@ -53,6 +53,47 @@ describe('buildLongEntityEntries', () => {
     expect(entry.segments[1]).toMatchObject({ startMs: 1000, endMs: 3000 });
   });
 
+  it('keeps only states used on a filtered resource', () => {
+    const fsm = makeFsm('e1', [
+      transition('queueing', 0, {
+        usages: [{ resource: 'resource-2', capacities: [] }],
+      }),
+      transition('computing', 1, {
+        usages: [{ resource: 'resource-1', capacities: [] }],
+      }),
+      transition('exit', 3),
+    ]);
+
+    const [entry] = buildLongEntityEntries([fsm], {}, 'light', new Set(['resource-1']));
+
+    expect(entry.segments.map(segment => segment.stateName)).toEqual(['computing']);
+    expect(entry).toMatchObject({ startMs: 1000, endMs: 3000 });
+  });
+
+  it('drops entities with no states used on a filtered resource', () => {
+    const matching = makeFsm('matching', [
+      transition('computing', 0, {
+        usages: [{ resource: 'resource-1', capacities: [] }],
+      }),
+      transition('exit', 1),
+    ]);
+    const unrelated = makeFsm('unrelated', [
+      transition('queueing', 0, {
+        usages: [{ resource: 'resource-2', capacities: [] }],
+      }),
+      transition('exit', 1),
+    ]);
+
+    const entries = buildLongEntityEntries(
+      [matching, unrelated],
+      {},
+      'light',
+      new Set(['resource-1'])
+    );
+
+    expect(entries.map(entry => entry.entityId)).toEqual(['matching']);
+  });
+
   it('spans the bar from first to last transition', () => {
     const fsm = makeFsm('e1', [
       transition('a', 0.5),

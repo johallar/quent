@@ -24,6 +24,8 @@ type LongEntitiesRowProps = {
   durationSeconds: number;
   fsmTypes: { [key in string]?: FsmTypeDecl };
   isDark: boolean;
+  /** Defaults to all states; resource scope keeps states used on this row's resource. */
+  fsmStateScope?: 'all' | 'resource';
 };
 
 /**
@@ -38,6 +40,7 @@ export function LongEntitiesRow({
   durationSeconds,
   fsmTypes,
   isDark,
+  fsmStateScope = 'all',
 }: LongEntitiesRowProps) {
   const selectedNodeIds = useSelectedNodeIds();
   const debouncedZoomRange = useDebouncedZoomRange();
@@ -63,8 +66,14 @@ export function LongEntitiesRow({
 
   const entities = useMemo(() => data?.pages.flatMap(page => page.items) ?? [], [data]);
   const entries = useMemo(
-    () => buildLongEntityEntries(entities, fsmTypes, isDark ? 'dark' : 'light'),
-    [entities, fsmTypes, isDark]
+    () =>
+      buildLongEntityEntries(
+        entities,
+        fsmTypes,
+        isDark ? 'dark' : 'light',
+        fsmStateScope === 'resource' ? new Set([resourceId]) : null
+      ),
+    [entities, fsmStateScope, fsmTypes, isDark, resourceId]
   );
   const totalEntities = data?.pages[data.pages.length - 1]?.total ?? entities.length;
 

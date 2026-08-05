@@ -8,7 +8,7 @@ import {
   cn,
   type DynamicAttribute,
 } from '@quent/utils';
-import { ColorCircle } from '../ui/color-circle';
+import { ColorSwatch } from '../ui/color-swatch';
 import { DataText } from '../ui/data-text';
 
 /** A timeline mark under the hover cursor, as shown in the tooltip. */
@@ -44,7 +44,7 @@ const TooltipSeriesStat = ({
 }) => {
   return (
     <li className="flex items-center gap-1">
-      {series.color && <ColorCircle color={series.color} />}
+      {series.color && <ColorSwatch color={series.color} />}
       <DataText className="text-foreground">{series.name}</DataText>
       <DataText className="font-semibold ml-auto text-foreground">
         {fmt(series.value ?? 0)}
@@ -206,7 +206,7 @@ function ActiveMarksSection({ marks }: { marks: ActiveMark[] }) {
       {marks.map((m, i) => (
         <div key={i}>
           <div className="flex items-center gap-1">
-            <ColorCircle color={m.color} />
+            <ColorSwatch color={m.color} />
             <DataText className="text-muted-foreground">{m.label}</DataText>
             <DataText className="text-foreground font-medium ml-auto">{m.stateName}</DataText>
           </div>

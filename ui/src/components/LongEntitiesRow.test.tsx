@@ -76,6 +76,27 @@ describe('LongEntitiesRow', () => {
     );
   });
 
+  it('can limit FSM states to those used on the associated resource', () => {
+    render(
+      <LongEntitiesRow
+        engineId="engine-1"
+        queryId="query-1"
+        resourceId="resource-1"
+        durationSeconds={1}
+        fsmTypes={{}}
+        isDark={false}
+        fsmStateScope="resource"
+      />
+    );
+
+    expect(mocks.buildLongEntityEntries).toHaveBeenLastCalledWith(
+      [],
+      {},
+      'light',
+      new Set(['resource-1'])
+    );
+  });
+
   it('renders a chart-shaped skeleton during the initial load', () => {
     mocks.useInfiniteEntityList.mockReturnValue({
       data: undefined,
@@ -147,7 +168,8 @@ describe('LongEntitiesRow', () => {
     expect(mocks.buildLongEntityEntries).toHaveBeenLastCalledWith(
       [firstEntity, secondEntity],
       {},
-      'light'
+      'light',
+      null
     );
     expect(screen.queryByRole('button')).not.toBeInTheDocument();
   });
@@ -175,7 +197,12 @@ describe('LongEntitiesRow', () => {
     );
 
     expect(screen.queryByText('Loading entities…')).not.toBeInTheDocument();
-    expect(mocks.buildLongEntityEntries).toHaveBeenLastCalledWith([previousEntity], {}, 'light');
+    expect(mocks.buildLongEntityEntries).toHaveBeenLastCalledWith(
+      [previousEntity],
+      {},
+      'light',
+      null
+    );
     expect(screen.queryByRole('button')).not.toBeInTheDocument();
   });
 });
