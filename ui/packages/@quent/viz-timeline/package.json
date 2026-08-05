@@ -1,0 +1,35 @@
+{
+  "name": "@quent/viz-timeline",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "main": "src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "sideEffects": [
+    "**/timelineEchartsTheme.ts"
+  ],
+  "scripts": {
+    "build": "tsdown",
+    "build:ci": "tsdown",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@quent/utils": "workspace:*",
+    "@quent/viz-core": "workspace:*"
+  },
+  "peerDependencies": {
+    "echarts": "^6.1.0",
+    "echarts-for-react": "^3.0.6",
+    "react": "^19.0.0"
+  },
+  "devDependencies": {
+    "@types/react": "catalog:",
+    "echarts": "catalog:",
+    "echarts-for-react": "catalog:",
+    "react": "catalog:",
+    "tsdown": "catalog:",
+    "typescript": "catalog:"
+  }
+}

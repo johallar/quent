@@ -1,8 +1,9 @@
 // SPDX-FileCopyrightText: Copyright (c) 2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 // SPDX-License-Identifier: Apache-2.0
 
+import type { EntityRef } from '@quent/protocol';
 import { queryOptions, useQuery } from '@tanstack/react-query';
-import type { QueryBundle, EntityRef } from '@quent/utils';
+import type { QueryBundle } from '@quent/protocol';
 import { fetchQueryBundle } from './api';
 import { DEFAULT_STALE_TIME } from './constants';
 

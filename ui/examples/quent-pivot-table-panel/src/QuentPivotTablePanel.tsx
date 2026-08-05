@@ -4,16 +4,22 @@
 import { useCallback, useMemo } from 'react';
 import type { PanelProps } from '@grafana/data';
 import { useTheme2 } from '@grafana/ui';
-import type { StatValue } from '@quent/utils';
+import type { StatValue } from '@quent/protocol';
 import {
   PivotedStatTable,
   PivotTableToolbar,
   QuentProvider,
   getSchemaStatNames,
-} from '@quent/components';
+} from '@quent/features';
 import { getOperationTypeColor } from '@quent/utils';
-import type { PivotedStatTableSchema, GroupedDataTableGroupKeyEntry } from '@quent/components';
-import { useStatGroupTableControls } from '@quent/hooks';
+import type {
+  PivotedRow,
+  PivotedStatTableSchema,
+  GroupedDataTableGroupKeyEntry,
+  PivotTableInteractionConfig,
+  PivotTableRenderConfig,
+} from '@quent/features';
+import { useStatGroupTableControls } from '@quent/features';
 import { frameToOperatorRows, type OperatorRow } from './frameToOperatorRows';
 import type { QuentPivotTablePanelOptions } from './types';
 
@@ -214,10 +220,24 @@ function PivotTableBody({
 
   // Hover handlers omitted: this example panel is standalone (no DAG to
   // cross-highlight into). The pivot table still works without them.
-  const getGroupCellHandlers = (
-    _gk: GroupedDataTableGroupKeyEntry,
-    _row: unknown
-  ): { onMouseEnter?: () => void; onMouseLeave?: () => void } => ({});
+  const getGroupCellHandlers = useCallback(
+    (
+      _gk: GroupedDataTableGroupKeyEntry,
+      _row: PivotedRow
+    ): { onMouseEnter?: () => void; onMouseLeave?: () => void } => ({}),
+    []
+  );
+
+  const interactionConfig = useMemo(
+    (): PivotTableInteractionConfig<PivotedRow> => ({
+      hoveredStat: null,
+      setHoveredStat: () => {},
+      groupCellHandlers: getGroupCellHandlers,
+    }),
+    [getGroupCellHandlers]
+  );
+
+  const renderConfig = useMemo((): PivotTableRenderConfig => ({ getGroupTypeColor }), []);
 
   if (rows.length === 0) {
     return (
@@ -255,9 +275,9 @@ function PivotTableBody({
           aggMode={aggMode}
           indexLabels={indexLabels}
           isDark={isDark}
+          interaction={interactionConfig}
+          renderConfig={renderConfig}
           virtualization={VIRTUALIZATION_CONFIG}
-          getGroupTypeColor={getGroupTypeColor}
-          getGroupCellHandlers={getGroupCellHandlers}
           sorting={sorting}
           onSortingChange={setSorting}
         />

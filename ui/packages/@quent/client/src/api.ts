@@ -2,9 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { parseJsonWithBigInt } from '@quent/utils';
-import { getApiBaseUrl } from './config';
 import type {
-  QueryBundle,
   QueryGroup,
   Query,
   BulkTimelinesResponse,
@@ -17,8 +15,10 @@ import type {
   OperatorFilter,
   EntityRef,
   Engine,
-  TimelineConfig,
-} from '@quent/utils';
+} from '@quent/protocol';
+import type { TimelineConfig } from '@quent/protocol';
+import { getApiBaseUrl } from './config';
+import type { QueryBundle } from '@quent/protocol';
 
 interface ApiFetchOptions {
   params?: Record<string, string | number | boolean>;

@@ -3,8 +3,8 @@
 
 import { createFileRoute, Outlet, useMatch } from '@tanstack/react-router';
 import { Provider } from 'jotai';
-import { QueryPlan } from '@/components/QueryPlan';
-import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@quent/components';
+import { QueryPlan } from '@/features/query-plan/QueryPlan';
+import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@quent/features';
 
 export const Route = createFileRoute('/profile/engine/$engineId')({
   component: ProfileLayout,

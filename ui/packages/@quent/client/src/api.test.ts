@@ -1,13 +1,14 @@
 // SPDX-FileCopyrightText: Copyright (c) 2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 // SPDX-License-Identifier: Apache-2.0
 
+import type { TimelineConfig } from '@quent/protocol';
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import type { DataFlowTimelineBinned, TimelineConfig } from '@quent/utils';
+import type { DataFlowTimelineBinned } from '@quent/protocol';
 import { fetchDataFlow } from './api';
 
 const CONFIG: TimelineConfig = { start: 0, end: 8, num_bins: 4 };
 
-const BINNED: DataFlowTimelineBinned = {
+const BINNED = {
   config: { span: { start: 0, end: 8 }, bin_duration: 2, num_bins: 4 },
   decl: {
     entity_type_name: 'Task',
@@ -19,7 +20,7 @@ const BINNED: DataFlowTimelineBinned = {
   operators: {
     'op-1': { values: { tasks: { queueing: { memory: [1, 2, 0, 0] } } } },
   },
-};
+} as unknown as DataFlowTimelineBinned;
 
 function stubFetch(response: Response) {
   const fetchMock = vi.fn().mockResolvedValue(response);

@@ -80,9 +80,17 @@ export default defineConfig({
     // full page reload ("new dependencies optimized") instead of surgical HMR.
     // Excluding them keeps their source in Vite's on-demand transform pipeline
     // alongside `src/`, so React Fast Refresh works across package boundaries.
-    exclude: ['@quent/components', '@quent/hooks', '@quent/client', '@quent/utils'],
+    exclude: [
+      '@quent/client',
+      '@quent/features',
+      '@quent/protocol',
+      '@quent/resource-timeline',
+      '@quent/utils',
+      '@quent/viz-core',
+      '@quent/viz-timeline',
+    ],
     include: [
-      // echarts-for-react is a CJS peer dep of @quent/components; must be pre-bundled
+      // echarts-for-react is a CJS peer dep of the visualization packages; must be pre-bundled
       // here so Vite converts it to ESM with a proper default export rather than
       // serving the raw module.exports object to the browser.
       'echarts-for-react',

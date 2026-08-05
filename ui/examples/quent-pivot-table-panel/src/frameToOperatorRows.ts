@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import type { DataFrame, Field } from '@grafana/data';
-import type { StatValue } from '@quent/utils';
+import type { StatValue } from '@quent/protocol';
 
 /**
  * One row per operator. Mirrors the shape consumed by `PivotedStatTable`,
@@ -64,9 +64,8 @@ function asString(value: unknown, fallback: string): string {
 
 function asStat(value: unknown): StatValue {
   if (value == null) return null;
-  if (typeof value === 'number' || typeof value === 'string' || typeof value === 'boolean') {
-    return value;
-  }
+  if (typeof value === 'number' || typeof value === 'string') return value;
+  if (typeof value === 'boolean') return String(value);
   return String(value);
 }
 

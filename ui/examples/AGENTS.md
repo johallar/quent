@@ -16,7 +16,7 @@ The `@quent/*` packages are designed to be **published to npm** and installed
 the normal way. A real downstream consumer (in their own repo) does:
 
 ```sh
-pnpm add @quent/components @quent/hooks @quent/client @quent/utils \
+pnpm add @quent/features @quent/client @quent/protocol @quent/utils \
         @tanstack/react-query @xyflow/react echarts echarts-for-react jotai \
         react react-dom
 ```
@@ -24,11 +24,11 @@ pnpm add @quent/components @quent/hooks @quent/client @quent/utils \
 …and then imports from the package roots:
 
 ```tsx
-import { QuentProvider, DAGChart } from '@quent/components';
+import { QuentProvider, DAGChart } from '@quent/features';
 ```
 
 Everything in this AGENTS.md and in the example folders below is written from
-that consumer's point of view — assume `pnpm add @quent/components` (or the
+that consumer's point of view — assume `pnpm add @quent/features` (or the
 equivalent npm/yarn command) has run and that `node_modules/@quent/*` contains
 the published tarball.
 
@@ -42,10 +42,10 @@ one workspace-internal trick that real consumers do not:
 - Each example references `@quent/*` via **`link:../../packages/@quent/<pkg>`**
   in its `package.json` instead of a semver range.
 - That `link:` reference makes pnpm symlink straight at the source dir (no
-  publish step, no tarball), so a change in `ui/packages/@quent/components/src/…`
+  publish step, no tarball), so a change in `ui/packages/@quent/features/src/…`
   is picked up by the next `pnpm dev` / `pnpm build` in the example.
 - For an external consumer the equivalent line is just
-  `"@quent/components": "^0.x.y"` and `pnpm add` does the rest.
+  `"@quent/features": "^0.x.y"` and `pnpm add` does the rest.
 
 Otherwise the package.json shape is identical between in-repo examples and
 external consumers, and every code snippet below works unchanged in both.
@@ -70,7 +70,7 @@ The example's nested `pnpm-workspace.yaml` lists ONLY the example itself
 
 An earlier shape of these examples used a nested `pnpm-workspace.yaml` that
 re-referenced `../../packages/@quent/*`, with the example's own `package.json`
-declaring `"@quent/components": "workspace:*"`. That made the `@quent/*` packages
+declaring `"@quent/features": "workspace:*"`. That made the `@quent/*` packages
 workspace members of *both* the root `ui/` workspace and the example's nested
 workspace. Each `pnpm install` would re-resolve their peer deps (React,
 `@tanstack/*`, `@xyflow/react`, etc.) and write fresh symlinks into
@@ -109,12 +109,12 @@ Naming: use `kebab-case` directory names and `@quent-examples/<name>` for the pa
 
 ## What every consumer needs
 
-Regardless of the host environment, every consumer of `@quent/components` must wire up
+Regardless of the host environment, every consumer of `@quent/features` must wire up
 the same three things:
 
-1. **React 19 + react-dom 19** — peer dep of `@quent/components`. If the host pins an
+1. **React 19 + react-dom 19** — peer dep of `@quent/features`. If the host pins an
    older React (Grafana 11 still ships React 18), see "React-version mismatches" below.
-2. **`<QuentProvider>`** from `@quent/components` (re-exported from `@quent/hooks`) —
+2. **`<QuentProvider>`** from `@quent/features` —
    bundles `QueryClientProvider` + `JotaiProvider` and (optionally) calls
    `setApiBaseUrl` for you. Each instance creates its own QueryClient and Jotai store
    by default, so dashboards with multiple Quent panels do not cross-talk on
@@ -127,7 +127,7 @@ the same three things:
 The minimum viable shell for any consumer:
 
 ```tsx
-import { QuentProvider, DAGChart } from '@quent/components';
+import { QuentProvider, DAGChart } from '@quent/features';
 
 export function QuentRoot({ isDark, children }: { isDark: boolean; children: React.ReactNode }) {
   return (
@@ -192,9 +192,9 @@ Use this when there is no host application — you are shipping a standalone SPA
      "private": true,
      "type": "module",
      "dependencies": {
-       "@quent/components": "^0.1.0",
+       "@quent/features": "^0.1.0",
        "@quent/client":     "^0.1.0",
-       "@quent/hooks":      "^0.1.0",
+       "@quent/protocol":   "^0.1.0",
        "@quent/utils":      "^0.1.0",
        "@tanstack/react-query": "^5.90.0",
        "@xyflow/react":         "^12.10.0",
@@ -217,9 +217,9 @@ Use this when there is no host application — you are shipping a standalone SPA
    // package.json (in-repo only diff)
    "name": "@quent-examples/<name>",
    "dependencies": {
-     "@quent/components": "link:../../packages/@quent/components",
-     "@quent/client":     "link:../../packages/@quent/client",
-     "@quent/hooks":      "link:../../packages/@quent/hooks",
+     "@quent/features": "link:../../packages/@quent/features",
+     "@quent/client":   "link:../../packages/@quent/client",
+     "@quent/protocol": "link:../../packages/@quent/protocol",
      "@quent/utils":      "link:../../packages/@quent/utils",
      // …rest unchanged
    }
@@ -238,7 +238,7 @@ Use this when there is no host application — you are shipping a standalone SPA
      to the components.
 
    **In-repo example only:** also add
-   `optimizeDeps.exclude: ['@quent/components', '@quent/hooks', '@quent/client', '@quent/utils']`
+   `optimizeDeps.exclude: ['@quent/features', '@quent/client', '@quent/protocol', '@quent/utils']`
    so Vite serves the linked TypeScript source on-demand and HMR works across
    packages. External consumers can omit this — they import the published
    tarball's pre-built JS through pnpm's normal resolution.
@@ -284,14 +284,14 @@ package to `@quent-examples/quent-<thing>-panel`.
 
 #### React-version mismatches
 
-Grafana 11.x ships React 18. `@quent/components` declares `"react": "^19.0.0"` as a
+Grafana 11.x ships React 18. `@quent/features` declares `"react": "^19.0.0"` as a
 peer dep. Two options:
 
 - **Preferred:** require Grafana 12+ in `plugin.json`
   (`"dependencies": { "grafanaDependency": ">=12.0.0" }`) — Grafana 12 ships React 19.
 - **Fallback:** add a webpack alias mapping `react` and `react-dom` to the version
   Grafana provides, and add a top-level `peerDependencies` override in your example's
-  `package.json` so pnpm does not error. Test carefully — some `@quent/components`
+  `package.json` so pnpm does not error. Test carefully — some `@quent/features`
   features rely on React 19 hooks (`useDeferredValue` semantics).
 
 #### Webpack config
@@ -318,7 +318,7 @@ either way so cross-package types are not re-checked inside the plugin build.
 #### Styles
 
 Grafana panels are isolated by webpack but share the host's Emotion theme. Two ways to
-get `@quent/components` styles in:
+get `@quent/features` styles in:
 
 1. **Tailwind extracted at build time** — add `@tailwindcss/postcss` and the same
    `@source "node_modules/@quent/**/*.{ts,tsx}"` directive as the main app.
@@ -345,7 +345,7 @@ export const plugin = new PanelPlugin(QuentPanel);
 // src/QuentPanel.tsx
 import { PanelProps } from '@grafana/data';
 import { useTheme2 } from '@grafana/ui';
-import { QuentProvider, Timeline } from '@quent/components';
+import { QuentProvider, Timeline } from '@quent/features';
 
 export function QuentPanel({ data, width, height, options }: PanelProps) {
   const theme = useTheme2();
@@ -363,8 +363,8 @@ export function QuentPanel({ data, width, height, options }: PanelProps) {
 
 #### Data: Grafana DataFrame ⇄ Quent types
 
-The component library expects domain types from `@quent/utils` (`QueryBundle`,
-`TimelineSeries`, etc.), not Grafana `DataFrame`s. Two patterns:
+Backend contracts such as `QueryBundle` come from `@quent/protocol`; feature-owned
+view models come from `@quent/features`, not Grafana `DataFrame`s. Two patterns:
 
 - **Direct fetch:** ignore the Grafana datasource and call `fetchQueryBundle()` /
   `useQueryBundle()` from `@quent/client` directly. Simpler, but bypasses Grafana's
@@ -433,7 +433,7 @@ export default class QuentChartPlugin extends ChartPlugin {
 }
 ```
 
-The `QuentChart` React component then mounts the providers + the `@quent/components`
+The `QuentChart` React component then mounts the providers + the `@quent/features`
 visualization, the same way the Grafana panel does.
 
 #### Theme + isDark
@@ -476,8 +476,8 @@ These are non-negotiable; CI will fail otherwise.
    // SPDX-License-Identifier: Apache-2.0
    ```
 
-2. **Import only from package roots** — use `import { Timeline } from '@quent/components'`,
-   never `'@quent/components/src/timeline/Timeline'`.
+2. **Import only from package roots** — use `import { Timeline } from '@quent/viz-timeline'`,
+   never a package-internal source path.
 
 3. **Atoms only inside React** — never import a Jotai atom from a `.ts` utility file.
    Pass values as plain arguments. (See `ui/AGENTS.md` "Atom usage".)
@@ -505,7 +505,7 @@ These are non-negotiable; CI will fail otherwise.
 
 ## Quick reference: which component for which use case
 
-| Goal | Import from `@quent/components` | Notes |
+| Goal | Import from `@quent/features` | Notes |
 |------|----------------------------------|-------|
 | Render a query plan as a graph | `DAGChart`, `getPlanDAG`, `getTreeData` | Needs `@xyflow/react` peer dep + `elkjs` alias |
 | Stacked-area utilization timeline | `Timeline`, `TimelineController`, `TimelineToolbar` | Coordinate multiple via `TimelineController`; share zoom via `useZoomRange` |
@@ -515,4 +515,4 @@ These are non-negotiable; CI will fail otherwise.
 | Generic grouped table with row-span groups | `GroupedDataTable` | Lower-level than `PivotedStatTable`; bring your own `ColumnDef[]` |
 | Resource hierarchy sidebar | `ResourceColumn`, `ResourceRow`, `ResourceGroupRow`, `TreeTable` | Also needs `transformResourceTree` from the timeline utils |
 
-For the full export surface, read `ui/packages/@quent/components/src/index.ts`.
+For the full export surface, read `ui/packages/@quent/features/src/index.ts`.

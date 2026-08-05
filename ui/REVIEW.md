@@ -15,21 +15,21 @@ and package boundaries over new dependencies or one-off app-shell code.
    can ship outside this app. The app shell (`ui/src/`) is routing, layout, and
    glue only.
 3. **Keep client and server APIs aligned** — Every HTTP route the UI calls has a
-   matching `fetch*` in `@quent/client`, typed against generated bindings.
+   matching `fetch*` in `@quent/client`, typed against `@quent/protocol`.
 4. **Server-serialized types come from ts-bindings** — Never duplicate Rust
    request/response shapes as hand-written TypeScript interfaces.
 
 ## Foundational stack (prefer these)
 
-| Concern                 | Use                                                                          | Avoid                                                          |
-| ----------------------- | ---------------------------------------------------------------------------- | -------------------------------------------------------------- |
-| Components / primitives | React 19 + shadcn/ui in `@quent/components/src/ui/` (Radix + `lucide-react`) | New UI kits, ad-hoc primitive wrappers                         |
-| Styling                 | Tailwind 4 + `cn()` from `@quent/utils`                                      | String-concatenated classNames, inline style sprawl, CSS-in-JS |
-| Routing                 | TanStack Router file routes under `ui/src/routes/`                           | React Router / custom history hacks                            |
-| Server state            | TanStack Query via `@quent/client` `queryOptions` / hooks                    | Ad-hoc `useEffect` + `fetch`, React Context as a data store    |
-| UI / interaction state  | Jotai atoms (in `@quent/hooks` or app `atoms/`)                              | Context stores for selection/zoom/viewport                     |
-| Large lists / tables    | `@tanstack/react-table` + `@tanstack/react-virtual`                          | Rendering full trace/event arrays unvirtualized                |
-| Charts                  | ECharts via `@quent/components` helpers                                      | Parallel chart libs for the same timelines                     |
+| Concern                 | Use                                                                               | Avoid                                                          |
+| ----------------------- | --------------------------------------------------------------------------------- | -------------------------------------------------------------- |
+| Components / primitives | React 19 + shadcn/ui in `@quent/features/src/shared/ui/` (Radix + `lucide-react`) | New UI kits, ad-hoc primitive wrappers                         |
+| Styling                 | Tailwind 4 + `cn()` from `@quent/utils`                                           | String-concatenated classNames, inline style sprawl, CSS-in-JS |
+| Routing                 | TanStack Router file routes under `ui/src/routes/`                                | React Router / custom history hacks                            |
+| Server state            | TanStack Query via `@quent/client` `queryOptions` / hooks                         | Ad-hoc `useEffect` + `fetch`, React Context as a data store    |
+| UI / interaction state  | Jotai atoms (in `@quent/features` or app `atoms/`)                                | Context stores for selection/zoom/viewport                     |
+| Large lists / tables    | `@tanstack/react-table` + `@tanstack/react-virtual`                               | Rendering full trace/event arrays unvirtualized                |
+| Charts                  | `@quent/viz-core`, `@quent/viz-timeline`, and adapter APIs                        | Backend imports in generic renderers                           |
 
 ### Library best practices
 
@@ -37,13 +37,12 @@ and package boundaries over new dependencies or one-off app-shell code.
   `queryOptions({ queryKey, queryFn, staleTime, enabled })` with stable
   `queryKey` arrays. Prefer shared options factories in `@quent/client` over
   inline `useQuery` in components.
-- **Jotai**: atoms only from React components/hooks/providers — never from plain
-  utils. Server data stays in Query; atoms hold UI interaction state (selection,
-  zoom, expanded rows).
+- **Jotai**: atoms live in feature or adapter packages, never generic visualization packages.
+  Server data stays in Query; atoms hold UI interaction state (selection, zoom, expanded rows).
 - **TanStack Router**: route params are navigation source of truth; prefetch
   with loaders + shared `queryOptions` when useful. Do not hand-edit
   `routeTree.gen.ts`.
-- **shadcn/ui**: add new primitives under `@quent/components/src/ui/` and export
+- **shadcn/ui**: add new primitives under `@quent/features/src/shared/ui/` and export
   from the package root. Compose with `cn()` / CVA; keep reusable default styles
   and variants in the primitive instead of repeating structural classes at call
   sites.
@@ -61,22 +60,26 @@ and package boundaries over new dependencies or one-off app-shell code.
 ui/
 ├── src/                      # App shell only (routes, pages, nav, theme glue)
 ├── packages/@quent/
-│   ├── utils/                # Foundation: cn, BigInt JSON, types re-exports
-│   ├── client/               # fetch* + queryOptions + thin Query hooks
-│   ├── hooks/                # Jotai atoms, QuentProvider orchestration
-│   └── components/           # Visualizations + shadcn primitives
+│   ├── utils/                # Protocol-free helpers
+│   ├── protocol/             # Generated backend contracts
+│   ├── client/               # Typed API client
+│   ├── viz-core/             # Generic ECharts mechanics
+│   ├── viz-timeline/         # Backend-agnostic Timeline port
+│   ├── resource-timeline/    # Quent timeline adapter, API, state, transforms
+│   └── features/             # Vertical product slices and shared UI
 └── examples/                 # Opt-in consumers; NOT root workspace members
 ```
 
 Dependency direction (do not invert):
 
 ```text
-@quent/utils → @quent/client → @quent/hooks → @quent/components
+@quent/viz-core ← @quent/viz-timeline ← @quent/resource-timeline ← @quent/features ← app
+@quent/protocol ← @quent/client ← @quent/resource-timeline
 ```
 
 - Put reusable code in the lowest package that fits; keep app-specific wiring in
   `ui/src/`.
-- Import from package roots only (`@quent/components`), never deep paths.
+- Import from package roots only (`@quent/features`), never deep paths.
 - Cross-package imports use package roots; inside a package, use relative
   sibling imports.
 - The `@/` alias is app-shell only (`ui/src/`). `@quent/*` packages do not
@@ -138,13 +141,13 @@ When reviewing:
 
 ## ts-bindings (server-serialized types)
 
-- Generated by ts-rs into `examples/simulator/server/ts-bindings/` (do not
+- Generated by ts-rs into `ui/generated/ts-bindings/` (do not
   hand-edit).
-- UI consumes them via `@quent/utils` re-exports
-  (`import type { … } from '@quent/utils'`).
+- UI consumes them via `@quent/protocol`
+  (`import type { … } from '@quent/protocol'`).
 - Changing a Rust `Serialize`/`Deserialize` API type: update the Rust type with
   `#[derive(TS)]`, regenerate bindings (`cargo build` for the simulator server),
-  and re-export from `@quent/utils` if the type is newly public.
+  and re-export from `@quent/protocol` if the type is newly public.
 - Do not invent parallel interfaces for request/response payloads in app or
   package code.
 - FE-only view models are fine as local types; anything that crosses the wire

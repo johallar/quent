@@ -5,8 +5,7 @@
  * Centralized formatting utilities for charts and UI.
  */
 
-import type { PrefixSystem, QuantitySpec, CapacityKind } from './types/index';
-import type { StatValue } from './dagTypes';
+export type UnitPrefixSystem = 'Si' | 'Iec' | 'None';
 
 const MS_PER_SECOND = 1000;
 const MS_PER_MINUTE = 60 * MS_PER_SECOND;
@@ -115,7 +114,7 @@ const IEC: readonly [number, string][] = [
 export function formatWithPrefix(
   value: number | bigint,
   symbol: string,
-  prefixSystem: PrefixSystem,
+  prefixSystem: UnitPrefixSystem,
   decimals: number = 1
 ): string {
   // For the unprefixed case with a bigint, avoid Number() coercion to preserve full precision
@@ -185,7 +184,7 @@ function compactDigits(scaled: number): string {
 export function formatCompactWithPrefix(
   value: number,
   symbol: string,
-  prefixSystem: PrefixSystem
+  prefixSystem: UnitPrefixSystem
 ): string {
   const abs = value < 0 ? -value : value;
   const sign = value < 0 ? '-' : '';
@@ -211,20 +210,6 @@ export function formatCompactWithPrefix(
   }
 
   return `${sign}${compactDigits(abs)}${symbol}`;
-}
-
-/**
- * Compact variant of {@link formatQuantity}: same prefix-system/kind
- * resolution, but formatted via {@link formatCompactWithPrefix}.
- */
-export function formatQuantityCompact(
-  value: number,
-  spec: QuantitySpec,
-  kind: CapacityKind
-): string {
-  const prefixSystem = kind === 'Occupancy' ? spec.occupancy_prefix : spec.rate_prefix;
-  const symbol = kind === 'Rate' ? `${spec.symbol}/s` : spec.symbol;
-  return formatCompactWithPrefix(value, symbol, prefixSystem);
 }
 
 /**
@@ -269,67 +254,13 @@ export function isBytesStat(name: string): boolean {
   );
 }
 
-export function isNumericValue(v: StatValue): v is number | bigint {
+export function isNumericValue(v: unknown): v is number | bigint {
   return typeof v === 'number' || typeof v === 'bigint';
-}
-
-function unwrapToString(val: unknown): string {
-  const result = unwrapTaggedValue(val);
-  return Array.isArray(result) ? result.join('\n') : String(result ?? '');
-}
-
-/**
- * Recursively unwrap a `DynamicValue` to a plain JS value. The Rust `DynamicValue` enum
- * serializes externally tagged (`{"U64": 5}`) while the generated TS type is
- * untagged — handle both shapes, including lists and structs.
- */
-export function unwrapTaggedValue(val: unknown): StatValue {
-  switch (true) {
-    case val === null || val === undefined:
-      return null;
-    case typeof val === 'string' || typeof val === 'number':
-      return val;
-    case typeof val === 'bigint':
-      return val;
-    case Array.isArray(val):
-      return (val as unknown[]).map(unwrapToString);
-    case typeof val === 'object': {
-      const obj = val as Record<string, unknown>;
-      const keys = Object.keys(obj);
-      // DynamicAttribute shape: { key: string, value: DynamicValue }
-      if (keys.length === 2 && 'key' in obj && 'value' in obj) {
-        return `${obj.key}: ${unwrapToString(obj.value)}`;
-      }
-      // Tagged value: { Tag: innerValue }
-      if (keys.length === 1) {
-        return unwrapTaggedValue(Object.values(obj)[0]);
-      }
-      return JSON.stringify(val);
-    }
-    default:
-      return String(val);
-  }
 }
 
 /** Bytes-rate statistic names (e.g. bytes_per_sec) — SI-scaled B/s display. */
 export function isBytesRateStat(name: string): boolean {
   return name === 'bytes_per_sec' || name.endsWith('_bytes_per_sec');
-}
-
-/**
- * Format an attribute value for display, inferring units from the key name.
- * The bytes-rate check precedes the bytes check — `bytes_per_sec` matches both.
- */
-export function formatAttributeValue(key: string, value: unknown): string {
-  const v = unwrapTaggedValue(value);
-  if (v == null) return '—';
-  if (isNumericValue(v)) {
-    if (isBytesRateStat(key)) return formatWithPrefix(v, 'B/s', 'Si', 2);
-    if (isBytesStat(key)) return formatBytes(v, 2);
-    return formatNumber(v);
-  }
-  if (Array.isArray(v)) return v.join(', ');
-  return String(v);
 }
 
 /** Row/batch count statistics — use SI-scaled display (k/M/…). */
@@ -371,19 +302,4 @@ export function inferFieldFormatter(fieldName: string): (value: number | bigint)
       ? formatNumber(value)
       : formatNumberWithMaxFractionDigits(num, 4);
   };
-}
-
-/**
- * Format a value using a QuantitySpec and CapacityKind.
- * Selects the appropriate prefix system based on the capacity kind.
- */
-export function formatQuantity(
-  value: number,
-  spec: QuantitySpec,
-  kind: CapacityKind,
-  decimals: number = 2
-): string {
-  const prefixSystem = kind === 'Occupancy' ? spec.occupancy_prefix : spec.rate_prefix;
-  const symbol = kind === 'Rate' ? `${spec.symbol}/s` : spec.symbol;
-  return formatWithPrefix(value, symbol, prefixSystem, decimals);
 }

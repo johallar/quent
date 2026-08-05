@@ -16,12 +16,13 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@quent/protocol": "workspace:*",
     "@quent/utils": "workspace:*"
   },
   "peerDependencies": {
-    "react": "^19.0.0",
     "@tanstack/react-query": "^5.0.0",
-    "@tanstack/react-router": "^1.0.0"
+    "@tanstack/react-router": "^1.0.0",
+    "react": "^19.0.0"
   },
   "devDependencies": {
     "@tanstack/react-query": "catalog:",

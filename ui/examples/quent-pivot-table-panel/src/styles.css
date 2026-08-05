@@ -7,7 +7,7 @@
  * Tailwind v4 entry for the Grafana panel. The `@source` directive scopes
  * Tailwind's class-scanner to the workspace components packages, mirroring
  * the main app's `ui/src/index.css`. Without it, classes used inside
- * `@quent/components` are stripped from the bundle.
+ * `@quent/features` are stripped from the bundle.
  */
 @import 'tailwindcss';
 @source "../../../packages/@quent/**/*.{ts,tsx}";

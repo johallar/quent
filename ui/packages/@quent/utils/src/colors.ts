@@ -5,8 +5,6 @@
  * Centralized color palette and mapping utilities for charts and visualizations.
  */
 
-import type { FsmTypeDecl } from './types';
-
 /**
  * Available color palettes for charts.
  */
@@ -189,63 +187,6 @@ export function createCapacitiesColorFn(
 export function getColorByIndex(index: number, theme: PaletteTheme): ChartColor {
   const palette = getActivePalette(theme);
   return palette[index % palette.length];
-}
-
-export function createFsmTypeColorFn(
-  fsmTypes: { [key in string]?: FsmTypeDecl },
-  theme: PaletteTheme
-): (stateName: string) => ChartColor {
-  const stateIndexMap = buildFsmStateIndexMap(fsmTypes);
-  return (stateName: string) => {
-    const stateIndex = stateIndexMap.get(stateName);
-    return stateIndex != null
-      ? getColorByIndex(stateIndex, theme)
-      : getColorForKey(stateName, theme);
-  };
-}
-
-/**
- * State colors for the data-flow overlay: states declared in the FSM keep
- * their declaration-index palette colors (consistent with the timeline
- * lanes), while synthetic states the analyzer appends (e.g. a working-space
- * series) continue the palette after the declared block — so they can never
- * collide with a declared state's color.
- */
-export function createDataFlowStateColorFn(
-  fsmType: FsmTypeDecl | null | undefined,
-  resolvedStates: readonly string[],
-  theme: PaletteTheme
-): (stateName: string) => ChartColor {
-  const declared = new Map<string, number>();
-  fsmType?.states.forEach((state, index) => declared.set(state.name, index));
-  const appended = new Map<string, number>();
-  for (const state of resolvedStates) {
-    if (!declared.has(state) && !appended.has(state)) {
-      appended.set(state, declared.size + appended.size);
-    }
-  }
-  return (stateName: string) => {
-    const index = declared.get(stateName) ?? appended.get(stateName);
-    return index != null ? getColorByIndex(index, theme) : getColorForKey(stateName, theme);
-  };
-}
-
-/**
- * Build a deterministic state->index lookup from FSM declarations.
- * State index controls palette position so same state names stay consistent.
- */
-function buildFsmStateIndexMap(fsmTypes?: { [key in string]?: FsmTypeDecl }): Map<string, number> {
-  const stateIndexMap = new Map<string, number>();
-  if (!fsmTypes) return stateIndexMap;
-
-  for (const decl of Object.values(fsmTypes)) {
-    if (!decl) continue;
-    for (let i = 0; i < decl.states.length; i++) {
-      stateIndexMap.set(decl.states[i]!.name, i);
-    }
-  }
-
-  return stateIndexMap;
 }
 
 /**

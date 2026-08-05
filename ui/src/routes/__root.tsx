@@ -6,13 +6,13 @@ import { TanStackRouterDevtools } from '@tanstack/react-router-devtools';
 import { ThemeProvider } from '@/contexts/ThemeContext';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { NavBarNavigator } from '@/components/NavBarNavigator';
-import { Button } from '@quent/components';
+import { Button } from '@quent/features';
 import {
   NavigationMenu,
   NavigationMenuList,
   NavigationMenuItem,
   NavigationMenuLink,
-} from '@quent/components';
+} from '@quent/features';
 import { cn } from '@quent/utils';
 
 function AppNav({ highlightProfile }: { highlightProfile?: boolean }) {

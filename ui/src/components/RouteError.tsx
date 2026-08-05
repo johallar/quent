@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { useRouter } from '@tanstack/react-router';
-import { Button } from '@quent/components';
+import { Button } from '@quent/features';
 
 interface RouteErrorProps {
   error: Error;

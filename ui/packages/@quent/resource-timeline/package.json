@@ -1,0 +1,47 @@
+{
+  "name": "@quent/resource-timeline",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "main": "src/index.ts",
+  "exports": {
+    ".": "./src/index.ts",
+    "./testing": "./src/testing.ts"
+  },
+  "scripts": {
+    "prebuild": "pnpm --workspace-root bindings",
+    "build": "tsdown",
+    "build:ci": "tsdown",
+    "pretypecheck": "pnpm --workspace-root bindings",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@quent/client": "workspace:*",
+    "@quent/protocol": "workspace:*",
+    "@quent/utils": "workspace:*",
+    "@quent/viz-core": "workspace:*",
+    "@quent/viz-timeline": "workspace:*"
+  },
+  "peerDependencies": {
+    "@tanstack/react-query": "^5.0.0",
+    "echarts": "^6.1.0",
+    "echarts-for-react": "^3.0.6",
+    "jotai": "^2.0.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "devDependencies": {
+    "@tanstack/react-query": "catalog:",
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.2",
+    "@types/react": "catalog:",
+    "@types/react-dom": "catalog:",
+    "echarts": "catalog:",
+    "echarts-for-react": "catalog:",
+    "jotai": "catalog:",
+    "react": "catalog:",
+    "react-dom": "catalog:",
+    "tsdown": "catalog:",
+    "typescript": "catalog:"
+  }
+}

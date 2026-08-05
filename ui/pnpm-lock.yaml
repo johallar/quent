@@ -65,15 +65,24 @@ importers:
       '@quent/client':
         specifier: workspace:*
         version: link:packages/@quent/client
-      '@quent/components':
+      '@quent/features':
         specifier: workspace:*
-        version: link:packages/@quent/components
-      '@quent/hooks':
+        version: link:packages/@quent/features
+      '@quent/protocol':
         specifier: workspace:*
-        version: link:packages/@quent/hooks
+        version: link:packages/@quent/protocol
+      '@quent/resource-timeline':
+        specifier: workspace:*
+        version: link:packages/@quent/resource-timeline
       '@quent/utils':
         specifier: workspace:*
         version: link:packages/@quent/utils
+      '@quent/viz-core':
+        specifier: workspace:*
+        version: link:packages/@quent/viz-core
+      '@quent/viz-timeline':
+        specifier: workspace:*
+        version: link:packages/@quent/viz-timeline
       '@radix-ui/react-accordion':
         specifier: ^1.2.12
         version: 1.2.12(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
@@ -255,6 +264,9 @@ importers:
 
   packages/@quent/client:
     dependencies:
+      '@quent/protocol':
+        specifier: workspace:*
+        version: link:../protocol
       '@quent/utils':
         specifier: workspace:*
         version: link:../utils
@@ -278,20 +290,32 @@ importers:
         specifier: 'catalog:'
         version: 6.0.3
 
-  packages/@quent/components:
+  packages/@quent/features:
     dependencies:
       '@quent/client':
         specifier: workspace:*
         version: link:../client
-      '@quent/hooks':
+      '@quent/protocol':
         specifier: workspace:*
-        version: link:../hooks
+        version: link:../protocol
+      '@quent/resource-timeline':
+        specifier: workspace:*
+        version: link:../resource-timeline
       '@quent/utils':
         specifier: workspace:*
         version: link:../utils
+      '@quent/viz-core':
+        specifier: workspace:*
+        version: link:../viz-core
+      '@quent/viz-timeline':
+        specifier: workspace:*
+        version: link:../viz-timeline
       d3-dag:
         specifier: ^1.2.1
         version: 1.2.1
+      jotai-family:
+        specifier: 'catalog:'
+        version: 1.0.2(jotai@2.20.1(@babel/core@8.0.1)(@babel/template@8.0.0)(@types/react@19.2.14)(react@19.2.7))
     devDependencies:
       '@tanstack/react-query':
         specifier: 'catalog:'
@@ -333,33 +357,67 @@ importers:
         specifier: 'catalog:'
         version: 6.0.3
 
-  packages/@quent/hooks:
+  packages/@quent/protocol:
+    dependencies:
+      '@quent/utils':
+        specifier: workspace:*
+        version: link:../utils
+    devDependencies:
+      tsdown:
+        specifier: 'catalog:'
+        version: 0.22.12(typescript@6.0.3)
+      typescript:
+        specifier: 'catalog:'
+        version: 6.0.3
+
+  packages/@quent/resource-timeline:
     dependencies:
       '@quent/client':
         specifier: workspace:*
         version: link:../client
+      '@quent/protocol':
+        specifier: workspace:*
+        version: link:../protocol
       '@quent/utils':
         specifier: workspace:*
         version: link:../utils
-      jotai-family:
-        specifier: 'catalog:'
-        version: 1.0.2(jotai@2.20.1(@babel/core@8.0.1)(@babel/template@8.0.0)(@types/react@19.2.14)(react@19.2.7))
+      '@quent/viz-core':
+        specifier: workspace:*
+        version: link:../viz-core
+      '@quent/viz-timeline':
+        specifier: workspace:*
+        version: link:../viz-timeline
     devDependencies:
       '@tanstack/react-query':
         specifier: 'catalog:'
         version: 5.90.21(react@19.2.7)
-      '@tanstack/react-table':
-        specifier: 'catalog:'
-        version: 8.21.3(react-dom@19.2.8(react@19.2.7))(react@19.2.7)
+      '@testing-library/jest-dom':
+        specifier: ^6.9.1
+        version: 6.9.1
+      '@testing-library/react':
+        specifier: ^16.3.2
+        version: 16.3.2(@testing-library/dom@10.4.1)(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
       '@types/react':
         specifier: 'catalog:'
         version: 19.2.14
+      '@types/react-dom':
+        specifier: 'catalog:'
+        version: 19.2.3(@types/react@19.2.14)
+      echarts:
+        specifier: 'catalog:'
+        version: 6.1.0
+      echarts-for-react:
+        specifier: 'catalog:'
+        version: 3.0.6(echarts@6.1.0)(react@19.2.7)
       jotai:
         specifier: 'catalog:'
         version: 2.20.1(@babel/core@8.0.1)(@babel/template@8.0.0)(@types/react@19.2.14)(react@19.2.7)
       react:
         specifier: 'catalog:'
         version: 19.2.7
+      react-dom:
+        specifier: 'catalog:'
+        version: 19.2.7(react@19.2.7)
       tsdown:
         specifier: 'catalog:'
         version: 0.22.12(typescript@6.0.3)
@@ -379,6 +437,64 @@ importers:
         specifier: 'catalog:'
         version: 3.5.0
     devDependencies:
+      tsdown:
+        specifier: 'catalog:'
+        version: 0.22.12(typescript@6.0.3)
+      typescript:
+        specifier: 'catalog:'
+        version: 6.0.3
+
+  packages/@quent/viz-core:
+    devDependencies:
+      '@testing-library/react':
+        specifier: ^16.3.2
+        version: 16.3.2(@testing-library/dom@10.4.1)(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
+      '@types/react':
+        specifier: 'catalog:'
+        version: 19.2.14
+      '@types/react-dom':
+        specifier: 'catalog:'
+        version: 19.2.3(@types/react@19.2.14)
+      echarts:
+        specifier: 'catalog:'
+        version: 6.1.0
+      echarts-for-react:
+        specifier: 'catalog:'
+        version: 3.0.6(echarts@6.1.0)(react@19.2.7)
+      react:
+        specifier: 'catalog:'
+        version: 19.2.7
+      react-dom:
+        specifier: 'catalog:'
+        version: 19.2.7(react@19.2.7)
+      tsdown:
+        specifier: 'catalog:'
+        version: 0.22.12(typescript@6.0.3)
+      typescript:
+        specifier: 'catalog:'
+        version: 6.0.3
+
+  packages/@quent/viz-timeline:
+    dependencies:
+      '@quent/utils':
+        specifier: workspace:*
+        version: link:../utils
+      '@quent/viz-core':
+        specifier: workspace:*
+        version: link:../viz-core
+    devDependencies:
+      '@types/react':
+        specifier: 'catalog:'
+        version: 19.2.14
+      echarts:
+        specifier: 'catalog:'
+        version: 6.1.0
+      echarts-for-react:
+        specifier: 'catalog:'
+        version: 3.0.6(echarts@6.1.0)(react@19.2.7)
+      react:
+        specifier: 'catalog:'
+        version: 19.2.7
       tsdown:
         specifier: 'catalog:'
         version: 0.22.12(typescript@6.0.3)
@@ -5314,12 +5430,6 @@ snapshots:
       react: 19.2.7
       react-dom: 19.2.7(react@19.2.7)
 
-  '@tanstack/react-table@8.21.3(react-dom@19.2.8(react@19.2.7))(react@19.2.7)':
-    dependencies:
-      '@tanstack/table-core': 8.21.3
-      react: 19.2.7
-      react-dom: 19.2.8(react@19.2.7)
-
   '@tanstack/react-virtual@3.14.7(react-dom@19.2.7(react@19.2.7))(react@19.2.7)':
     dependencies:
       '@tanstack/virtual-core': 3.17.5
@@ -6239,6 +6349,10 @@ snapshots:
     optionalDependencies:
       picomatch: 4.0.4
 
+  fdir@6.5.0(picomatch@4.0.5):
+    optionalDependencies:
+      picomatch: 4.0.5
+
   file-entry-cache@8.0.0:
     dependencies:
       flat-cache: 4.0.1
@@ -6953,8 +7067,8 @@ snapshots:
 
   tinyglobby@0.2.17:
     dependencies:
-      fdir: 6.5.0(picomatch@4.0.4)
-      picomatch: 4.0.4
+      fdir: 6.5.0(picomatch@4.0.5)
+      picomatch: 4.0.5
 
   tinyrainbow@3.1.0: {}
 
@@ -7044,7 +7158,7 @@ snapshots:
   unplugin@3.0.0:
     dependencies:
       '@jridgewell/remapping': 2.3.5
-      picomatch: 4.0.4
+      picomatch: 4.0.5
       webpack-virtual-modules: 0.6.2
 
   until-async@3.0.2: {}

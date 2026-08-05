@@ -1,6 +1,8 @@
 // SPDX-FileCopyrightText: Copyright (c) 2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 // SPDX-License-Identifier: Apache-2.0
 
+import type { EntityRef } from '@quent/protocol';
+import type { QueryBundle } from '@quent/protocol';
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { useEffect } from 'react';
 import { Provider } from 'jotai';
@@ -12,7 +14,7 @@ import {
   useSetDataFlowLabelMeasure,
   useSetDataFlowSelectedDimensions,
   useSetSelectedNodeData,
-} from '@quent/hooks';
+} from '@quent/features';
 import {
   DagPlayhead,
   DAGLegend,
@@ -20,8 +22,8 @@ import {
   NodeFlowBar,
   registerAxisPointerSync,
   unregisterAxisPointerSync,
-} from '@quent/components';
-import type { DataFlowTimelineBinned, EntityRef, QueryBundle } from '@quent/utils';
+} from '@quent/features';
+import type { DataFlowTimelineBinned } from '@quent/protocol';
 
 // 4 bins of 2s over [0, 8): op-1 task totals per bin are [1, 3, 5, 0] and
 // byte totals are [0, 1500000, 0, 0].

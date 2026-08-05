@@ -49,5 +49,67 @@ export default tseslint.config(
       ],
     },
   },
+  {
+    files: ['packages/@quent/utils/src/**/*.{ts,tsx}'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          paths: [
+            {
+              name: '@quent/protocol',
+              message: '@quent/utils must stay protocol-free.',
+            },
+          ],
+          patterns: [
+            {
+              group: ['@quent/protocol/*', '**/generated/ts-bindings/**'],
+              message: 'Generated backend contracts belong to @quent/protocol.',
+            },
+          ],
+        },
+      ],
+    },
+  },
+  {
+    files: [
+      'packages/@quent/viz-core/src/**/*.{ts,tsx}',
+      'packages/@quent/viz-timeline/src/**/*.{ts,tsx}',
+    ],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          paths: [
+            '@quent/protocol',
+            '@quent/client',
+            '@quent/resource-timeline',
+            '@quent/features',
+            'jotai',
+            'jotai-family',
+            'jotai/utils',
+            '~quent/types',
+          ].map(name => ({
+            name,
+            message: 'Generic visualization packages must stay backend- and state-library-free.',
+          })),
+          patterns: [
+            {
+              group: [
+                '@quent/protocol/*',
+                '@quent/client/*',
+                '@quent/resource-timeline/*',
+                '@quent/features/*',
+                'jotai/*',
+                '~quent/types/*',
+                '**/generated/ts-bindings/**',
+              ],
+              message: 'Backend contracts and application state belong behind adapters.',
+            },
+          ],
+        },
+      ],
+    },
+  },
   prettier
 );

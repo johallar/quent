@@ -1,10 +1,11 @@
 // SPDX-FileCopyrightText: Copyright (c) 2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 // SPDX-License-Identifier: Apache-2.0
 
+import type { EntityRef } from '@quent/protocol';
 import { createFileRoute, Link, Outlet } from '@tanstack/react-router';
 import { queryBundleQueryOptions } from '@quent/client';
 import { queryClient } from '@/lib/queryClient';
-import type { QueryBundle, EntityRef } from '@quent/utils';
+import type { QueryBundle } from '@quent/protocol';
 import { cn } from '@quent/utils';
 import { RouteError } from '@/components/RouteError';
 

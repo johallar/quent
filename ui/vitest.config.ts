@@ -30,7 +30,7 @@ export default defineConfig({
   resolve: {
     // Mirror vite.config.ts: the workspace packages each resolve their own
     // copy of these (pnpm peer-hash duplicates). Without dedupe, a jotai
-    // <Provider> in a test does NOT scope atoms used inside @quent/hooks —
+    // <Provider> in a test does NOT scope atoms used inside resource/features packages —
     // they silently fall back to jotai's global default store and state
     // leaks between tests.
     dedupe: ['react', 'react-dom', 'jotai', '@tanstack/react-query', '@tanstack/react-router'],

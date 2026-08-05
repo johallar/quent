@@ -23,10 +23,9 @@
 
     /* Path aliases */
     "paths": {
-      "@/*": ["./src/*"],
-      "~quent/types/*": ["./generated/ts-bindings/*"]
+      "@/*": ["./src/*"]
     }
   },
-  "include": ["src", "generated/ts-bindings"],
+  "include": ["src"],
   "references": [{ "path": "./tsconfig.node.json" }]
 }

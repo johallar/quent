@@ -5,7 +5,7 @@
 
 Grafana panel plugin that renders any tabular dataset as a pivoted, sortable,
 virtualized table — backed by `PivotedStatTable` from
-[`@quent/components`](../../packages/@quent/components).
+[`@quent/features`](../../packages/@quent/features).
 
 |                     |                                                                                                                                        |
 | ------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
@@ -93,7 +93,7 @@ pnpm dev
 ```
 
 > **Outside this repo?** A real Grafana plugin built on `@quent/*` would
-> simply `pnpm add @quent/components @quent/hooks @quent/utils …` from the npm
+> simply `pnpm add @quent/features @quent/protocol @quent/utils …` from the npm
 > registry instead of the in-repo `link:` shape — everything else
 > (`webpack.config.cjs`, `module.ts`, the panel component) is identical.
 
@@ -123,16 +123,14 @@ src/QuentPivotTablePanel.tsx
 ├─ QueryClientProvider               ← per-panel TanStack Query cache
 │  └─ <PivotTableBody>
 │     ├─ frameToOperatorRows()       ← local adapter (DataFrame[] → rows)
-│     ├─ useStatGroupTableControls() ← @quent/hooks (group/sort/agg state)
-│     ├─ <PivotTableToolbar>         ← @quent/components
-│     └─ <PivotedStatTable>          ← @quent/components
+│     ├─ useStatGroupTableControls() ← @quent/features (group/sort/agg state)
+│     ├─ <PivotTableToolbar>         ← @quent/features
+│     └─ <PivotedStatTable>          ← @quent/features
 ```
 
 Note: the panel code does **not** import `@quent/client` or fetch from a Quent
-server. It reads `props.data` directly from Grafana's data pipeline. The
-library package may bring `@quent/client` transitively because
-`@quent/components` also exports HTTP-backed timeline components, but no Quent
-server is needed for this panel to render.
+server. It reads `props.data` directly from Grafana's data pipeline. The `StatValue` contract comes from `@quent/protocol`. The linked package graph includes the resource timeline adapter and its client dependency because
+`@quent/features` keeps transitional timeline re-exports, but no Quent server is needed for this panel to render.
 
 ## Why a per-panel `QueryClient` and Jotai `Provider`?
 
@@ -140,7 +138,7 @@ Grafana dashboards can host many panels. If we shared a single Jotai store,
 sort/visibility state from one panel would leak into another. Mounting the
 provider inside the panel component scopes everything correctly. The
 `QueryClient` is unused today (the panel reads from Grafana, not from an
-HTTP API), but `useStatGroupTableControls` lives in `@quent/hooks` which
+HTTP API), but `useStatGroupTableControls` lives in `@quent/features` which
 declares `@tanstack/react-query` as a peer dep, so we keep the provider in
 the tree to satisfy that contract and to leave a hook in place for future
 features (e.g. cross-panel data fetching from a Quent app plugin).

@@ -11,9 +11,12 @@
     "server:down": "docker compose down"
   },
   "dependencies": {
-    "@quent/components": "link:../../packages/@quent/components",
-    "@quent/hooks": "link:../../packages/@quent/hooks",
+    "@quent/features": "link:../../packages/@quent/features",
+    "@quent/protocol": "link:../../packages/@quent/protocol",
+    "@quent/resource-timeline": "link:../../packages/@quent/resource-timeline",
     "@quent/utils": "link:../../packages/@quent/utils",
+    "@quent/viz-core": "link:../../packages/@quent/viz-core",
+    "@quent/viz-timeline": "link:../../packages/@quent/viz-timeline",
     "@tanstack/react-query": "^5.90.21",
     "@xyflow/react": "^12.10.1",
     "echarts": "^5.6.0",

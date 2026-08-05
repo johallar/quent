@@ -23,57 +23,33 @@ export {
   WHITE,
   isLightColor,
   createCapacitiesColorFn,
-  createFsmTypeColorFn,
-  createDataFlowStateColorFn,
   CONTINUOUS_PALETTES,
   continuousColor,
   getLegendGradientStops,
 } from './colors';
 export type { PaletteName, PaletteTheme, ChartColor, ContinuousPaletteName } from './colors';
+export type { UnitPrefixSystem } from './formatters';
 
 // Formatter utilities
 export {
   formatDuration,
   formatDurationForWindow,
   formatDurationForAxisInterval,
-  formatQuantity,
-  formatQuantityCompact,
+  formatWithPrefix,
   formatCompactWithPrefix,
   formatBytes,
   formatNumber,
-  formatAttributeValue,
-  unwrapTaggedValue,
+  formatNumberWithMaxFractionDigits,
   inferFieldFormatter,
   isNumericValue,
+  isBytesStat,
+  isBytesRateStat,
+  isCountStat,
 } from './formatters';
-
-// Rust-generated TypeScript types
-export * from './types/index';
 
 // Timeline types and constants
 export type { ZoomRange } from './types/ZoomRange';
 export const MAX_TIMELINE_BINS = 200;
-
-// Entity types (from ui/src/types.ts)
-export { EntityTypeKey } from './entityTypes';
-export type { EntityTypeValue, SingleEntity, EntityRefKey } from './entityTypes';
-
-// DAG coloring types (shared between @quent/hooks and @quent/components)
-export { NODE_LABEL_FIELD, DAG_LAYOUT_DIRECTION } from './dagTypes';
-export type {
-  ContinuousNodeColoring,
-  CategoricalNodeColoring,
-  NodeColoring,
-  EdgeWidthConfig,
-  ContinuousEdgeColoring,
-  CategoricalEdgeColoring,
-  EdgeColoring,
-  NodeLabelField,
-  DagLayoutDirection,
-  StatValue,
-  DAGNode,
-  DAGEdge,
-} from './dagTypes';
 
 // Operator timeline row ID utilities
 export const OPERATOR_TIMELINE_ROW_TYPE = 'operator-timeline';

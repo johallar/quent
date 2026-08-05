@@ -2,11 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { createFileRoute } from '@tanstack/react-router';
-import { QueryResourceTree } from '@/components/QueryResourceTree';
+import { QueryResourceTree } from '@/features/timeline-or-resource-tree/QueryResourceTree';
 import { queryBundleQueryOptions } from '@quent/client';
 import { queryClient } from '@/lib/queryClient';
-import { QueryBundle } from '@quent/utils';
-import type { EntityRef } from '@quent/utils';
+import type { QueryBundle } from '@quent/protocol';
+import type { EntityRef } from '@quent/protocol';
 
 // TODO: This does the same thing as the /query/$queryId route, figure out what happens when selecting nodes in the DAG
 export const Route = createFileRoute('/profile/engine/$engineId/query/$queryId/node/$nodeId')({

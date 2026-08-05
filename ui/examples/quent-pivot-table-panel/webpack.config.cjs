@@ -71,7 +71,7 @@ module.exports = (_env, argv = {}) => {
       symlinks: true,
       alias: {
         // Force the bundled ELK build (avoids web-worker module resolution).
-        // `@quent/components`'s DAGChart pulls this in; pivot table doesn't,
+        // `@quent/features`'s DAGChart pulls this in; pivot table doesn't,
         // but keep it here so the example stays useful as a copy-paste base.
         elkjs: 'elkjs/lib/elk.bundled.js',
         // ALWAYS bundle the *production* JSX runtime, regardless of webpack
