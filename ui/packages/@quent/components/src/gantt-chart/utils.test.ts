@@ -56,7 +56,7 @@ describe('stackIntervalsIntoRows', () => {
     expect(entries.map(entry => entry.rowIndex)).toEqual([0, 0, 0]);
   });
 
-  it('packs overlapping intervals into the minimum rows', () => {
+  it('reuses the first compatible row', () => {
     const a = span(0, 10);
     const b = span(5, 15);
     const c = span(12, 20);
@@ -64,11 +64,21 @@ describe('stackIntervalsIntoRows', () => {
     expect([a.rowIndex, b.rowIndex, c.rowIndex]).toEqual([0, 1, 0]);
   });
 
-  it('handles unsorted input and mutates the original entries', () => {
-    const later = span(10, 20);
-    const earlier = span(0, 5);
-    const entries = [later, earlier];
+  it('uses input order as the packing priority', () => {
+    const rankedFirst = span(5, 10);
+    const rankedSecond = span(0, 6);
+    const entries = [rankedFirst, rankedSecond];
     expect(stackIntervalsIntoRows(entries)).toBe(entries);
-    expect(entries.map(entry => entry.rowIndex)).toEqual([0, 0]);
+    expect(entries.map(entry => entry.rowIndex)).toEqual([0, 1]);
+  });
+
+  it('does not move existing entries when new entries are appended', () => {
+    const existing = [span(5, 10), span(0, 6), span(10, 20)];
+    stackIntervalsIntoRows(existing);
+    const previousRows = existing.map(entry => entry.rowIndex);
+
+    stackIntervalsIntoRows([...existing, span(4, 12)]);
+
+    expect(existing.map(entry => entry.rowIndex)).toEqual(previousRows);
   });
 });
