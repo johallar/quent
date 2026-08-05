@@ -146,6 +146,7 @@ export type { DAGData, QueryPlanDataItem, QueryPlanNodeData } from './services/q
 // ─── Timeline components ──────────────────────────────────────────────────────
 export { TimelineController } from './timeline/TimelineController';
 export { TimelineRuler } from './timeline/TimelineRuler';
+export { TimelineSettingsPopover } from './timeline/TimelineSettingsPopover';
 export { TimelineSkeleton } from './timeline/TimelineSkeleton';
 export { TimelineToolbar } from './timeline/TimelineToolbar';
 export { QueryToolbar } from './timeline/QueryToolbar';
