@@ -120,12 +120,12 @@ describe('nanosToMs', () => {
 
 describe('getLongEntitiesThreshold', () => {
   it('returns the bin-scaled threshold for a 200-second window', () => {
-    expect(getLongEntitiesThreshold(200)).toBe(0.00001);
+    expect(getLongEntitiesThreshold(200)).toBe(2);
   });
 
   it('scales linearly with the visible window', () => {
-    expect(getLongEntitiesThreshold(100)).toBe(0.000005);
-    expect(getLongEntitiesThreshold(400)).toBe(0.00002);
+    expect(getLongEntitiesThreshold(100)).toBe(1);
+    expect(getLongEntitiesThreshold(400)).toBe(4);
   });
 
   it('returns 0 for a zero-second window', () => {
