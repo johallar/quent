@@ -72,7 +72,6 @@ export function TimelineRuler({ startTime, isDark, mode = 'relative' }: Timeline
       animation: false,
       grid: {
         ...TIMELINE_SPACING,
-        left: 1,
         top: RULER_GRID_TOP,
         bottom: 0,
       },
