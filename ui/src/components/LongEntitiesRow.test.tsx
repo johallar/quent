@@ -8,7 +8,7 @@ import { LongEntitiesRow } from './LongEntitiesRow';
 
 const mocks = vi.hoisted(() => ({
   buildLongEntityEntries: vi.fn((items: unknown[]) => items),
-  fetchNextPage: vi.fn(),
+  debouncedZoomRange: { start: 0.2, end: 0.6 },
   getLongEntitiesThreshold: vi.fn(
     (_windowSeconds: number, density: 'less' | 'balanced' | 'more') =>
       ({ less: 0.12, balanced: 0.06, more: 0.03 })[density]
@@ -17,15 +17,15 @@ const mocks = vi.hoisted(() => ({
   longEntitiesGantt: vi.fn(
     (_props: { entries: unknown[]; height: number; minUsageSeconds: number }) => null
   ),
-  useInfiniteEntityList: vi.fn(),
+  useEntityList: vi.fn(),
 }));
 
 vi.mock('@quent/client', () => ({
-  useInfiniteEntityList: mocks.useInfiniteEntityList,
+  useEntityList: mocks.useEntityList,
 }));
 
 vi.mock('@quent/hooks', () => ({
-  useDebouncedZoomRange: () => ({ start: 0.2, end: 0.6 }),
+  useDebouncedZoomRange: () => mocks.debouncedZoomRange,
   useLongEntityDensity: () => mocks.longEntityDensity,
   useSelectedNodeIds: () => new Set(['operator-1']),
 }));
@@ -47,13 +47,11 @@ vi.mock('@quent/components', () => ({
 describe('LongEntitiesRow', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mocks.debouncedZoomRange = { start: 0.2, end: 0.6 };
     mocks.longEntityDensity = 'balanced';
-    mocks.useInfiniteEntityList.mockReturnValue({
+    mocks.useEntityList.mockReturnValue({
       data: undefined,
-      fetchNextPage: mocks.fetchNextPage,
-      hasNextPage: false,
       isFetching: false,
-      isFetchingNextPage: false,
       isPlaceholderData: false,
     });
   });
@@ -72,7 +70,7 @@ describe('LongEntitiesRow', () => {
 
     expect(mocks.getLongEntitiesThreshold.mock.calls[0]?.[0]).toBeCloseTo(0.4);
     expect(mocks.getLongEntitiesThreshold.mock.calls[0]?.[1]).toBe('balanced');
-    expect(mocks.useInfiniteEntityList).toHaveBeenCalledWith(
+    expect(mocks.useEntityList).toHaveBeenCalledWith(
       expect.objectContaining({
         window: { start: 0.2, end: 0.6 },
         operatorIds: ['operator-1'],
@@ -99,7 +97,7 @@ describe('LongEntitiesRow', () => {
       />
     );
 
-    expect(mocks.useInfiniteEntityList).toHaveBeenCalledWith(
+    expect(mocks.useEntityList).toHaveBeenCalledWith(
       expect.objectContaining({ minUsageSeconds: 0.12 })
     );
   });
@@ -126,12 +124,9 @@ describe('LongEntitiesRow', () => {
   });
 
   it('renders a chart-shaped skeleton during the initial load', () => {
-    mocks.useInfiniteEntityList.mockReturnValue({
+    mocks.useEntityList.mockReturnValue({
       data: undefined,
-      fetchNextPage: mocks.fetchNextPage,
-      hasNextPage: false,
       isFetching: true,
-      isFetchingNextPage: false,
       isPlaceholderData: false,
     });
 
@@ -151,15 +146,12 @@ describe('LongEntitiesRow', () => {
     expect(screen.queryByText('Loading entities…')).not.toBeInTheDocument();
   });
 
-  it('loads the next page and appends its entities', () => {
+  it('increases the entity limit and keeps it across viewport changes', () => {
     const firstEntity = { id: 'entity-1' };
     const secondEntity = { id: 'entity-2' };
-    mocks.useInfiniteEntityList.mockReturnValue({
-      data: { pages: [{ items: [firstEntity], total: 2 }] },
-      fetchNextPage: mocks.fetchNextPage,
-      hasNextPage: true,
+    mocks.useEntityList.mockReturnValue({
+      data: { items: [firstEntity], total: 2 },
       isFetching: false,
-      isFetchingNextPage: false,
       isPlaceholderData: false,
     });
 
@@ -176,23 +168,24 @@ describe('LongEntitiesRow', () => {
     const button = screen.getByRole('button', { name: 'Show more (1 of 2)' });
     expect(screen.getByTestId('long-entities-gantt').nextElementSibling).toContainElement(button);
     fireEvent.click(button);
-    expect(mocks.fetchNextPage).toHaveBeenCalledOnce();
+    expect(mocks.useEntityList).toHaveBeenLastCalledWith(
+      expect.objectContaining({ maxItems: 200 })
+    );
 
-    mocks.useInfiniteEntityList.mockReturnValue({
-      data: {
-        pages: [
-          { items: [firstEntity], total: 2 },
-          { items: [secondEntity], total: 2 },
-        ],
-      },
-      fetchNextPage: mocks.fetchNextPage,
-      hasNextPage: false,
+    mocks.debouncedZoomRange = { start: 0.3, end: 0.7 };
+    mocks.useEntityList.mockReturnValue({
+      data: { items: [firstEntity, secondEntity], total: 2 },
       isFetching: false,
-      isFetchingNextPage: false,
       isPlaceholderData: false,
     });
     rerender(<LongEntitiesRow {...props} />);
 
+    expect(mocks.useEntityList).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        window: { start: 0.3, end: 0.7 },
+        maxItems: 200,
+      })
+    );
     expect(mocks.buildLongEntityEntries).toHaveBeenLastCalledWith(
       [firstEntity, secondEntity],
       {},
@@ -202,14 +195,49 @@ describe('LongEntitiesRow', () => {
     expect(screen.queryByRole('button')).not.toBeInTheDocument();
   });
 
+  it('keeps a loading button when more entities will remain', () => {
+    const firstEntity = { id: 'entity-1' };
+    mocks.useEntityList.mockReturnValue({
+      data: { items: [firstEntity], total: 250 },
+      isFetching: false,
+      isPlaceholderData: false,
+    });
+
+    const props = {
+      engineId: 'engine-1',
+      queryId: 'query-1',
+      resourceId: 'resource-1',
+      durationSeconds: 1,
+      fsmTypes: {},
+      isDark: false,
+    };
+    const { rerender } = render(<LongEntitiesRow {...props} />);
+
+    mocks.useEntityList.mockReturnValue({
+      data: { items: [firstEntity], total: 250 },
+      isFetching: true,
+      isPlaceholderData: true,
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Show more (1 of 250)' }));
+
+    expect(screen.getByRole('button', { name: 'Loading...' })).toBeDisabled();
+
+    const secondEntity = { id: 'entity-2' };
+    mocks.useEntityList.mockReturnValue({
+      data: { items: [firstEntity, secondEntity], total: 250 },
+      isFetching: false,
+      isPlaceholderData: false,
+    });
+    rerender(<LongEntitiesRow {...props} />);
+
+    expect(screen.getByRole('button', { name: 'Show more (2 of 250)' })).toBeEnabled();
+  });
+
   it('keeps the previous entities visible while a changed request loads', () => {
     const previousEntity = { id: 'entity-1' };
-    mocks.useInfiniteEntityList.mockReturnValue({
-      data: { pages: [{ items: [previousEntity], total: 2 }] },
-      fetchNextPage: mocks.fetchNextPage,
-      hasNextPage: true,
+    mocks.useEntityList.mockReturnValue({
+      data: { items: [previousEntity], total: 2 },
       isFetching: true,
-      isFetchingNextPage: false,
       isPlaceholderData: true,
     });
 

@@ -1,8 +1,8 @@
 // SPDX-FileCopyrightText: Copyright (c) 2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-import { useMemo } from 'react';
-import { useInfiniteEntityList } from '@quent/client';
+import { useMemo, useState } from 'react';
+import { useEntityList } from '@quent/client';
 import { useDebouncedZoomRange, useLongEntityDensity, useSelectedNodeIds } from '@quent/hooks';
 import type { FsmTypeDecl } from '@quent/utils';
 import {
@@ -45,6 +45,7 @@ export function LongEntitiesRow({
   const selectedNodeIds = useSelectedNodeIds();
   const debouncedZoomRange = useDebouncedZoomRange();
   const longEntityDensity = useLongEntityDensity();
+  const [maxEntities, setMaxEntities] = useState(ENTITIES_PER_PAGE);
   const operatorIds = useMemo(() => [...selectedNodeIds], [selectedNodeIds]);
   const zoomWindow =
     debouncedZoomRange.end > debouncedZoomRange.start
@@ -55,20 +56,18 @@ export function LongEntitiesRow({
     longEntityDensity
   );
 
-  const { data, fetchNextPage, hasNextPage, isFetching, isPlaceholderData } = useInfiniteEntityList(
-    {
-      engineId,
-      queryId,
-      window: zoomWindow,
-      operatorIds,
-      minUsageSeconds,
-      sortDir: 'Desc',
-      maxItems: ENTITIES_PER_PAGE,
-      filter: { scope: { Resource: { resource_id: resourceId } } },
-    }
-  );
+  const { data, isFetching, isPlaceholderData } = useEntityList({
+    engineId,
+    queryId,
+    window: zoomWindow,
+    operatorIds,
+    minUsageSeconds,
+    sortDir: 'Desc',
+    maxItems: maxEntities,
+    filter: { scope: { Resource: { resource_id: resourceId } } },
+  });
 
-  const entities = useMemo(() => data?.pages.flatMap(page => page.items) ?? [], [data]);
+  const entities = useMemo(() => data?.items ?? [], [data]);
   const entries = useMemo(
     () =>
       buildLongEntityEntries(
@@ -79,7 +78,10 @@ export function LongEntitiesRow({
       ),
     [entities, fsmStateScope, fsmTypes, isDark, resourceId]
   );
-  const totalEntities = data?.pages[data.pages.length - 1]?.total ?? entities.length;
+  const totalEntities = data?.total ?? entities.length;
+  const hasMoreEntities = entities.length < totalEntities;
+  const isLoadingMore = isPlaceholderData && entities.length < maxEntities;
+  const showMoreButton = hasMoreEntities && (!isLoadingMore || maxEntities < totalEntities);
 
   if (!data && isFetching) {
     return (
@@ -106,7 +108,7 @@ export function LongEntitiesRow({
         isDark={isDark}
       />
 
-      {hasNextPage && !isPlaceholderData && (
+      {showMoreButton && (
         <div className="flex justify-center border-t border-border/50 py-1">
           <Button
             type="button"
@@ -116,10 +118,10 @@ export function LongEntitiesRow({
             disabled={isFetching}
             onClick={event => {
               event.stopPropagation();
-              void fetchNextPage();
+              setMaxEntities(current => current + ENTITIES_PER_PAGE);
             }}
           >
-            Show more ({entities.length} of {totalEntities})
+            {isLoadingMore ? 'Loading...' : `Show more (${entities.length} of ${totalEntities})`}
           </Button>
         </div>
       )}
