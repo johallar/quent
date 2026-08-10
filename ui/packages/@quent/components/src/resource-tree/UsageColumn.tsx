@@ -46,7 +46,6 @@ export function UsageColumn({
   } else if (resourceType === EntityTypeKey.ResourceGroup) {
     fsmTypeName = selectedFsmTypes?.get(item.id) ?? undefined;
   }
-  const capacities = resourceTypeDecl?.capacities;
   // Cell wrapper kept (without enter/leave) so click events still don't
   // propagate to the table-row click handler. Tooltip visibility is driven
   // by the chart's own pointermove via `timelineHoverAtom` — no row-level
@@ -65,7 +64,7 @@ export function UsageColumn({
         durationSeconds={durationSeconds}
         fsmTypeName={fsmTypeName}
         resourceTypeName={selectedType}
-        capacities={capacities}
+        resourceTypeDecl={resourceTypeDecl}
         quantitySpecs={queryBundle.quantity_specs}
         fsmTypes={queryBundle.entities.fsm_types}
         isDark={isDark}

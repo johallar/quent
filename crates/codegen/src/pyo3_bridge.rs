@@ -762,11 +762,11 @@ fn emit_context(
                         #q::write_sidecar(
                             &options,
                             id,
-                            <#model_type as #q::build_info::ModelSource>::model_info(),
+                            <#model_type as #q::events::Model>::model_info(),
                         );
                         inner.block_on(async {
                             let (#(#build_fields,)*) = #q::tokio::try_join!(
-                                #(inner.observer::<#build_event_tys>(options.clone()),)*
+                                #(inner.observer::<#build_event_tys>(&options),)*
                             )
                             .map_err(|err| pyo3::exceptions::PyRuntimeError::new_err(err.to_string()))?;
                             Ok::<_, pyo3::PyErr>((#(#build_wraps(#build_fields),)*))

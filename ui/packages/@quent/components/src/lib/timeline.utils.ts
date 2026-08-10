@@ -16,7 +16,6 @@ import type {
   ResourceTimeline,
   EntityRef,
   QuantitySpec,
-  CapacityDecl,
   BinnedSpanSec,
   SingleTimelineResponse,
   FiniteStateMachine,
@@ -24,6 +23,7 @@ import type {
   TimelineRequest,
   OperatorFilter,
   TimelineConfig,
+  ResourceTypeDecl,
 } from '@quent/utils';
 import { QueryEntities, ResourceTree } from '@quent/utils';
 import { entityRefToEntitiesKey } from './queryBundle.utils';
@@ -71,12 +71,13 @@ export function buildBinnedTimelineSeries(
   data: ResourceTimeline,
   config: BinnedSpanSec,
   theme: PaletteTheme,
-  capacities?: CapacityDecl[],
+  resourceTypeDecl?: ResourceTypeDecl,
   quantitySpecs?: { [key in string]?: QuantitySpec },
   fsmTypes?: { [key in string]?: FsmTypeDecl }
 ): {
   timestamps: number[];
   series: TimelineSeries;
+  yAxisLabel: string | undefined;
 } {
   const { bin_duration, num_bins, span } = config;
 
@@ -90,6 +91,8 @@ export function buildBinnedTimelineSeries(
   for (let i = 0; i < numBinsNumber; i++) {
     timestamps[i] = firstBinMs + i * binDurationMs;
   }
+
+  const capacities = resourceTypeDecl?.capacities;
 
   const getFormatter = (capacityName: string): ((value: number) => string) => {
     const capDecl = capacities?.find(c => c.name === capacityName);
@@ -146,7 +149,31 @@ export function buildBinnedTimelineSeries(
       values: [],
     };
   }
-  return { timestamps, series };
+
+  return { timestamps, series, yAxisLabel: deriveCapacityLabel(resourceTypeDecl, quantitySpecs) };
+}
+
+/**
+ * Derive a display label for the y-axis from a resource type's capacity metadata.
+ * Considers all non-unit capacities declared on the type. Returns undefined when
+ * no meaningful capacity exists (missing decl or unit-only).
+ */
+export function deriveCapacityLabel(
+  resourceTypeDecl: ResourceTypeDecl | undefined,
+  quantitySpecs: { [key in string]?: QuantitySpec } | undefined
+): string | undefined {
+  const meaningful = resourceTypeDecl?.capacities.filter(c => c.name !== 'unit') ?? [];
+  if (meaningful.length === 0) return undefined;
+  if (meaningful.length === 1) {
+    const cap = meaningful[0]!;
+    const spec = quantitySpecs?.[cap.quantity];
+    return spec ? `${cap.name} (${spec.symbol})` : cap.name;
+  }
+  // Multiple capacities: use a shared unit symbol when all agree, otherwise names only.
+  const symbols = new Set(meaningful.map(c => quantitySpecs?.[c.quantity]?.symbol));
+  const names = meaningful.map(c => c.name).join(' + ');
+  const commonSymbol = symbols.size === 1 ? [...symbols][0] : undefined;
+  return commonSymbol ? `${names} (${commonSymbol})` : names;
 }
 
 /** Extract the config from a SingleTimelineResponse */
@@ -723,9 +750,10 @@ export function computeVisibleMaxValue(
   const entries = Object.values(series).filter(e => !e.isDimmed && !e.isOverlay);
   if (!entries.length || !entries[0]?.values.length) return null;
   let max = 0;
+  const binDurationMs = (entries[0]?.binDuration ?? 0) * 1_000;
   for (let i = 0; i < entries[0].values.length; i++) {
     const t = timestamps[i];
-    if (t === undefined || t < zoomStartMs || t > zoomEndMs) continue;
+    if (t === undefined || t + binDurationMs <= zoomStartMs || t >= zoomEndMs) continue;
     const sum = entries.reduce((acc, e) => acc + (e.values[i] ?? 0), 0);
     if (sum > max) max = sum;
   }

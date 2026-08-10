@@ -52,7 +52,9 @@ export function Timeline({
   showTooltip = true,
   marks,
   isDark,
+  yAxisLabel,
   onHoverChange,
+  onReady,
 }: {
   /** Full query duration — used to set xAxis range so dataZoom percentages align across all connected charts */
   durationSeconds: number;
@@ -63,8 +65,12 @@ export function Timeline({
   marks?: TimelineMark[];
   /** Whether dark mode is active. Passed explicitly to decouple from ThemeContext. */
   isDark: boolean;
+  /** Label describing the Y axis metric (e.g. capacity name). */
+  yAxisLabel?: string;
   /** Pointer-state callback. */
   onHoverChange?: (position: TimelineHoverPosition | null) => void;
+  /** Called when the underlying ECharts instance is ready or recreated. */
+  onReady?: (instance: EChartsInstance) => void;
 }) {
   const { themeName, textColor, labelBackgroundColor } = useTimelineEchartsTheme(isDark);
   const maxMarkCountRef = useRef(0);
@@ -177,7 +183,7 @@ export function Timeline({
 
   const formatAxisValue = useMemo(() => {
     const firstEntry: TimelineSeriesEntry | undefined = Object.values(series)[0];
-    return (v: number) => firstEntry?.formatter(v, 0) ?? String(v);
+    return (v: number) => firstEntry?.formatter(Math.ceil(v), 0) ?? String(Math.ceil(v));
   }, [series]);
 
   const maxValue = useVisibleMaxValue(series, timestamps);
@@ -355,6 +361,7 @@ export function Timeline({
     });
 
     attachWheelNavigation(instance);
+    onReady?.(instance);
   };
 
   // If this Timeline is unmounted while the pointer is over it (e.g. a tree
@@ -378,19 +385,31 @@ export function Timeline({
 
   return (
     <div className="relative w-full h-full">
-      {maxValue != null && (
-        <span
-          className="absolute z-[8] pointer-events-none text-[10px] leading-none rounded-sm px-1 py-0.5"
+      {(yAxisLabel != null || maxValue != null) && (
+        <div
+          className="absolute z-[8] pointer-events-none flex flex-col items-start gap-px text-[10px] leading-none"
           style={{
             top: TIMELINE_SPACING.top + 1,
             left: TIMELINE_SPACING.left + 1,
             fontFamily: TIMELINE_MONO_FONT,
             color: textColor,
-            background: labelBackgroundColor,
           }}
         >
-          {formatAxisValue(maxValue)}
-        </span>
+          <span
+            className="w-fit rounded-sm px-1 py-0.5"
+            style={{ background: labelBackgroundColor }}
+          >
+            {maxValue !== null ? formatAxisValue(maxValue) : '-'}
+          </span>
+          {yAxisLabel != null && (
+            <span
+              className="w-fit rounded-sm px-1 py-0.5"
+              style={{ background: labelBackgroundColor }}
+            >
+              {yAxisLabel}
+            </span>
+          )}
+        </div>
       )}
       <EChartsReactCore
         echarts={echarts}
