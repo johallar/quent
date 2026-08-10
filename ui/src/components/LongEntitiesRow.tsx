@@ -3,7 +3,7 @@
 
 import { useMemo } from 'react';
 import { useInfiniteEntityList } from '@quent/client';
-import { useDebouncedZoomRange, useSelectedNodeIds } from '@quent/hooks';
+import { useDebouncedZoomRange, useLongEntityDensity, useSelectedNodeIds } from '@quent/hooks';
 import type { FsmTypeDecl } from '@quent/utils';
 import {
   Button,
@@ -44,12 +44,16 @@ export function LongEntitiesRow({
 }: LongEntitiesRowProps) {
   const selectedNodeIds = useSelectedNodeIds();
   const debouncedZoomRange = useDebouncedZoomRange();
+  const longEntityDensity = useLongEntityDensity();
   const operatorIds = useMemo(() => [...selectedNodeIds], [selectedNodeIds]);
   const zoomWindow =
     debouncedZoomRange.end > debouncedZoomRange.start
       ? debouncedZoomRange
       : { start: 0, end: durationSeconds };
-  const minUsageSeconds = getLongEntitiesThreshold(zoomWindow.end - zoomWindow.start);
+  const minUsageSeconds = getLongEntitiesThreshold(
+    zoomWindow.end - zoomWindow.start,
+    longEntityDensity
+  );
 
   const { data, fetchNextPage, hasNextPage, isFetching, isPlaceholderData } = useInfiniteEntityList(
     {
@@ -97,6 +101,7 @@ export function LongEntitiesRow({
       <LongEntitiesGantt
         entries={entries}
         durationSeconds={durationSeconds}
+        minUsageSeconds={minUsageSeconds}
         height={LONG_ENTITIES_TIMELINE_HEIGHT}
         isDark={isDark}
       />

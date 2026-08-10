@@ -11,6 +11,7 @@ import {
   startTimeMsAtom,
   bulkInitializedAtom,
   visibleEntriesAtom,
+  longEntityDensityAtom,
 } from '../atoms/timeline';
 import type { ZoomRange, SingleTimelineResponse } from '@quent/utils';
 
@@ -24,6 +25,8 @@ export const useZoomRange = () => useAtomValue(zoomRangeAtom);
 export const useSetZoomRange = () => useSetAtom(zoomRangeAtom);
 export const useDebouncedZoomRange = () => useAtomValue(debouncedZoomRangeAtom);
 export const useSetDebouncedZoomRange = () => useSetAtom(debouncedZoomRangeAtom);
+export const useLongEntityDensity = () => useAtomValue(longEntityDensityAtom);
+export const useSetLongEntityDensity = () => useSetAtom(longEntityDensityAtom);
 export const useTimelineHover = () => useAtomValue(timelineHoverAtom);
 export const useSetTimelineHover = () => useSetAtom(timelineHoverAtom);
 export const useStartTimeMs = () => useAtomValue(startTimeMsAtom);

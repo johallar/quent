@@ -42,7 +42,7 @@ export interface GanttChartProps<T extends GanttDatum> {
   isDark: boolean;
   seriesName: string;
   renderItem: GanttRenderItem;
-  emptyMessage: string;
+  emptyMessage: ReactNode;
   cursor?: GanttSeriesCursor;
   onEvents?: EChartsEvents;
   gridSpacing?: GanttGridSpacing;

@@ -21,6 +21,8 @@ export {
   useSetZoomRange,
   useDebouncedZoomRange,
   useSetDebouncedZoomRange,
+  useLongEntityDensity,
+  useSetLongEntityDensity,
   useTimelineHover,
   useSetTimelineHover,
   useStartTimeMs,
@@ -34,7 +36,7 @@ export {
 
 // Timeline cache key helpers (consumers need these to address per-item data)
 export { timelineCacheKey } from './atoms/timeline';
-export type { TimelineCacheParams, TimelineHoverState } from './atoms/timeline';
+export type { LongEntityDensity, TimelineCacheParams, TimelineHoverState } from './atoms/timeline';
 export { bulkEntryId } from './timeline/timeline.utils';
 
 // Complex timeline hooks

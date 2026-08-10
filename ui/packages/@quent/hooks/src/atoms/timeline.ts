@@ -42,6 +42,11 @@ export const zoomRangeAtom = atom<ZoomRange>({ start: 0, end: 0 });
 /** Debounced zoom range — settles after ZOOM_DEBOUNCE_MS, drives the bulk query */
 export const debouncedZoomRangeAtom = atom<ZoomRange>({ start: 0, end: 0 });
 
+export type LongEntityDensity = 'less' | 'balanced' | 'more';
+
+/** Controls the minimum usage threshold for entities shown in timeline rows. */
+export const longEntityDensityAtom = atom<LongEntityDensity>('balanced');
+
 /**
  * Pointer-level hover state used to drive an app-rendered timeline tooltip.
  *

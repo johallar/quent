@@ -9,8 +9,14 @@ import { LongEntitiesRow } from './LongEntitiesRow';
 const mocks = vi.hoisted(() => ({
   buildLongEntityEntries: vi.fn((items: unknown[]) => items),
   fetchNextPage: vi.fn(),
-  getLongEntitiesThreshold: vi.fn((_windowSeconds: number) => 0.06),
-  longEntitiesGantt: vi.fn((_props: { entries: unknown[]; height: number }) => null),
+  getLongEntitiesThreshold: vi.fn(
+    (_windowSeconds: number, density: 'less' | 'balanced' | 'more') =>
+      ({ less: 0.12, balanced: 0.06, more: 0.03 })[density]
+  ),
+  longEntityDensity: 'balanced' as 'less' | 'balanced' | 'more',
+  longEntitiesGantt: vi.fn(
+    (_props: { entries: unknown[]; height: number; minUsageSeconds: number }) => null
+  ),
   useInfiniteEntityList: vi.fn(),
 }));
 
@@ -20,6 +26,7 @@ vi.mock('@quent/client', () => ({
 
 vi.mock('@quent/hooks', () => ({
   useDebouncedZoomRange: () => ({ start: 0.2, end: 0.6 }),
+  useLongEntityDensity: () => mocks.longEntityDensity,
   useSelectedNodeIds: () => new Set(['operator-1']),
 }));
 
@@ -28,7 +35,7 @@ vi.mock('@quent/components', () => ({
     <button {...props}>{children}</button>
   ),
   LONG_ENTITIES_TIMELINE_HEIGHT: 110,
-  LongEntitiesGantt: (props: { entries: unknown[]; height: number }) => {
+  LongEntitiesGantt: (props: { entries: unknown[]; height: number; minUsageSeconds: number }) => {
     mocks.longEntitiesGantt(props);
     return <div data-testid="long-entities-gantt" />;
   },
@@ -40,6 +47,7 @@ vi.mock('@quent/components', () => ({
 describe('LongEntitiesRow', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mocks.longEntityDensity = 'balanced';
     mocks.useInfiniteEntityList.mockReturnValue({
       data: undefined,
       fetchNextPage: mocks.fetchNextPage,
@@ -63,6 +71,7 @@ describe('LongEntitiesRow', () => {
     );
 
     expect(mocks.getLongEntitiesThreshold.mock.calls[0]?.[0]).toBeCloseTo(0.4);
+    expect(mocks.getLongEntitiesThreshold.mock.calls[0]?.[1]).toBe('balanced');
     expect(mocks.useInfiniteEntityList).toHaveBeenCalledWith(
       expect.objectContaining({
         window: { start: 0.2, end: 0.6 },
@@ -72,7 +81,26 @@ describe('LongEntitiesRow', () => {
       })
     );
     expect(mocks.longEntitiesGantt.mock.calls[0]?.[0]).toEqual(
-      expect.objectContaining({ height: 110 })
+      expect.objectContaining({ height: 110, minUsageSeconds: 0.06 })
+    );
+  });
+
+  it('uses the selected entity density in the query threshold', () => {
+    mocks.longEntityDensity = 'less';
+
+    render(
+      <LongEntitiesRow
+        engineId="engine-1"
+        queryId="query-1"
+        resourceId="resource-1"
+        durationSeconds={1}
+        fsmTypes={{}}
+        isDark={false}
+      />
+    );
+
+    expect(mocks.useInfiniteEntityList).toHaveBeenCalledWith(
+      expect.objectContaining({ minUsageSeconds: 0.12 })
     );
   });
 

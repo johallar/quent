@@ -199,43 +199,62 @@ function MarkDetailRow({ name, value }: { name: string; value: string }) {
   );
 }
 
+const DETAILED_ACTIVE_MARK_LIMIT = 6;
+const COMPACT_ACTIVE_MARK_LIMIT = 8;
+
 function ActiveMarksSection({ marks }: { marks: ActiveMark[] }) {
   if (marks.length === 0) return null;
+  const isCompact = marks.length > DETAILED_ACTIVE_MARK_LIMIT;
+  const visibleMarks = isCompact ? marks.slice(0, COMPACT_ACTIVE_MARK_LIMIT) : marks;
+  const hiddenCount = marks.length - visibleMarks.length;
+
   return (
     <div className="mt-1 pt-1 border-t border-border">
-      {marks.map((m, i) => (
+      {visibleMarks.map((m, i) => (
         <div key={i}>
           <div className="flex items-center gap-1">
             <ColorSwatch color={m.color} />
             <DataText className="text-muted-foreground">{m.label}</DataText>
             <DataText className="text-foreground font-medium ml-auto">{m.stateName}</DataText>
           </div>
-          {m.durationMs !== undefined && (
-            <MarkDetailRow name="duration" value={formatDuration(m.durationMs)} />
-          )}
-          {m.attributes?.map(attr => (
-            <MarkDetailRow
-              key={attr.key}
-              name={attr.key}
-              value={formatAttributeValue(attr.key, attr.value)}
-            />
-          ))}
-          {m.derivedAttributes && m.derivedAttributes.length > 0 && (
+          {!isCompact && (
             <>
-              <DataText as="div" className="pl-3 pt-0.5 text-muted-foreground italic opacity-70">
-                derived
-              </DataText>
-              {m.derivedAttributes.map(attr => (
+              {m.durationMs !== undefined && (
+                <MarkDetailRow name="duration" value={formatDuration(m.durationMs)} />
+              )}
+              {m.attributes?.map(attr => (
                 <MarkDetailRow
                   key={attr.key}
                   name={attr.key}
                   value={formatAttributeValue(attr.key, attr.value)}
                 />
               ))}
+              {m.derivedAttributes && m.derivedAttributes.length > 0 && (
+                <>
+                  <DataText
+                    as="div"
+                    className="pl-3 pt-0.5 text-muted-foreground italic opacity-70"
+                  >
+                    derived
+                  </DataText>
+                  {m.derivedAttributes.map(attr => (
+                    <MarkDetailRow
+                      key={attr.key}
+                      name={attr.key}
+                      value={formatAttributeValue(attr.key, attr.value)}
+                    />
+                  ))}
+                </>
+              )}
             </>
           )}
         </div>
       ))}
+      {hiddenCount > 0 && (
+        <DataText as="div" className="pt-1 text-muted-foreground">
+          {hiddenCount} more {hiddenCount === 1 ? 'entity' : 'entities'} not shown
+        </DataText>
+      )}
     </div>
   );
 }
@@ -347,7 +366,7 @@ export function EntityTooltipContent({
   activeMarks: ActiveMark[];
 }) {
   return (
-    <div className="px-2 py-1.5 bg-popover rounded text-[11px] text-foreground leading-tight shadow-md z-50">
+    <div className="max-h-[50vh] overflow-hidden px-2 py-1.5 bg-popover rounded text-[11px] text-foreground leading-tight shadow-md z-50">
       <DataText as="div" className="font-semibold mb-1 text-muted-foreground">
         {formatDurationForWindow(timestamp, windowMs)}
       </DataText>
