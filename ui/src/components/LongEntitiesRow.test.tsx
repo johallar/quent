@@ -169,7 +169,7 @@ describe('LongEntitiesRow', () => {
       [firstEntity, secondEntity],
       {},
       'light',
-      null
+      new Set(['resource-1'])
     );
     expect(screen.queryByRole('button')).not.toBeInTheDocument();
   });
@@ -201,7 +201,7 @@ describe('LongEntitiesRow', () => {
       [previousEntity],
       {},
       'light',
-      null
+      new Set(['resource-1'])
     );
     expect(screen.queryByRole('button')).not.toBeInTheDocument();
   });
