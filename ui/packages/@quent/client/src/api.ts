@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+// SPDX-FileCopyrightText: Copyright (c) 2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 // SPDX-License-Identifier: Apache-2.0
 
 import { parseJsonWithBigInt } from '@quent/utils';
@@ -18,6 +18,8 @@ import type {
   EntityRef,
   Engine,
   TimelineConfig,
+  EntityListRequest,
+  EntityListResponse,
 } from '@quent/utils';
 
 interface ApiFetchOptions {
@@ -111,6 +113,22 @@ export async function fetchBulkTimelines(
   request: BulkTimelineRequest<QueryFilter, OperatorFilter>
 ): Promise<BulkTimelinesResponse> {
   return apiFetch<BulkTimelinesResponse>(`/engines/${engineId}/timeline/bulk`, {
+    fetchOptions: {
+      method: 'POST',
+      body: JSON.stringify(request),
+    },
+  });
+}
+
+/**
+ * Fetch a ranked, paged list of a query's entities (longest resource-usage
+ * span first). Backs the long-entities Gantt view.
+ */
+export async function fetchEntityList(
+  engineId: string,
+  request: EntityListRequest<QueryFilter, OperatorFilter>
+): Promise<EntityListResponse> {
+  return apiFetch<EntityListResponse>(`/engines/${engineId}/entities`, {
     fetchOptions: {
       method: 'POST',
       body: JSON.stringify(request),

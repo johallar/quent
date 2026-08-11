@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+// SPDX-FileCopyrightText: Copyright (c) 2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 // SPDX-License-Identifier: Apache-2.0
 
 import {
@@ -43,13 +43,18 @@ import {
   useDataFlowEnabled,
   useDataFlowMeta,
 } from '@quent/hooks';
-import { calculateLayout, NODE_LAYOUT_WIDTH } from './layout';
+import { calculateLayout, NODE_LAYOUT_WIDTH, NODE_LAYOUT_HEIGHT, FLOW_BAR_HEIGHT } from './layout';
 import type { DAGData } from '../services/query-plan/types';
 import { QueryPlanNode, type QueryPlanNodeData } from '../query-plan/QueryPlanNode';
 import { DAGLegend } from './DAGLegend';
 import { parseCustomStatistics } from '../lib/queryBundle.utils';
-import { continuousColor, getOperationTypeColor, buildOperatorColorMap } from '@quent/utils';
-import { inferFieldFormatter } from '@quent/utils';
+import {
+  continuousColor,
+  getOperationTypeColor,
+  buildOperatorColorMap,
+  inferFieldFormatter,
+  type QuantitySpec,
+} from '@quent/utils';
 
 // Edge geometry constants
 const EDGE_STROKE_WIDTH_DEFAULT = 1.5;
@@ -317,6 +322,20 @@ const FlowLayout = ({
     [data.nodes]
   );
 
+  const statQuantitySpecs = useMemo((): Record<string, QuantitySpec> => {
+    if (!data.quantitySpecs) return {};
+    const result: Record<string, QuantitySpec> = {};
+    for (const node of data.nodes) {
+      for (const stat of parseCustomStatistics(node.metadata?.rawNode)) {
+        if (stat.quantity && !(stat.key in result)) {
+          const spec = data.quantitySpecs[stat.quantity];
+          if (spec) result[stat.key] = spec;
+        }
+      }
+    }
+    return result;
+  }, [data.nodes, data.quantitySpecs]);
+
   // Convert DAGData to ReactFlow format
   const convertToReactFlow = useCallback(() => {
     // Determine which nodes have incoming/outgoing edges
@@ -338,6 +357,7 @@ const FlowLayout = ({
           isDark,
           baseColor: operatorColorMap.get(node.type.toLowerCase()),
           flowBarVisible,
+          quantitySpecs: data.quantitySpecs,
         },
         style: {
           width: NODE_LAYOUT_WIDTH,
@@ -421,7 +441,12 @@ const FlowLayout = ({
 
     const applyLayout = async () => {
       const { flowNodes, flowEdges } = convertToReactFlow();
-      const layoutResult = await calculateLayout(flowNodes, flowEdges, layoutDirection);
+      const layoutResult = await calculateLayout(
+        flowNodes,
+        flowEdges,
+        layoutDirection,
+        NODE_LAYOUT_HEIGHT + (flowBarVisible ? FLOW_BAR_HEIGHT : 0)
+      );
       if (cancelled) return;
 
       setNodes(layoutResult.nodes);
@@ -435,7 +460,7 @@ const FlowLayout = ({
     return () => {
       cancelled = true;
     };
-  }, [data, convertToReactFlow, fitView, setNodes, setEdges, layoutDirection]);
+  }, [data, convertToReactFlow, fitView, setNodes, setEdges, layoutDirection, flowBarVisible]);
 
   return (
     <ReactFlow
@@ -455,7 +480,7 @@ const FlowLayout = ({
       defaultEdgeOptions={{ type: 'smoothstep' }}
     >
       <Background />
-      <DAGLegend isDark={isDark} />
+      <DAGLegend isDark={isDark} statQuantitySpecs={statQuantitySpecs} />
       <MiniMap
         pannable
         zoomable

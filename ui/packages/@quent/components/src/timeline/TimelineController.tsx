@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+// SPDX-FileCopyrightText: Copyright (c) 2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 // SPDX-License-Identifier: Apache-2.0
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -13,7 +13,6 @@ import {
   buildBinnedTimelineSeries,
   getAdaptiveNumBins,
   getTimelineXAxisIntervalMs,
-  nanosToMs,
   registerAxisPointerSync,
   unregisterAxisPointerSync,
 } from '../lib/timeline.utils';
@@ -24,6 +23,7 @@ import type { SingleTimelineResponse } from '@quent/utils';
 import { useTimelineEchartsTheme } from './timelineEchartsTheme';
 import type { PaletteTheme } from '@quent/utils';
 import { Opts } from 'echarts-for-react/lib/types';
+import { PlayheadLine } from './PlayheadLine';
 
 const CONTROLLER_HEIGHT = 50;
 const CONTROLLER_TOP_HEADROOM_RATIO = 0.2;
@@ -42,7 +42,6 @@ const DATAZOOM_TOP_OFFSET = 5;
 const DATAZOOM_HANDLE_INSET = 3;
 
 type TimelineControllerProps = {
-  startTime: bigint;
   durationSeconds: number;
   height?: number;
   timelineData?: SingleTimelineResponse | null;
@@ -52,7 +51,6 @@ type TimelineControllerProps = {
 
 /** Zoom controller bar with datazoom slider and optional background timeline data. */
 export function TimelineController({
-  startTime,
   durationSeconds,
   height = CONTROLLER_HEIGHT,
   timelineData,
@@ -62,14 +60,11 @@ export function TimelineController({
   const { themeName, controllerGridBackgroundColor } = useTimelineEchartsTheme(isDark);
   const paletteTheme: PaletteTheme = isDark ? 'dark' : 'light';
 
-  const startTimeMillis = useMemo(() => nanosToMs(startTime), [startTime]);
-
   const { timestamps, seriesData } = useMemo(() => {
     if (timelineData) {
       const { timestamps: ts, series } = buildBinnedTimelineSeries(
         timelineData.data,
         timelineData.config,
-        startTime,
         paletteTheme
       );
       const entries = Object.entries(series);
@@ -78,10 +73,10 @@ export function TimelineController({
     } else {
       const numBins = getAdaptiveNumBins();
       const binDurationMs = (durationSeconds * 1000) / numBins;
-      const ts = Array.from({ length: numBins }, (_, i) => startTimeMillis + i * binDurationMs);
+      const ts = Array.from({ length: numBins }, (_, i) => i * binDurationMs);
       return { timestamps: ts, seriesData: null };
     }
-  }, [timelineData, startTime, startTimeMillis, durationSeconds, paletteTheme]);
+  }, [timelineData, durationSeconds, paletteTheme]);
 
   const hasSeriesData = useMemo(() => Boolean(seriesData && seriesData.length > 0), [seriesData]);
 
@@ -125,7 +120,7 @@ export function TimelineController({
     return [staticDisplaySeries, zoomControlSeries];
   }, [timestamps, hasSeriesData, seriesData]);
 
-  const endTimeMillis = startTimeMillis + durationSeconds * 1000;
+  const endTimeMillis = durationSeconds * 1000;
 
   // Measured container width drives the label-count budget so narrow viewports don't crowd the axis.
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -150,14 +145,14 @@ export function TimelineController({
       CONTROLLER_MAX_LABELS,
       Math.max(CONTROLLER_MIN_LABELS, labelBudget)
     );
-    const interval = getTimelineXAxisIntervalMs(endTimeMillis - startTimeMillis, targetSplits);
+    const interval = getTimelineXAxisIntervalMs(endTimeMillis, targetSplits);
 
     return {
       boundaryGap: [0, 0] as [number, number],
       type: 'value',
       show: true,
       position: 'top',
-      min: startTimeMillis,
+      min: 0,
       max: endTimeMillis,
       interval,
       // Re-enable ticks the shared theme disables; default `inside: false`
@@ -169,7 +164,7 @@ export function TimelineController({
         alignMinLabel: 'left',
         alignMaxLabel: 'right',
         formatter: (value: number) => {
-          return formatDuration(Number(value) - startTimeMillis);
+          return formatDuration(Number(value));
         },
       },
       splitLine: { show: true, lineStyle: { type: 'solid' } },
@@ -181,14 +176,14 @@ export function TimelineController({
         handle: { show: false },
       },
     };
-  }, [startTimeMillis, endTimeMillis, containerWidth]);
+  }, [endTimeMillis, containerWidth]);
 
   const zoomXAxisOptions = useMemo(
     () => ({
       boundaryGap: [0, 0] as [number, number],
       type: 'value',
       show: false,
-      min: startTimeMillis,
+      min: 0,
       max: endTimeMillis,
       axisLine: { show: false },
       axisTick: { show: false },
@@ -197,7 +192,7 @@ export function TimelineController({
       // Suppress pointer on the dataZoom'd axis — only xAxis[0] draws the crosshair.
       axisPointer: { show: false },
     }),
-    [startTimeMillis, endTimeMillis]
+    [endTimeMillis]
   );
 
   const yAxisOptions = useMemo(() => {
@@ -328,18 +323,16 @@ export function TimelineController({
   }, [onZoomChange, durationSeconds]);
 
   const selfTriggeredRef = useRef(false);
-  // Bumped on chart-ready so the restore effect re-runs when the instance is
-  // recreated (e.g. theme change disposes and rebuilds the chart at 0–100%).
-  const [readyTick, setReadyTick] = useState(0);
+  const [chartInstance, setChartInstance] = useState<EChartsInstance | null>(null);
 
   const zoomRange = useZoomRange();
 
   const onChartReady = useCallback((instance: EChartsInstance) => {
     registerAxisPointerSync(instance);
-    setReadyTick(t => t + 1);
+    setChartInstance(instance);
   }, []);
 
-  const { handleChartReady, instanceRef } = useChartConnect({
+  const { handleChartReady } = useChartConnect({
     durationSeconds,
     activateBrushSelect: true,
     onReady: onChartReady,
@@ -347,41 +340,36 @@ export function TimelineController({
 
   // Restore the persisted zoom on range change or instance (re)creation.
   useEffect(() => {
-    if (readyTick === 0) return;
     if (selfTriggeredRef.current) {
       selfTriggeredRef.current = false;
       return;
     }
-    const instance = instanceRef.current;
-    if (!instance || durationSeconds === 0) return;
+    if (!chartInstance || durationSeconds === 0) return;
 
     const startPct = (zoomRange.start / durationSeconds) * 100;
     const endPct = (zoomRange.end / durationSeconds) * 100;
 
     // Mute our own dispatch so the echoed dataZoom event doesn't overwrite the atom.
     selfTriggeredRef.current = true;
-    instance.dispatchAction({
+    chartInstance.dispatchAction({
       type: 'dataZoom',
       dataZoomIndex: 0,
       start: startPct,
       end: endPct,
     });
-  }, [readyTick, zoomRange, durationSeconds, instanceRef]);
+  }, [chartInstance, zoomRange, durationSeconds]);
 
   useEffect(() => {
     return () => {
-      if (instanceRef.current) {
-        unregisterAxisPointerSync(instanceRef.current);
-        instanceRef.current = null;
-      }
+      if (chartInstance) unregisterAxisPointerSync(chartInstance);
     };
-  }, [instanceRef]);
+  }, [chartInstance]);
 
   const opts = useMemo(() => ({ renderer: 'svg' }) as Opts, []);
   const containerDims = useMemo(() => ({ width: '100%', height: `${height}px` }), [height]);
 
   return (
-    <div ref={containerRef} style={containerDims}>
+    <div ref={containerRef} style={containerDims} className="relative">
       <EChartsReactCore
         echarts={echarts}
         theme={themeName}
@@ -394,6 +382,7 @@ export function TimelineController({
         opts={opts}
         autoResize={false}
       />
+      <PlayheadLine instance={chartInstance} />
     </div>
   );
 }

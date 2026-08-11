@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+// SPDX-FileCopyrightText: Copyright (c) 2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 // SPDX-License-Identifier: Apache-2.0
 
 import { useEffect, useMemo, useRef } from 'react';
@@ -9,7 +9,13 @@ import type { LineSeriesOption } from 'echarts/charts';
 import type { EChartsInstance } from 'echarts-for-react';
 import { withOpacity } from '@quent/utils';
 import type { TimelineSeriesEntry } from './types';
-import { TimelineSeries, TimelineMark, TIMELINE_SPACING, TIMELINE_X_AXIS_ANIMATION } from './types';
+import {
+  CHART_GROUP,
+  TimelineSeries,
+  TimelineMark,
+  TIMELINE_SPACING,
+  TIMELINE_X_AXIS_ANIMATION,
+} from './types';
 import {
   MARK_AREA_BORDER_OPACITY,
   MARK_AREA_FILL_OPACITY,
@@ -19,14 +25,12 @@ import {
   TIMELINE_MONO_FONT,
   useTimelineEchartsTheme,
 } from './timelineEchartsTheme';
-import { nanosToMs } from '../lib/timeline.utils';
 import { useVisibleMaxValue } from './useVisibleMaxValue';
 import { useChartConnect } from '../lib/useChartConnect';
 import { useMinZoomSpanPct } from '../lib/useMinZoomSpanPct';
 import { useTimelineWheelNavigation } from '../lib/useTimelineWheelNavigation';
 import { Opts } from 'echarts-for-react/lib/types';
 
-export const CHART_GROUP = 'timeline-sync-group';
 const DIMMED_OPACITY = 0.25;
 
 /**
@@ -42,16 +46,16 @@ export interface TimelineHoverPosition {
 
 /** Stacked-area timeline chart backed by ECharts, with zoom sync and optional tooltip. */
 export function Timeline({
-  startTime,
   durationSeconds,
   series,
   timestamps,
   showTooltip = true,
   marks,
   isDark,
+  yAxisLabel,
   onHoverChange,
+  onReady,
 }: {
-  startTime: bigint;
   /** Full query duration — used to set xAxis range so dataZoom percentages align across all connected charts */
   durationSeconds: number;
   series: TimelineSeries;
@@ -61,8 +65,12 @@ export function Timeline({
   marks?: TimelineMark[];
   /** Whether dark mode is active. Passed explicitly to decouple from ThemeContext. */
   isDark: boolean;
+  /** Label describing the Y axis metric (e.g. capacity name). */
+  yAxisLabel?: string;
   /** Pointer-state callback. */
   onHoverChange?: (position: TimelineHoverPosition | null) => void;
+  /** Called when the underlying ECharts instance is ready or recreated. */
+  onReady?: (instance: EChartsInstance) => void;
 }) {
   const { themeName, textColor, labelBackgroundColor } = useTimelineEchartsTheme(isDark);
   const maxMarkCountRef = useRef(0);
@@ -84,8 +92,7 @@ export function Timeline({
         type: 'line',
         stack: isOverlay ? `overlay-total` : 'total',
         step: 'middle',
-        symbol: 'circle',
-        symbolSize: (value: number[]) => (value[1] === 0 || isOverlay ? 0 : 4),
+        symbol: 'none',
         hoverAnimation: false,
         showSymbol: false,
         ...TIMELINE_X_AXIS_ANIMATION,
@@ -176,12 +183,10 @@ export function Timeline({
 
   const formatAxisValue = useMemo(() => {
     const firstEntry: TimelineSeriesEntry | undefined = Object.values(series)[0];
-    return (v: number) => firstEntry?.formatter(v, 0) ?? String(v);
+    return (v: number) => firstEntry?.formatter(Math.ceil(v), 0) ?? String(Math.ceil(v));
   }, [series]);
 
-  const startTimeMs = useMemo(() => nanosToMs(startTime), [startTime]);
-
-  const maxValue = useVisibleMaxValue(series, timestamps, startTimeMs);
+  const maxValue = useVisibleMaxValue(series, timestamps);
 
   const yAxisOptions = useMemo(
     () => [
@@ -208,11 +213,11 @@ export function Timeline({
   const xAxisOptions = useMemo(
     () => ({
       boundaryGap: [0, 0] as [number, number],
-      type: 'time',
+      type: 'value',
       animation: false,
       show: true,
-      min: startTimeMs,
-      max: startTimeMs + durationSeconds * 1_000,
+      min: 0,
+      max: durationSeconds * 1_000,
       axisLine: { onZero: true },
       axisLabel: { show: false },
       axisPointer: {
@@ -222,7 +227,7 @@ export function Timeline({
         label: { show: false },
       },
     }),
-    [startTimeMs, durationSeconds]
+    [durationSeconds]
   );
 
   const gridOptions = useMemo(() => ({ ...TIMELINE_SPACING }), []);
@@ -356,6 +361,7 @@ export function Timeline({
     });
 
     attachWheelNavigation(instance);
+    onReady?.(instance);
   };
 
   // If this Timeline is unmounted while the pointer is over it (e.g. a tree
@@ -379,19 +385,31 @@ export function Timeline({
 
   return (
     <div className="relative w-full h-full">
-      {maxValue != null && (
-        <span
-          className="absolute z-[8] pointer-events-none text-[10px] leading-none rounded-sm px-1 py-0.5"
+      {(yAxisLabel != null || maxValue != null) && (
+        <div
+          className="absolute z-[8] pointer-events-none flex flex-col items-start gap-px text-[10px] leading-none"
           style={{
             top: TIMELINE_SPACING.top + 1,
             left: TIMELINE_SPACING.left + 1,
             fontFamily: TIMELINE_MONO_FONT,
             color: textColor,
-            background: labelBackgroundColor,
           }}
         >
-          {formatAxisValue(maxValue)}
-        </span>
+          <span
+            className="w-fit rounded-sm px-1 py-0.5"
+            style={{ background: labelBackgroundColor }}
+          >
+            {maxValue !== null ? formatAxisValue(maxValue) : '-'}
+          </span>
+          {yAxisLabel != null && (
+            <span
+              className="w-fit rounded-sm px-1 py-0.5"
+              style={{ background: labelBackgroundColor }}
+            >
+              {yAxisLabel}
+            </span>
+          )}
+        </div>
       )}
       <EChartsReactCore
         echarts={echarts}

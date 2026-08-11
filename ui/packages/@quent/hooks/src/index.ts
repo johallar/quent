@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+// SPDX-FileCopyrightText: Copyright (c) 2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 // SPDX-License-Identifier: Apache-2.0
 
 // Provider — wraps QueryClientProvider + JotaiProvider in one component
@@ -29,8 +29,6 @@ export {
   useSetBulkInitialized,
   useVisibleEntries,
   useSetVisibleEntries,
-  useHideTasks,
-  useSetHideTasks,
   useHydrateTimelineAtoms,
 } from './timeline/useTimelineAtoms';
 
@@ -107,6 +105,10 @@ export {
   useSetDataFlowSelectedDimensions,
   useDataFlowMeta,
   useDataFlowFrame,
+  useDataFlowIsPlaying,
+  useSetDataFlowIsPlaying,
+  usePlayheadLineTimeMs,
+  useSetPlayheadLineTimeMs,
 } from './dataFlow/dataFlowSelectors';
 export { useDataFlowSync } from './dataFlow/useDataFlowSync';
 export {

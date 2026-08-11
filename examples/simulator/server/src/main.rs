@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+// SPDX-FileCopyrightText: Copyright (c) 2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 // SPDX-License-Identifier: Apache-2.0
 
 use std::{net::ToSocketAddrs, path::PathBuf};
@@ -100,8 +100,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let collector = async {
         collector_service::<SimulatorContext, _>(move |id| {
-            SimulatorContext::try_with_id(id, Some(exporter_kind.clone()))
-                .map_err(|e| e.to_string())
+            SimulatorContext::try_with_id(id, exporter_kind.clone()).map_err(|e| e.to_string())
         })?
         .serve(collector_addr)
         .await
@@ -122,7 +121,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // make up an engine instance.
     let importer = move |context_id| {
         let dir = importer_output_dir.join(format!("{context_id}"));
-        Ok(Simulator::import_events(&dir)?)
+        let events =
+            Simulator::import_events(&dir)?.collect::<quent_io::ImporterResult<Vec<_>>>()?;
+        Ok::<Box<dyn Iterator<Item = _>>, quent_query_engine_server::error::ServerError>(Box::new(
+            events.into_iter(),
+        ))
     };
 
     let analyzer = async {

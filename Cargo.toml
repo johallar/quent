@@ -29,6 +29,7 @@ members = [
     "integrations/nvtx/injection",
     "integrations/nvtx/bridge",
     "integrations/nvtx/example",
+    "integrations/nvtx/analyzer",
     # Domain-specific crates
     "domains/query_engine/analyzer",
     "domains/query_engine/model",
@@ -133,14 +134,17 @@ indexmap = "2"
 log = {version = "0.4.28", features = ["kv"]}
 petgraph = "0.8.3"
 postcard = { version = "1", default-features = false, features = ["alloc"] }
+prettyplease = "0.3.0"
 prost = "0.14.1"
 pyo3 = "0.29"
+quent-dynamic-attributes = { path = "crates/dynamic-attributes" }
 quent-resource = { path = "crates/resource" }
 rmp-serde = "1"
 rustc-hash = "2"
 serde = { version = "1.0.228", features = ["derive"] }
 serde_json = "1.0.145"
 smallvec = {version = "1.15.1", features = ["serde"] }
+syn = { version = "3.0.3", features = ["full", "parsing"] }
 thiserror = "2.0.17"
 tokio = "1.48.0"
 tokio-stream = "0.1.17"

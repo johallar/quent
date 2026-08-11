@@ -1,9 +1,9 @@
-// SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+// SPDX-FileCopyrightText: Copyright (c) 2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-use quent_instrumentation::{EventCallback, ExporterOptions};
+use quent_instrumentation::EventCallback;
 
-use crate::demo::{ConnectionHandle, ConnectionObserver, DemoContext, Uuid};
+use crate::demo::{Connection, Context, Demo, DemoEvent, Handle, Observer, Query, Server, Uuid};
 
 #[allow(unused)]
 mod demo {
@@ -11,17 +11,18 @@ mod demo {
 }
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    // The context owns the exporter and exposes one observer per entity type.
-    let context: DemoContext = demo::DemoContext::try_new(Some(debug_printing_exporter()))?;
+    // The context builds one exporter pipeline per entity event type and
+    // exposes the corresponding typed observers.
+    let context: Context<Demo> = Context::try_new(println_exporter())?;
 
     // `observer.handle()` creates a fresh entity instance to events emit for.
-    let mut server = context.server_observer().handle();
+    let mut server = context.observer::<Server>().handle();
     server.booted()?;
 
-    let observer: ConnectionObserver = context.connection_observer();
+    let observer: Observer<Connection> = context.observer::<Connection>();
     // Once-cardinality events take `&mut self` and may fire only once, tracked
     // by the handle, hence it is mut:
-    let mut conn: ConnectionHandle = observer.handle();
+    let mut conn: Handle<Connection> = observer.handle();
 
     // One method per entity event:
     conn.opened(
@@ -57,7 +58,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     //
     // FSMs will get typestate pattern handles in the future, also see
     // https://github.com/rapidsai/quent/issues/416
-    let mut query = context.query_observer().handle();
+    let mut query = context.observer::<Query>().handle();
     query.submitted("select 1".to_owned(), conn.as_entity_ref())?;
     query.running(10)?;
     query.ready(true)?;
@@ -71,11 +72,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
-/// Return an exporter that debug-prints each emitted event's payload.
-fn debug_printing_exporter() -> ExporterOptions {
-    ExporterOptions::Callback(EventCallback::new(|recorded| {
-        if let Some(event) = demo::AnyEvent::from_any(recorded.event.as_ref()) {
-            println!("{event:?}");
-        }
-    }))
+/// Return a callback that debug-prints each emitted event.
+fn println_exporter() -> EventCallback<DemoEvent> {
+    EventCallback::new(|event| println!("{event:?}"))
 }

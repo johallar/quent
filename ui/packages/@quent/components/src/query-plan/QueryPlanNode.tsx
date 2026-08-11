@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+// SPDX-FileCopyrightText: Copyright (c) 2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 // SPDX-License-Identifier: Apache-2.0
 
 import { memo, useState, useMemo, useCallback } from 'react';
@@ -25,8 +25,8 @@ import {
   useEffectiveHoveredStat,
   useSetHighlightedNodeIds,
 } from '@quent/hooks';
+import { formatStatWithQuantity, type QuantitySpec } from '@quent/utils';
 import { parseCustomStatistics } from '../lib/queryBundle.utils';
-import { inferFieldFormatter, isNumericValue } from '@quent/utils';
 import { DataText } from '../ui/data-text';
 import { NodeFlowBar } from './NodeFlowBar';
 
@@ -53,6 +53,7 @@ export interface QueryPlanNodeData extends Record<string, unknown> {
    * relayouts exactly once.
    */
   flowBarVisible?: boolean;
+  quantitySpecs?: { [key: string]: QuantitySpec | undefined };
 }
 
 const nodeVariants = cva(
@@ -108,6 +109,7 @@ export const QueryPlanNode = memo(({ data }: { data: QueryPlanNodeData }) => {
   const operatorId = data.metadata?.rawNode?.id ?? '';
   const isHighlighted = highlightState.ids !== null && highlightState.ids.has(operatorId);
   const statistics = parseCustomStatistics(data.metadata?.rawNode);
+  const { quantitySpecs } = data;
   const [nodeLabelField] = useSelectedNodeLabelField();
   const { fieldColor, isDimmed, isSelected, colorField } = useNodeColoring(operatorId, isDark);
   const [isHoveredLocal, setIsHoveredLocal] = useState(false);
@@ -118,14 +120,19 @@ export const QueryPlanNode = memo(({ data }: { data: QueryPlanNodeData }) => {
     return data.label;
   }, [nodeLabelField, data]);
 
-  const colorFieldValue = colorField
-    ? (statistics.find(s => s.key === colorField)?.value ?? null)
-    : null;
+  const colorFieldStat = colorField ? statistics.find(s => s.key === colorField) : null;
+  const colorFieldValue = colorFieldStat?.value ?? null;
   const formattedColorFieldValue =
     colorFieldValue === null
       ? null
-      : isNumericValue(colorFieldValue)
-        ? inferFieldFormatter(colorField!)(colorFieldValue)
+      : typeof colorFieldValue === 'number'
+        ? formatStatWithQuantity(
+            colorFieldValue,
+            colorField!,
+            colorFieldStat?.quantity && quantitySpecs
+              ? quantitySpecs[colorFieldStat.quantity]
+              : undefined
+          )
         : String(colorFieldValue);
 
   const baseColor = data.baseColor ?? getOperationTypeColor(data.operationType);

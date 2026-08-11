@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+// SPDX-FileCopyrightText: Copyright (c) 2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 // SPDX-License-Identifier: Apache-2.0
 
 //! Types shared with the UI.
@@ -25,11 +25,11 @@ pub struct QueryFilter {
     pub query_id: Uuid,
 }
 
-/// Per-entry timeline-request parameter; restricts a resource timeline to a
-/// single operator when set.
+/// Per-entry timeline-request parameter; restricts a resource timeline to the
+/// given operators, or all operators when empty.
 #[derive(TS, Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct OperatorFilter {
-    pub operator_id: Option<Uuid>,
+    pub operator_ids: Vec<Uuid>,
 }
 
 /// Attributes describing details about the implementation of this Engine
@@ -165,9 +165,18 @@ pub struct Plan {
 }
 
 #[derive(TS, Debug, Serialize)]
+pub struct OperatorStatistic {
+    /// The value of this statistic.
+    pub value: Option<DynamicValue>,
+    /// The key of the [`QuantitySpec`] in [`QueryBundle::quantity_specs`] used
+    /// to display this statistic.
+    pub quantity: Option<String>,
+}
+
+#[derive(TS, Debug, Serialize)]
 pub struct OperatorStatistics {
-    /// Custom statistics
-    pub custom_statistics: HashMap<String, Option<DynamicValue>>,
+    /// Custom statistics.
+    pub custom_statistics: HashMap<String, OperatorStatistic>,
 }
 
 #[derive(TS, Debug, Serialize)]
@@ -298,7 +307,7 @@ pub struct QueryBundle<E> {
     /// A list of unique operator type names.
     pub unique_operator_names: Vec<String>,
 
-    /// Quantity specifications for capacity display, keyed by capacity name.
+    /// Quantity specifications for displaying values, keyed by quantity name.
     pub quantity_specs: HashMap<String, QuantitySpec>,
 
     /// The number of nanoseconds passed since the Unix epoch at which the

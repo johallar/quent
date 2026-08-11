@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+// SPDX-FileCopyrightText: Copyright (c) 2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 // SPDX-License-Identifier: Apache-2.0
 
 /**
@@ -386,4 +386,17 @@ export function formatQuantity(
   const prefixSystem = kind === 'Occupancy' ? spec.occupancy_prefix : spec.rate_prefix;
   const symbol = kind === 'Rate' ? `${spec.symbol}/s` : spec.symbol;
   return formatWithPrefix(value, symbol, prefixSystem, decimals);
+}
+
+/**
+ * Format a numeric statistic value, using a QuantitySpec when one is available.
+ * Falls back to the name-based `inferFieldFormatter` heuristic when no spec is provided.
+ */
+export function formatStatWithQuantity(
+  value: number,
+  key: string,
+  quantitySpec: QuantitySpec | undefined
+): string {
+  if (quantitySpec) return formatQuantity(value, quantitySpec, 'Occupancy');
+  return inferFieldFormatter(key)(value);
 }
