@@ -23,6 +23,7 @@ vi.mock('../timeline/timelineEchartsTheme', () => ({
 
 vi.mock('../gantt-chart/GanttChart', () => ({
   GanttChart: (props: {
+    animateHeight: boolean;
     contentPaddingBottom: number;
     emptyMessage: ReactNode;
     gridSpacing: { bottom: number };
@@ -76,6 +77,7 @@ describe('LongEntitiesGantt', () => {
 
     expect(mocks.ganttChart).toHaveBeenLastCalledWith(
       expect.objectContaining({
+        animateHeight: true,
         contentPaddingBottom: 12,
         gridSpacing: expect.objectContaining({ bottom: 14.5 }),
         maxHeight: 75,
@@ -84,6 +86,7 @@ describe('LongEntitiesGantt', () => {
 
     const expandButton = screen.getByRole('button', { name: 'Expand entities chart' });
     expect(expandButton).toHaveStyle({ right: '10px' });
+    expect(expandButton).toHaveClass('focus-visible:ring-0', 'focus-visible:ring-offset-0');
     fireEvent.click(expandButton);
     expect(mocks.ganttChart).toHaveBeenLastCalledWith(expect.objectContaining({ maxHeight: 96 }));
 

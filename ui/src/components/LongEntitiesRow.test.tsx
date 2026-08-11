@@ -10,10 +10,10 @@ const mocks = vi.hoisted(() => ({
   buildLongEntityEntries: vi.fn((items: unknown[]) => items),
   debouncedZoomRange: { start: 0.2, end: 0.6 },
   getLongEntitiesThreshold: vi.fn(
-    (_windowSeconds: number, density: 'less' | 'balanced' | 'more') =>
-      ({ less: 0.12, balanced: 0.06, more: 0.03 })[density]
+    (_windowSeconds: number, density: 1 | 2 | 3 | 4 | 5) =>
+      ({ 1: 0.15, 2: 0.12, 3: 0.09, 4: 0.06, 5: 0.03 })[density]
   ),
-  longEntityDensity: 'balanced' as 'less' | 'balanced' | 'more',
+  longEntityDensity: 3 as 1 | 2 | 3 | 4 | 5,
   longEntitiesGantt: vi.fn(
     (_props: { entries: unknown[]; height: number; minUsageSeconds: number }) => null
   ),
@@ -48,7 +48,7 @@ describe('LongEntitiesRow', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mocks.debouncedZoomRange = { start: 0.2, end: 0.6 };
-    mocks.longEntityDensity = 'balanced';
+    mocks.longEntityDensity = 3;
     mocks.useEntityList.mockReturnValue({
       data: undefined,
       isFetching: false,
@@ -69,22 +69,22 @@ describe('LongEntitiesRow', () => {
     );
 
     expect(mocks.getLongEntitiesThreshold.mock.calls[0]?.[0]).toBeCloseTo(0.4);
-    expect(mocks.getLongEntitiesThreshold.mock.calls[0]?.[1]).toBe('balanced');
+    expect(mocks.getLongEntitiesThreshold.mock.calls[0]?.[1]).toBe(3);
     expect(mocks.useEntityList).toHaveBeenCalledWith(
       expect.objectContaining({
         window: { start: 0.2, end: 0.6 },
         operatorIds: ['operator-1'],
-        minUsageSeconds: 0.06,
+        minUsageSeconds: 0.09,
         maxItems: 100,
       })
     );
     expect(mocks.longEntitiesGantt.mock.calls[0]?.[0]).toEqual(
-      expect.objectContaining({ height: 110, minUsageSeconds: 0.06 })
+      expect.objectContaining({ height: 110, minUsageSeconds: 0.09 })
     );
   });
 
   it('uses the selected entity density in the query threshold', () => {
-    mocks.longEntityDensity = 'less';
+    mocks.longEntityDensity = 1;
 
     render(
       <LongEntitiesRow
@@ -98,7 +98,7 @@ describe('LongEntitiesRow', () => {
     );
 
     expect(mocks.useEntityList).toHaveBeenCalledWith(
-      expect.objectContaining({ minUsageSeconds: 0.12 })
+      expect.objectContaining({ minUsageSeconds: 0.15 })
     );
   });
 

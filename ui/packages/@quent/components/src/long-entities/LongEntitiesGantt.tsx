@@ -195,6 +195,7 @@ export function LongEntitiesGantt({
         isDark={isDark}
         seriesName={SERIES_NAME}
         renderItem={renderItem}
+        animateHeight
         contentPaddingBottom={resizeControlHeight}
         gridSpacing={{
           ...TIMELINE_SPACING,
@@ -216,7 +217,7 @@ export function LongEntitiesGantt({
           type="button"
           variant="ghost"
           size="xs"
-          className="absolute bottom-0 left-0 z-10 h-3 rounded-none border-t border-border/50 bg-background/90 p-0 text-muted-foreground backdrop-blur-sm [&_svg]:size-3"
+          className="absolute bottom-0 left-0 z-10 h-3 rounded-none border-t border-border/50 bg-background/90 p-0 text-muted-foreground backdrop-blur-sm focus-visible:bg-accent focus-visible:ring-0 focus-visible:ring-offset-0 [&_svg]:size-3"
           style={{ right: TIMELINE_SPACING.right }}
           aria-label={isExpanded ? 'Collapse entities chart' : 'Expand entities chart'}
           aria-expanded={isExpanded}

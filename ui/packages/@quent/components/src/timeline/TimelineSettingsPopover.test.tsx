@@ -7,7 +7,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { TimelineSettingsPopover } from './TimelineSettingsPopover';
 
 const mocks = vi.hoisted(() => ({
-  density: 'balanced' as 'less' | 'balanced' | 'more',
+  density: 3 as 1 | 2 | 3 | 4 | 5,
   setDensity: vi.fn(),
 }));
 
@@ -24,20 +24,19 @@ vi.mock('../ui/popover', () => ({
 
 describe('TimelineSettingsPopover', () => {
   beforeEach(() => {
-    mocks.density = 'balanced';
+    mocks.density = 3;
     mocks.setDensity.mockClear();
   });
 
-  it('renders the three entity density snap points', () => {
+  it('renders the five entity density snap points', () => {
     render(<TimelineSettingsPopover />);
 
     const slider = screen.getByRole('slider', { name: 'Entities' });
-    expect(slider).toHaveAttribute('min', '0');
-    expect(slider).toHaveAttribute('max', '2');
+    expect(slider).toHaveAttribute('min', '1');
+    expect(slider).toHaveAttribute('max', '5');
     expect(slider).toHaveAttribute('step', '1');
-    expect(slider).toHaveValue('1');
+    expect(slider).toHaveValue('3');
     expect(screen.getByText('Less')).toBeInTheDocument();
-    expect(screen.getByText('Balanced')).toBeInTheDocument();
     expect(screen.getByText('More')).toBeInTheDocument();
   });
 
@@ -45,9 +44,9 @@ describe('TimelineSettingsPopover', () => {
     render(<TimelineSettingsPopover />);
 
     fireEvent.change(screen.getByRole('slider', { name: 'Entities' }), {
-      target: { value: '2' },
+      target: { value: '5' },
     });
 
-    expect(mocks.setDensity).toHaveBeenCalledWith('more');
+    expect(mocks.setDensity).toHaveBeenCalledWith(5);
   });
 });

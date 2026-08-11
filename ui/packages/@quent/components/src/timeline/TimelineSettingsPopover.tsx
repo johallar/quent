@@ -10,13 +10,12 @@ import {
 } from '@quent/hooks';
 import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover';
 
-const DENSITY_STEPS: LongEntityDensity[] = ['less', 'balanced', 'more'];
+const DENSITY_RANGE: readonly [LongEntityDensity, LongEntityDensity] = [1, 5];
 
 export function TimelineSettingsPopover() {
   const density = useLongEntityDensity();
   const setDensity = useSetLongEntityDensity();
   const sliderId = useId();
-  const value = DENSITY_STEPS.indexOf(density);
 
   return (
     <Popover>
@@ -37,20 +36,25 @@ export function TimelineSettingsPopover() {
         <input
           id={sliderId}
           type="range"
-          min={0}
-          max={DENSITY_STEPS.length - 1}
+          min={DENSITY_RANGE[0]}
+          max={DENSITY_RANGE[1]}
           step={1}
-          value={value}
-          aria-valuetext={density}
+          value={density}
+          aria-valuetext={`${density} out of ${DENSITY_RANGE[1]}`}
           onChange={event => {
-            const nextDensity = DENSITY_STEPS[Number(event.target.value)];
-            if (nextDensity) setDensity(nextDensity);
+            const nextDensity = Number(event.target.value);
+            if (
+              Number.isInteger(nextDensity) &&
+              nextDensity >= DENSITY_RANGE[0] &&
+              nextDensity <= DENSITY_RANGE[1]
+            ) {
+              setDensity(nextDensity as LongEntityDensity);
+            }
           }}
           className="mt-2 h-1.5 w-full cursor-pointer accent-primary"
         />
         <div aria-hidden className="mt-1 flex justify-between text-[10px] text-muted-foreground">
           <span>Less</span>
-          <span>Balanced</span>
           <span>More</span>
         </div>
       </PopoverContent>

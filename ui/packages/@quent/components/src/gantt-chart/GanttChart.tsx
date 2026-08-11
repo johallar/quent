@@ -47,6 +47,7 @@ export interface GanttChartProps<T extends GanttDatum> {
   onEvents?: EChartsEvents;
   gridSpacing?: GanttGridSpacing;
   contentPaddingBottom?: number;
+  animateHeight?: boolean;
   renderTooltip?: (hover: GanttHover | null) => ReactNode;
 }
 
@@ -64,6 +65,7 @@ export function GanttChart<T extends GanttDatum>({
   onEvents,
   gridSpacing,
   contentPaddingBottom = 0,
+  animateHeight = false,
   renderTooltip,
 }: GanttChartProps<T>) {
   const { themeName } = useTimelineEchartsTheme(isDark);
@@ -143,7 +145,15 @@ export function GanttChart<T extends GanttDatum>({
 
   return (
     <>
-      <HiddenScroll ref={wrapperRef} className="relative" style={{ height: wrapperHeight }}>
+      <HiddenScroll
+        ref={wrapperRef}
+        className={
+          animateHeight
+            ? 'relative transition-[height] duration-150 ease-out motion-reduce:transition-none'
+            : 'relative'
+        }
+        style={{ height: wrapperHeight }}
+      >
         <EChartsReactCore
           echarts={echarts}
           theme={themeName}

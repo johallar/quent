@@ -119,21 +119,23 @@ describe('nanosToMs', () => {
 // ---- getLongEntitiesThreshold ----------------------------------------------
 
 describe('getLongEntitiesThreshold', () => {
-  it('uses the current balanced threshold by default', () => {
-    expect(getLongEntitiesThreshold(200)).toBe(2);
+  it('uses the middle density threshold by default', () => {
+    expect(getLongEntitiesThreshold(200)).toBe(3);
   });
 
   it.each([
-    ['less', 4],
-    ['balanced', 2],
-    ['more', 1],
-  ] as const)('maps %s density to its bin multiplier', (density, expected) => {
+    [1, 5],
+    [2, 4],
+    [3, 3],
+    [4, 2],
+    [5, 1],
+  ] as const)('maps density %s to its bin multiplier', (density, expected) => {
     expect(getLongEntitiesThreshold(200, density)).toBe(expected);
   });
 
   it('scales linearly with the visible window', () => {
-    expect(getLongEntitiesThreshold(100)).toBe(1);
-    expect(getLongEntitiesThreshold(400)).toBe(4);
+    expect(getLongEntitiesThreshold(100)).toBe(1.5);
+    expect(getLongEntitiesThreshold(400)).toBe(6);
   });
 
   it('returns 0 for a zero-second window', () => {

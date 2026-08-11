@@ -37,10 +37,13 @@ import { MAX_TIMELINE_BINS } from '@quent/utils';
 
 // Suppress unused import warning — getColorForKey is used by consumers of this module
 void getColorForKey;
+
 const LONG_ENTITY_DENSITY_MULTIPLIERS: Record<LongEntityDensity, number> = {
-  less: 4,
-  balanced: 2,
-  more: 1,
+  1: 100,
+  2: 10,
+  3: 1,
+  4: 0.1,
+  5: 0.01,
 };
 
 /** Minimum bin duration in nanoseconds — the backend cannot produce sub-1ns bins. */
@@ -69,7 +72,7 @@ export function getAdaptiveNumBins(): number {
 /** Threshold for "long" entities as a density-adjusted multiple of the current bin duration. */
 export function getLongEntitiesThreshold(
   windowSeconds: number,
-  density: LongEntityDensity = 'balanced'
+  density: LongEntityDensity = 3
 ): number {
   const numBins = getAdaptiveNumBins();
   return LONG_ENTITY_DENSITY_MULTIPLIERS[density] * (windowSeconds / numBins);
