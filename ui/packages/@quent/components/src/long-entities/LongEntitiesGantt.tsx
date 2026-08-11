@@ -19,6 +19,7 @@ import { getLongEntitySegmentsAtTimestamp } from './utils';
 import { PointerTooltipPortal } from '../ui/pointer-tooltip-portal';
 import { EntityTooltipContent, type ActiveMark } from '../timeline/TimelineTooltip';
 import { Button } from '../ui/button';
+import { TIMELINE_SPACING } from '../timeline/types';
 
 export const LONG_ENTITIES_TIMELINE_HEIGHT = 75;
 const LABEL_FONT_SIZE = 9;
@@ -26,6 +27,7 @@ const BAR_HEIGHT = LABEL_FONT_SIZE + 4;
 /** Vertical gap between stacked rows. */
 const ROW_GAP = 1;
 const ROW_HEIGHT = BAR_HEIGHT + ROW_GAP;
+const RESIZE_CONTROL_HEIGHT = 12;
 /** Radius applied only to the outer corners of each entity's segment run. */
 const CORNER_RADIUS = 2;
 const SERIES_NAME = 'long-entity-segment';
@@ -56,11 +58,15 @@ export function LongEntitiesGantt({
   const { textColor } = useTimelineEchartsTheme(isDark);
   const zoomRange = useZoomRange();
   const [isExpanded, setIsExpanded] = useState(false);
+  const rowCount = useMemo(
+    () => entries.reduce((count, entry) => Math.max(count, entry.rowIndex + 1), 0),
+    [entries]
+  );
+  const canResize = rowCount * ROW_HEIGHT > height;
+  const resizeControlHeight = canResize ? RESIZE_CONTROL_HEIGHT : 0;
   const contentHeight = useMemo(() => {
-    const rowCount = entries.reduce((count, entry) => Math.max(count, entry.rowIndex + 1), 0);
-    return Math.max(height, rowCount * ROW_HEIGHT);
-  }, [entries, height]);
-  const canResize = contentHeight > height;
+    return Math.max(height, rowCount * ROW_HEIGHT + resizeControlHeight);
+  }, [height, resizeControlHeight, rowCount]);
   // One custom-series datum per segment, tagged with its parent entry/segment.
   const customSeriesData = useMemo<SegmentDatum[]>(() => {
     const data: SegmentDatum[] = [];
@@ -179,7 +185,7 @@ export function LongEntitiesGantt({
   );
 
   return (
-    <div>
+    <div className="relative">
       <GanttChart
         data={customSeriesData}
         durationSeconds={durationSeconds}
@@ -189,6 +195,11 @@ export function LongEntitiesGantt({
         isDark={isDark}
         seriesName={SERIES_NAME}
         renderItem={renderItem}
+        contentPaddingBottom={resizeControlHeight}
+        gridSpacing={{
+          ...TIMELINE_SPACING,
+          bottom: TIMELINE_SPACING.bottom + resizeControlHeight,
+        }}
         emptyMessage={
           <div className="flex flex-col items-center gap-0.5 text-center text-muted-foreground opacity-50">
             <div className="font-medium">No Matching Entities</div>
@@ -205,7 +216,8 @@ export function LongEntitiesGantt({
           type="button"
           variant="ghost"
           size="xs"
-          className="h-3 w-full rounded-none border-t border-border/50 p-0 text-muted-foreground [&_svg]:size-3"
+          className="absolute bottom-0 left-0 z-10 h-3 rounded-none border-t border-border/50 bg-background/90 p-0 text-muted-foreground backdrop-blur-sm [&_svg]:size-3"
+          style={{ right: TIMELINE_SPACING.right }}
           aria-label={isExpanded ? 'Collapse entities chart' : 'Expand entities chart'}
           aria-expanded={isExpanded}
           onClick={event => {

@@ -46,6 +46,7 @@ export interface GanttChartProps<T extends GanttDatum> {
   cursor?: GanttSeriesCursor;
   onEvents?: EChartsEvents;
   gridSpacing?: GanttGridSpacing;
+  contentPaddingBottom?: number;
   renderTooltip?: (hover: GanttHover | null) => ReactNode;
 }
 
@@ -62,6 +63,7 @@ export function GanttChart<T extends GanttDatum>({
   cursor,
   onEvents,
   gridSpacing,
+  contentPaddingBottom = 0,
   renderTooltip,
 }: GanttChartProps<T>) {
   const { themeName } = useTimelineEchartsTheme(isDark);
@@ -79,7 +81,7 @@ export function GanttChart<T extends GanttDatum>({
       rowCount: maxRow + 1,
     };
   }, [data]);
-  const chartHeight = Math.max(height, rowCount * rowHeight);
+  const chartHeight = Math.max(height, rowCount * rowHeight + contentPaddingBottom);
   const wrapperHeight = Math.min(chartHeight, maxHeight);
 
   const option = useMemo(

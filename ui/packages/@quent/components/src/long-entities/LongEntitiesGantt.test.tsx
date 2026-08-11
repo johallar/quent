@@ -22,7 +22,12 @@ vi.mock('../timeline/timelineEchartsTheme', () => ({
 }));
 
 vi.mock('../gantt-chart/GanttChart', () => ({
-  GanttChart: (props: { emptyMessage: ReactNode; maxHeight: number }) => {
+  GanttChart: (props: {
+    contentPaddingBottom: number;
+    emptyMessage: ReactNode;
+    gridSpacing: { bottom: number };
+    maxHeight: number;
+  }) => {
     mocks.ganttChart(props);
     return <div>{props.emptyMessage}</div>;
   },
@@ -69,10 +74,18 @@ describe('LongEntitiesGantt', () => {
       />
     );
 
-    expect(mocks.ganttChart).toHaveBeenLastCalledWith(expect.objectContaining({ maxHeight: 75 }));
+    expect(mocks.ganttChart).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        contentPaddingBottom: 12,
+        gridSpacing: expect.objectContaining({ bottom: 14.5 }),
+        maxHeight: 75,
+      })
+    );
 
-    fireEvent.click(screen.getByRole('button', { name: 'Expand entities chart' }));
-    expect(mocks.ganttChart).toHaveBeenLastCalledWith(expect.objectContaining({ maxHeight: 84 }));
+    const expandButton = screen.getByRole('button', { name: 'Expand entities chart' });
+    expect(expandButton).toHaveStyle({ right: '10px' });
+    fireEvent.click(expandButton);
+    expect(mocks.ganttChart).toHaveBeenLastCalledWith(expect.objectContaining({ maxHeight: 96 }));
 
     fireEvent.click(screen.getByRole('button', { name: 'Collapse entities chart' }));
     expect(mocks.ganttChart).toHaveBeenLastCalledWith(expect.objectContaining({ maxHeight: 75 }));
