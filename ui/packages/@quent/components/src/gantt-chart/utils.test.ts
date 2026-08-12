@@ -2,7 +2,16 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { describe, expect, it } from 'vitest';
-import { clipRectByRect, stackIntervalsIntoRows, type GanttRect } from './utils';
+import { TIMELINE_SPACING } from '../timeline/types';
+import {
+  clipRectByRect,
+  GANTT_RESIZE_CONTROL_HEIGHT,
+  ganttBarShape,
+  ganttClipBound,
+  ganttExpansionLayout,
+  stackIntervalsIntoRows,
+  type GanttRect,
+} from './utils';
 
 function rect(x: number, y: number, width: number, height: number): GanttRect {
   return { x, y, width, height };
@@ -89,5 +98,63 @@ describe('stackIntervalsIntoRows', () => {
     stackIntervalsIntoRows([...existing, span(4, 12)]);
 
     expect(existing.map(entry => entry.rowIndex)).toEqual(previousRows);
+  });
+});
+
+describe('ganttBarShape', () => {
+  it('centers the bar on the category tick and enforces a minimum width', () => {
+    expect(ganttBarShape([10, 40], [50, 40], 16)).toEqual({ x: 10, y: 32, width: 40, height: 16 });
+    expect(ganttBarShape([10, 40], [10, 40], 16, 2)).toEqual({
+      x: 10,
+      y: 32,
+      width: 2,
+      height: 16,
+    });
+  });
+});
+
+describe('ganttClipBound', () => {
+  it('returns null when the coord system has no pixel size', () => {
+    expect(ganttClipBound({})).toBeNull();
+  });
+
+  it('reads the grid origin and size', () => {
+    expect(ganttClipBound({ x: 4, y: 8, width: 100, height: 20 })).toEqual({
+      x: 4,
+      y: 8,
+      width: 100,
+      height: 20,
+    });
+  });
+});
+
+describe('ganttExpansionLayout', () => {
+  it('hides the control when every row already fits', () => {
+    expect(
+      ganttExpansionLayout({
+        rowCount: 2,
+        rowHeight: 14,
+        collapsedHeight: 45,
+        isExpanded: false,
+      })
+    ).toMatchObject({
+      canResize: false,
+      resizeControlHeight: 0,
+      maxHeight: 45,
+      contentPaddingBottom: 0,
+    });
+  });
+
+  it('grows to the stacked height when expanded', () => {
+    const layout = ganttExpansionLayout({
+      rowCount: 6,
+      rowHeight: 14,
+      collapsedHeight: 45,
+      isExpanded: true,
+    });
+    expect(layout.canResize).toBe(true);
+    expect(layout.resizeControlHeight).toBe(GANTT_RESIZE_CONTROL_HEIGHT);
+    expect(layout.maxHeight).toBe(6 * 14 + GANTT_RESIZE_CONTROL_HEIGHT);
+    expect(layout.gridSpacing.bottom).toBe(TIMELINE_SPACING.bottom + GANTT_RESIZE_CONTROL_HEIGHT);
   });
 });

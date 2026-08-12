@@ -33,8 +33,10 @@ export {
   canonicalizeNvtxRequest,
   canonicalizeNvtxSelections,
   engineContextsQueryOptions,
+  firstNvtxCatalog,
   nvtxCatalogQueryOptions,
   nvtxViewportQueryOptions,
+  selectAllNvtxDomains,
 } from './nvtx';
 
 // Hooks
@@ -45,4 +47,4 @@ export { useQueries } from './queries';
 export { useTimeline } from './timeline';
 export { useDataFlow } from './dataFlow';
 export { useEntityList, useInfiniteEntityList } from './entityList';
-export { useEngineContexts, useNvtxCatalog, useNvtxViewport } from './nvtx';
+export { useEngineContexts, useNvtxCatalog, useNvtxStream, useNvtxViewport } from './nvtx';

@@ -13,7 +13,7 @@ import { withOpacity } from '@quent/utils';
 import type { LongEntityEntry } from './types';
 import { GanttChart, type GanttRenderItem } from '../gantt-chart/GanttChart';
 import type { GanttHover } from '../gantt-chart/hover';
-import { clipRectByRect } from '../gantt-chart/utils';
+import { layoutGanttBar } from '../gantt-chart/utils';
 import { getLongEntitySegmentsAtTimestamp } from './utils';
 import { PointerTooltipPortal } from '../ui/pointer-tooltip-portal';
 import { EntityTooltipContent, type ActiveMark } from '../timeline/TimelineTooltip';
@@ -96,30 +96,14 @@ export function LongEntitiesGantt({
 
   const renderItem: GanttRenderItem = useCallback(
     (params, api) => {
-      const startMs = api.value(0) as number;
-      const endMs = api.value(1) as number;
-      const rowIndex = api.value(2) as number;
-      if (endMs <= startMs) return null;
-
       const datum = customSeriesData[params.dataIndex];
       const entry = datum ? entries[datum.entryIndex] : undefined;
       const segment = entry?.segments[datum!.segmentIndex];
       if (!entry || !segment) return null;
 
-      const startPoint = api.coord([startMs, rowIndex]);
-      const endPoint = api.coord([endMs, rowIndex]);
-
-      const barTop = startPoint[1] - BAR_HEIGHT / 2;
-      const width = Math.max(1, endPoint[0] - startPoint[0]);
-
-      const coord = params.coordSys as { x?: number; y?: number; width?: number; height?: number };
-      const clipBound =
-        typeof coord.width === 'number' && typeof coord.height === 'number'
-          ? { x: coord.x ?? 0, y: coord.y ?? 0, width: coord.width, height: coord.height }
-          : null;
-      const rectShape = { x: startPoint[0], y: barTop, width, height: BAR_HEIGHT };
-      const clippedShape = clipBound ? clipRectByRect(rectShape, clipBound) : rectShape;
-      if (!clippedShape) return null;
+      const layout = layoutGanttBar(params, api, { barHeight: BAR_HEIGHT });
+      if (!layout) return null;
+      const { clippedShape } = layout;
 
       const color = segment.color;
       const isFirst = datum!.segmentIndex === 0;
@@ -178,6 +162,9 @@ export function LongEntitiesGantt({
       isDark={isDark}
       seriesName={SERIES_NAME}
       renderItem={renderItem}
+      expandable
+      expandLabel="Expand entities chart"
+      collapseLabel="Collapse entities chart"
       emptyMessage="No entities"
       renderTooltip={renderTooltip}
     />
