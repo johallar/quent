@@ -157,7 +157,7 @@ cargo run -p quent-simulator-server -- --cors-address http://localhost:5173
 To generate a test dataset, run the simulator:
 
 ```bash
-cargo run -p quent-simulator
+cargo run -p quent-simulator -- --exporter collector
 ```
 
 ### Building with the static webpage
