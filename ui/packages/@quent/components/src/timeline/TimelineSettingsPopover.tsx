@@ -4,13 +4,19 @@
 import { Settings } from 'lucide-react';
 import { useId } from 'react';
 import {
+  LONG_ENTITY_DENSITIES,
   useLongEntityDensity,
   useSetLongEntityDensity,
   type LongEntityDensity,
 } from '@quent/hooks';
 import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover';
 
-const DENSITY_RANGE: readonly [LongEntityDensity, LongEntityDensity] = [1, 5];
+const DENSITY_MIN = Math.min(...LONG_ENTITY_DENSITIES);
+const DENSITY_MAX = Math.max(...LONG_ENTITY_DENSITIES);
+
+function isLongEntityDensity(value: number): value is LongEntityDensity {
+  return LONG_ENTITY_DENSITIES.some(density => density === value);
+}
 
 export function TimelineSettingsPopover() {
   const density = useLongEntityDensity();
@@ -36,19 +42,15 @@ export function TimelineSettingsPopover() {
         <input
           id={sliderId}
           type="range"
-          min={DENSITY_RANGE[0]}
-          max={DENSITY_RANGE[1]}
+          min={DENSITY_MIN}
+          max={DENSITY_MAX}
           step={1}
           value={density}
-          aria-valuetext={`${density} out of ${DENSITY_RANGE[1]}`}
+          aria-valuetext={`${density} out of ${DENSITY_MAX}`}
           onChange={event => {
             const nextDensity = Number(event.target.value);
-            if (
-              Number.isInteger(nextDensity) &&
-              nextDensity >= DENSITY_RANGE[0] &&
-              nextDensity <= DENSITY_RANGE[1]
-            ) {
-              setDensity(nextDensity as LongEntityDensity);
+            if (isLongEntityDensity(nextDensity)) {
+              setDensity(nextDensity);
             }
           }}
           className="mt-2 h-1.5 w-full cursor-pointer accent-primary"

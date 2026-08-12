@@ -36,7 +36,7 @@ export {
 } from './timeline/useTimelineAtoms';
 
 // Timeline cache key helpers (consumers need these to address per-item data)
-export { timelineCacheKey } from './atoms/timeline';
+export { LONG_ENTITY_DENSITIES, timelineCacheKey } from './atoms/timeline';
 export type { LongEntityDensity, TimelineCacheParams, TimelineHoverState } from './atoms/timeline';
 export { bulkEntryId } from './timeline/timeline.utils';
 

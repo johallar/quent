@@ -4,14 +4,16 @@
 import type { ReactNode } from 'react';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import type { LongEntityDensity } from '@quent/hooks';
 import { TimelineSettingsPopover } from './TimelineSettingsPopover';
 
 const mocks = vi.hoisted(() => ({
-  density: 3 as 1 | 2 | 3 | 4 | 5,
+  density: 3 as LongEntityDensity,
   setDensity: vi.fn(),
 }));
 
-vi.mock('@quent/hooks', () => ({
+vi.mock('@quent/hooks', async importOriginal => ({
+  ...(await importOriginal<typeof import('@quent/hooks')>()),
   useLongEntityDensity: () => mocks.density,
   useSetLongEntityDensity: () => mocks.setDensity,
 }));

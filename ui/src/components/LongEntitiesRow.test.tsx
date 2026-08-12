@@ -4,16 +4,17 @@
 import type { ButtonHTMLAttributes, HTMLAttributes } from 'react';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import type { LongEntityDensity } from '@quent/hooks';
 import { LongEntitiesRow } from './LongEntitiesRow';
 
 const mocks = vi.hoisted(() => ({
   buildLongEntityEntries: vi.fn((items: unknown[]) => items),
   debouncedZoomRange: { start: 0.2, end: 0.6 },
   getLongEntitiesThreshold: vi.fn(
-    (_windowSeconds: number, _numBins: number, density: 1 | 2 | 3 | 4 | 5) =>
+    (_windowSeconds: number, _numBins: number, density: LongEntityDensity) =>
       ({ 1: 0.15, 2: 0.12, 3: 0.09, 4: 0.06, 5: 0.03 })[density]
   ),
-  longEntityDensity: 3 as 1 | 2 | 3 | 4 | 5,
+  longEntityDensity: 3 as LongEntityDensity,
   returnedNumBins: 400 as number | undefined,
   longEntitiesGantt: vi.fn(
     (_props: { entries: unknown[]; height: number; minUsageSeconds: number }) => null

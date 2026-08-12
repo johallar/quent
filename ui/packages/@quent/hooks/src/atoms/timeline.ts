@@ -42,7 +42,8 @@ export const zoomRangeAtom = atom<ZoomRange>({ start: 0, end: 0 });
 /** Debounced zoom range — settles after ZOOM_DEBOUNCE_MS, drives the bulk query */
 export const debouncedZoomRangeAtom = atom<ZoomRange>({ start: 0, end: 0 });
 
-export type LongEntityDensity = 1 | 2 | 3 | 4 | 5;
+export const LONG_ENTITY_DENSITIES = [1, 2, 3, 4, 5] as const;
+export type LongEntityDensity = (typeof LONG_ENTITY_DENSITIES)[number];
 
 /** Controls the minimum usage threshold for entities shown in timeline rows. */
 export const longEntityDensityAtom = atom<LongEntityDensity>(3);
