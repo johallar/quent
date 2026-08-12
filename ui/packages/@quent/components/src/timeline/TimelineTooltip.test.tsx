@@ -103,20 +103,13 @@ describe('TooltipContent active marks', () => {
     expect(screen.getAllByText('500.00ms')).toHaveLength(6);
   });
 
-  it('uses compact rows when more than six entities overlap', () => {
+  it('caps detailed rows and reports entities not shown', () => {
     render(<EntityTooltipContent timestamp={1_000} windowMs={5_000} activeMarks={makeMarks(7)} />);
 
-    expect(screen.getByText('task-6')).toBeInTheDocument();
-    expect(screen.queryByText('duration')).not.toBeInTheDocument();
-    expect(screen.queryByText('500.00ms')).not.toBeInTheDocument();
-  });
-
-  it('caps compact rows and reports entities not shown', () => {
-    render(<EntityTooltipContent timestamp={1_000} windowMs={5_000} activeMarks={makeMarks(10)} />);
-
     expect(screen.getByText('task-0')).toBeInTheDocument();
-    expect(screen.getByText('task-7')).toBeInTheDocument();
-    expect(screen.queryByText('task-8')).not.toBeInTheDocument();
-    expect(screen.getByText('2 more entities not shown')).toBeInTheDocument();
+    expect(screen.getByText('task-5')).toBeInTheDocument();
+    expect(screen.queryByText('task-6')).not.toBeInTheDocument();
+    expect(screen.getAllByText('500.00ms')).toHaveLength(6);
+    expect(screen.getByText('1 more entity not shown')).toBeInTheDocument();
   });
 });

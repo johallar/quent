@@ -199,13 +199,11 @@ function MarkDetailRow({ name, value }: { name: string; value: string }) {
   );
 }
 
-const DETAILED_ACTIVE_MARK_LIMIT = 6;
-const COMPACT_ACTIVE_MARK_LIMIT = 8;
+const ACTIVE_MARK_LIMIT = 6;
 
 function ActiveMarksSection({ marks }: { marks: ActiveMark[] }) {
   if (marks.length === 0) return null;
-  const isCompact = marks.length > DETAILED_ACTIVE_MARK_LIMIT;
-  const visibleMarks = isCompact ? marks.slice(0, COMPACT_ACTIVE_MARK_LIMIT) : marks;
+  const visibleMarks = marks.slice(0, ACTIVE_MARK_LIMIT);
   const hiddenCount = marks.length - visibleMarks.length;
 
   return (
@@ -217,35 +215,28 @@ function ActiveMarksSection({ marks }: { marks: ActiveMark[] }) {
             <DataText className="text-muted-foreground">{m.label}</DataText>
             <DataText className="text-foreground font-medium ml-auto">{m.stateName}</DataText>
           </div>
-          {!isCompact && (
+          {m.durationMs !== undefined && (
+            <MarkDetailRow name="duration" value={formatDuration(m.durationMs)} />
+          )}
+          {m.attributes?.map(attr => (
+            <MarkDetailRow
+              key={attr.key}
+              name={attr.key}
+              value={formatAttributeValue(attr.key, attr.value)}
+            />
+          ))}
+          {m.derivedAttributes && m.derivedAttributes.length > 0 && (
             <>
-              {m.durationMs !== undefined && (
-                <MarkDetailRow name="duration" value={formatDuration(m.durationMs)} />
-              )}
-              {m.attributes?.map(attr => (
+              <DataText as="div" className="pl-3 pt-0.5 text-muted-foreground italic opacity-70">
+                derived
+              </DataText>
+              {m.derivedAttributes.map(attr => (
                 <MarkDetailRow
                   key={attr.key}
                   name={attr.key}
                   value={formatAttributeValue(attr.key, attr.value)}
                 />
               ))}
-              {m.derivedAttributes && m.derivedAttributes.length > 0 && (
-                <>
-                  <DataText
-                    as="div"
-                    className="pl-3 pt-0.5 text-muted-foreground italic opacity-70"
-                  >
-                    derived
-                  </DataText>
-                  {m.derivedAttributes.map(attr => (
-                    <MarkDetailRow
-                      key={attr.key}
-                      name={attr.key}
-                      value={formatAttributeValue(attr.key, attr.value)}
-                    />
-                  ))}
-                </>
-              )}
             </>
           )}
         </div>
