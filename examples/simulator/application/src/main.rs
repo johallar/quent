@@ -17,7 +17,7 @@ use quent_query_engine_model::{
     engine::{self, EngineImplementationAttributes},
     operator, plan, port, query_group, worker,
 };
-use quent_simulator_instrumentation::SimulatorContext;
+use quent_simulator_instrumentation::{NvtxCapture, SimulatorContext, categories, domains};
 use rand::{RngExt, distr::slice::Choose, rng};
 use tracing::{debug, info};
 use uuid::Uuid;
@@ -485,6 +485,7 @@ struct Worker {
     mem_to_fs: Uuid,
     thread_pool: Uuid,
     threads: Vec<Uuid>,
+    nvtx_thread_ids: Vec<u32>,
     // Resource handles — kept alive until shut_down().
     memory_handles: Vec<quent_stdlib::memory::MemoryHandle>,
     channel_handles: Vec<quent_stdlib::channel::ChannelHandle>,
@@ -496,6 +497,7 @@ impl Worker {
         id: Uuid,
         name: String,
         context: &SimulatorContext,
+        nvtx: &NvtxCapture,
         parent_engine_id: Uuid,
         num_threads: usize,
     ) -> Self {
@@ -548,11 +550,13 @@ impl Worker {
         tp_obs.thread_pool(thread_pool, "Thread Pool", id);
 
         let mut threads = Vec::new();
+        let mut nvtx_thread_ids = Vec::new();
         for index in 0..num_threads {
             let thread_id = Uuid::now_v7();
             let mut thread_handle =
                 proc_obs.initializing(thread_id, &format!("Thread {index}"), thread_pool);
             threads.push(thread_id);
+            nvtx_thread_ids.push(nvtx.name_thread(&format!("{name}/thread-{index}")));
             thread_handle.operating();
             processor_handles.push(thread_handle);
         }
@@ -565,15 +569,26 @@ impl Worker {
             mem_to_fs,
             thread_pool,
             threads,
+            nvtx_thread_ids,
             memory_handles,
             channel_handles,
             processor_handles,
         }
     }
 
+    fn nvtx_thread_id(&self, thread: Uuid) -> u32 {
+        let index = self
+            .threads
+            .iter()
+            .position(|id| *id == thread)
+            .expect("thread belongs to this worker");
+        self.nvtx_thread_ids[index]
+    }
+
     fn execute_physical_operator_task(
         &self,
         context: &SimulatorContext,
+        nvtx: &NvtxCapture,
         index: usize,
         engine: &Engine,
         operator: &Operator<Physical>,
@@ -581,6 +596,13 @@ impl Worker {
     ) {
         let thread_ref = Ref::new(thread);
         let mem_ref = Ref::new(self.memory);
+        let nvtx_thread_id = self.nvtx_thread_id(thread);
+        let _task = nvtx.push(
+            domains::QUERY_ENGINE,
+            nvtx_thread_id,
+            &format!("{} task-{index}", operator.name()),
+            categories::COMPUTE,
+        );
 
         // Create task — emits entry -> Queueing
         let task_obs = context.task_observer();
@@ -598,10 +620,24 @@ impl Worker {
 
         let num_bytes = rng().random_range(0..1024) * 1024 * 1024;
 
-        task.allocating(Some(usage(thread_ref)));
-        sleep_short();
+        {
+            let _alloc = nvtx.push(
+                domains::MEMORY,
+                nvtx_thread_id,
+                "alloc",
+                categories::ALLOCATION,
+            );
+            task.allocating(Some(usage(thread_ref)));
+            sleep_short();
+        }
 
         if spill {
+            let _spill = nvtx.push(
+                domains::QUERY_ENGINE,
+                nvtx_thread_id,
+                "spill",
+                categories::IO,
+            );
             task.spilling(
                 Some(usage(thread_ref)),
                 Some(usage((Ref::new(self.mem_to_fs), num_bytes))),
@@ -612,6 +648,12 @@ impl Worker {
         }
 
         if load {
+            let _load = nvtx.push(
+                domains::QUERY_ENGINE,
+                nvtx_thread_id,
+                "load",
+                categories::IO,
+            );
             task.loading(
                 Some(usage(thread_ref)),
                 Some(usage((Ref::new(self.fs_to_mem), num_bytes))),
@@ -620,14 +662,28 @@ impl Worker {
             sleep_sometimes_really_long();
         }
 
-        task.computing(
-            /* instance_name */ "",
-            /* input_bytes */ num_bytes,
-            Some(usage(thread_ref)),
-            Some(usage((mem_ref, rng().random_range(0..4) * num_bytes))),
-        );
+        {
+            let _compute = nvtx.push(
+                domains::QUERY_ENGINE,
+                nvtx_thread_id,
+                "compute",
+                categories::COMPUTE,
+            );
+            task.computing(
+                /* instance_name */ "",
+                /* input_bytes */ num_bytes,
+                Some(usage(thread_ref)),
+                Some(usage((mem_ref, rng().random_range(0..4) * num_bytes))),
+            );
+        }
 
         if send {
+            let _send = nvtx.push(
+                domains::QUERY_ENGINE,
+                nvtx_thread_id,
+                "send",
+                categories::NETWORK,
+            );
             let other_workers = engine.workers.keys().filter(|w| **w != self.id);
 
             for other in other_workers {
@@ -647,6 +703,7 @@ impl Worker {
     fn execute_logical_plan(
         &self,
         context: &SimulatorContext,
+        nvtx: &NvtxCapture,
         engine: &Engine,
         l_plan: &Plan<Logical>,
         num_tasks: usize,
@@ -705,16 +762,23 @@ impl Worker {
             let nodes = &nodes;
             std::thread::scope(|s| {
                 for (thread_index, thread_id) in self.threads.iter().enumerate() {
+                    let nvtx_thread_id = self.nvtx_thread_id(*thread_id);
                     s.spawn({
                         let thread_id = *thread_id;
                         move || {
+                            let _worker = nvtx.push(
+                                domains::QUERY_ENGINE,
+                                nvtx_thread_id,
+                                "worker loop",
+                                categories::COMPUTE,
+                            );
                             for task_index in thread_index * tasks_per_thread_per_op
                                 ..(thread_index + 1) * tasks_per_thread_per_op
                             {
                                 for node_idx in nodes {
                                     let op = &plan.dag[*node_idx];
                                     self.execute_physical_operator_task(
-                                        context, task_index, engine, op, thread_id,
+                                        context, nvtx, task_index, engine, op, thread_id,
                                     );
                                     op.tasks_processed.fetch_add(1, Ordering::Relaxed);
                                     let edges =
@@ -1027,7 +1091,13 @@ impl Engine {
         }
     }
 
-    fn spawn(&mut self, context: &SimulatorContext, num_workers: usize, num_threads: usize) {
+    fn spawn(
+        &mut self,
+        context: &SimulatorContext,
+        nvtx: &NvtxCapture,
+        num_workers: usize,
+        num_threads: usize,
+    ) {
         info!("Simulating Engine:");
         info!("\thttp://localhost:8080/analyzer/engine/{}", self.id);
         let engine_obs = context.engine_observer();
@@ -1053,6 +1123,7 @@ impl Engine {
                 *worker_id,
                 format!("drone-{worker_index}"),
                 context,
+                nvtx,
                 self.id,
                 num_threads,
             );
@@ -1129,12 +1200,19 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let mut engine = Engine::new();
 
-    let context = match args.exporter.into_options() {
+    let exporter = args.exporter.into_options();
+    let context = match exporter.clone() {
         Some(provider) => SimulatorContext::try_new(provider)?,
         None => SimulatorContext::try_new(quent_model::Noop)?,
     };
+    let nvtx = match exporter.as_ref() {
+        Some(provider) => NvtxCapture::try_new(context.id(), provider)?,
+        None => NvtxCapture::noop(context.id()),
+    };
+    nvtx.declare_schema();
+    let main_thread = nvtx.name_thread("simulator-main");
 
-    engine.spawn(&context, args.num_workers, args.num_threads);
+    engine.spawn(&context, &nvtx, args.num_workers, args.num_threads);
 
     for (query_group_index, query_group_id) in std::iter::repeat_with(Uuid::now_v7)
         .take(args.num_query_groups)
@@ -1171,18 +1249,43 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 engine.id
             );
             query_handle.planning();
-            let l_plan = make_logical_plan(query_id, "logical".into());
+            let l_plan = {
+                let _planning = nvtx.push(
+                    domains::QUERY_ENGINE,
+                    main_thread,
+                    "planning",
+                    categories::PLANNING,
+                );
+                make_logical_plan(query_id, "logical".into())
+            };
             l_plan.declare(&context, None);
             query_handle.executing();
+            nvtx.mark(
+                domains::QUERY_ENGINE,
+                &format!("Q{query_index} start"),
+                categories::COMPUTE,
+            );
+            let _query = nvtx.start(
+                domains::QUERY_ENGINE,
+                &format!("Q{query_index}"),
+                categories::COMPUTE,
+            );
 
             let workers: Vec<_> = engine.workers.values().collect();
             std::thread::scope(|s| {
                 for worker in workers {
                     s.spawn(|| {
-                        worker.execute_logical_plan(&context, &engine, &l_plan, args.num_tasks);
+                        worker.execute_logical_plan(
+                            &context,
+                            &nvtx,
+                            &engine,
+                            &l_plan,
+                            args.num_tasks,
+                        );
                     });
                 }
             });
+            drop(_query);
 
             query_handle.exit();
         }
@@ -1193,7 +1296,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Each entity stream flushes only when its last observer clone is released.
     // `engine` co-owns those clones through its worker and network-link handles,
     // so it must drop together with the context to write all pending events.
-    drop((engine, context));
+    drop((engine, context, nvtx));
 
     info!("simulation completed");
     Ok(())

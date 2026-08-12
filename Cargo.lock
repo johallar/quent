@@ -3171,6 +3171,9 @@ dependencies = [
 name = "quent-simulator-instrumentation"
 version = "0.1.0"
 dependencies = [
+ "nvtx-analyzer",
+ "nvtx-bridge",
+ "nvtx-events",
  "quent-model",
  "quent-query-engine-model",
  "quent-stdlib",
