@@ -14,6 +14,7 @@ import {
   nvtxDomainRowId,
   nvtxItemsAtTimestamp,
   nvtxKindLabel,
+  nvtxDomainMeta,
   nvtxLanesToGanttData,
   nvtxMarksRowId,
   nvtxProcessRowId,
@@ -198,6 +199,20 @@ describe('nvtxDefaultExpandedIds', () => {
 describe('rgbHex', () => {
   it('strips an 8-digit ARGB suffix before withOpacity', () => {
     expect(rgbHex('#7c3aedff')).toBe('#7c3aed');
+  });
+});
+
+describe('nvtxDomainMeta', () => {
+  it('uses the same RGB the Gantt paints', () => {
+    expect(nvtxDomainMeta(CATALOG, nvtxDomainRowId('2'))).toEqual({
+      name: 'libcudf',
+      color: '#7c3aed',
+    });
+    const withAlpha: NvtxCatalog = {
+      ...CATALOG,
+      domains: [{ ...CATALOG.domains[1]!, color: '#dc2626ff' }],
+    };
+    expect(nvtxDomainMeta(withAlpha, nvtxDomainRowId('2'))?.color).toBe('#dc2626');
   });
 });
 

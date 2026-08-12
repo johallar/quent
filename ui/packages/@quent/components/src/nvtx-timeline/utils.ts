@@ -110,7 +110,7 @@ export function nvtxDomainMeta(
   if (!rowId.startsWith(DOMAIN_PREFIX)) return null;
   const domainId = rowId.slice(DOMAIN_PREFIX.length);
   const domain = catalog.domains.find(item => item.domain_id === domainId);
-  return domain ? { name: domain.name, color: domain.color } : null;
+  return domain ? { name: domain.name, color: rgbHex(domain.color) } : null;
 }
 
 export function nvtxLaneLabel(
