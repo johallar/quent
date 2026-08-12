@@ -3,7 +3,12 @@
 
 import { useMemo, useState } from 'react';
 import { useEntityList } from '@quent/client';
-import { useDebouncedZoomRange, useLongEntityDensity, useSelectedNodeIds } from '@quent/hooks';
+import {
+  useDebouncedZoomRange,
+  useLongEntityDensity,
+  useReturnedTimelineNumBins,
+  useSelectedNodeIds,
+} from '@quent/hooks';
 import type { FsmTypeDecl } from '@quent/utils';
 import {
   Button,
@@ -45,27 +50,35 @@ export function LongEntitiesRow({
   const selectedNodeIds = useSelectedNodeIds();
   const debouncedZoomRange = useDebouncedZoomRange();
   const longEntityDensity = useLongEntityDensity();
+  const returnedNumBins = useReturnedTimelineNumBins(resourceId);
   const [maxEntities, setMaxEntities] = useState(ENTITIES_PER_PAGE);
   const operatorIds = useMemo(() => [...selectedNodeIds], [selectedNodeIds]);
   const zoomWindow =
     debouncedZoomRange.end > debouncedZoomRange.start
       ? debouncedZoomRange
       : { start: 0, end: durationSeconds };
-  const minUsageSeconds = getLongEntitiesThreshold(
-    zoomWindow.end - zoomWindow.start,
-    longEntityDensity
-  );
+  const minUsageSeconds =
+    returnedNumBins == null
+      ? null
+      : getLongEntitiesThreshold(
+          zoomWindow.end - zoomWindow.start,
+          returnedNumBins,
+          longEntityDensity
+        );
 
-  const { data, isFetching, isPlaceholderData } = useEntityList({
-    engineId,
-    queryId,
-    window: zoomWindow,
-    operatorIds,
-    minUsageSeconds,
-    sortDir: 'Desc',
-    maxItems: maxEntities,
-    filter: { scope: { Resource: { resource_id: resourceId } } },
-  });
+  const { data, isFetching, isPlaceholderData } = useEntityList(
+    {
+      engineId,
+      queryId,
+      window: zoomWindow,
+      operatorIds,
+      minUsageSeconds,
+      sortDir: 'Desc',
+      maxItems: maxEntities,
+      filter: { scope: { Resource: { resource_id: resourceId } } },
+    },
+    { enabled: returnedNumBins != null }
+  );
 
   const entities = useMemo(() => data?.items ?? [], [data]);
   const entries = useMemo(
@@ -83,7 +96,7 @@ export function LongEntitiesRow({
   const isLoadingMore = isPlaceholderData && entities.length < maxEntities;
   const showMoreButton = hasMoreEntities && (!isLoadingMore || maxEntities < totalEntities);
 
-  if (!data && isFetching) {
+  if (minUsageSeconds == null || (!data && isFetching)) {
     return (
       <div
         role="status"

@@ -10,10 +10,11 @@ const mocks = vi.hoisted(() => ({
   buildLongEntityEntries: vi.fn((items: unknown[]) => items),
   debouncedZoomRange: { start: 0.2, end: 0.6 },
   getLongEntitiesThreshold: vi.fn(
-    (_windowSeconds: number, density: 1 | 2 | 3 | 4 | 5) =>
+    (_windowSeconds: number, _numBins: number, density: 1 | 2 | 3 | 4 | 5) =>
       ({ 1: 0.15, 2: 0.12, 3: 0.09, 4: 0.06, 5: 0.03 })[density]
   ),
   longEntityDensity: 3 as 1 | 2 | 3 | 4 | 5,
+  returnedNumBins: 400 as number | undefined,
   longEntitiesGantt: vi.fn(
     (_props: { entries: unknown[]; height: number; minUsageSeconds: number }) => null
   ),
@@ -27,6 +28,7 @@ vi.mock('@quent/client', () => ({
 vi.mock('@quent/hooks', () => ({
   useDebouncedZoomRange: () => mocks.debouncedZoomRange,
   useLongEntityDensity: () => mocks.longEntityDensity,
+  useReturnedTimelineNumBins: () => mocks.returnedNumBins,
   useSelectedNodeIds: () => new Set(['operator-1']),
 }));
 
@@ -49,6 +51,7 @@ describe('LongEntitiesRow', () => {
     vi.clearAllMocks();
     mocks.debouncedZoomRange = { start: 0.2, end: 0.6 };
     mocks.longEntityDensity = 3;
+    mocks.returnedNumBins = 400;
     mocks.useEntityList.mockReturnValue({
       data: undefined,
       isFetching: false,
@@ -69,14 +72,16 @@ describe('LongEntitiesRow', () => {
     );
 
     expect(mocks.getLongEntitiesThreshold.mock.calls[0]?.[0]).toBeCloseTo(0.4);
-    expect(mocks.getLongEntitiesThreshold.mock.calls[0]?.[1]).toBe(3);
+    expect(mocks.getLongEntitiesThreshold.mock.calls[0]?.[1]).toBe(400);
+    expect(mocks.getLongEntitiesThreshold.mock.calls[0]?.[2]).toBe(3);
     expect(mocks.useEntityList).toHaveBeenCalledWith(
       expect.objectContaining({
         window: { start: 0.2, end: 0.6 },
         operatorIds: ['operator-1'],
         minUsageSeconds: 0.09,
         maxItems: 100,
-      })
+      }),
+      { enabled: true }
     );
     expect(mocks.longEntitiesGantt.mock.calls[0]?.[0]).toEqual(
       expect.objectContaining({ height: 110, minUsageSeconds: 0.09 })
@@ -98,8 +103,31 @@ describe('LongEntitiesRow', () => {
     );
 
     expect(mocks.useEntityList).toHaveBeenCalledWith(
-      expect.objectContaining({ minUsageSeconds: 0.15 })
+      expect.objectContaining({ minUsageSeconds: 0.15 }),
+      { enabled: true }
     );
+  });
+
+  it('waits for the returned timeline bin count before fetching entities', () => {
+    mocks.returnedNumBins = undefined;
+
+    render(
+      <LongEntitiesRow
+        engineId="engine-1"
+        queryId="query-1"
+        resourceId="resource-1"
+        durationSeconds={1}
+        fsmTypes={{}}
+        isDark={false}
+      />
+    );
+
+    expect(mocks.getLongEntitiesThreshold).not.toHaveBeenCalled();
+    expect(mocks.useEntityList).toHaveBeenCalledWith(
+      expect.objectContaining({ minUsageSeconds: null }),
+      { enabled: false }
+    );
+    expect(screen.getByRole('status', { name: 'Loading entities' })).toBeInTheDocument();
   });
 
   it('can limit FSM states to those used on the associated resource', () => {
@@ -169,7 +197,8 @@ describe('LongEntitiesRow', () => {
     expect(screen.getByTestId('long-entities-gantt').nextElementSibling).toContainElement(button);
     fireEvent.click(button);
     expect(mocks.useEntityList).toHaveBeenLastCalledWith(
-      expect.objectContaining({ maxItems: 200 })
+      expect.objectContaining({ maxItems: 200 }),
+      { enabled: true }
     );
 
     mocks.debouncedZoomRange = { start: 0.3, end: 0.7 };
@@ -184,7 +213,8 @@ describe('LongEntitiesRow', () => {
       expect.objectContaining({
         window: { start: 0.3, end: 0.7 },
         maxItems: 200,
-      })
+      }),
+      { enabled: true }
     );
     expect(mocks.buildLongEntityEntries).toHaveBeenLastCalledWith(
       [firstEntity, secondEntity],

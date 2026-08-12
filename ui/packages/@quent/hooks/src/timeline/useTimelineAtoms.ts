@@ -12,13 +12,34 @@ import {
   bulkInitializedAtom,
   visibleEntriesAtom,
   longEntityDensityAtom,
+  timelineCacheKey,
 } from '../atoms/timeline';
 import type { ZoomRange, SingleTimelineResponse } from '@quent/utils';
+import { getFsmTypeName, getResourceTypeName } from './timeline.utils';
 
 // Record-based replacement for atomFamily(timelineDataAtom(key))
 export function useTimelineData(key: string): SingleTimelineResponse | undefined {
   const map = useAtomValue(timelineDataMapAtom);
   return map[key];
+}
+
+function useReturnedTimelineData(resourceId: string): SingleTimelineResponse | undefined {
+  const timelineDataMap = useAtomValue(timelineDataMapAtom);
+  const visibleEntries = useAtomValue(visibleEntriesAtom);
+  const request = visibleEntries[resourceId];
+  if (!request) return undefined;
+  const key = timelineCacheKey({
+    resourceId,
+    resourceTypeName: getResourceTypeName(request),
+    fsmTypeName: getFsmTypeName(request),
+  });
+  return timelineDataMap[key];
+}
+
+export function useReturnedTimelineNumBins(resourceId: string): number | undefined {
+  const data = useReturnedTimelineData(resourceId);
+  const numBins = Number(data?.config.num_bins);
+  return Number.isInteger(numBins) && numBins > 0 ? numBins : undefined;
 }
 
 export const useZoomRange = () => useAtomValue(zoomRangeAtom);

@@ -69,12 +69,12 @@ export function getAdaptiveNumBins(): number {
   return MAX_TIMELINE_BINS;
 }
 
-/** Threshold for "long" entities as a density-adjusted multiple of the current bin duration. */
+/** Threshold for "long" entities using the bin count returned by the timeline response. */
 export function getLongEntitiesThreshold(
   windowSeconds: number,
+  numBins: number,
   density: LongEntityDensity = 3
 ): number {
-  const numBins = getAdaptiveNumBins();
   return LONG_ENTITY_DENSITY_MULTIPLIERS[density] * (windowSeconds / numBins);
 }
 
