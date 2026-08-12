@@ -17,4 +17,6 @@ serde.workspace = true
 uuid = { workspace = true, features = ["serde", "v7"] }
 
 [dev-dependencies]
+bitcode.workspace = true
 nvtx-analyzer = { path = "../../../integrations/nvtx/analyzer" }
+tempfile = "3"
