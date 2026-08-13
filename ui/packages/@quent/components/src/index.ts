@@ -30,6 +30,18 @@ export {
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
 } from './ui/dropdown-menu';
+export {
+  Drawer,
+  DrawerPortal,
+  DrawerOverlay,
+  DrawerTrigger,
+  DrawerClose,
+  DrawerContent,
+  DrawerHeader,
+  DrawerFooter,
+  DrawerTitle,
+  DrawerDescription,
+} from './ui/drawer';
 export { HoverCard, HoverCardTrigger, HoverCardContent } from './ui/hover-card';
 export { Input } from './ui/input';
 export {
