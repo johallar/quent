@@ -1,15 +1,19 @@
 // SPDX-FileCopyrightText: Copyright (c) 2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-import { useMemo } from 'react';
+import { useMemo, useState, type PointerEvent as ReactPointerEvent } from 'react';
 import EChartsReactCore from 'echarts-for-react/lib/core';
 import type { FsmTransition } from '@quent/utils';
 import { bigintToChartNumber, formatBytes, isBytesStat } from '@quent/utils';
 import { echarts } from '../lib/echarts';
 import { useChartResize } from '../lib/useChartResize';
+import type { PointerPosition } from '../ui/pointer-tooltip-portal';
+import { PositionedTooltip } from '../ui/positioned-tooltip';
 import { useTimelineEchartsTheme } from '../timeline/timelineEchartsTheme';
+import { FsmCapacityTooltip } from './FsmCapacityTooltip';
 
 const CHART_HEIGHT = 90;
+const GRID = { left: 52, right: 8, top: 8, bottom: 36 };
 
 interface CapacitySeries {
   label: string;
@@ -28,6 +32,7 @@ export interface FsmCapacityChartProps {
 export function FsmCapacityChart({ transitions, isDark, resourceLabel }: FsmCapacityChartProps) {
   const { themeName } = useTimelineEchartsTheme(isDark);
   const { handleChartReady } = useChartResize();
+  const [hover, setHover] = useState<(PointerPosition & { dataIndex: number }) | null>(null);
 
   const { series, stateLabels } = useMemo(() => {
     const n = transitions.length;
@@ -67,10 +72,42 @@ export function FsmCapacityChart({ transitions, isDark, resourceLabel }: FsmCapa
     return { series, stateLabels };
   }, [transitions, resourceLabel]);
 
+  const reportHover = (event: ReactPointerEvent<HTMLDivElement>) => {
+    const rect = event.currentTarget.getBoundingClientRect();
+    const x = event.clientX - rect.left;
+    const y = event.clientY - rect.top;
+    const plotWidth = rect.width - GRID.left - GRID.right;
+    const outsidePlot =
+      x < GRID.left || x > rect.width - GRID.right || y < GRID.top || y > rect.height - GRID.bottom;
+    if (outsidePlot || plotWidth <= 0 || stateLabels.length === 0) {
+      setHover(null);
+      return;
+    }
+
+    const ratio = (x - GRID.left) / plotWidth;
+    const dataIndex = stateLabels.length === 1 ? 0 : Math.round(ratio * (stateLabels.length - 1));
+    setHover({ dataIndex, clientX: event.clientX, clientY: event.clientY });
+  };
+
+  const tooltipItems = hover
+    ? series.flatMap((item, seriesIndex) => {
+        const value = item.data[hover.dataIndex];
+        if (value == null) return [];
+        const raw = item.rawData[hover.dataIndex];
+        return [
+          {
+            id: `${item.label}-${seriesIndex}`,
+            label: item.label,
+            value: formatBytes(raw ?? value),
+          },
+        ];
+      })
+    : [];
+
   const option = useMemo(
     () => ({
       animation: false,
-      grid: { left: 52, right: 8, top: 8, bottom: 36 },
+      grid: GRID,
       xAxis: {
         type: 'category' as const,
         data: stateLabels,
@@ -98,25 +135,8 @@ export function FsmCapacityChart({ transitions, isDark, resourceLabel }: FsmCapa
       },
       tooltip: {
         trigger: 'axis' as const,
-        formatter: (
-          params: Array<{
-            seriesName: string;
-            value: number | null;
-            dataIndex: number;
-            seriesIndex: number;
-          }>
-        ) => {
-          const idx = params[0]?.dataIndex ?? 0;
-          const stateName = transitions[idx]?.name ?? '';
-          const lines = params
-            .filter(p => p.value != null)
-            .map(p => {
-              const raw = series[p.seriesIndex]?.rawData[idx];
-              return `${p.seriesName}: ${formatBytes(raw ?? p.value!)}`;
-            });
-          if (lines.length === 0) return '';
-          return [`<strong>${idx + 1}. ${stateName}</strong>`, ...lines].join('<br/>');
-        },
+        showContent: false,
+        axisPointer: { type: 'line' as const, snap: true },
       },
       series: series.map(s => ({
         type: 'line' as const,
@@ -129,13 +149,18 @@ export function FsmCapacityChart({ transitions, isDark, resourceLabel }: FsmCapa
         lineStyle: { width: 1.5 },
       })),
     }),
-    [series, stateLabels, transitions]
+    [series, stateLabels]
   );
 
   if (series.length === 0) return null;
 
   return (
-    <div className="shrink-0 border-b">
+    <div
+      className="shrink-0 border-b"
+      onPointerMove={reportHover}
+      onPointerLeave={() => setHover(null)}
+      onPointerCancel={() => setHover(null)}
+    >
       <EChartsReactCore
         echarts={echarts}
         theme={themeName}
@@ -146,6 +171,15 @@ export function FsmCapacityChart({ transitions, isDark, resourceLabel }: FsmCapa
         notMerge={false}
         lazyUpdate={false}
       />
+      {hover && tooltipItems.length > 0 && (
+        <PositionedTooltip clientX={hover.clientX} clientY={hover.clientY}>
+          <FsmCapacityTooltip
+            stateIndex={hover.dataIndex}
+            stateName={transitions[hover.dataIndex]?.name ?? ''}
+            items={tooltipItems}
+          />
+        </PositionedTooltip>
+      )}
     </div>
   );
 }
