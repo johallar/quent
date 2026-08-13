@@ -46,6 +46,8 @@ export {
   inferFieldFormatter,
   formatStatWithQuantity,
   isNumericValue,
+  isBytesStat,
+  bigintToChartNumber,
 } from './formatters';
 
 // Rust-generated TypeScript types

@@ -41,6 +41,11 @@ export interface LongEntitiesGanttProps {
   height?: number;
   /** Whether dark mode is active. Passed explicitly to decouple from ThemeContext. */
   isDark: boolean;
+  onEntityClick?: (entry: LongEntityEntry) => void;
+  /** When set, dims all entity bars except the one with this entity ID. */
+  selectedEntityId?: string;
+  /** Called when the user clicks the chart background (not an entity bar). */
+  onBackgroundClick?: () => void;
 }
 
 export function LongEntitiesGantt({
@@ -48,6 +53,9 @@ export function LongEntitiesGantt({
   durationSeconds,
   height = LONG_ENTITIES_TIMELINE_HEIGHT,
   isDark,
+  onEntityClick,
+  selectedEntityId,
+  onBackgroundClick,
 }: LongEntitiesGanttProps) {
   const { textColor } = useTimelineEchartsTheme(isDark);
   const zoomRange = useZoomRange();
@@ -121,6 +129,10 @@ export function LongEntitiesGantt({
       const clippedShape = clipBound ? clipRectByRect(rectShape, clipBound) : rectShape;
       if (!clippedShape) return null;
 
+      const hasSelection = selectedEntityId != null;
+      const isSelected = hasSelection && entry.entityId === selectedEntityId;
+      const opacity = hasSelection && !isSelected ? 0.3 : 1;
+
       const color = segment.color;
       const isFirst = datum!.segmentIndex === 0;
       const isLast = datum!.segmentIndex === entry.segments.length - 1;
@@ -140,6 +152,7 @@ export function LongEntitiesGantt({
           fill: withOpacity(color, MARK_AREA_FILL_OPACITY),
           stroke: withOpacity(color, MARK_AREA_BORDER_OPACITY),
           lineWidth: 1,
+          opacity,
         },
       };
 
@@ -158,6 +171,7 @@ export function LongEntitiesGantt({
                   fill: textColor,
                   overflow: 'truncate' as const,
                   width: Math.max(0, clippedShape.width - 6),
+                  opacity,
                 },
               },
             ]
@@ -165,8 +179,21 @@ export function LongEntitiesGantt({
 
       return { type: 'group' as const, children: [rect, ...labelChildren] };
     },
-    [entries, customSeriesData, textColor]
+    [entries, customSeriesData, textColor, selectedEntityId]
   );
+
+  const onEvents = useMemo(() => {
+    if (!onEntityClick) return undefined;
+    return {
+      click: (params: { dataIndex: number; seriesName?: string }) => {
+        if (params.seriesName !== SERIES_NAME) return;
+        const datum = customSeriesData[params.dataIndex];
+        if (!datum) return;
+        const entry = entries[datum.entryIndex];
+        if (entry) onEntityClick(entry);
+      },
+    };
+  }, [onEntityClick, customSeriesData, entries]);
 
   return (
     <GanttChart
@@ -180,6 +207,9 @@ export function LongEntitiesGantt({
       renderItem={renderItem}
       emptyMessage="No entities"
       renderTooltip={renderTooltip}
+      cursor={onEntityClick ? 'pointer' : undefined}
+      onEvents={onEvents}
+      onBackgroundClick={onBackgroundClick}
     />
   );
 }
