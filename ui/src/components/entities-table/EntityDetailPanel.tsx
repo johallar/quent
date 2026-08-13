@@ -3,16 +3,8 @@
 
 import { useState } from 'react';
 import { Check, Copy } from 'lucide-react';
-import { thinScrollbarClass, FsmCapacityChart, PointerTooltipPortal } from '@quent/components';
-import type { PointerPosition } from '@quent/components';
-import {
-  formatDuration,
-  formatDurationForWindow,
-  formatBytes,
-  getColorForKey,
-  isBytesStat,
-  unwrapTaggedValue,
-} from '@quent/utils';
+import { DataFlowBar, FsmCapacityChart, thinScrollbarClass } from '@quent/components';
+import { formatDuration, formatDurationForWindow, getColorForKey } from '@quent/utils';
 import type { EntityRef, FiniteStateMachine, QueryBundle } from '@quent/utils';
 import { useTheme, THEME_DARK } from '@/contexts/ThemeContext';
 import { ResourceUsageList } from './ResourceUsageList';
@@ -36,8 +28,6 @@ export function EntityDetailPanel({
   const { theme } = useTheme();
   const paletteTheme = theme === THEME_DARK ? ('dark' as const) : ('light' as const);
   const [copied, setCopied] = useState(false);
-  const [barTooltip, setBarTooltip] = useState<{ name: string; pct: number } | null>(null);
-  const [barPointer, setBarPointer] = useState<PointerPosition | null>(null);
 
   if (!fsm) {
     return (
@@ -129,49 +119,30 @@ export function EntityDetailPanel({
           </div>
         )}
         {totalSpanMs > 0 && stateTimeMs.size > 0 && (
-          <div className="mt-2 flex h-2 w-full overflow-hidden rounded-full">
-            {[...stateTimeMs.entries()].map(([name, ms]) => {
+          <DataFlowBar
+            className="mt-2"
+            trackClassName="rounded-full bg-transparent"
+            height={8}
+            showLabels={false}
+            showTooltips
+            segments={[...stateTimeMs.entries()].map(([name, ms]) => {
               const color = stateColorFn ? stateColorFn(name) : getColorForKey(name, paletteTheme);
               const pct = (ms / totalSpanMs) * 100;
-              return (
-                <div
-                  key={name}
-                  role="img"
-                  aria-label={`${name}: ${pct.toFixed(1)}%`}
-                  tabIndex={0}
-                  style={{ width: `${pct}%`, backgroundColor: color }}
-                  className="focus-visible:brightness-90"
-                  onMouseEnter={e => {
-                    setBarTooltip({ name, pct });
-                    setBarPointer({ clientX: e.clientX, clientY: e.clientY });
-                  }}
-                  onMouseMove={e => setBarPointer({ clientX: e.clientX, clientY: e.clientY })}
-                  onMouseLeave={() => {
-                    setBarTooltip(null);
-                    setBarPointer(null);
-                  }}
-                  onFocus={e => {
-                    const rect = e.currentTarget.getBoundingClientRect();
-                    setBarTooltip({ name, pct });
-                    setBarPointer({ clientX: rect.left + rect.width / 2, clientY: rect.top });
-                  }}
-                  onBlur={() => {
-                    setBarTooltip(null);
-                    setBarPointer(null);
-                  }}
-                />
-              );
+              return {
+                id: name,
+                value: ms,
+                color,
+                ariaLabel: `${name}: ${pct.toFixed(1)}%`,
+                tooltip: (
+                  <div className="rounded bg-popover px-2 py-1.5 text-[11px] leading-tight text-foreground shadow-md">
+                    <span className="font-medium">{name}</span>
+                    <span className="ml-2 text-muted-foreground">{pct.toFixed(1)}%</span>
+                  </div>
+                ),
+              };
             })}
-          </div>
+          />
         )}
-        <PointerTooltipPortal hover={barTooltip ? barPointer : null}>
-          {barTooltip && (
-            <div className="rounded bg-popover px-2 py-1.5 text-[11px] leading-tight text-foreground shadow-md">
-              <span className="font-medium">{barTooltip.name}</span>
-              <span className="ml-2 text-muted-foreground">{barTooltip.pct.toFixed(1)}%</span>
-            </div>
-          )}
-        </PointerTooltipPortal>
       </div>
 
       <FsmCapacityChart

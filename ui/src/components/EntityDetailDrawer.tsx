@@ -41,6 +41,7 @@ export function EntityDetailDrawer({
       modal={false}
       noBodyStyles
       shouldScaleBackground={false}
+      handleOnly
     >
       <DrawerPortal>
         <DrawerContent
