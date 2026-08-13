@@ -109,6 +109,22 @@ describe('formatDurationForWindow', () => {
     // windowMs=1000 → resolution=1ms, unitMs=1000 → ratio=0.001 → decimals=3
     expect(formatDurationForWindow(2000, 1000)).toBe('2.000s');
   });
+
+  it('adapts precision across entity-scale time ranges', () => {
+    expect(formatDurationForWindow(60_000, 120_000)).toBe('1.000min');
+    expect(formatDurationForWindow(5_000, 10_000)).toBe('5.00s');
+    expect(formatDurationForWindow(5, 10)).toBe('5.00ms');
+    expect(formatDurationForWindow(0.005, 0.01)).toBe('5.00µs');
+    expect(formatDurationForWindow(0.000005, 0.00001)).toBe('5.00ns');
+  });
+
+  it('can preserve narrow-window precision for large elapsed timestamps', () => {
+    const start = formatDurationForWindow(60_000, 0.00001, 15);
+    const fiveNanosecondsLater = formatDurationForWindow(60_000.000005, 0.00001, 15);
+
+    expect(start).toBe('1.0000000000000min');
+    expect(fiveNanosecondsLater).toBe('1.0000000000833min');
+  });
 });
 
 // ---------------------------------------------------------------------------

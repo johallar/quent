@@ -41,8 +41,13 @@ export function formatDuration(ms: number, decimals: number = 2): string {
  * produce distinct formatted strings.
  * @param ms - Duration in milliseconds
  * @param windowMs - Visible time window width in milliseconds
+ * @param maxDecimals - Maximum precision to display
  */
-export function formatDurationForWindow(ms: number, windowMs: number): string {
+export function formatDurationForWindow(
+  ms: number,
+  windowMs: number,
+  maxDecimals: number = 6
+): string {
   const absMs = Math.abs(ms);
   const resolution = Math.abs(windowMs) / 1000;
 
@@ -57,7 +62,9 @@ export function formatDurationForWindow(ms: number, windowMs: number): string {
 
   const resolutionInUnit = resolution / unitMs;
   const decimals =
-    resolutionInUnit > 0 ? Math.min(6, Math.max(0, Math.ceil(-Math.log10(resolutionInUnit)))) : 2;
+    resolutionInUnit > 0
+      ? Math.min(maxDecimals, Math.max(0, Math.ceil(-Math.log10(resolutionInUnit))))
+      : Math.min(2, maxDecimals);
 
   return formatDuration(ms, decimals);
 }
@@ -389,7 +396,7 @@ export function inferFieldFormatter(fieldName: string): (value: number | bigint)
  * Selects the appropriate prefix system based on the capacity kind.
  */
 export function formatQuantity(
-  value: number,
+  value: number | bigint,
   spec: QuantitySpec,
   kind: CapacityKind,
   decimals: number = 2
@@ -404,7 +411,7 @@ export function formatQuantity(
  * Falls back to the name-based `inferFieldFormatter` heuristic when no spec is provided.
  */
 export function formatStatWithQuantity(
-  value: number,
+  value: number | bigint,
   key: string,
   quantitySpec: QuantitySpec | undefined
 ): string {

@@ -11,7 +11,7 @@ import {
   DrawerPortal,
   DrawerTitle,
 } from '@quent/components';
-import type { FiniteStateMachine } from '@quent/utils';
+import type { EntityRef, FiniteStateMachine, QueryBundle } from '@quent/utils';
 import { EntityDetailPanel } from './entities-table/EntityDetailPanel';
 
 interface EntityDetailDrawerProps {
@@ -20,6 +20,7 @@ interface EntityDetailDrawerProps {
   operatorLabel: (id: string) => string;
   onClose: () => void;
   stateColorFn?: (name: string) => string;
+  queryBundle: QueryBundle<EntityRef>;
 }
 
 export function EntityDetailDrawer({
@@ -28,6 +29,7 @@ export function EntityDetailDrawer({
   operatorLabel,
   onClose,
   stateColorFn,
+  queryBundle,
 }: EntityDetailDrawerProps) {
   return (
     <Drawer
@@ -62,6 +64,7 @@ export function EntityDetailDrawer({
               resourceLabel={resourceLabel}
               operatorLabel={operatorLabel}
               stateColorFn={stateColorFn}
+              queryBundle={queryBundle}
             />
           </div>
         </DrawerContent>

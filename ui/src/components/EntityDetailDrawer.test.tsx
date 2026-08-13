@@ -4,6 +4,7 @@
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
+import type { EntityRef, QueryBundle } from '@quent/utils';
 import { EntityDetailDrawer } from './EntityDetailDrawer';
 
 vi.mock('./entities-table/EntityDetailPanel', () => ({
@@ -16,6 +17,7 @@ const fsm = {
   instance_name: 'Task 1',
   transitions: [],
 };
+const queryBundle = {} as QueryBundle<EntityRef>;
 
 describe('EntityDetailDrawer', () => {
   it('is non-modal and closes when the background is clicked', async () => {
@@ -30,6 +32,7 @@ describe('EntityDetailDrawer', () => {
           resourceLabel={id => id}
           operatorLabel={id => id}
           onClose={onClose}
+          queryBundle={queryBundle}
         />
       </>
     );

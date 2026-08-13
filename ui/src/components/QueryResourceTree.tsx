@@ -421,6 +421,7 @@ function QueryResourceTreeContent({ queryBundle, engineId }: QueryResourceTreePr
         operatorLabel={operatorLabel}
         onClose={closeDrawer}
         stateColorFn={stateColorFn}
+        queryBundle={queryBundle}
       />
     </div>
   );

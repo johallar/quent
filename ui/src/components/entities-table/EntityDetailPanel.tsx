@@ -6,21 +6,24 @@ import { Check, Copy } from 'lucide-react';
 import { thinScrollbarClass, FsmCapacityChart, PointerTooltipPortal } from '@quent/components';
 import type { PointerPosition } from '@quent/components';
 import {
-  formatAttributeValue,
   formatDuration,
+  formatDurationForWindow,
   formatBytes,
   getColorForKey,
   isBytesStat,
   unwrapTaggedValue,
 } from '@quent/utils';
-import type { DynamicAttribute, FiniteStateMachine } from '@quent/utils';
+import type { EntityRef, FiniteStateMachine, QueryBundle } from '@quent/utils';
 import { useTheme, THEME_DARK } from '@/contexts/ThemeContext';
+import { ResourceUsageList } from './ResourceUsageList';
+import { TransitionAttributes } from './TransitionAttributes';
 
 interface EntityDetailPanelProps {
   fsm: FiniteStateMachine | null;
   resourceLabel: (id: string) => string;
   operatorLabel: (id: string) => string;
   stateColorFn?: (name: string) => string;
+  queryBundle: QueryBundle<EntityRef>;
 }
 
 export function EntityDetailPanel({
@@ -28,6 +31,7 @@ export function EntityDetailPanel({
   resourceLabel,
   operatorLabel,
   stateColorFn,
+  queryBundle,
 }: EntityDetailPanelProps) {
   const { theme } = useTheme();
   const paletteTheme = theme === THEME_DARK ? ('dark' as const) : ('light' as const);
@@ -80,21 +84,6 @@ export function EntityDetailPanel({
     };
   }
 
-  // Find data volume from derived attributes (last bytes-stat with a numeric value)
-  let dataVolume: string | null = null;
-  for (let i = fsm.transitions.length - 1; i >= 0; i--) {
-    for (const attr of fsm.transitions[i]!.derived_attributes) {
-      if (isBytesStat(attr.key) && attr.value != null) {
-        const raw = unwrapTaggedValue(attr.value);
-        if (typeof raw === 'number' || typeof raw === 'bigint') {
-          dataVolume = formatBytes(raw);
-          break;
-        }
-      }
-    }
-    if (dataVolume) break;
-  }
-
   function copyId() {
     void navigator.clipboard.writeText(fsm!.id);
     setCopied(true);
@@ -137,12 +126,6 @@ export function EntityDetailPanel({
             <span className="font-medium" style={{ color: dominantState.color }}>
               {dominantState.name} · {dominantState.pct.toFixed(1)}%
             </span>
-          </div>
-        )}
-        {dataVolume && (
-          <div className="mt-0.5 flex items-center justify-between gap-2">
-            <span className="text-muted-foreground">Data volume</span>
-            <span className="tabular-nums font-medium">{dataVolume}</span>
           </div>
         )}
         {totalSpanMs > 0 && stateTimeMs.size > 0 && (
@@ -232,7 +215,7 @@ export function EntityDetailPanel({
                     </span>
                   )}
                   <span className="tabular-nums text-xs text-muted-foreground">
-                    @{transition.timestamp.toFixed(3)}s
+                    @{formatDurationForWindow(transition.timestamp * 1000, totalSpanMs, 15)}
                   </span>
                 </div>
               </div>
@@ -247,74 +230,20 @@ export function EntityDetailPanel({
                 </div>
               )}
 
-              {transition.usages.length > 0 && (
-                <ul className="mt-1 space-y-0.5 text-xs text-muted-foreground">
-                  {transition.usages.map((usage, usageIndex) => (
-                    <li key={usageIndex} className="flex flex-wrap items-baseline gap-x-2">
-                      <span className="font-mono">{resourceLabel(usage.resource)}</span>
-                      {usage.capacities.map(([name, capacity], capacityIndex) => (
-                        <span key={capacityIndex} className="tabular-nums">
-                          {name}
-                          {capacity != null
-                            ? `=${isBytesStat(name) ? formatBytes(capacity) : String(capacity)}`
-                            : ''}
-                        </span>
-                      ))}
-                    </li>
-                  ))}
-                </ul>
-              )}
-              {transition.attributes.length > 0 && (
-                <AttributeRows attributes={transition.attributes} operatorLabel={operatorLabel} />
-              )}
-              {transition.derived_attributes.length > 0 && (
-                <AttributeRows
-                  attributes={transition.derived_attributes}
-                  derived
-                  operatorLabel={operatorLabel}
-                />
-              )}
+              <ResourceUsageList
+                usages={transition.usages}
+                resourceLabel={resourceLabel}
+                queryBundle={queryBundle}
+              />
+              <TransitionAttributes
+                attributes={transition.attributes}
+                derivedAttributes={transition.derived_attributes}
+                operatorLabel={operatorLabel}
+              />
             </li>
           );
         })}
       </ol>
     </div>
   );
-}
-
-function AttributeRows({
-  attributes,
-  derived,
-  operatorLabel,
-}: {
-  attributes: DynamicAttribute[];
-  derived?: boolean;
-  operatorLabel: (id: string) => string;
-}) {
-  return (
-    <ul className={`mt-1 space-y-0.5 text-xs ${derived ? 'italic text-muted-foreground' : ''}`}>
-      {attributes.map((attribute, index) => {
-        const { label, value } = resolveAttributeDisplay(attribute, operatorLabel);
-        return (
-          <li key={index} className="flex justify-between gap-3">
-            <span className={derived ? '' : 'text-muted-foreground'}>{label}</span>
-            <span className="tabular-nums text-right">{value}</span>
-          </li>
-        );
-      })}
-    </ul>
-  );
-}
-
-function resolveAttributeDisplay(
-  attribute: DynamicAttribute,
-  operatorLabel: (id: string) => string
-): { label: string; value: string } {
-  if (attribute.key === 'operator_id') {
-    const raw = unwrapTaggedValue(attribute.value);
-    if (typeof raw === 'string') {
-      return { label: 'operator', value: operatorLabel(raw) };
-    }
-  }
-  return { label: attribute.key, value: formatAttributeValue(attribute.key, attribute.value) };
 }
