@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: Copyright (c) 2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-import { useMemo, useState, type PointerEvent as ReactPointerEvent } from 'react';
+import { useMemo, useState } from 'react';
 import EChartsReactCore from 'echarts-for-react/lib/core';
 import type { FsmTransition } from '@quent/utils';
 import { bigintToChartNumber, formatBytes, isBytesStat } from '@quent/utils';
@@ -23,6 +23,10 @@ interface CapacitySeries {
   rawData: Array<bigint | null>;
 }
 
+interface AxisPointerEvent {
+  axesInfo?: Array<{ axisDim?: string; value?: number }>;
+}
+
 export interface FsmCapacityChartProps {
   transitions: FsmTransition[];
   isDark: boolean;
@@ -32,7 +36,8 @@ export interface FsmCapacityChartProps {
 export function FsmCapacityChart({ transitions, isDark, resourceLabel }: FsmCapacityChartProps) {
   const { themeName } = useTimelineEchartsTheme(isDark);
   const { handleChartReady } = useChartResize();
-  const [hover, setHover] = useState<(PointerPosition & { dataIndex: number }) | null>(null);
+  const [pointer, setPointer] = useState<PointerPosition | null>(null);
+  const [dataIndex, setDataIndex] = useState<number | null>(null);
 
   const { series, stateLabels } = useMemo(() => {
     const n = transitions.length;
@@ -72,21 +77,19 @@ export function FsmCapacityChart({ transitions, isDark, resourceLabel }: FsmCapa
     return { series, stateLabels };
   }, [transitions, resourceLabel]);
 
-  const reportHover = (event: ReactPointerEvent<HTMLDivElement>) => {
-    const rect = event.currentTarget.getBoundingClientRect();
-    const x = event.clientX - rect.left;
-    const y = event.clientY - rect.top;
-    const plotWidth = rect.width - GRID.left - GRID.right;
-    const outsidePlot =
-      x < GRID.left || x > rect.width - GRID.right || y < GRID.top || y > rect.height - GRID.bottom;
-    if (outsidePlot || plotWidth <= 0 || stateLabels.length === 0) {
-      setHover(null);
-      return;
-    }
-
-    const ratio = (x - GRID.left) / plotWidth;
-    const dataIndex = stateLabels.length === 1 ? 0 : Math.round(ratio * (stateLabels.length - 1));
-    setHover({ dataIndex, clientX: event.clientX, clientY: event.clientY });
+  const onEvents = useMemo(
+    () => ({
+      updateAxisPointer: (event: AxisPointerEvent) => {
+        const value = event.axesInfo?.find(info => info.axisDim === 'x')?.value;
+        setDataIndex(typeof value === 'number' ? Math.round(value) : null);
+      },
+    }),
+    []
+  );
+  const hover = pointer && dataIndex != null ? { ...pointer, dataIndex } : null;
+  const clearHover = () => {
+    setPointer(null);
+    setDataIndex(null);
   };
 
   const tooltipItems = hover
@@ -157,9 +160,9 @@ export function FsmCapacityChart({ transitions, isDark, resourceLabel }: FsmCapa
   return (
     <div
       className="shrink-0 border-b"
-      onPointerMove={reportHover}
-      onPointerLeave={() => setHover(null)}
-      onPointerCancel={() => setHover(null)}
+      onPointerMove={event => setPointer({ clientX: event.clientX, clientY: event.clientY })}
+      onPointerLeave={clearHover}
+      onPointerCancel={clearHover}
     >
       <EChartsReactCore
         echarts={echarts}
@@ -167,6 +170,7 @@ export function FsmCapacityChart({ transitions, isDark, resourceLabel }: FsmCapa
         option={option}
         style={{ height: CHART_HEIGHT }}
         onChartReady={handleChartReady}
+        onEvents={onEvents}
         autoResize={false}
         notMerge={false}
         lazyUpdate={false}
