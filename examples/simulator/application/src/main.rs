@@ -62,6 +62,10 @@ struct Args {
     #[arg(long, default_value_t = 0)]
     num_nvtx_nested_ranges: usize,
 
+    /// Emit per-task NVTX ranges on 1 in N tasks (`0` skips them). Default keeps ~5MB of NVTX.
+    #[arg(long, default_value_t = 5)]
+    nvtx_task_every: usize,
+
     #[command(flatten)]
     exporter: ExporterArgs,
 }
@@ -675,16 +679,19 @@ impl Worker {
         let mem_ref = Ref::new(self.memory);
         let nvtx_thread_id = self.nvtx_thread_id(thread);
         let category = nvtx.category_at(0);
-        let _op = nvtx.push(
-            nvtx.domain_at(0),
-            nvtx_thread_id,
-            &format!(
-                "Pipeline 0: {} (id={op_id}) {}",
-                nvtx_pipeline_op(operator.kind),
-                nvtx_execute_name(operator.kind)
-            ),
-            category,
-        );
+        let emit_nvtx = nvtx.emit_task_ranges(index);
+        let _op = emit_nvtx.then(|| {
+            nvtx.push(
+                nvtx.domain_at(0),
+                nvtx_thread_id,
+                &format!(
+                    "Pipeline 0: {} (id={op_id}) {}",
+                    nvtx_pipeline_op(operator.kind),
+                    nvtx_execute_name(operator.kind)
+                ),
+                category,
+            )
+        });
 
         // Create task — emits entry -> Queueing
         let task_obs = context.task_observer();
@@ -702,7 +709,7 @@ impl Worker {
 
         let num_bytes = rng().random_range(0..1024) * 1024 * 1024;
 
-        if operator.kind == Physical::FileSystemScan {
+        if emit_nvtx && operator.kind == Physical::FileSystemScan {
             nvtx_libcudf_scan(nvtx, nvtx_thread_id);
         }
 
@@ -722,7 +729,7 @@ impl Worker {
         }
 
         if load {
-            if operator.kind != Physical::FileSystemScan {
+            if emit_nvtx && operator.kind != Physical::FileSystemScan {
                 nvtx_libcudf_scan(nvtx, nvtx_thread_id);
             }
             task.loading(
@@ -734,12 +741,14 @@ impl Worker {
         }
 
         {
-            nvtx_cccl_kernel(nvtx, nvtx_thread_id, index.wrapping_add(op_id));
-            if operator.kind == Physical::JoinLocal
-                && let Some(domain) = nvtx.try_domain(2)
-            {
-                let _binop = nvtx.push(domain, nvtx_thread_id, "binary_operation", category);
-                sleep_short();
+            if emit_nvtx {
+                nvtx_cccl_kernel(nvtx, nvtx_thread_id, index.wrapping_add(op_id));
+                if operator.kind == Physical::JoinLocal
+                    && let Some(domain) = nvtx.try_domain(2)
+                {
+                    let _binop = nvtx.push(domain, nvtx_thread_id, "binary_operation", category);
+                    sleep_short();
+                }
             }
             task.computing(
                 /* instance_name */ "",
@@ -840,12 +849,14 @@ impl Worker {
                             for task_index in thread_index * tasks_per_thread_per_op
                                 ..(thread_index + 1) * tasks_per_thread_per_op
                             {
-                                let _pipeline_task = nvtx.push(
-                                    nvtx.domain_at(0),
-                                    nvtx_thread_id,
-                                    &format!("Pipeline 0 Task {task_index} ({pipeline})"),
-                                    nvtx.category_at(0),
-                                );
+                                let _pipeline_task = nvtx.emit_task_ranges(task_index).then(|| {
+                                    nvtx.push(
+                                        nvtx.domain_at(0),
+                                        nvtx_thread_id,
+                                        &format!("Pipeline 0 Task {task_index} ({pipeline})"),
+                                        nvtx.category_at(0),
+                                    )
+                                });
                                 for (op_id, node_idx) in nodes.iter().enumerate() {
                                     let op = &plan.dag[*node_idx];
                                     self.execute_physical_operator_task(
@@ -1281,6 +1292,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         num_categories: args.num_nvtx_categories,
         num_marks: args.num_nvtx_marks,
         num_nested_ranges: args.num_nvtx_nested_ranges,
+        task_every: args.nvtx_task_every,
     };
     let nvtx = match exporter.as_ref() {
         Some(provider) => NvtxCapture::try_new(context.id(), provider, nvtx_layout)?,
