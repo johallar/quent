@@ -89,4 +89,45 @@ describe('TooltipContent active marks', () => {
     expect(screen.getByText('loading')).toBeInTheDocument();
     expect(screen.queryByText('Total')).not.toBeInTheDocument();
   });
+
+  it('caps visible marks and reports how many were hidden', () => {
+    render(
+      <EntityTooltipContent
+        timestamp={1_000}
+        windowMs={5_000}
+        itemLimit={2}
+        activeMarks={[
+          { label: 'a', stateName: 'one', color: '#000' },
+          { label: 'b', stateName: 'two', color: '#000' },
+          { label: 'c', stateName: 'three', color: '#000' },
+        ]}
+      />
+    );
+    expect(screen.getByText('one')).toBeInTheDocument();
+    expect(screen.getByText('two')).toBeInTheDocument();
+    expect(screen.queryByText('three')).not.toBeInTheDocument();
+    expect(screen.getByText('1 more not shown')).toBeInTheDocument();
+  });
+
+  it('renders a compact name + count list with a totals summary', () => {
+    render(
+      <EntityTooltipContent
+        timestamp={1_000}
+        windowMs={5_000}
+        summary="6 ranges"
+        itemLimit={2}
+        activeMarks={[
+          { label: 'read_parquet', stateName: '4 ranges', color: '#7c3aed', compact: true },
+          { label: 'copy_if', stateName: '2 ranges', color: '#2563eb', compact: true },
+          { label: 'kernel', stateName: '1 range', color: '#000', compact: true },
+        ]}
+      />
+    );
+    expect(screen.getByText('6 ranges')).toBeInTheDocument();
+    expect(screen.getByText('read_parquet')).toBeInTheDocument();
+    expect(screen.getByText('4 ranges')).toBeInTheDocument();
+    expect(screen.getByText('copy_if')).toBeInTheDocument();
+    expect(screen.queryByText('kernel')).not.toBeInTheDocument();
+    expect(screen.getByText('1 more not shown')).toBeInTheDocument();
+  });
 });

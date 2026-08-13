@@ -54,6 +54,7 @@ import {
 import { LongEntitiesRow } from '@/components/LongEntitiesRow';
 import {
   NvtxGantt,
+  NVTX_GANTT_HEIGHT,
   NVTX_DOMAIN_ROW_TYPE,
   NVTX_LANE_ROW_TYPE,
   NVTX_SECTION_ROW_TYPE,
@@ -421,7 +422,7 @@ function QueryResourceTreeContent({ queryBundle, engineId }: QueryResourceTreePr
                 <NvtxGantt
                   lanes={lanes}
                   durationSeconds={durationSeconds}
-                  height={DEFAULT_TIMELINE_HEIGHT}
+                  height={NVTX_GANTT_HEIGHT}
                   isDark={isDark}
                 />
               );

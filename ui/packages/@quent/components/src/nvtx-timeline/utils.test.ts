@@ -19,6 +19,12 @@ import {
   nvtxMarksRowId,
   nvtxProcessRowId,
   nvtxThreadRowId,
+  mergeNvtxGanttData,
+  NVTX_BAR_MERGE_GAP_PX,
+  nvtxMergedBarGlyph,
+  nvtxToActiveMark,
+  nvtxToSummaryMark,
+  nvtxTooltipModel,
   rgbHex,
 } from './utils';
 
@@ -216,10 +222,180 @@ describe('nvtxDomainMeta', () => {
   });
 });
 
+describe('mergeNvtxGanttData', () => {
+  const budget = { visibleStartMs: 0, visibleEndMs: 1_000, plotWidthPx: 100 };
+
+  function bar(
+    startMs: number,
+    endMs: number,
+    color = '#7c3aed',
+    row = 0
+  ): ReturnType<typeof nvtxLanesToGanttData>[number] {
+    return {
+      value: [startMs, endMs, row],
+      range: { ...range('x', startMs / 1_000, endMs / 1_000), color },
+    };
+  }
+
+  it('merges same-color bars that share a pixel column', () => {
+    const merged = mergeNvtxGanttData([bar(0, 4), bar(6, 10), bar(12, 16)], budget);
+    expect(merged).toHaveLength(1);
+    expect(merged[0]?.value).toEqual([0, 16, 0]);
+    expect(merged[0]?.mergedCount).toBe(3);
+  });
+
+  it('merges bars within the pixel gap threshold', () => {
+    // 10ms/px: first bar occupies 1px, second starts at 2px → 1px gap.
+    const merged = mergeNvtxGanttData([bar(0, 4), bar(20, 24)], budget);
+    expect(merged).toHaveLength(1);
+    expect(merged[0]?.mergedCount).toBe(2);
+  });
+
+  it('keeps bars farther apart than the pixel gap threshold', () => {
+    const startMs = (1 + NVTX_BAR_MERGE_GAP_PX + 1) * 10;
+    const merged = mergeNvtxGanttData([bar(0, 4), bar(startMs, startMs + 4)], budget);
+    expect(merged.map(datum => datum.value)).toEqual([
+      [0, 4, 0],
+      [startMs, startMs + 4, 0],
+    ]);
+    expect(merged.every(datum => datum.mergedCount == null)).toBe(true);
+  });
+
+  it('does not merge different colors, rows, or marks with ranges', () => {
+    const mark = {
+      value: [6, 6, 0] as [number, number, number],
+      mark: {
+        message: 'tick',
+        domain_id: '2',
+        domain_name: 'libcudf',
+        category_id: null,
+        category_name: null,
+        color: '#7c3aedff',
+        timestamp: 0.006,
+      },
+    };
+    const merged = mergeNvtxGanttData(
+      [bar(0, 4, '#7c3aed'), bar(6, 10, '#dc2626'), bar(6, 10, '#7c3aed', 1), mark],
+      budget
+    );
+    expect(merged).toHaveLength(4);
+  });
+
+  it('splits again when the window has more pixels per millisecond', () => {
+    const dense = mergeNvtxGanttData([bar(0, 4), bar(6, 10)], budget);
+    expect(dense).toHaveLength(1);
+    const zoomed = mergeNvtxGanttData([bar(0, 4), bar(6, 10)], {
+      visibleStartMs: 0,
+      visibleEndMs: 20,
+      plotWidthPx: 100,
+    });
+    expect(zoomed).toHaveLength(2);
+  });
+});
+
+describe('nvtxMergedBarGlyph', () => {
+  it('draws three dots when the bar is wide enough', () => {
+    const glyph = nvtxMergedBarGlyph({ x: 10, y: 0, width: 40, height: 14 }, '#111');
+    expect(glyph).toHaveLength(3);
+    expect(glyph.every(item => item.type === 'circle')).toBe(true);
+  });
+
+  it('falls back to an ellipsis on medium bars', () => {
+    const glyph = nvtxMergedBarGlyph({ x: 10, y: 0, width: 9, height: 14 }, '#111');
+    expect(glyph).toEqual([
+      expect.objectContaining({
+        type: 'text',
+        style: expect.objectContaining({ text: '…' }),
+      }),
+    ]);
+  });
+
+  it('omits the glyph on bars too narrow to read', () => {
+    expect(nvtxMergedBarGlyph({ x: 10, y: 0, width: 4, height: 14 }, '#111')).toEqual([]);
+  });
+});
+
 describe('nvtxKindLabel', () => {
   it('uses the mockup wording', () => {
     expect(nvtxKindLabel('push_pop')).toBe('push/pop range');
     expect(nvtxKindLabel('start_end')).toBe('start/end range');
     expect(nvtxKindLabel('mark')).toBe('mark');
+  });
+});
+
+describe('nvtxToActiveMark', () => {
+  it('maps a range onto TimelineTooltip mark fields', () => {
+    const [datum] = nvtxLanesToGanttData(
+      indexNvtxLanes(VIEWPORT).get(nvtxThreadRowId('2', 186291)) ?? []
+    );
+    expect(nvtxToActiveMark(datum!)).toMatchObject({
+      label: 'thread 186291',
+      stateName: 'read_parquet',
+      color: '#7c3aed',
+      attributes: [
+        { key: 'start', value: '100.00ms' },
+        { key: 'end', value: '400.00ms' },
+        { key: 'kind', value: 'push/pop range' },
+        { key: 'thread', value: 'thread 186291' },
+        { key: 'domain', value: 'libcudf' },
+        { key: 'category', value: 'Uncategorized' },
+      ],
+    });
+    expect(nvtxToActiveMark(datum!).durationMs).toBeCloseTo(300);
+  });
+
+  it('lists the range name with a count on pixel-merged bars', () => {
+    const [datum] = nvtxLanesToGanttData(
+      indexNvtxLanes(VIEWPORT).get(nvtxThreadRowId('2', 186291)) ?? []
+    );
+    expect(nvtxToSummaryMark({ ...datum!, mergedCount: 4 })).toEqual({
+      label: 'read_parquet',
+      stateName: '4 ranges',
+      color: '#7c3aed',
+      compact: true,
+    });
+    expect(nvtxToActiveMark({ ...datum!, mergedCount: 4 })).toEqual(
+      nvtxToSummaryMark({ ...datum!, mergedCount: 4 })
+    );
+  });
+});
+
+describe('nvtxTooltipModel', () => {
+  it('keeps a single range in the detailed tooltip', () => {
+    const data = nvtxLanesToGanttData(
+      indexNvtxLanes(VIEWPORT).get(nvtxThreadRowId('2', 186291)) ?? []
+    ).slice(0, 1);
+    const model = nvtxTooltipModel(data);
+    expect(model.compact).toBe(false);
+    expect(model.summary).toBeUndefined();
+    expect(model.marks[0]?.stateName).toBe('read_parquet');
+  });
+
+  it('shows full range data for unmerged items and counts for merged bars', () => {
+    const nested = nvtxLanesToGanttData(
+      indexNvtxLanes(VIEWPORT).get(nvtxThreadRowId('2', 186291)) ?? []
+    );
+    const stacked = nvtxTooltipModel(nested);
+    expect(stacked.compact).toBe(false);
+    expect(stacked.summary).toBeUndefined();
+    expect(stacked.marks.map(mark => mark.stateName)).toEqual(['read_parquet', 'copy_if']);
+    expect(stacked.marks.every(mark => mark.compact !== true)).toBe(true);
+
+    const merged = nvtxTooltipModel([
+      { ...nested[0]!, mergedCount: 4 },
+      { ...nested[1]!, mergedCount: 2 },
+    ]);
+    expect(merged.summary).toBe('6 ranges');
+    expect(merged.marks.map(mark => mark.stateName)).toEqual(['4 ranges', '2 ranges']);
+
+    const mixed = nvtxTooltipModel([{ ...nested[0]!, mergedCount: 4 }, nested[1]!]);
+    expect(mixed.summary).toBe('5 ranges');
+    expect(mixed.marks[0]).toMatchObject({
+      label: 'read_parquet',
+      stateName: '4 ranges',
+      compact: true,
+    });
+    expect(mixed.marks[1]).toMatchObject({ stateName: 'copy_if' });
+    expect(mixed.marks[1]?.compact).toBeUndefined();
   });
 });

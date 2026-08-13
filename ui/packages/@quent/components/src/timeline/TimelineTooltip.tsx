@@ -22,6 +22,8 @@ export interface ActiveMark {
   derivedAttributes?: DynamicAttribute[];
   /** Duration of the hovered state span in milliseconds. */
   durationMs?: number;
+  /** Name + count row; skip duration/attribute details. */
+  compact?: boolean;
 }
 
 interface TooltipSeries {
@@ -183,7 +185,7 @@ const INLINE_VALUE_MAX_CHARS = 32;
 function MarkDetailRow({ name, value }: { name: string; value: string }) {
   if (value.length > INLINE_VALUE_MAX_CHARS) {
     return (
-      <div className="pl-3">
+      <div className="min-w-0 pl-3">
         <DataText className="text-muted-foreground">{name}</DataText>
         <DataText as="div" className="text-foreground break-words pl-2">
           {value}
@@ -192,9 +194,59 @@ function MarkDetailRow({ name, value }: { name: string; value: string }) {
     );
   }
   return (
-    <div className="flex items-center gap-1 pl-3">
-      <DataText className="text-muted-foreground">{name}</DataText>
-      <DataText className="text-foreground ml-auto">{value}</DataText>
+    <div className="flex min-w-0 items-start gap-1 pl-3">
+      <DataText className="shrink-0 text-muted-foreground">{name}</DataText>
+      <DataText className="text-foreground ml-auto min-w-0 break-words text-right">
+        {value}
+      </DataText>
+    </div>
+  );
+}
+
+function CompactCountRow({ mark }: { mark: ActiveMark }) {
+  return (
+    <div className="flex min-w-0 items-start gap-1.5">
+      <ColorSwatch color={mark.color} />
+      <DataText className="min-w-0 flex-1 break-words">{mark.label}</DataText>
+      <DataText className="ml-auto shrink-0 text-muted-foreground">{mark.stateName}</DataText>
+    </div>
+  );
+}
+
+function MarkBlock({ mark }: { mark: ActiveMark }) {
+  return (
+    <div className="min-w-0">
+      <div className="flex min-w-0 items-start gap-1">
+        <ColorSwatch color={mark.color} />
+        <DataText className="min-w-0 text-muted-foreground break-words">{mark.label}</DataText>
+        <DataText className="text-foreground font-medium ml-auto min-w-0 flex-1 break-words text-right">
+          {mark.stateName}
+        </DataText>
+      </div>
+      {mark.durationMs !== undefined && (
+        <MarkDetailRow name="duration" value={formatDuration(mark.durationMs)} />
+      )}
+      {mark.attributes?.map(attr => (
+        <MarkDetailRow
+          key={attr.key}
+          name={attr.key}
+          value={formatAttributeValue(attr.key, attr.value)}
+        />
+      ))}
+      {mark.derivedAttributes && mark.derivedAttributes.length > 0 && (
+        <>
+          <DataText as="div" className="pl-3 pt-0.5 text-muted-foreground italic opacity-70">
+            derived
+          </DataText>
+          {mark.derivedAttributes.map(attr => (
+            <MarkDetailRow
+              key={attr.key}
+              name={attr.key}
+              value={formatAttributeValue(attr.key, attr.value)}
+            />
+          ))}
+        </>
+      )}
     </div>
   );
 }
@@ -202,40 +254,14 @@ function MarkDetailRow({ name, value }: { name: string; value: string }) {
 function ActiveMarksSection({ marks }: { marks: ActiveMark[] }) {
   if (marks.length === 0) return null;
   return (
-    <div className="mt-1 pt-1 border-t border-border">
-      {marks.map((m, i) => (
-        <div key={i}>
-          <div className="flex items-center gap-1">
-            <ColorSwatch color={m.color} />
-            <DataText className="text-muted-foreground">{m.label}</DataText>
-            <DataText className="text-foreground font-medium ml-auto">{m.stateName}</DataText>
-          </div>
-          {m.durationMs !== undefined && (
-            <MarkDetailRow name="duration" value={formatDuration(m.durationMs)} />
-          )}
-          {m.attributes?.map(attr => (
-            <MarkDetailRow
-              key={attr.key}
-              name={attr.key}
-              value={formatAttributeValue(attr.key, attr.value)}
-            />
-          ))}
-          {m.derivedAttributes && m.derivedAttributes.length > 0 && (
-            <>
-              <DataText as="div" className="pl-3 pt-0.5 text-muted-foreground italic opacity-70">
-                derived
-              </DataText>
-              {m.derivedAttributes.map(attr => (
-                <MarkDetailRow
-                  key={attr.key}
-                  name={attr.key}
-                  value={formatAttributeValue(attr.key, attr.value)}
-                />
-              ))}
-            </>
-          )}
-        </div>
-      ))}
+    <div className="mt-1 space-y-1 border-t border-border pt-1">
+      {marks.map((mark, index) =>
+        mark.compact ? (
+          <CompactCountRow key={index} mark={mark} />
+        ) : (
+          <MarkBlock key={index} mark={mark} />
+        )
+      )}
     </div>
   );
 }
@@ -340,18 +366,43 @@ export function EntityTooltipContent({
   timestamp,
   windowMs,
   activeMarks,
+  itemLimit,
+  summary,
+  className,
 }: {
   /** Elapsed ms from query start. */
   timestamp: number;
   windowMs: number;
   activeMarks: ActiveMark[];
+  /** Hide overflow items and show a remainder line. */
+  itemLimit?: number;
+  /** Totals line, e.g. "12 ranges". */
+  summary?: string;
+  className?: string;
 }) {
+  const visibleMarks = itemLimit != null ? activeMarks.slice(0, itemLimit) : activeMarks;
+  const hiddenCount = activeMarks.length - visibleMarks.length;
   return (
-    <div className="px-2 py-1.5 bg-popover rounded text-[11px] text-foreground leading-tight shadow-md z-50">
+    <div
+      className={cn(
+        'px-2 py-1.5 bg-popover rounded text-[11px] text-foreground leading-tight shadow-md z-50',
+        className
+      )}
+    >
       <DataText as="div" className="font-semibold mb-1 text-muted-foreground">
         {formatDurationForWindow(timestamp, windowMs)}
       </DataText>
-      <ActiveMarksSection marks={activeMarks} />
+      {summary && (
+        <DataText as="div" className="mb-1 font-medium">
+          {summary}
+        </DataText>
+      )}
+      <ActiveMarksSection marks={visibleMarks} />
+      {hiddenCount > 0 && (
+        <DataText as="div" className="pt-1 text-muted-foreground">
+          {hiddenCount} more not shown
+        </DataText>
+      )}
     </div>
   );
 }

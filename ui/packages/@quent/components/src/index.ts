@@ -279,7 +279,7 @@ export {
 } from './gantt-chart/utils';
 
 // ─── NVTX timeline ────────────────────────────────────────────────────────────
-export { NvtxGantt } from './nvtx-timeline/NvtxGantt';
+export { NvtxGantt, NVTX_GANTT_HEIGHT } from './nvtx-timeline/NvtxGantt';
 export type { NvtxGanttProps } from './nvtx-timeline/NvtxGantt';
 export {
   NVTX_SECTION_ROW_TYPE,

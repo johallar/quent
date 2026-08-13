@@ -1,31 +1,41 @@
 // SPDX-FileCopyrightText: Copyright (c) 2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-import { useCallback, useMemo } from 'react';
+import { useCallback, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { NvtxLane } from '@quent/utils';
-import { formatDuration, withOpacity } from '@quent/utils';
+import { withOpacity } from '@quent/utils';
+import { useZoomRange } from '@quent/hooks';
 import {
   MARK_AREA_BORDER_OPACITY,
   MARK_AREA_FILL_OPACITY,
   useTimelineEchartsTheme,
 } from '../timeline/timelineEchartsTheme';
-import { DEFAULT_TIMELINE_HEIGHT } from '../timeline/types';
+import { TIMELINE_SPACING } from '../timeline/types';
+import { EntityTooltipContent } from '../timeline/TimelineTooltip';
 import { GanttChart, type GanttRenderItem } from '../gantt-chart/GanttChart';
 import type { GanttHover } from '../gantt-chart/hover';
-import { layoutGanttBar } from '../gantt-chart/utils';
-import { GanttTooltipPortal, type GanttTooltipItem } from '../ui/gantt-tooltip';
+import { GANTT_RESIZE_CONTROL_HEIGHT, layoutGanttBar } from '../gantt-chart/utils';
+import { PointerTooltipPortal } from '../ui/pointer-tooltip-portal';
 import {
+  mergeNvtxGanttData,
   nvtxItemsAtTimestamp,
-  nvtxKindLabel,
   nvtxLanesToGanttData,
+  nvtxMergedBarGlyph,
+  nvtxTooltipModel,
   rgbHex,
-  type NvtxGanttDatum,
 } from './utils';
 
 const BAR_FONT_SIZE = 10;
 const BAR_HEIGHT = 14;
 const BAR_GAP = 2;
 const ROW_HEIGHT = BAR_HEIGHT + BAR_GAP;
+const NVTX_COLLAPSED_ROWS = 3;
+/** Collapsed height that keeps three nested depths visible, including the expand control. */
+export const NVTX_GANTT_HEIGHT =
+  NVTX_COLLAPSED_ROWS * ROW_HEIGHT +
+  TIMELINE_SPACING.top +
+  TIMELINE_SPACING.bottom +
+  GANTT_RESIZE_CONTROL_HEIGHT;
 const SERIES_NAME = 'nvtx-range';
 
 export interface NvtxGanttProps {
@@ -38,22 +48,53 @@ export interface NvtxGanttProps {
 export function NvtxGantt({
   lanes,
   durationSeconds,
-  height = DEFAULT_TIMELINE_HEIGHT,
+  height = NVTX_GANTT_HEIGHT,
   isDark,
 }: NvtxGanttProps) {
   const { textColor } = useTimelineEchartsTheme(isDark);
-  const customSeriesData = useMemo(() => nvtxLanesToGanttData(lanes), [lanes]);
+  const zoomRange = useZoomRange();
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [plotWidthPx, setPlotWidthPx] = useState(0);
+
+  useLayoutEffect(() => {
+    const element = containerRef.current;
+    if (!element || typeof ResizeObserver === 'undefined') return;
+    const update = () => setPlotWidthPx(Math.max(0, element.clientWidth - TIMELINE_SPACING.right));
+    update();
+    const observer = new ResizeObserver(update);
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, []);
+
+  const visibleStartMs = (zoomRange.end > zoomRange.start ? zoomRange.start : 0) * 1_000;
+  const visibleEndMs = (zoomRange.end > zoomRange.start ? zoomRange.end : durationSeconds) * 1_000;
+
+  const customSeriesData = useMemo(() => {
+    const data = nvtxLanesToGanttData(lanes);
+    return mergeNvtxGanttData(data, { visibleStartMs, visibleEndMs, plotWidthPx });
+  }, [lanes, visibleStartMs, visibleEndMs, plotWidthPx]);
 
   const renderTooltip = useCallback(
     (hover: GanttHover | null) => {
-      const items: GanttTooltipItem[] = hover
-        ? nvtxItemsAtTimestamp(customSeriesData, hover.timestampMs).map((datum, index) =>
-            tooltipItem(datum, index)
-          )
-        : [];
-      return <GanttTooltipPortal hover={hover} items={items} />;
+      const tooltip = hover
+        ? nvtxTooltipModel(nvtxItemsAtTimestamp(customSeriesData, hover.timestampMs))
+        : null;
+      return (
+        <PointerTooltipPortal hover={tooltip && tooltip.marks.length > 0 ? hover : null}>
+          {hover && tooltip && (
+            <EntityTooltipContent
+              timestamp={hover.timestampMs}
+              windowMs={(zoomRange.end - zoomRange.start) * 1_000}
+              activeMarks={tooltip.marks}
+              itemLimit={tooltip.itemLimit}
+              summary={tooltip.summary}
+              className="max-w-[20rem]"
+            />
+          )}
+        </PointerTooltipPortal>
+      );
     },
-    [customSeriesData]
+    [customSeriesData, zoomRange.end, zoomRange.start]
   );
 
   const renderItem: GanttRenderItem = useCallback(
@@ -68,7 +109,8 @@ export function NvtxGantt({
       if (!layout) return null;
       const { clippedShape } = layout;
       const color = rgbHex(datum.range?.color ?? datum.mark?.color ?? '#2563eb');
-      const label = datum.range?.message ?? datum.mark?.message ?? '';
+      const merged = (datum.mergedCount ?? 1) > 1;
+      const label = merged ? '' : (datum.range?.message ?? datum.mark?.message ?? '');
       const rect = {
         type: 'rect' as const,
         shape: { ...clippedShape, r: datum.mark ? 0 : 2 },
@@ -76,10 +118,11 @@ export function NvtxGantt({
           fill: withOpacity(color, MARK_AREA_FILL_OPACITY),
           stroke: withOpacity(color, MARK_AREA_BORDER_OPACITY),
           lineWidth: 1,
+          ...(merged ? { lineDash: [2, 1] } : {}),
         },
       };
       const text =
-        clippedShape.width > 10
+        label && clippedShape.width > 10
           ? {
               type: 'text' as const,
               style: {
@@ -94,65 +137,32 @@ export function NvtxGantt({
               },
             }
           : null;
-      return { type: 'group' as const, children: text ? [rect, text] : [rect] };
+      const marker = merged ? nvtxMergedBarGlyph(clippedShape, textColor) : [];
+      return {
+        type: 'group' as const,
+        children: text ? [rect, text, ...marker] : [rect, ...marker],
+      };
     },
     [customSeriesData, textColor]
   );
 
   return (
-    <GanttChart
-      data={customSeriesData}
-      durationSeconds={durationSeconds}
-      height={height}
-      maxHeight={height}
-      rowHeight={ROW_HEIGHT}
-      isDark={isDark}
-      seriesName={SERIES_NAME}
-      renderItem={renderItem}
-      expandable
-      expandLabel="Expand NVTX chart"
-      collapseLabel="Collapse NVTX chart"
-      emptyMessage="No NVTX ranges"
-      renderTooltip={renderTooltip}
-    />
+    <div ref={containerRef} className="h-full w-full">
+      <GanttChart
+        data={customSeriesData}
+        durationSeconds={durationSeconds}
+        height={height}
+        maxHeight={height}
+        rowHeight={ROW_HEIGHT}
+        isDark={isDark}
+        seriesName={SERIES_NAME}
+        renderItem={renderItem}
+        expandable
+        expandLabel="Expand NVTX chart"
+        collapseLabel="Collapse NVTX chart"
+        emptyMessage="No NVTX ranges"
+        renderTooltip={renderTooltip}
+      />
+    </div>
   );
-}
-
-function tooltipItem(datum: NvtxGanttDatum, index: number): GanttTooltipItem {
-  if (datum.mark) {
-    return {
-      id: `mark-${index}-${datum.mark.timestamp}`,
-      color: datum.mark.color,
-      name: datum.mark.message,
-      fields: [
-        { label: 'kind', value: nvtxKindLabel('mark') },
-        { label: 'domain', value: datum.mark.domain_name },
-        { label: 'category', value: datum.mark.category_name ?? 'Uncategorized' },
-      ],
-    };
-  }
-  const range = datum.range!;
-  const durationMs = range.observed_duration != null ? range.observed_duration * 1_000 : null;
-  return {
-    id: `range-${index}-${range.display_start}`,
-    color: range.color,
-    name: range.message,
-    detail: durationMs != null ? formatDuration(durationMs) : range.incomplete ? 'open' : undefined,
-    fields: [
-      {
-        label: 'start',
-        value: formatDuration(range.observed_start * 1_000),
-      },
-      {
-        label: 'end',
-        value: range.observed_end != null ? formatDuration(range.observed_end * 1_000) : '(open)',
-      },
-      { label: 'kind', value: nvtxKindLabel(range.kind) },
-      ...(range.thread_id != null
-        ? [{ label: 'thread', value: range.thread_name ?? String(range.thread_id) }]
-        : []),
-      { label: 'domain', value: range.domain_name },
-      { label: 'category', value: range.category_name ?? 'Uncategorized' },
-    ],
-  };
 }
