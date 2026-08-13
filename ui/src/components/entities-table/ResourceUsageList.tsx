@@ -3,6 +3,7 @@
 
 import { formatQuantity, inferFieldFormatter } from '@quent/utils';
 import type { EntityRef, FsmUsage, QueryBundle } from '@quent/utils';
+import { DataText } from '@quent/components';
 
 interface ResourceUsageListProps {
   usages: FsmUsage[];
@@ -24,7 +25,7 @@ export function ResourceUsageList({ usages, resourceLabel, queryBundle }: Resour
         return (
           <li key={`${usage.resource}-${usageIndex}`} className="px-1 py-1">
             <h4 className="truncate border-b pb-1 font-mono text-xs font-medium">
-              {resourceLabel(usage.resource)}
+              <DataText>{resourceLabel(usage.resource)}</DataText>
             </h4>
             {usage.capacities.length > 0 && (
               <dl className="mt-1 space-y-0.5 text-xs">
@@ -39,13 +40,17 @@ export function ResourceUsageList({ usages, resourceLabel, queryBundle }: Resour
                       key={`${name}-${capacityIndex}`}
                       className="flex items-baseline justify-between gap-3"
                     >
-                      <dt className="text-muted-foreground">{name}</dt>
+                      <dt className="text-muted-foreground">
+                        <DataText>{name}</DataText>
+                      </dt>
                       <dd className="tabular-nums">
-                        {capacity == null
-                          ? '—'
-                          : capacityDecl && quantitySpec
-                            ? formatQuantity(capacity, quantitySpec, capacityDecl.kind)
-                            : inferFieldFormatter(name)(capacity)}
+                        <DataText>
+                          {capacity == null
+                            ? '—'
+                            : capacityDecl && quantitySpec
+                              ? formatQuantity(capacity, quantitySpec, capacityDecl.kind)
+                              : inferFieldFormatter(name)(capacity)}
+                        </DataText>
                       </dd>
                     </div>
                   );

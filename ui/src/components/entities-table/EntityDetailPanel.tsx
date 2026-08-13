@@ -3,7 +3,7 @@
 
 import { useState } from 'react';
 import { Check, Copy } from 'lucide-react';
-import { DataFlowBar, FsmCapacityChart, thinScrollbarClass } from '@quent/components';
+import { DataFlowBar, DataText, FsmCapacityChart, thinScrollbarClass } from '@quent/components';
 import { formatDuration, formatDurationForWindow, getColorForKey } from '@quent/utils';
 import type { EntityRef, FiniteStateMachine, QueryBundle } from '@quent/utils';
 import { useTheme, THEME_DARK } from '@/contexts/ThemeContext';
@@ -85,15 +85,15 @@ export function EntityDetailPanel({
       {/* Compact header: name + type badge on one line, UUID + copy on second */}
       <div className="shrink-0 border-b bg-card px-3 py-2">
         <div className="flex items-center gap-2">
-          <span className="text-sm font-medium">{fsm.instance_name}</span>
-          <span className="rounded bg-muted px-1.5 py-0.5 text-xs text-muted-foreground">
+          <DataText className="text-sm font-medium">{fsm.instance_name}</DataText>
+          <DataText className="rounded bg-muted px-1.5 py-0.5 text-xs text-muted-foreground">
             {fsm.type_name}
-          </span>
+          </DataText>
         </div>
         <div className="mt-1 flex items-center gap-1">
-          <span className="min-w-0 flex-1 truncate font-mono text-xs text-muted-foreground">
+          <DataText className="min-w-0 flex-1 truncate text-xs text-muted-foreground">
             {fsm.id}
-          </span>
+          </DataText>
           <button
             onClick={copyId}
             aria-label="Copy ID"
@@ -108,14 +108,14 @@ export function EntityDetailPanel({
       <div className="shrink-0 border-b bg-muted/30 px-3 py-2 text-xs">
         <div className="flex items-center justify-between gap-2">
           <span className="text-muted-foreground">Total span</span>
-          <span className="tabular-nums font-medium">{formatDuration(totalSpanMs)}</span>
+          <DataText className="tabular-nums font-medium">{formatDuration(totalSpanMs)}</DataText>
         </div>
         {dominantState && (
           <div className="mt-0.5 flex items-center justify-between gap-2">
             <span className="text-muted-foreground">Dominant state</span>
-            <span className="font-medium" style={{ color: dominantState.color }}>
+            <DataText className="font-medium" style={{ color: dominantState.color }}>
               {dominantState.name} · {dominantState.pct.toFixed(1)}%
-            </span>
+            </DataText>
           </div>
         )}
         {totalSpanMs > 0 && stateTimeMs.size > 0 && (
@@ -135,8 +135,8 @@ export function EntityDetailPanel({
                 ariaLabel: `${name}: ${pct.toFixed(1)}%`,
                 tooltip: (
                   <div className="rounded bg-popover px-2 py-1.5 text-[11px] leading-tight text-foreground shadow-md">
-                    <span className="font-medium">{name}</span>
-                    <span className="ml-2 text-muted-foreground">{pct.toFixed(1)}%</span>
+                    <DataText className="font-medium">{name}</DataText>
+                    <DataText className="ml-2 text-muted-foreground">{pct.toFixed(1)}%</DataText>
                   </div>
                 ),
               };
@@ -172,22 +172,22 @@ export function EntityDetailPanel({
             >
               {/* State name + duration (prominent) + absolute timestamp (secondary) */}
               <div className="flex items-start justify-between gap-2">
-                <span className="text-sm font-medium">
+                <DataText className="text-sm font-medium">
                   <span className="text-muted-foreground">{index + 1}.</span> {transition.name}
-                </span>
+                </DataText>
                 <div className="flex shrink-0 flex-col items-end">
                   {durationMs != null && (
-                    <span
+                    <DataText
                       className={`tabular-nums text-sm font-medium ${
                         isBottleneck ? 'text-orange-500 dark:text-orange-400' : ''
                       }`}
                     >
                       {formatDuration(durationMs)}
-                    </span>
+                    </DataText>
                   )}
-                  <span className="tabular-nums text-xs text-muted-foreground">
+                  <DataText className="tabular-nums text-xs text-muted-foreground">
                     @{formatDurationForWindow(transition.timestamp * 1000, totalSpanMs, 15)}
-                  </span>
+                  </DataText>
                 </div>
               </div>
 

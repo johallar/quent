@@ -87,6 +87,7 @@ export function FsmCapacityChart({ transitions, isDark, resourceLabel }: FsmCapa
       },
       yAxis: {
         type: 'value' as const,
+        splitNumber: 3,
         axisLabel: {
           show: true,
           fontSize: 9,
