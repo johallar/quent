@@ -59,6 +59,8 @@ pub struct NvtxLayout {
     pub num_marks: usize,
     /// Extra nested libcudf frames inside each scan.
     pub num_nested_ranges: usize,
+    /// Emit per-task NVTX ranges on 1 in N operator tasks (`0` skips them).
+    pub task_every: usize,
 }
 
 impl Default for NvtxLayout {
@@ -68,6 +70,7 @@ impl Default for NvtxLayout {
             num_categories: 0,
             num_marks: 0,
             num_nested_ranges: 0,
+            task_every: 5,
         }
     }
 }
@@ -113,6 +116,12 @@ impl NvtxCapture {
 
     pub fn layout(&self) -> NvtxLayout {
         self.layout
+    }
+
+    /// Whether this operator task should emit libcudf/CCCL/pipeline ranges.
+    pub fn emit_task_ranges(&self, task_index: usize) -> bool {
+        let every = self.layout.task_every;
+        every != 0 && task_index % every == 0
     }
 
     /// Domain handle `0..num_domains`, wrapping `index`. `0` is the default domain.
@@ -371,6 +380,7 @@ mod tests {
             num_categories: 2,
             num_marks: 0,
             num_nested_ranges: 0,
+            task_every: 1,
         };
         let captured = collect(layout, |nvtx| nvtx.declare_schema());
         let domains: Vec<_> = captured
@@ -396,6 +406,7 @@ mod tests {
                 num_categories: 4,
                 num_marks: 8,
                 num_nested_ranges: 8,
+                task_every: 1,
             },
             |nvtx| {
                 nvtx.declare_schema();
@@ -403,5 +414,27 @@ mod tests {
             },
         );
         assert!(captured.is_empty());
+    }
+
+    #[test]
+    fn emit_task_ranges_keeps_every_nth_task() {
+        let sampled = NvtxCapture::noop(
+            Uuid::now_v7(),
+            NvtxLayout {
+                task_every: 5,
+                ..NvtxLayout::default()
+            },
+        );
+        assert!(sampled.emit_task_ranges(0));
+        assert!(!sampled.emit_task_ranges(1));
+        assert!(sampled.emit_task_ranges(5));
+        let none = NvtxCapture::noop(
+            Uuid::now_v7(),
+            NvtxLayout {
+                task_every: 0,
+                ..NvtxLayout::default()
+            },
+        );
+        assert!(!none.emit_task_ranges(0));
     }
 }
