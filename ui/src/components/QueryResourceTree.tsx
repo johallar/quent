@@ -121,6 +121,7 @@ interface QueryResourceTreeProps {
   engineId: string;
   queryBundle: QueryBundle<EntityRef>;
   initialZoomRange?: { start: number; end: number };
+  seedRootExpanded?: boolean;
 }
 
 export function QueryResourceTree(props: QueryResourceTreeProps) {
@@ -131,6 +132,7 @@ function QueryResourceTreeContent({
   queryBundle,
   engineId,
   initialZoomRange,
+  seedRootExpanded = true,
 }: QueryResourceTreeProps) {
   const { theme } = useTheme();
   const isDark = theme === THEME_DARK;
@@ -169,7 +171,9 @@ function QueryResourceTreeContent({
 
   const rootResourceGroupId = useMemo(() => getRootResourceGroupId(resourceTree), [resourceTree]);
 
-  const { expandedIds, handleExpandChange } = useExpandedIds(rootItem.id);
+  const { expandedIds, handleExpandChange } = useExpandedIds(
+    seedRootExpanded ? rootItem.id : undefined
+  );
   const controlledExpandedIds = expandedIds;
 
   const { handleZoomChange, handleExpand } = useBulkTimelines({

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { useLayoutEffect } from 'react';
-import { Provider as JotaiProvider } from 'jotai';
+import { Provider as JotaiProvider, useAtomValue, useSetAtom } from 'jotai';
 import {
   useDebouncedZoomRange,
   useSetDebouncedZoomRange,
@@ -10,6 +10,7 @@ import {
   useZoomRange,
 } from '@quent/hooks';
 import { render, screen, waitFor, userEvent } from '@/test/test-utils';
+import { expandedIdsAtom } from '@/atoms/resourceTree';
 import { CopyLinkButton } from './CopyLinkButton';
 import { DeepLinkBoundary } from './DeepLinkBoundary';
 import { decodeDeepLinkState, encodeDeepLinkState } from './deepLink.codec';
@@ -27,6 +28,11 @@ function IntakeStatusProbe() {
   return <output data-testid="intake-status">{deepLink?.intakeStatus.kind}</output>;
 }
 
+function ExpandedRowsProbe() {
+  const expandedIds = useAtomValue(expandedIdsAtom);
+  return <output data-testid="expanded-rows">{JSON.stringify([...expandedIds].sort())}</output>;
+}
+
 function SeedViewport({ start, end }: { start: number; end: number }) {
   const setImmediate = useSetZoomRange();
   const setDebounced = useSetDebouncedZoomRange();
@@ -38,9 +44,21 @@ function SeedViewport({ start, end }: { start: number; end: number }) {
   return null;
 }
 
+function SeedExpandedRows({ ids }: { ids: string[] }) {
+  const setExpandedIds = useSetAtom(expandedIdsAtom);
+
+  useLayoutEffect(() => {
+    setExpandedIds(new Set(ids));
+  }, [ids, setExpandedIds]);
+  return null;
+}
+
 describe('DeepLinkBoundary', () => {
-  it('hydrates both timeline viewport atoms before rendering children', () => {
-    const encoded = encodeDeepLinkState({ zoomRange: { start: 10, end: 40 } });
+  it('hydrates timeline viewport and expanded rows before rendering children', () => {
+    const encoded = encodeDeepLinkState({
+      zoomRange: { start: 10, end: 40 },
+      expandedResourceIds: ['resource-b', 'resource-a'],
+    });
     expect(encoded.ok).toBe(true);
     if (!encoded.ok) return;
 
@@ -48,6 +66,7 @@ describe('DeepLinkBoundary', () => {
       <JotaiProvider>
         <DeepLinkBoundary durationSeconds={100} encodedState={encoded.value} isQueryReady>
           <ViewportProbe />
+          <ExpandedRowsProbe />
         </DeepLinkBoundary>
       </JotaiProvider>
     );
@@ -57,6 +76,9 @@ describe('DeepLinkBoundary', () => {
         immediate: { start: 10, end: 40 },
         debounced: { start: 10, end: 40 },
       })
+    );
+    expect(screen.getByTestId('expanded-rows')).toHaveTextContent(
+      JSON.stringify(['resource-a', 'resource-b'])
     );
   });
 
@@ -93,6 +115,7 @@ describe('DeepLinkBoundary', () => {
         <JotaiProvider>
           <DeepLinkBoundary durationSeconds={100} isQueryReady>
             <SeedViewport start={20} end={60} />
+            <SeedExpandedRows ids={['resource-b', 'resource-a']} />
             <ViewportProbe />
             <CopyLinkButton />
           </DeepLinkBoundary>
@@ -115,7 +138,10 @@ describe('DeepLinkBoundary', () => {
     expect(parsedUrl.searchParams.has('unrelated')).toBe(false);
     expect(decodeDeepLinkState(encoded!)).toEqual({
       ok: true,
-      value: { zoomRange: { start: 20, end: 60 } },
+      value: {
+        zoomRange: { start: 20, end: 60 },
+        expandedResourceIds: ['resource-a', 'resource-b'],
+      },
     });
     expect(window.location.href).toBe(originalUrl);
   });

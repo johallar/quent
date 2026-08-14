@@ -14,6 +14,7 @@ export type CopyLinkResult = { ok: true; url: string } | { ok: false; message: s
 
 export interface DeepLinkContextValue {
   copyLink(): Promise<CopyLinkResult>;
+  initialExpandedResourceIds: readonly string[] | null;
   initialZoomRange: ZoomRange | null;
   intakeStatus: DeepLinkIntakeStatus;
 }

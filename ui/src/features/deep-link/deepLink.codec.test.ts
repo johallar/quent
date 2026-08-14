@@ -8,13 +8,18 @@ import {
   encodeDeepLinkState,
   MAX_DEEP_LINK_URL_LENGTH,
 } from './deepLink.codec';
-import { DeepLinkStateV1Schema, validateDeepLinkSearch } from './deepLink.schema';
+import {
+  DeepLinkStateV1Schema,
+  MAX_EXPANDED_RESOURCE_IDS,
+  validateDeepLinkSearch,
+} from './deepLink.schema';
 
 const state = {
   zoomRange: {
     start: 12.5,
     end: 48.75,
   },
+  expandedResourceIds: ['resource-a', 'resource-b'],
 };
 
 describe('deep-link codec', () => {
@@ -69,10 +74,25 @@ describe('deep-link search validation', () => {
 });
 
 describe('deep-link state validation', () => {
-  it('strips unknown keys and validates the viewport', () => {
+  it('strips unknown keys, validates the viewport, and canonicalizes expanded IDs', () => {
     expect(DeepLinkStateV1Schema.parse({ ...state, futureField: true })).toEqual(state);
+    expect(
+      DeepLinkStateV1Schema.parse({
+        zoomRange: state.zoomRange,
+        expandedResourceIds: ['resource-b', 'resource-a', 'resource-b'],
+      }).expandedResourceIds
+    ).toEqual(['resource-a', 'resource-b']);
     expect(DeepLinkStateV1Schema.safeParse({ zoomRange: { start: 20, end: 10 } }).success).toBe(
       false
     );
+    expect(
+      DeepLinkStateV1Schema.safeParse({
+        zoomRange: state.zoomRange,
+        expandedResourceIds: Array.from(
+          { length: MAX_EXPANDED_RESOURCE_IDS + 1 },
+          (_, index) => `resource-${index}`
+        ),
+      }).success
+    ).toBe(false);
   });
 });
