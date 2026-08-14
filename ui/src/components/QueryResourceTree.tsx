@@ -2,10 +2,15 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { Column, TreeTable } from '@quent/components';
-import { useCallback, useEffect, useMemo } from 'react';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
-import { useAtom } from 'jotai';
-import { useHighlightedItemIds, useBulkTimelines, useHydrateTimelineAtoms } from '@quent/hooks';
+import { useAtom, useSetAtom } from 'jotai';
+import {
+  useHighlightedItemIds,
+  useBulkTimelines,
+  useHydrateTimelineAtoms,
+  useDebouncedZoomRange,
+} from '@quent/hooks';
 import { ResourceTree, QueryBundle, EntityTypeKey } from '@quent/utils';
 import type { EntityRef, SingleTimelineRequest, QueryFilter, OperatorFilter } from '@quent/utils';
 import { TimelineController, TimelineRuler } from '@quent/components';
@@ -15,7 +20,7 @@ import { TreeTableItem } from '@quent/components';
 import { ResourceColumn } from '@quent/components';
 import { UsageColumn } from '@quent/components';
 import { DEFAULT_TIMELINE_HEIGHT } from '@quent/components';
-import { fetchSingleTimeline, DEFAULT_STALE_TIME } from '@quent/client';
+import { fetchSingleTimeline, DEFAULT_STALE_TIME, useNvtxStream } from '@quent/client';
 import {
   transformResourceTree,
   getAdaptiveNumBins,
@@ -29,6 +34,7 @@ import {
   selectedTypesAtom,
   selectedFsmTypesAtom,
   rootResourceTypeAtom,
+  expandedIdsAtom,
 } from '@/atoms/resourceTree';
 import { TimelineToolbar } from '@quent/components';
 import { useTheme, THEME_DARK } from '@/contexts/ThemeContext';
@@ -46,6 +52,18 @@ import {
   resourceIdFromLongEntitiesRowId,
 } from '@quent/components';
 import { LongEntitiesRow } from '@/components/LongEntitiesRow';
+import {
+  NvtxGantt,
+  NVTX_GANTT_HEIGHT,
+  NVTX_DOMAIN_ROW_TYPE,
+  NVTX_LANE_ROW_TYPE,
+  NVTX_SECTION_ROW_TYPE,
+  buildNvtxTree,
+  indexNvtxLanes,
+  nvtxDefaultExpandedIds,
+  nvtxDomainMeta,
+  nvtxLaneLabel,
+} from '@quent/components';
 
 function getRootResourceGroupId(resourceTree: ResourceTree<EntityRef>): string | null {
   if (!('ResourceGroup' in resourceTree)) return null;
@@ -95,6 +113,23 @@ function GanttRowLabel({ children }: { children: string }) {
     <span className="flex items-center">
       <span aria-hidden className="mr-4 h-4 w-4 shrink-0" />
       <span className="text-xs leading-none text-muted-foreground">{children}</span>
+    </span>
+  );
+}
+
+function NvtxSectionLabel() {
+  return <span className="text-xs font-semibold leading-none">NVTX</span>;
+}
+
+function NvtxDomainLabel({ name, color }: { name: string; color: string }) {
+  return (
+    <span className="flex min-w-0 items-center gap-1.5 text-xs leading-none">
+      <span
+        aria-hidden
+        className="inline-block h-2 w-2 shrink-0 rounded-full"
+        style={{ backgroundColor: color }}
+      />
+      <span className="truncate">{name}</span>
     </span>
   );
 }
@@ -164,7 +199,31 @@ function QueryResourceTreeContent({ queryBundle, engineId }: QueryResourceTreePr
   const rootResourceGroupId = useMemo(() => getRootResourceGroupId(resourceTree), [resourceTree]);
 
   const { expandedIds, handleExpandChange } = useExpandedIds(rootItem.id);
+  const setExpandedIds = useSetAtom(expandedIdsAtom);
   const controlledExpandedIds = expandedIds;
+  const seededNvtxExpansion = useRef(false);
+
+  const debouncedZoomRange = useDebouncedZoomRange();
+  const nvtxWindow = useMemo(() => {
+    const { start, end } = debouncedZoomRange;
+    return end > start ? { start, end } : { start: 0, end: durationSeconds };
+  }, [debouncedZoomRange, durationSeconds]);
+  const { catalog: nvtxCatalog, viewport: nvtxViewport } = useNvtxStream(
+    engineId,
+    queryBundle.start_time_unix_ns,
+    nvtxWindow
+  );
+
+  useEffect(() => {
+    if (!nvtxCatalog || seededNvtxExpansion.current) return;
+    seededNvtxExpansion.current = true;
+    const ids = nvtxDefaultExpandedIds(nvtxCatalog);
+    setExpandedIds(prev => {
+      const next = new Set(prev);
+      for (const id of ids) next.add(id);
+      return next;
+    });
+  }, [nvtxCatalog, setExpandedIds]);
 
   const { handleZoomChange, handleExpand } = useBulkTimelines({
     engineId,
@@ -227,10 +286,18 @@ function QueryResourceTreeContent({ queryBundle, engineId }: QueryResourceTreePr
     [queryBundle.plan_tree]
   );
 
-  const treeData = useMemo(
-    () => [injectLongEntitiesRows(injectOperatorTimelineRows(rootItem, workerIdsFromPlanTree))],
-    [rootItem, workerIdsFromPlanTree]
+  const nvtxTree = useMemo(
+    () => (nvtxCatalog ? buildNvtxTree(nvtxCatalog, nvtxViewport) : null),
+    [nvtxCatalog, nvtxViewport]
   );
+  const nvtxLanesByRowId = useMemo(() => indexNvtxLanes(nvtxViewport), [nvtxViewport]);
+
+  const treeData = useMemo(() => {
+    const resourceRoot = injectLongEntitiesRows(
+      injectOperatorTimelineRows(rootItem, workerIdsFromPlanTree)
+    );
+    return nvtxTree ? [resourceRoot, nvtxTree] : [resourceRoot];
+  }, [rootItem, workerIdsFromPlanTree, nvtxTree]);
 
   /** Operator entries per worker id (for expandable gantt under each worker resource). */
   const operatorEntriesByWorker = useMemo(() => {
@@ -260,6 +327,19 @@ function QueryResourceTreeContent({ queryBundle, engineId }: QueryResourceTreePr
             }
             case LONG_ENTITIES_ROW_TYPE: {
               return <GanttRowLabel>Entities</GanttRowLabel>;
+            }
+            case NVTX_SECTION_ROW_TYPE: {
+              return <NvtxSectionLabel />;
+            }
+            case NVTX_DOMAIN_ROW_TYPE: {
+              const domain = nvtxCatalog ? nvtxDomainMeta(nvtxCatalog, item.id) : null;
+              return domain ? <NvtxDomainLabel name={domain.name} color={domain.color} /> : null;
+            }
+            case NVTX_LANE_ROW_TYPE: {
+              const label = nvtxCatalog ? nvtxLaneLabel(nvtxCatalog, nvtxViewport, item.id) : '';
+              return (
+                <span className="truncate text-xs leading-none text-muted-foreground">{label}</span>
+              );
             }
             default: {
               const selectedType =
@@ -332,6 +412,21 @@ function QueryResourceTreeContent({ queryBundle, engineId }: QueryResourceTreePr
                 />
               );
             }
+            case NVTX_SECTION_ROW_TYPE:
+            case NVTX_DOMAIN_ROW_TYPE: {
+              return <div style={{ minHeight: DEFAULT_TIMELINE_HEIGHT }} />;
+            }
+            case NVTX_LANE_ROW_TYPE: {
+              const lanes = nvtxLanesByRowId.get(item.id) ?? [];
+              return (
+                <NvtxGantt
+                  lanes={lanes}
+                  durationSeconds={durationSeconds}
+                  height={NVTX_GANTT_HEIGHT}
+                  isDark={isDark}
+                />
+              );
+            }
             default: {
               return (
                 <UsageColumn
@@ -364,6 +459,9 @@ function QueryResourceTreeContent({ queryBundle, engineId }: QueryResourceTreePr
     queryBundle,
     handleZoomChange,
     operatorEntriesByWorker,
+    nvtxCatalog,
+    nvtxViewport,
+    nvtxLanesByRowId,
   ]);
 
   return (
