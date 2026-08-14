@@ -1,9 +1,10 @@
 // SPDX-FileCopyrightText: Copyright (c) 2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-import { useCallback, useLayoutEffect, useMemo, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useState, type ReactNode } from 'react';
 import { useAtom } from 'jotai';
 import { useSetDebouncedZoomRange, useSetZoomRange, useZoomRange } from '@quent/hooks';
+import { toast } from '@quent/components';
 import { expandedIdsAtom } from '@/atoms/resourceTree';
 import { buildDeepLinkUrl, decodeDeepLinkState } from './deepLink.codec';
 import {
@@ -87,6 +88,25 @@ export function DeepLinkBoundary({
   }, [durationSeconds, encodedState, isQueryReady]);
 
   const [isHydrated, setIsHydrated] = useState(!encodedState);
+
+  useEffect(() => {
+    if (intake.status.kind === 'error') {
+      toast.add({
+        id: 'deep-link-intake',
+        type: 'error',
+        title: 'Could not restore shared view',
+        description: 'Some shared view settings were invalid and could not be restored.',
+        priority: 'high',
+      });
+    } else if (intake.status.kind === 'warning') {
+      toast.add({
+        id: 'deep-link-intake',
+        type: 'warning',
+        title: 'Shared view adjusted',
+        description: intake.status.message,
+      });
+    }
+  }, [intake.status]);
 
   useLayoutEffect(() => {
     if (!intake.isResolved) return;

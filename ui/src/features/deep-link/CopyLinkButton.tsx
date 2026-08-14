@@ -4,7 +4,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Check, Share2 } from 'lucide-react';
-import { Button } from '@quent/components';
+import { Button, toast } from '@quent/components';
 import { DEEP_LINK_NAV_SLOT_ID } from './deepLink.constants';
 import { useDeepLink } from './deepLink.context';
 
@@ -40,6 +40,15 @@ export function CopyLinkButton() {
         ? { kind: 'success', message: 'Link copied' }
         : { kind: 'error', message: result.message }
     );
+    if (!result.ok) {
+      toast.add({
+        id: 'deep-link-copy-error',
+        type: 'error',
+        title: 'Could not copy link',
+        description: result.message,
+        priority: 'high',
+      });
+    }
 
     if (resetTimer.current !== null) window.clearTimeout(resetTimer.current);
     resetTimer.current = window.setTimeout(() => setFeedback({ kind: 'idle', message: '' }), 3000);
