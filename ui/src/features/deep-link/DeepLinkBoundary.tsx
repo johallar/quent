@@ -2,7 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { useCallback, useLayoutEffect, useMemo, useState, type ReactNode } from 'react';
+import { useAtom } from 'jotai';
 import { useSetDebouncedZoomRange, useSetZoomRange, useZoomRange } from '@quent/hooks';
+import { expandedIdsAtom } from '@/atoms/resourceTree';
 import { buildDeepLinkUrl, decodeDeepLinkState } from './deepLink.codec';
 import {
   DeepLinkContext,
@@ -28,10 +30,12 @@ export function DeepLinkBoundary({
   const zoomRange = useZoomRange();
   const setZoomRange = useSetZoomRange();
   const setDebouncedZoomRange = useSetDebouncedZoomRange();
+  const [expandedResourceIds, setExpandedResourceIds] = useAtom(expandedIdsAtom);
 
   const intake = useMemo(() => {
     if (!encodedState) {
       return {
+        initialExpandedResourceIds: null,
         initialZoomRange: null,
         isResolved: true,
         status: { kind: 'idle' } satisfies DeepLinkIntakeStatus,
@@ -39,6 +43,7 @@ export function DeepLinkBoundary({
     }
     if (!isQueryReady) {
       return {
+        initialExpandedResourceIds: null,
         initialZoomRange: null,
         isResolved: false,
         status: { kind: 'idle' } satisfies DeepLinkIntakeStatus,
@@ -48,6 +53,7 @@ export function DeepLinkBoundary({
     const decoded = decodeDeepLinkState(encodedState);
     if (!decoded.ok) {
       return {
+        initialExpandedResourceIds: null,
         initialZoomRange: null,
         isResolved: true,
         status: { kind: 'error', message: decoded.message } satisfies DeepLinkIntakeStatus,
@@ -57,6 +63,7 @@ export function DeepLinkBoundary({
     const normalized = normalizeZoomRange(decoded.value.zoomRange, durationSeconds);
     if (!normalized) {
       return {
+        initialExpandedResourceIds: decoded.value.expandedResourceIds ?? null,
         initialZoomRange: null,
         isResolved: true,
         status: {
@@ -67,6 +74,7 @@ export function DeepLinkBoundary({
     }
 
     return {
+      initialExpandedResourceIds: decoded.value.expandedResourceIds ?? null,
       initialZoomRange: normalized.range,
       isResolved: true,
       status: normalized.wasAdjusted
@@ -86,8 +94,18 @@ export function DeepLinkBoundary({
       setZoomRange(intake.initialZoomRange);
       setDebouncedZoomRange(intake.initialZoomRange);
     }
+    if (intake.initialExpandedResourceIds) {
+      setExpandedResourceIds(new Set(intake.initialExpandedResourceIds));
+    }
     setIsHydrated(true);
-  }, [intake.initialZoomRange, intake.isResolved, setDebouncedZoomRange, setZoomRange]);
+  }, [
+    intake.initialExpandedResourceIds,
+    intake.initialZoomRange,
+    intake.isResolved,
+    setDebouncedZoomRange,
+    setExpandedResourceIds,
+    setZoomRange,
+  ]);
 
   const copyLink = useCallback(async (): Promise<CopyLinkResult> => {
     const capturedRange = resolveCapturedZoomRange(zoomRange, durationSeconds);
@@ -96,7 +114,10 @@ export function DeepLinkBoundary({
     }
 
     const canonicalPageUrl = `${window.location.origin}${window.location.pathname}`;
-    const result = buildDeepLinkUrl(canonicalPageUrl, { zoomRange: capturedRange });
+    const result = buildDeepLinkUrl(canonicalPageUrl, {
+      zoomRange: capturedRange,
+      expandedResourceIds: [...expandedResourceIds].sort(),
+    });
     if (!result.ok) return { ok: false, message: result.message };
     if (!navigator.clipboard?.writeText) {
       return { ok: false, message: 'Clipboard access is unavailable.' };
@@ -108,15 +129,16 @@ export function DeepLinkBoundary({
     } catch {
       return { ok: false, message: 'Could not copy the link to the clipboard.' };
     }
-  }, [durationSeconds, zoomRange]);
+  }, [durationSeconds, expandedResourceIds, zoomRange]);
 
   const value = useMemo<DeepLinkContextValue>(
     () => ({
       copyLink,
+      initialExpandedResourceIds: intake.initialExpandedResourceIds,
       initialZoomRange: intake.initialZoomRange,
       intakeStatus: intake.status,
     }),
-    [copyLink, intake.initialZoomRange, intake.status]
+    [copyLink, intake.initialExpandedResourceIds, intake.initialZoomRange, intake.status]
   );
 
   return (

@@ -6,19 +6,20 @@
 Quent deep links are snapshots created by the **Copy Link** action. Opening a snapshot restores
 its saved state, but subsequent interactions do not rewrite the browser URL.
 
-Phase 1 stores only the shared timeline viewport:
+Deep links currently store the shared timeline viewport and expanded resource rows:
 
 ```json
 {
   "zoomRange": {
     "start": 12.5,
     "end": 48.75
-  }
+  },
+  "expandedResourceIds": ["resource-a", "resource-b"]
 }
 ```
 
-The values are seconds relative to the query start. Engine, query, and active tab remain in the
-readable route:
+The zoom values are seconds relative to the query start. Engine, query, and active tab remain
+in the readable route:
 
 ```text
 /profile/engine/ENGINE/query/QUERY/timeline?s=v1.COMPRESSED_STATE

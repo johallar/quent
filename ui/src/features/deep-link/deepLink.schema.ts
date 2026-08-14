@@ -4,6 +4,7 @@
 import { z } from 'zod';
 
 export const MAX_ENCODED_STATE_LENGTH = 4096;
+export const MAX_EXPANDED_RESOURCE_IDS = 100;
 
 export const ZoomRangeSchema = z
   .object({
@@ -17,6 +18,11 @@ export const ZoomRangeSchema = z
 export const DeepLinkStateV1Schema = z
   .object({
     zoomRange: ZoomRangeSchema,
+    expandedResourceIds: z
+      .array(z.string().min(1).max(1024))
+      .max(MAX_EXPANDED_RESOURCE_IDS)
+      .transform(ids => [...new Set(ids)].sort())
+      .optional(),
   })
   .strip();
 

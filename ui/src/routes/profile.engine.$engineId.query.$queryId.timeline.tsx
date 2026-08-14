@@ -20,6 +20,7 @@ function TimelineTab() {
         engineId={engineId}
         queryBundle={queryBundle}
         initialZoomRange={deepLink?.initialZoomRange ?? undefined}
+        seedRootExpanded={deepLink?.initialExpandedResourceIds === null}
       />
     </div>
   );
