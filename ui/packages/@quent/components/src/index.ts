@@ -274,4 +274,25 @@ export {
   clipRectByRect,
   stackIntervalsIntoRows,
   stackIntervalsIntoRows as stackOperatorsIntoRows,
+  layoutGanttBar,
+  ganttExpansionLayout,
 } from './gantt-chart/utils';
+
+// ─── NVTX timeline ────────────────────────────────────────────────────────────
+export { NvtxGantt, NVTX_GANTT_HEIGHT } from './nvtx-timeline/NvtxGantt';
+export type { NvtxGanttProps } from './nvtx-timeline/NvtxGantt';
+export {
+  NVTX_SECTION_ROW_TYPE,
+  NVTX_DOMAIN_ROW_TYPE,
+  NVTX_LANE_ROW_TYPE,
+  NVTX_SECTION_ID,
+  nvtxDomainRowId,
+  nvtxThreadRowId,
+  nvtxProcessRowId,
+  nvtxMarksRowId,
+  buildNvtxTree,
+  indexNvtxLanes,
+  nvtxDomainMeta,
+  nvtxLaneLabel,
+  nvtxDefaultExpandedIds,
+} from './nvtx-timeline/utils';
