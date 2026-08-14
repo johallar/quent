@@ -7,7 +7,7 @@ import { waitFor, act } from '@testing-library/react';
 import { renderWithQuery } from '@/test/test-utils';
 import { Provider as JotaiProvider, createStore } from 'jotai';
 import { QueryResourceTree } from './QueryResourceTree';
-import { applyBulkTimelineResponse, timelineCacheKey } from '@quent/hooks';
+import { applyBulkTimelineResponse, timelineCacheKey, useZoomRange } from '@quent/hooks';
 import { timelineDataMapAtom } from '@quent/hooks/testing';
 import type { SingleTimelineResponse, QueryBundle, EntityRef } from '@quent/utils';
 
@@ -118,6 +118,11 @@ const makeTimeline = (start: number, end: number): SingleTimelineResponse =>
     data: { Binned: { series: {} } },
   }) as unknown as SingleTimelineResponse;
 
+function ViewportProbe() {
+  const range = useZoomRange();
+  return <output data-testid="viewport">{JSON.stringify(range)}</output>;
+}
+
 describe('QueryResourceTree — TimelineController always shows full-range data', () => {
   beforeEach(() => {
     capturedTimelineData = undefined;
@@ -138,6 +143,26 @@ describe('QueryResourceTree — TimelineController always shows full-range data'
     await waitFor(() => expect(capturedTimelineData).toBe(fullRange));
     expect(capturedTimelineData?.config.span.start).toBe(0);
     expect(capturedTimelineData?.config.span.end).toBe(DURATION_S);
+  });
+
+  it('hydrates an imported initial viewport instead of the full query range', async () => {
+    vi.mocked(clientApi.fetchSingleTimeline).mockResolvedValue(makeTimeline(0, DURATION_S));
+
+    const store = createStore();
+    const { getByTestId } = renderWithQuery(
+      <JotaiProvider store={store}>
+        <QueryResourceTree
+          engineId="engine-1"
+          queryBundle={makeBundle()}
+          initialZoomRange={{ start: 25, end: 75 }}
+        />
+        <ViewportProbe />
+      </JotaiProvider>
+    );
+
+    await waitFor(() =>
+      expect(getByTestId('viewport')).toHaveTextContent(JSON.stringify({ start: 25, end: 75 }))
+    );
   });
 
   it('is unaffected when a zoom-bounded bulk fetch overwrites the same atom cache key', async () => {

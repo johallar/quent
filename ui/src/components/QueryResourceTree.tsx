@@ -120,13 +120,18 @@ function injectLongEntitiesRows(item: TreeTableItem): TreeTableItem {
 interface QueryResourceTreeProps {
   engineId: string;
   queryBundle: QueryBundle<EntityRef>;
+  initialZoomRange?: { start: number; end: number };
 }
 
 export function QueryResourceTree(props: QueryResourceTreeProps) {
   return <QueryResourceTreeContent {...props} />;
 }
 
-function QueryResourceTreeContent({ queryBundle, engineId }: QueryResourceTreeProps) {
+function QueryResourceTreeContent({
+  queryBundle,
+  engineId,
+  initialZoomRange,
+}: QueryResourceTreeProps) {
   const { theme } = useTheme();
   const isDark = theme === THEME_DARK;
   const { entities, resource_tree: resourceTree } = queryBundle;
@@ -136,10 +141,11 @@ function QueryResourceTreeContent({ queryBundle, engineId }: QueryResourceTreePr
   const startTime = queryBundle.start_time_unix_ns;
   const durationSeconds = queryBundle.duration_s;
   const startTimeMs = useMemo(() => nanosToMs(startTime), [startTime]);
+  const defaultZoomRange = { start: 0, end: durationSeconds };
 
   useHydrateTimelineAtoms({
-    zoomRange: { start: 0, end: durationSeconds },
-    debouncedZoomRange: { start: 0, end: durationSeconds },
+    zoomRange: initialZoomRange ?? defaultZoomRange,
+    debouncedZoomRange: initialZoomRange ?? defaultZoomRange,
     startTimeMs,
   });
 
