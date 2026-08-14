@@ -357,7 +357,7 @@ export function EntityTooltipContent({
   activeMarks: ActiveMark[];
 }) {
   return (
-    <div className="max-h-[50vh] overflow-hidden px-2 py-1.5 bg-popover rounded text-[11px] text-foreground leading-tight shadow-md z-50">
+    <div className="max-h-[50vh] overflow-y-auto overflow-x-hidden px-2 py-1.5 bg-popover rounded text-[11px] text-foreground leading-tight shadow-md z-50">
       <DataText as="div" className="font-semibold mb-1 text-muted-foreground">
         {formatDurationForWindow(timestamp, windowMs)}
       </DataText>
