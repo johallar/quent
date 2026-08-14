@@ -9,6 +9,7 @@ import {
   useSetZoomRange,
   useZoomRange,
 } from '@quent/hooks';
+import { toast } from '@quent/components';
 import { render, screen, waitFor, userEvent } from '@/test/test-utils';
 import { expandedIdsAtom } from '@/atoms/resourceTree';
 import { CopyLinkButton } from './CopyLinkButton';
@@ -54,6 +55,10 @@ function SeedExpandedRows({ ids }: { ids: string[] }) {
 }
 
 describe('DeepLinkBoundary', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
   it('hydrates timeline viewport and expanded rows before rendering children', () => {
     const encoded = encodeDeepLinkState({
       zoomRange: { start: 10, end: 40 },
@@ -82,7 +87,8 @@ describe('DeepLinkBoundary', () => {
     );
   });
 
-  it('renders normally and reports invalid incoming state without hydrating it', () => {
+  it('shows an error toast for invalid incoming state without hydrating it', async () => {
+    const toastSpy = vi.spyOn(toast, 'add');
     render(
       <JotaiProvider>
         <DeepLinkBoundary durationSeconds={100} encodedState="v1.invalid" isQueryReady>
@@ -98,6 +104,15 @@ describe('DeepLinkBoundary', () => {
         immediate: { start: 0, end: 0 },
         debounced: { start: 0, end: 0 },
       })
+    );
+    await waitFor(() =>
+      expect(toastSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          id: 'deep-link-intake',
+          type: 'error',
+          title: 'Could not restore shared view',
+        })
+      )
     );
   });
 
@@ -144,5 +159,36 @@ describe('DeepLinkBoundary', () => {
       },
     });
     expect(window.location.href).toBe(originalUrl);
+  });
+
+  it('shows an error toast when copying fails', async () => {
+    Object.defineProperty(navigator, 'clipboard', {
+      configurable: true,
+      value: { writeText: vi.fn().mockRejectedValue(new Error('denied')) },
+    });
+    const toastSpy = vi.spyOn(toast, 'add');
+
+    render(
+      <>
+        <div id={DEEP_LINK_NAV_SLOT_ID} />
+        <JotaiProvider>
+          <DeepLinkBoundary durationSeconds={100} isQueryReady>
+            <SeedViewport start={20} end={60} />
+            <CopyLinkButton />
+          </DeepLinkBoundary>
+        </JotaiProvider>
+      </>
+    );
+
+    await userEvent.click(await screen.findByRole('button', { name: 'Copy Link' }));
+    await waitFor(() =>
+      expect(toastSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          id: 'deep-link-copy-error',
+          type: 'error',
+          title: 'Could not copy link',
+        })
+      )
+    );
   });
 });

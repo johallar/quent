@@ -6,7 +6,7 @@ import { TanStackRouterDevtools } from '@tanstack/react-router-devtools';
 import { ThemeProvider } from '@/contexts/ThemeContext';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { NavBarNavigator } from '@/components/NavBarNavigator';
-import { Button } from '@quent/components';
+import { Button, Toaster } from '@quent/components';
 import {
   NavigationMenu,
   NavigationMenuList,
@@ -110,6 +110,7 @@ function RootComponent() {
             <Outlet />
           </main>
         </div>
+        <Toaster />
       </ThemeProvider>
       {import.meta.env.VITE_DEBUG && !import.meta.env.TEST && <TanStackRouterDevtools />}
     </>

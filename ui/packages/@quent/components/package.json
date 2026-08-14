@@ -4,8 +4,16 @@
   "private": true,
   "type": "module",
   "main": "src/index.ts",
+  "imports": {
+    "#components/*": "./src/*.tsx",
+    "#hooks/*": "./src/hooks/*.ts",
+    "#lib/*": "./src/lib/*.ts",
+    "#ui/*": "./src/ui/*.tsx"
+  },
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./lib/*": "./src/lib/*.ts",
+    "./ui/*": "./src/ui/*.tsx"
   },
   "sideEffects": [
     "**/echarts.ts",
@@ -19,6 +27,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@base-ui/react": "^1.7.0",
     "@quent/client": "workspace:*",
     "@quent/hooks": "workspace:*",
     "@quent/utils": "workspace:*",
