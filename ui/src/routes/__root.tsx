@@ -27,8 +27,8 @@ function AppNav({ highlightProfile }: { highlightProfile?: boolean }) {
             aria-hidden="true"
             className="size-8 shrink-0 bg-current text-primary"
             style={{
-              WebkitMask: "url('/favicon.svg') center / contain no-repeat",
-              mask: "url('/favicon.svg') center / contain no-repeat",
+              WebkitMask: "url('/logo.svg') center / contain no-repeat",
+              mask: "url('/logo.svg') center / contain no-repeat",
             }}
           />
           <h1 className="text-2xl font-semibold text-primary">
