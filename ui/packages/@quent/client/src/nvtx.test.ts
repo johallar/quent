@@ -2,13 +2,15 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import type { NvtxViewportRequest } from '@quent/utils';
+import type { NvtxCatalog, NvtxViewportRequest } from '@quent/utils';
 import { fetchNvtxCatalog, fetchNvtxViewport } from './api';
 import {
   canonicalizeNvtxRequest,
+  firstNvtxCatalog,
   nvtxCatalogQueryOptions,
   nvtxCatalogStaleTime,
   nvtxViewportQueryOptions,
+  selectAllNvtxDomains,
 } from './nvtx';
 
 function stubFetch(response: Response) {
@@ -26,6 +28,63 @@ const request: NvtxViewportRequest = {
     { domain_id: '2', category_ids: [], include_uncategorized: true },
   ],
 };
+
+const CATALOG: NvtxCatalog = {
+  trace_start: 0,
+  trace_end: 1,
+  domains: [
+    {
+      domain_id: '10',
+      name: 'zeta',
+      color: '#000000',
+      threads: [],
+      categories: [{ category_id: 1, name: 'a' }],
+      has_uncategorized: false,
+    },
+    {
+      domain_id: '2',
+      name: 'alpha',
+      color: '#ffffff',
+      threads: [],
+      categories: [{ category_id: 3, name: 'b' }],
+      has_uncategorized: true,
+    },
+    {
+      domain_id: '7',
+      name: 'empty',
+      color: '#cccccc',
+      threads: [],
+      categories: [],
+      has_uncategorized: false,
+    },
+  ],
+  anomalies: {
+    orphan_range_ends: '0',
+    orphan_range_pops: '0',
+    orphan_resource_destroys: '0',
+    reused_range_ids: '0',
+    reused_resource_handles: '0',
+    total: '0',
+    is_faithful: true,
+  },
+};
+
+describe('NVTX stream selection', () => {
+  it('returns the first present context catalog', () => {
+    expect(firstNvtxCatalog(['a', 'b', 'c'], [null, CATALOG, CATALOG])).toEqual({
+      contextId: 'b',
+      catalog: CATALOG,
+    });
+    expect(firstNvtxCatalog(['a'], [null])).toBeNull();
+  });
+
+  it('selects populated domains in numeric ID order', () => {
+    expect(selectAllNvtxDomains(CATALOG)).toEqual([
+      { domain_id: '2', category_ids: [3], include_uncategorized: true },
+      { domain_id: '10', category_ids: [1], include_uncategorized: false },
+    ]);
+  });
+});
 
 describe('NVTX client', () => {
   afterEach(() => vi.unstubAllGlobals());

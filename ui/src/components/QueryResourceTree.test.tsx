@@ -69,7 +69,14 @@ vi.mock('@quent/components', async importOriginal => {
 import * as clientApi from '@quent/client';
 vi.mock('@quent/client', async importOriginal => {
   const actual = await importOriginal<typeof clientApi>();
-  return { ...actual, fetchSingleTimeline: vi.fn(), fetchBulkTimelines: vi.fn() };
+  return {
+    ...actual,
+    fetchSingleTimeline: vi.fn(),
+    fetchBulkTimelines: vi.fn(),
+    fetchEngineContexts: vi
+      .fn()
+      .mockResolvedValue({ engine_id: 'engine-1', context_resources: {} }),
+  };
 });
 
 // ---------------------------------------------------------------------------
