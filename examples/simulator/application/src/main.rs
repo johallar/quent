@@ -62,8 +62,8 @@ struct Args {
     #[arg(long, default_value_t = 0)]
     num_nvtx_nested_ranges: usize,
 
-    /// Emit per-task NVTX ranges on 1 in N tasks (`0` skips them). Default keeps ~5MB of NVTX.
-    #[arg(long, default_value_t = 5)]
+    /// Emit per-task NVTX ranges on 1 in N tasks (`0` skips them).
+    #[arg(long, default_value_t = 1)]
     nvtx_task_every: usize,
 
     #[command(flatten)]
@@ -208,22 +208,22 @@ enum Physical {
 fn nvtx_pipeline_op(kind: Physical) -> &'static str {
     match kind {
         Physical::FileSystemScan => "GPU_SCAN",
-        Physical::JoinPartition => "HASH_JOIN_PARTITION",
-        Physical::JoinLocal => "HASH_JOIN",
-        Physical::Sort => "SORT",
-        Physical::Limit => "LIMIT",
-        Physical::Output => "OUTPUT",
+        Physical::JoinPartition => "PARTITION",
+        Physical::JoinLocal => "HASH_GROUP_BY",
+        Physical::Sort => "ORDER_BY",
+        Physical::Limit => "MERGE_SORT",
+        Physical::Output => "RESULT_COLLECTOR",
     }
 }
 
 fn nvtx_execute_name(kind: Physical) -> &'static str {
     match kind {
-        Physical::FileSystemScan => "sirius_physical_scan:execute",
-        Physical::JoinPartition => "sirius_physical_join:partition",
-        Physical::JoinLocal => "sirius_physical_hash_join:execute",
-        Physical::Sort => "sirius_physical_sort:execute",
-        Physical::Limit => "sirius_physical_limit:execute",
-        Physical::Output => "sirius_physical_output:execute",
+        Physical::FileSystemScan => "read_parquet",
+        Physical::JoinPartition => "sirius_physical_partition::execute",
+        Physical::JoinLocal => "sirius_physical_grouped_aggregate::execute",
+        Physical::Sort => "sirius_physical_order::execute",
+        Physical::Limit => "sirius_physical_merge_sort::execute",
+        Physical::Output => "sirius_physical_result_collector::execute",
     }
 }
 
@@ -685,10 +685,17 @@ impl Worker {
                 nvtx.domain_at(0),
                 nvtx_thread_id,
                 &format!(
-                    "Pipeline 0: {} (id={op_id}) {}",
-                    nvtx_pipeline_op(operator.kind),
-                    nvtx_execute_name(operator.kind)
+                    "Pipeline 0: {} (id={op_id})",
+                    nvtx_pipeline_op(operator.kind)
                 ),
+                category,
+            )
+        });
+        let _execute = emit_nvtx.then(|| {
+            nvtx.push(
+                nvtx.domain_at(0),
+                nvtx_thread_id,
+                nvtx_execute_name(operator.kind),
                 category,
             )
         });
@@ -853,7 +860,7 @@ impl Worker {
                                     nvtx.push(
                                         nvtx.domain_at(0),
                                         nvtx_thread_id,
-                                        &format!("Pipeline 0 Task {task_index} ({pipeline})"),
+                                        &format!("Pipeline 0 Task {task_index} [{pipeline}]"),
                                         nvtx.category_at(0),
                                     )
                                 });
@@ -1341,7 +1348,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             let _query = nvtx.push(
                 nvtx.domain_at(0),
                 main_thread,
-                "sirius:query",
+                "sirius::query",
                 nvtx.category_at(0),
             );
             let l_plan = {

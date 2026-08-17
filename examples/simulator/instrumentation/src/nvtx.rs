@@ -6,23 +6,22 @@
 //! Emits a verbatim [`NvtxEvent`] stream through the same context directory as
 //! the model, without linking the Linux-only NVTX C injection layer.
 
-use std::sync::atomic::{AtomicU32, AtomicU64, Ordering};
+use std::{
+    collections::HashMap,
+    sync::{
+        Mutex,
+        atomic::{AtomicU32, AtomicU64, Ordering},
+    },
+};
 
 use nvtx_bridge::NvtxEventEntity;
-use nvtx_events::{NvtxColor, NvtxEvent, NvtxEventAttributes, NvtxMessage};
+use nvtx_events::{NvtxEvent, NvtxEventAttributes, NvtxMessage};
 use quent_model::{ContextInner, Observer};
 use uuid::Uuid;
 
 /// Domain `0` is NVTX's unnamed default; named libraries occupy `1..`.
-const DOMAIN_NAMES: &[&str] = &[
-    "default domain",
-    "CCCL",
-    "libcudf",
-    "CUB",
-    "NCCL",
-    "cuBLAS",
-    "Thrust",
-];
+const DOMAIN_NAMES: &[&str] = &["CCCL", "libcudf", "CUB", "NCCL", "cuBLAS", "Thrust"];
+const CAPTURE_DOMAIN_HANDLES: &[u64] = &[0, 3, 1, 4, 5, 6, 7];
 
 const CATEGORY_NAMES: &[&str] = &["API", "Internal", "Memory", "Compute", "IO"];
 
@@ -30,19 +29,25 @@ const LIBCUDF_FRAMES: &[&str] = &[
     "read_parquet",
     "read_chunk_internal",
     "decode_page_data",
-    "preprocess_subpages",
-    "build_string_dict_ind",
+    "decode_page_headers",
+    "decompress_page_data",
+    "decompress",
+    "device_decompress",
+    "preprocess_levels",
+    "preprocess_subpass_pages",
+    "build_string_dict_indices",
     "copy_if",
     "finalize_output",
     "binary_operation",
 ];
 
 const CCCL_KERNELS: &[&str] = &[
-    "thrust copy_if",
+    "thrust::copy_if",
     "thrust::transform",
-    "cub::DeviceReduce",
-    "cub::DeviceScan",
-    "throw",
+    "cub::DeviceReduce::Reduce",
+    "cub::DeviceReduce::TransformReduce",
+    "cub::DeviceFor::ForEachN",
+    "cub::DeviceTransform::TransformIfStableArgumentAddresses",
 ];
 
 /// Start from a plausible Linux TID so unnamed threads render as `thread 186143`.
@@ -70,7 +75,7 @@ impl Default for NvtxLayout {
             num_categories: 0,
             num_marks: 0,
             num_nested_ranges: 0,
-            task_every: 5,
+            task_every: 1,
         }
     }
 }
@@ -82,6 +87,8 @@ pub struct NvtxCapture {
     layout: NvtxLayout,
     next_thread_id: AtomicU32,
     next_range_id: AtomicU64,
+    next_string_handle: AtomicU64,
+    registered_strings: Mutex<HashMap<(u64, String), u64>>,
 }
 
 impl NvtxCapture {
@@ -93,6 +100,8 @@ impl NvtxCapture {
             layout,
             next_thread_id: AtomicU32::new(OS_THREAD_BASE),
             next_range_id: AtomicU64::new(1),
+            next_string_handle: AtomicU64::new(1),
+            registered_strings: Mutex::new(HashMap::new()),
         }
     }
 
@@ -111,6 +120,8 @@ impl NvtxCapture {
             layout,
             next_thread_id: AtomicU32::new(OS_THREAD_BASE),
             next_range_id: AtomicU64::new(1),
+            next_string_handle: AtomicU64::new(1),
+            registered_strings: Mutex::new(HashMap::new()),
         })
     }
 
@@ -126,15 +137,14 @@ impl NvtxCapture {
 
     /// Domain handle `0..num_domains`, wrapping `index`. `0` is the default domain.
     pub fn domain_at(&self, index: usize) -> u64 {
-        match self.layout.num_domains {
-            0 => 0,
-            n => (index % n) as u64,
-        }
+        (self.layout.num_domains != 0)
+            .then(|| domain_handle(index % self.layout.num_domains))
+            .unwrap_or(0)
     }
 
     /// Domain `index` when it was declared; `None` if the layout is smaller.
     pub fn try_domain(&self, index: usize) -> Option<u64> {
-        (index < self.layout.num_domains).then_some(index as u64)
+        (index < self.layout.num_domains).then(|| domain_handle(index))
     }
 
     /// Category id `1..=num_categories`, wrapping `index`. `0` when none were declared.
@@ -151,11 +161,12 @@ impl NvtxCapture {
 
     /// Domain and category names matching [`Self::domain_at`] / [`Self::category_at`].
     pub fn declare_schema(&self) {
-        for domain in 0..self.layout.num_domains as u64 {
+        for index in 0..self.layout.num_domains {
+            let domain = domain_handle(index);
             if domain != 0 {
                 self.emit(NvtxEvent::DomainCreate {
                     domain,
-                    name: domain_name(domain),
+                    name: domain_name(index),
                 });
             }
             for category in 1..=self.layout.num_categories as u32 {
@@ -186,7 +197,7 @@ impl NvtxCapture {
     pub fn mark(&self, domain: u64, message: &str, category: u32) {
         self.emit(NvtxEvent::Mark {
             domain,
-            attributes: attributes(domain, message, category),
+            attributes: self.attributes(domain, message, category),
         });
     }
 
@@ -201,7 +212,7 @@ impl NvtxCapture {
         self.emit(NvtxEvent::RangePush {
             domain,
             thread_id,
-            attributes: attributes(domain, message, category),
+            attributes: self.attributes(domain, message, category),
         });
         NvtxPushGuard {
             capture: self,
@@ -231,7 +242,7 @@ impl NvtxCapture {
         self.emit(NvtxEvent::RangeStart {
             domain,
             range_id,
-            attributes: attributes(domain, message, category),
+            attributes: self.attributes(domain, message, category),
         });
         NvtxStartGuard {
             capture: self,
@@ -245,6 +256,36 @@ impl NvtxCapture {
             return;
         }
         self.observer.emit(self.context_id, event);
+    }
+
+    fn attributes(&self, domain: u64, message: &str, category: u32) -> NvtxEventAttributes {
+        if domain == 0 {
+            return NvtxEventAttributes {
+                category,
+                color: None,
+                message: Some(NvtxMessage::String(message.to_owned())),
+                payload: None,
+            };
+        }
+        let key = (domain, message.to_owned());
+        let handle = {
+            let mut strings = self.registered_strings.lock().unwrap();
+            *strings.entry(key).or_insert_with(|| {
+                let handle = self.next_string_handle.fetch_add(1, Ordering::Relaxed);
+                self.emit(NvtxEvent::RegisterString {
+                    domain,
+                    handle,
+                    string: message.to_owned(),
+                });
+                handle
+            })
+        };
+        NvtxEventAttributes {
+            category,
+            color: None,
+            message: Some(NvtxMessage::RegisteredHandle(handle)),
+            payload: None,
+        }
     }
 }
 
@@ -291,12 +332,19 @@ impl Drop for NvtxStartGuard<'_> {
     }
 }
 
-fn domain_name(domain: u64) -> String {
+fn domain_name(index: usize) -> String {
     DOMAIN_NAMES
-        .get(domain as usize)
+        .get(index.saturating_sub(1))
         .copied()
         .map(str::to_owned)
-        .unwrap_or_else(|| format!("domain-{domain}"))
+        .unwrap_or_else(|| format!("domain-{}", domain_handle(index)))
+}
+
+fn domain_handle(index: usize) -> u64 {
+    CAPTURE_DOMAIN_HANDLES
+        .get(index)
+        .copied()
+        .unwrap_or(index as u64 + 1)
 }
 
 fn category_name(category: u32) -> String {
@@ -305,33 +353,6 @@ fn category_name(category: u32) -> String {
         .copied()
         .map(str::to_owned)
         .unwrap_or_else(|| format!("category-{category}"))
-}
-
-fn attributes(domain: u64, message: &str, category: u32) -> NvtxEventAttributes {
-    NvtxEventAttributes {
-        category,
-        color: Some(domain_color(domain)),
-        message: Some(NvtxMessage::String(message.to_owned())),
-        payload: None,
-    }
-}
-
-/// `NVTX_COLOR_ARGB` packed as `0xAARRGGBB`. Default blue, CCCL red, libcudf purple.
-fn domain_color(domain: u64) -> NvtxColor {
-    const ARGB: i32 = 1;
-    const PALETTE: [u32; 7] = [
-        0xFF25_63EB,
-        0xFFDC_2626,
-        0xFF7C_3AED,
-        0xFFEA_580C,
-        0xFF16_A34A,
-        0xFF0D_9488,
-        0xFF08_91B2,
-    ];
-    NvtxColor {
-        color_type: ARGB,
-        value: PALETTE[(domain as usize) % PALETTE.len()],
-    }
 }
 
 #[cfg(test)]
@@ -394,8 +415,43 @@ mod tests {
             .iter()
             .filter(|event| matches!(event.data.0, NvtxEvent::NameCategory { .. }))
             .count();
-        assert_eq!(domains, vec![(1, "CCCL"), (2, "libcudf")]);
+        assert_eq!(domains, vec![(3, "CCCL"), (1, "libcudf")]);
         assert_eq!(categories, 6);
+    }
+
+    #[test]
+    fn named_domains_use_registered_strings_but_default_domain_does_not() {
+        let captured = collect(NvtxLayout::default(), |nvtx| {
+            let thread_id = nvtx.alloc_thread();
+            let _default = nvtx.push(0, thread_id, "pipeline", 0);
+            let _libcudf = nvtx.push(nvtx.domain_at(2), thread_id, "read_parquet", 0);
+        });
+        assert!(captured.iter().any(|event| matches!(
+            &event.data.0,
+            NvtxEvent::RangePush {
+                domain: 0,
+                attributes: NvtxEventAttributes {
+                    message: Some(NvtxMessage::String(message)),
+                    ..
+                },
+                ..
+            } if message == "pipeline"
+        )));
+        assert!(captured.iter().any(|event| matches!(
+            &event.data.0,
+            NvtxEvent::RegisterString { domain: 1, string, .. } if string == "read_parquet"
+        )));
+        assert!(captured.iter().any(|event| matches!(
+            event.data.0,
+            NvtxEvent::RangePush {
+                domain: 1,
+                attributes: NvtxEventAttributes {
+                    message: Some(NvtxMessage::RegisteredHandle(_)),
+                    ..
+                },
+                ..
+            }
+        )));
     }
 
     #[test]
