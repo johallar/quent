@@ -2,11 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { describe, expect, it } from 'vitest';
-import {
-  mergeNvtxGanttData,
-  NVTX_BAR_MERGE_MIN_COUNT,
-  type NvtxGanttDatum,
-} from './utils';
+import { mergeNvtxGanttData, NVTX_BAR_MERGE_MIN_COUNT, type NvtxGanttDatum } from './utils';
 
 const budget = { visibleStartMs: 0, visibleEndMs: 100, plotWidthPx: 100 };
 
