@@ -2,7 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { describe, expect, it } from 'vitest';
-import { mergeNvtxGanttData, type NvtxGanttDatum } from './utils';
+import {
+  mergeNvtxGanttData,
+  NVTX_BAR_MERGE_MIN_COUNT,
+  type NvtxGanttDatum,
+} from './utils';
 
 const budget = { visibleStartMs: 0, visibleEndMs: 100, plotWidthPx: 100 };
 
@@ -13,19 +17,19 @@ function touchingBars(count: number): NvtxGanttDatum[] {
 }
 
 describe('NVTX Gantt condensation', () => {
-  it('leaves fewer than ten touching bars separate', () => {
-    const bars = touchingBars(9);
+  it('leaves runs below the minimum count separate', () => {
+    const bars = touchingBars(NVTX_BAR_MERGE_MIN_COUNT - 1);
 
     expect(mergeNvtxGanttData(bars, budget)).toEqual(bars);
   });
 
-  it('condenses ten touching bars', () => {
-    const merged = mergeNvtxGanttData(touchingBars(10), budget);
+  it('condenses runs at the minimum count', () => {
+    const merged = mergeNvtxGanttData(touchingBars(NVTX_BAR_MERGE_MIN_COUNT), budget);
 
     expect(merged).toHaveLength(1);
     expect(merged[0]).toMatchObject({
-      value: [0, 10, 0],
-      mergedCount: 10,
+      value: [0, NVTX_BAR_MERGE_MIN_COUNT, 0],
+      mergedCount: NVTX_BAR_MERGE_MIN_COUNT,
     });
   });
 });
