@@ -3,7 +3,7 @@
 
 import { useCallback, useEffect, useLayoutEffect, useMemo, useState, type ReactNode } from 'react';
 import { useAtom } from 'jotai';
-import { useSetDebouncedZoomRange, useSetZoomRange, useZoomRange } from '@quent/hooks';
+import { useReadZoomRange, useSetDebouncedZoomRange, useSetZoomRange } from '@quent/hooks';
 import { toast } from '@quent/components';
 import { expandedIdsAtom } from '@/atoms/resourceTree';
 import { buildDeepLinkUrl, decodeDeepLinkState } from './deepLink.codec';
@@ -28,7 +28,7 @@ export function DeepLinkBoundary({
   encodedState,
   isQueryReady,
 }: DeepLinkBoundaryProps) {
-  const zoomRange = useZoomRange();
+  const readZoomRange = useReadZoomRange();
   const setZoomRange = useSetZoomRange();
   const setDebouncedZoomRange = useSetDebouncedZoomRange();
   const [expandedResourceIds, setExpandedResourceIds] = useAtom(expandedIdsAtom);
@@ -90,22 +90,32 @@ export function DeepLinkBoundary({
   const [isHydrated, setIsHydrated] = useState(!encodedState);
 
   useEffect(() => {
-    if (intake.status.kind === 'error') {
-      toast.add({
-        id: 'deep-link-intake',
-        type: 'error',
-        title: 'Could not restore shared view',
-        description: 'Some shared view settings were invalid and could not be restored.',
-        priority: 'high',
-      });
-    } else if (intake.status.kind === 'warning') {
-      toast.add({
-        id: 'deep-link-intake',
-        type: 'warning',
-        title: 'Shared view adjusted',
-        description: intake.status.message,
-      });
-    }
+    if (intake.status.kind !== 'error' && intake.status.kind !== 'warning') return;
+
+    let cancelled = false;
+    queueMicrotask(() => {
+      if (cancelled) return;
+      if (intake.status.kind === 'error') {
+        toast.add({
+          id: 'deep-link-intake',
+          type: 'error',
+          title: 'Could not restore shared view',
+          description: 'Some shared view settings were invalid and could not be restored.',
+          priority: 'high',
+        });
+      } else if (intake.status.kind === 'warning') {
+        toast.add({
+          id: 'deep-link-intake',
+          type: 'warning',
+          title: 'Shared view adjusted',
+          description: intake.status.message,
+        });
+      }
+    });
+
+    return () => {
+      cancelled = true;
+    };
   }, [intake.status]);
 
   useLayoutEffect(() => {
@@ -128,7 +138,7 @@ export function DeepLinkBoundary({
   ]);
 
   const copyLink = useCallback(async (): Promise<CopyLinkResult> => {
-    const capturedRange = resolveCapturedZoomRange(zoomRange, durationSeconds);
+    const capturedRange = resolveCapturedZoomRange(readZoomRange(), durationSeconds);
     if (!capturedRange) {
       return { ok: false, message: 'The timeline viewport is not available yet.' };
     }
@@ -149,7 +159,7 @@ export function DeepLinkBoundary({
     } catch {
       return { ok: false, message: 'Could not copy the link to the clipboard.' };
     }
-  }, [durationSeconds, expandedResourceIds, zoomRange]);
+  }, [durationSeconds, expandedResourceIds, readZoomRange]);
 
   const value = useMemo<DeepLinkContextValue>(
     () => ({

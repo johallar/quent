@@ -5,11 +5,12 @@ import { useLayoutEffect } from 'react';
 import { Provider as JotaiProvider, useAtomValue, useSetAtom } from 'jotai';
 import {
   useDebouncedZoomRange,
+  useHydrateTimelineAtoms,
   useSetDebouncedZoomRange,
   useSetZoomRange,
   useZoomRange,
 } from '@quent/hooks';
-import { toast } from '@quent/components';
+import { toast, Toaster } from '@quent/components';
 import { render, screen, waitFor, userEvent } from '@/test/test-utils';
 import { expandedIdsAtom } from '@/atoms/resourceTree';
 import { CopyLinkButton } from './CopyLinkButton';
@@ -54,6 +55,15 @@ function SeedExpandedRows({ ids }: { ids: string[] }) {
   return null;
 }
 
+function HydrateTimelineDuringRender() {
+  useHydrateTimelineAtoms({
+    zoomRange: { start: 0, end: 100 },
+    debouncedZoomRange: { start: 0, end: 100 },
+    startTimeMs: 0,
+  });
+  return null;
+}
+
 describe('DeepLinkBoundary', () => {
   afterEach(() => {
     vi.restoreAllMocks();
@@ -87,15 +97,34 @@ describe('DeepLinkBoundary', () => {
     );
   });
 
+  it('does not subscribe to render-time timeline hydration', () => {
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+
+    render(
+      <JotaiProvider>
+        <DeepLinkBoundary durationSeconds={100} isQueryReady>
+          <HydrateTimelineDuringRender />
+        </DeepLinkBoundary>
+      </JotaiProvider>
+    );
+
+    expect(consoleError).not.toHaveBeenCalledWith(
+      expect.stringContaining('Cannot update a component')
+    );
+  });
+
   it('shows an error toast for invalid incoming state without hydrating it', async () => {
     const toastSpy = vi.spyOn(toast, 'add');
     render(
-      <JotaiProvider>
-        <DeepLinkBoundary durationSeconds={100} encodedState="v1.invalid" isQueryReady>
-          <IntakeStatusProbe />
-          <ViewportProbe />
-        </DeepLinkBoundary>
-      </JotaiProvider>
+      <>
+        <JotaiProvider>
+          <DeepLinkBoundary durationSeconds={100} encodedState="v1.invalid" isQueryReady>
+            <IntakeStatusProbe />
+            <ViewportProbe />
+          </DeepLinkBoundary>
+        </JotaiProvider>
+        <Toaster />
+      </>
     );
 
     expect(screen.getByTestId('intake-status')).toHaveTextContent('error');
@@ -112,6 +141,11 @@ describe('DeepLinkBoundary', () => {
           type: 'error',
           title: 'Could not restore shared view',
         })
+      )
+    );
+    await waitFor(() =>
+      expect(document.querySelector('[data-slot="toast-title"]')).toHaveTextContent(
+        'Could not restore shared view'
       )
     );
   });
