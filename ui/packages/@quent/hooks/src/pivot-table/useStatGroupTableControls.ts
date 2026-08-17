@@ -95,6 +95,10 @@ export function useStatGroupTableControls<TIndexKey extends string, TRow = unkno
     if (appliedDefaultKey === allStatsKey) return;
     setAppliedDefaultKey(allStatsKey);
 
+    // Preserve state hydrated before the table mounted, then resume normal
+    // default reconciliation if the available stat set later changes.
+    if (appliedDefaultKey === null && (selectedStats !== null || statOrder !== null)) return;
+
     const selectedByDefault = defaultStatSelectorRef.current?.(allStatNames);
     if (!selectedByDefault || selectedByDefault.length === 0) {
       setSelectedStats(null);
@@ -111,7 +115,15 @@ export function useStatGroupTableControls<TIndexKey extends string, TRow = unkno
     const orderedDefaults = allStatNames.filter(stat => defaults.has(stat));
     const rest = allStatNames.filter(stat => !defaults.has(stat));
     setStatOrder([...orderedDefaults, ...rest]);
-  }, [allStatNames, appliedDefaultKey, setAppliedDefaultKey, setSelectedStats, setStatOrder]);
+  }, [
+    allStatNames,
+    appliedDefaultKey,
+    selectedStats,
+    setAppliedDefaultKey,
+    setSelectedStats,
+    setStatOrder,
+    statOrder,
+  ]);
 
   const orderedStatNames = useMemo(() => {
     if (!statOrder) return allStatNames;

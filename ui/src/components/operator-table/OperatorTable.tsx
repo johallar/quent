@@ -25,10 +25,14 @@ import {
 } from '@quent/hooks';
 import type { QueryBundle, EntityRef } from '@quent/utils';
 import { useTheme, THEME_DARK } from '@/contexts/ThemeContext';
-import type { OperatorTableRow } from './types';
+import {
+  DEFAULT_OPERATOR_TABLE_ENABLED,
+  OPERATOR_TABLE_INDEX_ORDER,
+  OPERATOR_TABLE_PERSIST_KEY,
+  type OperatorTableIndexKey,
+  type OperatorTableRow,
+} from './types';
 import { buildOperatorRows, buildItemIdIndex } from './utils';
-
-type IndexKey = 'partition' | 'parent_item_type' | 'parent_item' | 'item_type' | 'item';
 
 const OPERATOR_SCHEMA: PivotedStatTableSchema<OperatorTableRow> = {
   groups: {
@@ -54,22 +58,6 @@ const OPERATOR_SCHEMA: PivotedStatTableSchema<OperatorTableRow> = {
   scopeId: row => row.scopeId,
   itemType: row => row.itemType,
   stats: row => row.stats,
-};
-
-const INDEX_ORDER: IndexKey[] = [
-  'partition',
-  'parent_item_type',
-  'parent_item',
-  'item_type',
-  'item',
-];
-
-const DEFAULT_ENABLED: Record<IndexKey, boolean> = {
-  partition: true,
-  parent_item_type: false,
-  parent_item: false,
-  item_type: true,
-  item: true,
 };
 
 // Module-scoped so the reference is stable across renders. An inline arrow
@@ -173,7 +161,7 @@ export function OperatorTable({ queryBundle }: OperatorTableProps) {
   const allStatNames = useMemo(() => getSchemaStatNames(rows, OPERATOR_SCHEMA), [rows]);
   const hasParentItems = useMemo(() => rows.some(r => r.parentItemType !== '-'), [rows]);
   const filterIndexOrder = useCallback(
-    (order: IndexKey[]) =>
+    (order: OperatorTableIndexKey[]) =>
       hasParentItems ? order : order.filter(k => k !== 'parent_item_type' && k !== 'parent_item'),
     [hasParentItems]
   );
@@ -194,9 +182,9 @@ export function OperatorTable({ queryBundle }: OperatorTableProps) {
     handleSelectNoStats,
     sorting,
     setSorting,
-  } = useStatGroupTableControls<IndexKey, OperatorTableRow>({
-    baseIndexOrder: INDEX_ORDER,
-    defaultEnabled: DEFAULT_ENABLED,
+  } = useStatGroupTableControls<OperatorTableIndexKey, OperatorTableRow>({
+    baseIndexOrder: OPERATOR_TABLE_INDEX_ORDER,
+    defaultEnabled: DEFAULT_OPERATOR_TABLE_ENABLED,
     allStatNames,
     defaultStatSelector: stats => {
       const duration = stats.filter(stat => stat === 'duration_s');
@@ -205,7 +193,7 @@ export function OperatorTable({ queryBundle }: OperatorTableProps) {
       return [...duration, ...inputs, ...outputs];
     },
     filterIndexOrder,
-    persistKey: 'operatorTable',
+    persistKey: OPERATOR_TABLE_PERSIST_KEY,
     rows,
     getRowIndexId: (row, key) => OPERATOR_SCHEMA.groups[key].id(row),
   });
@@ -225,7 +213,7 @@ export function OperatorTable({ queryBundle }: OperatorTableProps) {
   }, [rows, parentScopeLabelValue]);
 
   /* This should in the future be extended with all categorical/boolean type stats */
-  const indexLabels: Record<IndexKey, React.ReactNode> = useMemo(
+  const indexLabels: Record<OperatorTableIndexKey, React.ReactNode> = useMemo(
     () => ({
       partition: 'Worker / Plan',
       parent_item_type: (

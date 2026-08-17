@@ -3,15 +3,19 @@
 
 import { gunzipSync, gzipSync, strFromU8, strToU8 } from 'fflate';
 import {
+  DeepLinkStateV2Schema,
   DeepLinkStateV1Schema,
   MAX_ENCODED_STATE_LENGTH,
+  type DeepLinkStateV2,
   type DeepLinkStateV1,
 } from './deepLink.schema';
 
-export const DEEP_LINK_VERSION = 'v1';
+export const DEEP_LINK_VERSION = 'v2';
+export const LEGACY_DEEP_LINK_VERSION = 'v1';
 export const DEEP_LINK_SEARCH_KEY = 's';
 export const MAX_DEEP_LINK_URL_LENGTH = 2048;
 export const MAX_DECOMPRESSED_STATE_LENGTH = 64 * 1024;
+export type DecodedDeepLinkState = DeepLinkStateV1 | DeepLinkStateV2;
 
 export type DeepLinkErrorCode =
   | 'invalid-state'
@@ -46,10 +50,10 @@ function base64UrlToBytes(value: string): Uint8Array | null {
   }
 }
 
-export function encodeDeepLinkState(state: DeepLinkStateV1): DeepLinkResult<string> {
-  const parsed = DeepLinkStateV1Schema.safeParse(state);
+export function encodeDeepLinkState(state: DeepLinkStateV2): DeepLinkResult<string> {
+  const parsed = DeepLinkStateV2Schema.safeParse(state);
   if (!parsed.success) {
-    return failure('invalid-state', 'The current timeline viewport is invalid.');
+    return failure('invalid-state', 'The current shared view state is invalid.');
   }
 
   const json = JSON.stringify(parsed.data);
@@ -62,7 +66,7 @@ export function encodeDeepLinkState(state: DeepLinkStateV1): DeepLinkResult<stri
   return { ok: true, value: encoded };
 }
 
-export function decodeDeepLinkState(encoded: string): DeepLinkResult<DeepLinkStateV1> {
+export function decodeDeepLinkState(encoded: string): DeepLinkResult<DecodedDeepLinkState> {
   if (encoded.length > MAX_ENCODED_STATE_LENGTH) {
     return failure('payload-too-large', 'The deep-link state exceeds the supported size.');
   }
@@ -73,7 +77,7 @@ export function decodeDeepLinkState(encoded: string): DeepLinkResult<DeepLinkSta
   }
 
   const version = encoded.slice(0, separator);
-  if (version !== DEEP_LINK_VERSION) {
+  if (version !== DEEP_LINK_VERSION && version !== LEGACY_DEEP_LINK_VERSION) {
     return failure('unsupported-version', `Unsupported deep-link version: ${version}`);
   }
 
@@ -90,9 +94,11 @@ export function decodeDeepLinkState(encoded: string): DeepLinkResult<DeepLinkSta
     }
 
     const json = JSON.parse(strFromU8(decompressed)) as unknown;
-    const parsed = DeepLinkStateV1Schema.safeParse(json);
+    const schema =
+      version === LEGACY_DEEP_LINK_VERSION ? DeepLinkStateV1Schema : DeepLinkStateV2Schema;
+    const parsed = schema.safeParse(json);
     if (!parsed.success) {
-      return failure('invalid-state', 'The deep-link state does not match the v1 schema.');
+      return failure('invalid-state', `The deep-link state does not match the ${version} schema.`);
     }
     return { ok: true, value: parsed.data };
   } catch {
@@ -102,7 +108,7 @@ export function decodeDeepLinkState(encoded: string): DeepLinkResult<DeepLinkSta
 
 export function buildDeepLinkUrl(
   currentUrl: string,
-  state: DeepLinkStateV1
+  state: DeepLinkStateV2
 ): DeepLinkResult<string> {
   const encoded = encodeDeepLinkState(state);
   if (!encoded.ok) return encoded;

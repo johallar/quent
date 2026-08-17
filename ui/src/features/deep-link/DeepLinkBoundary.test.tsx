@@ -6,18 +6,36 @@ import { Provider as JotaiProvider, useAtomValue, useSetAtom } from 'jotai';
 import {
   useDebouncedZoomRange,
   useHydrateTimelineAtoms,
+  useSerializableViewState,
   useSetDebouncedZoomRange,
   useSetZoomRange,
   useZoomRange,
 } from '@quent/hooks';
 import { toast, Toaster } from '@quent/components';
 import { render, screen, waitFor, userEvent } from '@/test/test-utils';
-import { expandedIdsAtom } from '@/atoms/resourceTree';
+import {
+  expandedIdsAtom,
+  rootResourceTypeAtom,
+  selectedFsmTypesAtom,
+  selectedTypesAtom,
+} from '@/atoms/resourceTree';
+import {
+  OPERATOR_TABLE_INDEX_ORDER,
+  OPERATOR_TABLE_PERSIST_KEY,
+} from '@/components/operator-table/types';
 import { CopyLinkButton } from './CopyLinkButton';
 import { DeepLinkBoundary } from './DeepLinkBoundary';
 import { decodeDeepLinkState, encodeDeepLinkState } from './deepLink.codec';
 import { DEEP_LINK_NAV_SLOT_ID } from './deepLink.constants';
 import { useDeepLink } from './deepLink.context';
+
+const BOUNDARY_PROPS = {
+  engineId: 'e',
+  queryId: 'q',
+  activeTab: 'timeline' as const,
+  durationSeconds: 100,
+  isQueryReady: true,
+};
 
 function ViewportProbe() {
   const immediate = useZoomRange();
@@ -33,6 +51,30 @@ function IntakeStatusProbe() {
 function ExpandedRowsProbe() {
   const expandedIds = useAtomValue(expandedIdsAtom);
   return <output data-testid="expanded-rows">{JSON.stringify([...expandedIds].sort())}</output>;
+}
+
+function SerializableStateProbe() {
+  const { read } = useSerializableViewState({
+    operatorTablePersistKey: OPERATOR_TABLE_PERSIST_KEY,
+    operatorTableGroupKeys: OPERATOR_TABLE_INDEX_ORDER,
+  });
+  const expandedIds = useAtomValue(expandedIdsAtom);
+  const selectedTypes = useAtomValue(selectedTypesAtom);
+  const selectedFsmTypes = useAtomValue(selectedFsmTypesAtom);
+  const rootResourceType = useAtomValue(rootResourceTypeAtom);
+  return (
+    <output data-testid="serializable-state">
+      {JSON.stringify({
+        view: read(),
+        resources: {
+          expandedIds: [...expandedIds].sort(),
+          selectedTypes: [...selectedTypes],
+          selectedFsmTypes: [...selectedFsmTypes],
+          rootResourceType,
+        },
+      })}
+    </output>
+  );
 }
 
 function SeedViewport({ start, end }: { start: number; end: number }) {
@@ -71,15 +113,16 @@ describe('DeepLinkBoundary', () => {
 
   it('hydrates timeline viewport and expanded rows before rendering children', () => {
     const encoded = encodeDeepLinkState({
-      zoomRange: { start: 10, end: 40 },
-      expandedResourceIds: ['resource-b', 'resource-a'],
+      route: { engineId: 'e', queryId: 'q', tab: 'timeline' },
+      timeline: { zoomRange: { start: 10, end: 40 } },
+      resources: { expandedRowIds: ['resource-b', 'resource-a'] },
     });
     expect(encoded.ok).toBe(true);
     if (!encoded.ok) return;
 
     render(
       <JotaiProvider>
-        <DeepLinkBoundary durationSeconds={100} encodedState={encoded.value} isQueryReady>
+        <DeepLinkBoundary {...BOUNDARY_PROPS} encodedState={encoded.value}>
           <ViewportProbe />
           <ExpandedRowsProbe />
         </DeepLinkBoundary>
@@ -97,12 +140,95 @@ describe('DeepLinkBoundary', () => {
     );
   });
 
+  it('hydrates comprehensive view state before rendering children', () => {
+    const encoded = encodeDeepLinkState({
+      route: { engineId: 'e', queryId: 'q', tab: 'timeline' },
+      timeline: { zoomRange: { start: 10, end: 40 } },
+      selection: { planId: 'plan-a', operatorNodeIds: ['operator-a'] },
+      resources: {
+        expandedRowIds: ['worker-a'],
+        rootResourceType: 'channel',
+        resourceTypeSelections: [{ rowId: 'worker-a', resourceType: 'memory' }],
+        fsmSelections: [{ rowId: 'worker-a', fsmType: 'task' }],
+      },
+      dag: {
+        nodeColorField: 'duration_s',
+        nodeColorPalette: 'viridis',
+        edgeWidthField: 'bytes',
+        edgeColorField: 'rows',
+        edgeColorPalette: 'purple',
+        nodeLabelField: 'type',
+        layoutDirection: 'top-to-bottom',
+      },
+      dataFlow: {
+        enabled: false,
+        measure: 'bytes',
+        labelMeasure: 'tasks',
+        dimensions: ['filesystem'],
+        playheadS: 25,
+      },
+      operatorTable: {
+        groupingOrder: ['partition', 'item_type', 'item'],
+        enabledGroups: ['partition', 'item_type'],
+        visibleStats: ['duration_s', 'spill_bytes'],
+        aggregation: 'max',
+        sort: [{ id: 'spill_bytes', desc: true }],
+      },
+    });
+    expect(encoded.ok).toBe(true);
+    if (!encoded.ok) return;
+
+    render(
+      <JotaiProvider>
+        <DeepLinkBoundary {...BOUNDARY_PROPS} encodedState={encoded.value}>
+          <SerializableStateProbe />
+        </DeepLinkBoundary>
+      </JotaiProvider>
+    );
+
+    const value = JSON.parse(screen.getByTestId('serializable-state').textContent ?? '{}');
+    expect(value).toMatchObject({
+      view: {
+        selection: { planId: 'plan-a', operatorNodeIds: ['operator-a'] },
+        dag: {
+          nodeColorField: 'duration_s',
+          nodeColorPalette: 'viridis',
+          edgeWidthField: 'bytes',
+          edgeColorField: 'rows',
+          edgeColorPalette: 'purple',
+          nodeLabelField: 'type',
+          layoutDirection: 'top-to-bottom',
+        },
+        dataFlow: {
+          enabled: false,
+          measure: 'bytes',
+          labelMeasure: 'tasks',
+          dimensions: ['filesystem'],
+          playheadS: 25,
+        },
+        operatorTable: {
+          groupingOrder: ['partition', 'item_type', 'item'],
+          enabledGroups: ['partition', 'item_type'],
+          visibleStats: ['duration_s', 'spill_bytes'],
+          aggregation: 'max',
+          sort: [{ id: 'spill_bytes', desc: true }],
+        },
+      },
+      resources: {
+        expandedIds: ['worker-a'],
+        selectedTypes: [['worker-a', 'memory']],
+        selectedFsmTypes: [['worker-a', 'task']],
+        rootResourceType: 'channel',
+      },
+    });
+  });
+
   it('does not subscribe to render-time timeline hydration', () => {
     const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined);
 
     render(
       <JotaiProvider>
-        <DeepLinkBoundary durationSeconds={100} isQueryReady>
+        <DeepLinkBoundary {...BOUNDARY_PROPS}>
           <HydrateTimelineDuringRender />
         </DeepLinkBoundary>
       </JotaiProvider>
@@ -118,7 +244,7 @@ describe('DeepLinkBoundary', () => {
     render(
       <>
         <JotaiProvider>
-          <DeepLinkBoundary durationSeconds={100} encodedState="v1.invalid" isQueryReady>
+          <DeepLinkBoundary {...BOUNDARY_PROPS} encodedState="v1.invalid">
             <IntakeStatusProbe />
             <ViewportProbe />
           </DeepLinkBoundary>
@@ -162,7 +288,7 @@ describe('DeepLinkBoundary', () => {
       <>
         <div id={DEEP_LINK_NAV_SLOT_ID} />
         <JotaiProvider>
-          <DeepLinkBoundary durationSeconds={100} isQueryReady>
+          <DeepLinkBoundary {...BOUNDARY_PROPS}>
             <SeedViewport start={20} end={60} />
             <SeedExpandedRows ids={['resource-b', 'resource-a']} />
             <ViewportProbe />
@@ -188,8 +314,9 @@ describe('DeepLinkBoundary', () => {
     expect(decodeDeepLinkState(encoded!)).toEqual({
       ok: true,
       value: {
-        zoomRange: { start: 20, end: 60 },
-        expandedResourceIds: ['resource-a', 'resource-b'],
+        route: { engineId: 'e', queryId: 'q', tab: 'timeline' },
+        timeline: { zoomRange: { start: 20, end: 60 } },
+        resources: { expandedRowIds: ['resource-a', 'resource-b'] },
       },
     });
     expect(window.location.href).toBe(originalUrl);
@@ -206,7 +333,7 @@ describe('DeepLinkBoundary', () => {
       <>
         <div id={DEEP_LINK_NAV_SLOT_ID} />
         <JotaiProvider>
-          <DeepLinkBoundary durationSeconds={100} isQueryReady>
+          <DeepLinkBoundary {...BOUNDARY_PROPS}>
             <SeedViewport start={20} end={60} />
             <CopyLinkButton />
           </DeepLinkBoundary>

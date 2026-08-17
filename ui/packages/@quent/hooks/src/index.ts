@@ -133,6 +133,16 @@ export type {
 // Utility hooks
 export { useDeferredReady } from './dag/useDeferredReady';
 
+// Serializable state bridge for application deep links
+export { useSerializableViewState } from './deepLink/useSerializableViewState';
+export type {
+  HydratableViewState,
+  SerializableDagControls,
+  SerializableDataFlowState,
+  SerializableOperatorTableState,
+  SerializableViewState,
+} from './deepLink/useSerializableViewState';
+
 // Pivot-table hooks
 export { useColumnDragDrop } from './pivot-table/useColumnDragDrop';
 export type { DropPosition } from './pivot-table/useColumnDragDrop';

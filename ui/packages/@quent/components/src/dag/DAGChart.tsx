@@ -311,6 +311,20 @@ const FlowLayout = ({
     };
   }, [data.nodes, setDagDisplayedNodeIds]);
 
+  useEffect(() => {
+    if (selectedNodeIds.size !== 1) return;
+    const selectedId = [...selectedNodeIds][0]!;
+    const selected = data.nodes.find(node => node.id === selectedId);
+    if (!selected) return;
+    setSelectedOperatorLabel(selected.label);
+    setSelectedNodeData({
+      nodeId: selected.id,
+      label: selected.label,
+      operationType: selected.type,
+      statistics: parseCustomStatistics(selected.metadata?.rawNode),
+    });
+  }, [data.nodes, selectedNodeIds, setSelectedNodeData, setSelectedOperatorLabel]);
+
   const handleMoveStart = useCallback<OnMoveStart>(event => {
     if (event !== null) {
       hasUserInteracted.current = true;

@@ -9,8 +9,9 @@ import {
   DEEP_LINK_SEARCH_KEY,
 } from '../src/features/deep-link/deepLink.codec';
 import {
-  DeepLinkStateV1Schema,
-  type DeepLinkStateV1,
+  DeepLinkStateV2Schema,
+  type DeepLinkStateV2,
+  type DeepLinkTab,
 } from '../src/features/deep-link/deepLink.schema';
 
 const usage = `Usage:
@@ -24,25 +25,46 @@ function fail(message: string): never {
   process.exit(1);
 }
 
-async function readState(values: Record<string, string | boolean | undefined>) {
+async function readState(
+  values: Record<string, string | boolean | undefined>,
+  route: DeepLinkStateV2['route']
+) {
   let input: unknown;
   if (typeof values.state === 'string') {
     input = JSON.parse(await readFile(values.state, 'utf8')) as unknown;
   } else {
     const start = Number(values.start);
     const end = Number(values.end);
-    input = { zoomRange: { start, end } };
+    input = { timeline: { zoomRange: { start, end } } };
   }
 
-  const parsed = DeepLinkStateV1Schema.safeParse(input);
+  if (!input || typeof input !== 'object' || Array.isArray(input)) {
+    fail('State must be a JSON object.');
+  }
+  const raw = input as Record<string, unknown>;
+  const candidate =
+    'zoomRange' in raw
+      ? {
+          route,
+          timeline: { zoomRange: raw.zoomRange },
+          ...('expandedResourceIds' in raw
+            ? { resources: { expandedRowIds: raw.expandedResourceIds } }
+            : {}),
+        }
+      : { ...raw, route };
+  const parsed = DeepLinkStateV2Schema.safeParse(candidate);
   if (!parsed.success) fail(`Invalid state: ${parsed.error.message}`);
   return parsed.data;
 }
 
-function buildRoute(engineId: string, queryId: string, tab: string): string {
+function parseTab(tab: string): DeepLinkTab {
   if (tab !== 'timeline' && tab !== 'operators') {
     fail('The --tab option must be "timeline" or "operators".');
   }
+  return tab;
+}
+
+function buildRoute(engineId: string, queryId: string, tab: DeepLinkTab): string {
   return `/profile/engine/${encodeURIComponent(engineId)}/query/${encodeURIComponent(queryId)}/${tab}`;
 }
 
@@ -57,8 +79,10 @@ async function createLink(values: Record<string, string | boolean | undefined>) 
     fail('Provide --state FILE or both --start and --end.');
   }
 
-  const state: DeepLinkStateV1 = await readState(values);
-  const route = buildRoute(values.engine, values.query, values.tab);
+  const tab = parseTab(values.tab);
+  const stateRoute = { engineId: values.engine, queryId: values.query, tab };
+  const state = await readState(values, stateRoute);
+  const route = buildRoute(values.engine, values.query, tab);
   const currentUrl =
     typeof values.base === 'string' ? new URL(route, values.base).toString() : route;
   const result = buildDeepLinkUrl(currentUrl, state);

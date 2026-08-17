@@ -9,17 +9,58 @@ import {
   MAX_DEEP_LINK_URL_LENGTH,
 } from './deepLink.codec';
 import {
+  DeepLinkStateV2Schema,
   DeepLinkStateV1Schema,
   MAX_EXPANDED_RESOURCE_IDS,
+  type DeepLinkStateV2,
   validateDeepLinkSearch,
 } from './deepLink.schema';
 
-const state = {
-  zoomRange: {
-    start: 12.5,
-    end: 48.75,
+const state: DeepLinkStateV2 = {
+  route: {
+    engineId: 'engine-a',
+    queryId: 'query-a',
+    tab: 'operators',
   },
-  expandedResourceIds: ['resource-a', 'resource-b'],
+  timeline: {
+    zoomRange: {
+      start: 12.5,
+      end: 48.75,
+    },
+  },
+  selection: {
+    planId: 'plan-a',
+    operatorNodeIds: ['operator-a', 'operator-b'],
+  },
+  resources: {
+    expandedRowIds: ['resource-a', 'resource-b'],
+    rootResourceType: 'memory',
+    resourceTypeSelections: [{ rowId: 'resource-a', resourceType: 'channel' }],
+    fsmSelections: [{ rowId: 'resource-a', fsmType: 'task' }],
+  },
+  dag: {
+    nodeColorField: 'duration_s',
+    nodeColorPalette: 'viridis',
+    edgeWidthField: 'bytes',
+    edgeColorField: 'rows',
+    edgeColorPalette: 'purple',
+    nodeLabelField: 'type',
+    layoutDirection: 'top-to-bottom',
+  },
+  dataFlow: {
+    enabled: false,
+    measure: 'bytes',
+    labelMeasure: 'tasks',
+    dimensions: ['filesystem'],
+    playheadS: 18,
+  },
+  operatorTable: {
+    groupingOrder: ['partition', 'item_type', 'item'],
+    enabledGroups: ['partition', 'item_type'],
+    visibleStats: ['duration_s', 'spill_bytes'],
+    aggregation: 'max',
+    sort: [{ id: 'spill_bytes', desc: true }],
+  },
 };
 
 describe('deep-link codec', () => {
@@ -34,13 +75,22 @@ describe('deep-link codec', () => {
   });
 
   it('rejects unsupported versions and malformed payloads', () => {
-    expect(decodeDeepLinkState('v2.abc')).toMatchObject({
+    expect(decodeDeepLinkState('v3.abc')).toMatchObject({
       ok: false,
       code: 'unsupported-version',
     });
-    expect(decodeDeepLinkState('v1.not-gzip')).toMatchObject({
+    expect(decodeDeepLinkState('v2.not-gzip')).toMatchObject({
       ok: false,
       code: 'invalid-encoding',
+    });
+  });
+
+  it('decodes legacy v1 links', () => {
+    const encoded = 'v1.H4sIAAAAAAACA6tWqsrPzw1KzEtPVbKqViouSSwqUbIy0FFKzUsB0nomBua1tQAidcVYJQAAAA';
+
+    expect(decodeDeepLinkState(encoded)).toEqual({
+      ok: true,
+      value: { zoomRange: { start: 0, end: 0.407 } },
     });
   });
 
@@ -53,7 +103,7 @@ describe('deep-link codec', () => {
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     expect(result.value.length).toBeLessThanOrEqual(MAX_DEEP_LINK_URL_LENGTH);
-    expect(new URL(result.value).searchParams.get('s')).toMatch(/^v1\./u);
+    expect(new URL(result.value).searchParams.get('s')).toMatch(/^v2\./u);
   });
 
   it('rejects an absolute URL whose origin and path exhaust the budget', () => {
@@ -74,25 +124,44 @@ describe('deep-link search validation', () => {
 });
 
 describe('deep-link state validation', () => {
-  it('strips unknown keys, validates the viewport, and canonicalizes expanded IDs', () => {
-    expect(DeepLinkStateV1Schema.parse({ ...state, futureField: true })).toEqual(state);
+  it('validates and canonicalizes comprehensive v2 state', () => {
+    expect(DeepLinkStateV2Schema.parse({ ...state, futureField: true })).toEqual(state);
     expect(
-      DeepLinkStateV1Schema.parse({
-        zoomRange: state.zoomRange,
-        expandedResourceIds: ['resource-b', 'resource-a', 'resource-b'],
-      }).expandedResourceIds
+      DeepLinkStateV2Schema.parse({
+        route: state.route,
+        timeline: state.timeline,
+        resources: { expandedRowIds: ['resource-b', 'resource-a', 'resource-b'] },
+      }).resources?.expandedRowIds
     ).toEqual(['resource-a', 'resource-b']);
-    expect(DeepLinkStateV1Schema.safeParse({ zoomRange: { start: 20, end: 10 } }).success).toBe(
-      false
-    );
     expect(
-      DeepLinkStateV1Schema.safeParse({
-        zoomRange: state.zoomRange,
-        expandedResourceIds: Array.from(
-          { length: MAX_EXPANDED_RESOURCE_IDS + 1 },
-          (_, index) => `resource-${index}`
-        ),
+      DeepLinkStateV2Schema.safeParse({
+        route: state.route,
+        timeline: { zoomRange: { start: 20, end: 10 } },
       }).success
     ).toBe(false);
+    expect(
+      DeepLinkStateV2Schema.safeParse({
+        route: state.route,
+        timeline: state.timeline,
+        resources: {
+          expandedRowIds: Array.from(
+            { length: MAX_EXPANDED_RESOURCE_IDS + 1 },
+            (_, index) => `resource-${index}`
+          ),
+        },
+      }).success
+    ).toBe(false);
+  });
+
+  it('keeps the legacy v1 schema available for old links', () => {
+    expect(
+      DeepLinkStateV1Schema.parse({
+        zoomRange: { start: 1, end: 2 },
+        expandedResourceIds: ['b', 'a'],
+      })
+    ).toEqual({
+      zoomRange: { start: 1, end: 2 },
+      expandedResourceIds: ['a', 'b'],
+    });
   });
 });
