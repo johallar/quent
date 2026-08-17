@@ -52,13 +52,18 @@ function treeItem(id: string, type: string, children?: TreeTableItem[]): TreeTab
   return { id, type, entity: STUB_ENTITY, ...(children?.length ? { children } : {}) };
 }
 
-/** Catalog domains plus viewport-only process/marks rows, as a resource-tree sibling. */
+/** NVTX lanes for one domain, or domain sub-trees when all domains are selected. */
 export function buildNvtxTree(
   catalog: NvtxCatalog,
-  viewport: NvtxViewportResponse | null
+  viewport: NvtxViewportResponse | null,
+  selectedDomainId: string | null = null
 ): TreeTableItem | null {
   const viewportLanes = indexNvtxLanes(viewport);
-  const domains = catalog.domains.flatMap(domain => {
+  const visibleDomains = catalog.domains.filter(
+    domain => selectedDomainId == null || domain.domain_id === selectedDomainId
+  );
+  if (visibleDomains.length === 0) return null;
+  const domainLanes = visibleDomains.map(domain => {
     const threadRows = domain.threads.map(thread =>
       treeItem(nvtxThreadRowId(domain.domain_id, thread.thread_id), NVTX_LANE_ROW_TYPE)
     );
@@ -69,12 +74,18 @@ export function buildNvtxTree(
     if (viewportLanes.has(nvtxMarksRowId(domain.domain_id))) {
       extraRows.push(treeItem(nvtxMarksRowId(domain.domain_id), NVTX_LANE_ROW_TYPE));
     }
-    const children = [...threadRows, ...extraRows];
-    if (children.length === 0) return [];
-    return [treeItem(nvtxDomainRowId(domain.domain_id), NVTX_DOMAIN_ROW_TYPE, children)];
+    return [...threadRows, ...extraRows];
   });
-  if (domains.length === 0) return null;
-  return treeItem(NVTX_SECTION_ID, NVTX_SECTION_ROW_TYPE, domains);
+  const children =
+    selectedDomainId == null
+      ? visibleDomains.flatMap((domain, index) => {
+          const lanes = domainLanes[index] ?? [];
+          return lanes.length > 0
+            ? [treeItem(nvtxDomainRowId(domain.domain_id), NVTX_DOMAIN_ROW_TYPE, lanes)]
+            : [];
+        })
+      : (domainLanes[0] ?? []);
+  return treeItem(NVTX_SECTION_ID, NVTX_SECTION_ROW_TYPE, children);
 }
 
 /** Map tree row id → viewport lanes (thread depths grouped, process/marks as one lane). */
@@ -119,21 +130,32 @@ export function nvtxDomainMeta(
 export function nvtxLaneLabel(
   catalog: NvtxCatalog,
   viewport: NvtxViewportResponse | null,
-  rowId: string
+  rowId: string,
+  includeDomain = false
 ): string {
-  if (rowId.startsWith(PROCESS_PREFIX)) return 'Process ranges';
-  if (rowId.startsWith(MARKS_PREFIX)) return 'Marks';
-  if (!rowId.startsWith(THREAD_PREFIX)) return '';
-  const rest = rowId.slice(THREAD_PREFIX.length);
-  const separator = rest.lastIndexOf('__');
-  if (separator < 0) return '';
-  const domainId = rest.slice(0, separator);
-  const threadId = Number(rest.slice(separator + 2));
+  const domainId = nvtxLaneDomainId(rowId);
+  if (domainId == null) return '';
   const domain = catalog.domains.find(item => item.domain_id === domainId);
+  const prefix = includeDomain && domain ? `${domain.name} · ` : '';
+  if (rowId.startsWith(PROCESS_PREFIX)) return `${prefix}Process ranges`;
+  if (rowId.startsWith(MARKS_PREFIX)) return `${prefix}Marks`;
+  if (!rowId.startsWith(THREAD_PREFIX)) return '';
+  const separator = rowId.lastIndexOf('__');
+  const threadId = Number(rowId.slice(separator + 2));
   const thread = domain?.threads.find(item => item.thread_id === threadId);
-  if (thread) return thread.name;
+  if (thread) return `${prefix}${thread.name}`;
   const lanes = indexNvtxLanes(viewport).get(rowId);
-  return lanes?.[0]?.label ?? `thread ${threadId}`;
+  return `${prefix}${lanes?.[0]?.label ?? `thread ${threadId}`}`;
+}
+
+function nvtxLaneDomainId(rowId: string): string | null {
+  const prefix = [THREAD_PREFIX, PROCESS_PREFIX, MARKS_PREFIX].find(value =>
+    rowId.startsWith(value)
+  );
+  if (!prefix) return null;
+  const rest = rowId.slice(prefix.length);
+  const separator = rest.lastIndexOf('__');
+  return separator < 0 ? rest : rest.slice(0, separator);
 }
 
 export type NvtxGanttDatum = {

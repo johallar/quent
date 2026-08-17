@@ -2,13 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import type { NvtxViewportRequest } from '@quent/utils';
+import type { NvtxCatalog, NvtxViewportRequest } from '@quent/utils';
 import { fetchNvtxCatalog, fetchNvtxViewport } from './api';
 import {
   canonicalizeNvtxRequest,
   nvtxCatalogQueryOptions,
   nvtxCatalogStaleTime,
   nvtxViewportQueryOptions,
+  selectNvtxDomains,
 } from './nvtx';
 
 function stubFetch(response: Response) {
@@ -88,6 +89,29 @@ describe('NVTX client', () => {
     await expect(fetchNvtxViewport('context-1', QUERY_START_UNIX_NS, invalid)).rejects.toThrow(
       'NVTX viewport bounds must be finite and ordered'
     );
+  });
+
+  it('selects one NVTX domain or all domains', () => {
+    const catalog = {
+      domains: [
+        {
+          domain_id: '1',
+          categories: [{ category_id: 7 }],
+          has_uncategorized: true,
+        },
+        {
+          domain_id: '3',
+          categories: [],
+          has_uncategorized: true,
+        },
+      ],
+    } as NvtxCatalog;
+
+    expect(selectNvtxDomains(catalog, '3').map(selection => selection.domain_id)).toEqual(['3']);
+    expect(selectNvtxDomains(catalog, null).map(selection => selection.domain_id)).toEqual([
+      '1',
+      '3',
+    ]);
   });
 
   it('preserves relative seconds and decimal-string identifiers from the catalog', async () => {

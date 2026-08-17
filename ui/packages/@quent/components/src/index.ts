@@ -187,6 +187,7 @@ export { NodeFlowBar } from './query-plan/NodeFlowBar';
 
 // ─── Resource-tree components ─────────────────────────────────────────────────
 export { InlineSelector } from './resource-tree/InlineSelector';
+export type { InlineSelectorOption } from './resource-tree/InlineSelector';
 export { ResourceColumn } from './resource-tree/ResourceColumn';
 export { ResourceGroupRow } from './resource-tree/ResourceGroupRow';
 export { ResourceRow } from './resource-tree/ResourceRow';

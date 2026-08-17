@@ -38,6 +38,17 @@ export function selectAllNvtxDomains(catalog: NvtxCatalog): NvtxDomainSelection[
     .sort((left, right) => compareDecimalIds(left.domain_id, right.domain_id));
 }
 
+/** One complete domain selection, or every domain when `domainId` is null. */
+export function selectNvtxDomains(
+  catalog: NvtxCatalog,
+  domainId: string | null
+): NvtxDomainSelection[] {
+  const selections = selectAllNvtxDomains(catalog);
+  return domainId == null
+    ? selections
+    : selections.filter(selection => selection.domain_id === domainId);
+}
+
 export const engineContextsQueryOptions = (engineId: string) =>
   queryOptions({
     queryKey: ['engineContexts', engineId],
@@ -121,7 +132,7 @@ export function useNvtxStream(
   engineId: string,
   queryStartUnixNs: bigint,
   viewport: NvtxViewportWindow,
-  options?: { staleTime?: number; enabled?: boolean }
+  options?: { staleTime?: number; enabled?: boolean; domainId?: string | null }
 ) {
   const contextsQuery = useEngineContexts(engineId);
   const contextIds = Object.keys(contextsQuery.data?.context_resources ?? {});
@@ -134,7 +145,10 @@ export function useNvtxStream(
   );
   const catalog = matched?.catalog ?? null;
   const contextId = matched?.contextId;
-  const selections = useMemo(() => (catalog ? selectAllNvtxDomains(catalog) : []), [catalog]);
+  const selections = useMemo(
+    () => (catalog ? selectNvtxDomains(catalog, options?.domainId ?? null) : []),
+    [catalog, options?.domainId]
+  );
   const request = useMemo(
     (): NvtxViewportRequest => ({ viewport, selections }),
     [viewport, selections]
