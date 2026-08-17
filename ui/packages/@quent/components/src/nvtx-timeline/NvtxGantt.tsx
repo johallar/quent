@@ -4,7 +4,7 @@
 import { useCallback, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { NvtxLane } from '@quent/utils';
 import { withOpacity } from '@quent/utils';
-import { useZoomRange } from '@quent/hooks';
+import { useDebouncedZoomRange } from '@quent/hooks';
 import {
   MARK_AREA_BORDER_OPACITY,
   MARK_AREA_FILL_OPACITY,
@@ -52,7 +52,7 @@ export function NvtxGantt({
   isDark,
 }: NvtxGanttProps) {
   const { textColor } = useTimelineEchartsTheme(isDark);
-  const zoomRange = useZoomRange();
+  const zoomRange = useDebouncedZoomRange();
   const containerRef = useRef<HTMLDivElement>(null);
   const [plotWidthPx, setPlotWidthPx] = useState(0);
 

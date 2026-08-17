@@ -18,6 +18,7 @@ export { useHoveredWorkerId, useSetHoveredWorkerId } from './dag/useHoveredWorke
 export {
   useTimelineData,
   useZoomRange,
+  useGetZoomRange,
   useSetZoomRange,
   useDebouncedZoomRange,
   useSetDebouncedZoomRange,

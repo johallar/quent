@@ -3,6 +3,7 @@
 
 import { Column, TreeTable } from '@quent/components';
 import { useCallback, useEffect, useMemo, useRef } from 'react';
+import { ChartGantt } from 'lucide-react';
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { useAtom, useSetAtom } from 'jotai';
 import {
@@ -141,15 +142,18 @@ function NvtxSectionLabel({
     ...catalog.domains.map(domain => ({ value: domain.domain_id, label: domain.name })),
   ];
   return (
-    <div className="flex flex-col gap-y-1 pb-1">
-      <span className="text-xs font-semibold leading-none">NVTX</span>
-      <InlineSelector
-        id="nvtx-domain"
-        label="Domain"
-        value={selectedDomainId ?? NVTX_ALL_DOMAINS}
-        options={options}
-        onChange={(_, value) => onDomainChange(value === NVTX_ALL_DOMAINS ? null : value)}
-      />
+    <div className="flex items-center">
+      <ChartGantt aria-hidden className="mr-4 h-4 w-4 shrink-0 text-muted-foreground" />
+      <div className="flex flex-col gap-y-1 pb-1">
+        <span className="text-xs font-semibold leading-none">NVTX</span>
+        <InlineSelector
+          id="nvtx-domain"
+          label="Domain"
+          value={selectedDomainId ?? NVTX_ALL_DOMAINS}
+          options={options}
+          onChange={(_, value) => onDomainChange(value === NVTX_ALL_DOMAINS ? null : value)}
+        />
+      </div>
     </div>
   );
 }
