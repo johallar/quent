@@ -132,14 +132,16 @@ impl NvtxCapture {
     /// Whether this operator task should emit libcudf/CCCL/pipeline ranges.
     pub fn emit_task_ranges(&self, task_index: usize) -> bool {
         let every = self.layout.task_every;
-        every != 0 && task_index % every == 0
+        every != 0 && task_index.is_multiple_of(every)
     }
 
     /// Domain handle `0..num_domains`, wrapping `index`. `0` is the default domain.
     pub fn domain_at(&self, index: usize) -> u64 {
-        (self.layout.num_domains != 0)
-            .then(|| domain_handle(index % self.layout.num_domains))
-            .unwrap_or(0)
+        if self.layout.num_domains != 0 {
+            domain_handle(index % self.layout.num_domains)
+        } else {
+            0
+        }
     }
 
     /// Domain `index` when it was declared; `None` if the layout is smaller.
