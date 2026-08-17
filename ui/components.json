@@ -2,20 +2,15 @@
   "$schema": "https://ui.shadcn.com/schema.json",
   "style": "base-nova",
   "rsc": false,
-  "tsx": true,
   "tailwind": {
-    "config": "tailwind.config.js",
+    "config": "",
     "css": "src/index.css",
-    "baseColor": "slate",
-    "cssVariables": true,
-    "prefix": ""
+    "baseColor": "neutral",
+    "cssVariables": true
   },
   "aliases": {
     "components": "@quent/components",
     "ui": "@quent/components/ui",
-    "utils": "@quent/components/lib/utils",
-    "lib": "@/lib",
-    "hooks": "@/hooks"
-  },
-  "iconLibrary": "lucide"
+    "utils": "@quent/components/lib/utils"
+  }
 }
