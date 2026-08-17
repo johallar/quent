@@ -196,6 +196,8 @@ export function nvtxLanesToGanttData(lanes: NvtxLane[]): NvtxGanttDatum[] {
 
 /** Merge same-row, same-color bars whose pixel occupancy is this close. */
 export const NVTX_BAR_MERGE_GAP_PX = 2;
+/** Minimum touching bars required before collapsing them into one. */
+export const NVTX_BAR_MERGE_MIN_COUNT = 8;
 
 /** Collapse same-row, same-color bars that would occupy the same pixels. */
 export function mergeNvtxGanttData(
@@ -233,29 +235,36 @@ function mergeNvtxBarGroup(
   if (group.length <= 1) return group;
   const sorted = [...group].sort((left, right) => left.value[0] - right.value[0]);
   const out: NvtxGanttDatum[] = [];
-  let current = sorted[0]!;
-  let startMs = current.value[0];
-  let endMs = current.value[1];
+  let run = [sorted[0]!];
+  let startMs = run[0]!.value[0];
+  let endMs = run[0]!.value[1];
   let endPx = barEndPx(startMs, endMs, originMs, msPerPx);
-  let count = 1;
   for (let index = 1; index < sorted.length; index++) {
     const next = sorted[index]!;
     const nextStartPx = (next.value[0] - originMs) / msPerPx;
     if (nextStartPx <= endPx + NVTX_BAR_MERGE_GAP_PX) {
+      run.push(next);
       endMs = Math.max(endMs, next.value[1]);
       endPx = Math.max(endPx, barEndPx(next.value[0], next.value[1], originMs, msPerPx));
-      count += 1;
       continue;
     }
-    out.push(nvtxMergedDatum(current, startMs, endMs, count));
-    current = next;
+    out.push(...condenseNvtxBarRun(run, startMs, endMs));
+    run = [next];
     startMs = next.value[0];
     endMs = next.value[1];
     endPx = barEndPx(startMs, endMs, originMs, msPerPx);
-    count = 1;
   }
-  out.push(nvtxMergedDatum(current, startMs, endMs, count));
+  out.push(...condenseNvtxBarRun(run, startMs, endMs));
   return out;
+}
+
+function condenseNvtxBarRun(
+  run: NvtxGanttDatum[],
+  startMs: number,
+  endMs: number
+): NvtxGanttDatum[] {
+  if (run.length < NVTX_BAR_MERGE_MIN_COUNT) return run;
+  return [nvtxMergedDatum(run[0]!, startMs, endMs, run.length)];
 }
 
 function barEndPx(startMs: number, endMs: number, originMs: number, msPerPx: number): number {
