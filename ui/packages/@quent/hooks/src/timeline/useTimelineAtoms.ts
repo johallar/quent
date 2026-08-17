@@ -1,7 +1,8 @@
 // SPDX-FileCopyrightText: Copyright (c) 2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-import { useAtomValue, useSetAtom } from 'jotai';
+import { useCallback } from 'react';
+import { useAtomValue, useSetAtom, useStore } from 'jotai';
 import { useHydrateAtoms } from 'jotai/utils';
 import {
   timelineDataMapAtom,
@@ -22,6 +23,10 @@ export function useTimelineData(key: string): SingleTimelineResponse | undefined
 
 export const useZoomRange = () => useAtomValue(zoomRangeAtom);
 export const useSetZoomRange = () => useSetAtom(zoomRangeAtom);
+export function useReadZoomRange() {
+  const store = useStore();
+  return useCallback(() => store.get(zoomRangeAtom), [store]);
+}
 export const useDebouncedZoomRange = () => useAtomValue(debouncedZoomRangeAtom);
 export const useSetDebouncedZoomRange = () => useSetAtom(debouncedZoomRangeAtom);
 export const useTimelineHover = () => useAtomValue(timelineHoverAtom);
