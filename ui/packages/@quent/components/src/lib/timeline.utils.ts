@@ -558,8 +558,7 @@ export function registerAxisPointerSync(
 /** Unregister a chart instance from axis pointer sync. */
 export function unregisterAxisPointerSync(instance: EChartsInstance) {
   const entry = (instance as unknown as Record<string, unknown>).__axisPointerEntry as
-    | AxisPointerEntry
-    | undefined;
+    AxisPointerEntry | undefined;
   if (!entry) return;
 
   axisPointerRegistry.delete(entry);
