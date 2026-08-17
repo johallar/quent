@@ -161,6 +161,7 @@ export function NvtxGantt({
         expandLabel="Expand NVTX chart"
         collapseLabel="Collapse NVTX chart"
         emptyMessage="No NVTX ranges"
+        showPlayhead
         renderTooltip={renderTooltip}
       />
     </div>

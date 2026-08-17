@@ -19,6 +19,7 @@ import { registerAxisPointerSync, unregisterAxisPointerSync } from '../lib/timel
 import { useChartConnect } from '../lib/useChartConnect';
 import { useMinZoomSpanPct } from '../lib/useMinZoomSpanPct';
 import { useTimelineWheelNavigation } from '../lib/useTimelineWheelNavigation';
+import { PlayheadLine } from '../timeline/PlayheadLine';
 import { CHART_GROUP } from '../timeline/types';
 import { useTimelineEchartsTheme } from '../timeline/timelineEchartsTheme';
 import { Button } from '../ui/button';
@@ -55,6 +56,7 @@ export interface GanttChartProps<T extends GanttDatum> {
   expandable?: boolean;
   expandLabel?: string;
   collapseLabel?: string;
+  showPlayhead?: boolean;
   renderTooltip?: (hover: GanttHover | null) => ReactNode;
 }
 
@@ -76,11 +78,13 @@ export function GanttChart<T extends GanttDatum>({
   expandable = false,
   expandLabel = 'Expand chart',
   collapseLabel = 'Collapse chart',
+  showPlayhead = false,
   renderTooltip,
 }: GanttChartProps<T>) {
   const { themeName } = useTimelineEchartsTheme(isDark);
   const [hover, setHover] = useState<GanttHover | null>(null);
   const [isExpanded, setIsExpanded] = useState(false);
+  const [chartInstance, setChartInstance] = useState<EChartsInstance | null>(null);
   const minZoomSpanPct = useMinZoomSpanPct(durationSeconds);
   const attachWheelNavigation = useTimelineWheelNavigation(minZoomSpanPct);
   const wrapperRef = useRef<HTMLDivElement | null>(null);
@@ -135,6 +139,7 @@ export function GanttChart<T extends GanttDatum>({
 
   const onChartReady = useCallback(
     (instance: EChartsInstance) => {
+      setChartInstance(instance);
       chartCleanupRef.current?.();
       registerAxisPointerSync(instance, 0, { receiveShowTip: false });
       const detachWheelNavigation = attachWheelNavigation(
@@ -195,6 +200,7 @@ export function GanttChart<T extends GanttDatum>({
           </div>
         )}
       </HiddenScroll>
+      {showPlayhead && <PlayheadLine instance={chartInstance} />}
       {expansion?.canResize && (
         <Button
           type="button"
