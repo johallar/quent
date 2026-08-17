@@ -4,15 +4,9 @@
   "private": true,
   "type": "module",
   "main": "src/index.ts",
-  "imports": {
-    "#components/*": "./src/*.tsx",
-    "#hooks/*": "./src/hooks/*.ts",
-    "#lib/*": "./src/lib/*.ts",
-    "#ui/*": "./src/ui/*.tsx"
-  },
   "exports": {
     ".": "./src/index.ts",
-    "./lib/*": "./src/lib/*.ts",
+    "./lib/utils": "./src/lib/utils.ts",
     "./ui/*": "./src/ui/*.tsx"
   },
   "sideEffects": [
