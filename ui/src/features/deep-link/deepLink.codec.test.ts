@@ -4,9 +4,11 @@
 import { describe, expect, it } from 'vitest';
 import {
   buildDeepLinkUrl,
+  CURRENT_DEEP_LINK_VERSION,
   decodeDeepLinkState,
   encodeDeepLinkState,
   MAX_DEEP_LINK_URL_LENGTH,
+  SUPPORTED_DEEP_LINK_VERSIONS,
 } from './deepLink.codec';
 import {
   DeepLinkStateV2Schema,
@@ -74,8 +76,13 @@ describe('deep-link codec', () => {
     expect(decodeDeepLinkState(first.value)).toEqual({ ok: true, value: state });
   });
 
+  it('keeps the current version in the supported schema registry', () => {
+    expect(SUPPORTED_DEEP_LINK_VERSIONS).toContain(CURRENT_DEEP_LINK_VERSION);
+    expect(new Set(SUPPORTED_DEEP_LINK_VERSIONS).size).toBe(SUPPORTED_DEEP_LINK_VERSIONS.length);
+  });
+
   it('rejects unsupported versions and malformed payloads', () => {
-    expect(decodeDeepLinkState('v3.abc')).toMatchObject({
+    expect(decodeDeepLinkState('v999.abc')).toMatchObject({
       ok: false,
       code: 'unsupported-version',
     });
@@ -103,7 +110,9 @@ describe('deep-link codec', () => {
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     expect(result.value.length).toBeLessThanOrEqual(MAX_DEEP_LINK_URL_LENGTH);
-    expect(new URL(result.value).searchParams.get('s')).toMatch(/^v2\./u);
+    expect(new URL(result.value).searchParams.get('s')).toMatch(
+      new RegExp(`^${CURRENT_DEEP_LINK_VERSION}\\.`)
+    );
   });
 
   it('rejects an absolute URL whose origin and path exhaust the budget', () => {

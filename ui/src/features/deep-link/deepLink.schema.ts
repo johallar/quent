@@ -183,6 +183,14 @@ export type DeepLinkStateV2 = z.infer<typeof DeepLinkStateV2Schema>;
 export type DeepLinkState = DeepLinkStateV2;
 export type DeepLinkTab = DeepLinkStateV2['route']['tab'];
 
+export const SUPPORTED_DEEP_LINK_SCHEMAS = [
+  { version: 'v1', schema: DeepLinkStateV1Schema },
+  { version: 'v2', schema: DeepLinkStateV2Schema },
+] as const;
+
+export type DeepLinkVersion = (typeof SUPPORTED_DEEP_LINK_SCHEMAS)[number]['version'];
+export type DecodedDeepLinkState = z.infer<(typeof SUPPORTED_DEEP_LINK_SCHEMAS)[number]['schema']>;
+
 export const DeepLinkSearchSchema = z
   .object({
     s: z.string().optional(),
