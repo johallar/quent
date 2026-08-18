@@ -293,19 +293,6 @@ export function mergeOverlaySeries(
   return merged;
 }
 
-/** Extract the resource_type_name from a TimelineRequest (empty string for Resource requests) */
-export function getResourceTypeName(params: TimelineRequest<OperatorFilter> | undefined): string {
-  if (!params) return '';
-  if ('ResourceGroup' in params) return params.ResourceGroup.resource_type_name;
-  return '';
-}
-
-/** Extract the entity_type_name (FSM filter) from a TimelineRequest */
-export function getFsmTypeName(params: TimelineRequest<OperatorFilter>): string | null {
-  if ('ResourceGroup' in params) return params.ResourceGroup.entity_filter.entity_type_name;
-  return params.Resource.entity_filter.entity_type_name;
-}
-
 /** Clone entries and set operator_id on each TimelineRequest */
 export function setOperatorOnEntry(
   entry: TimelineRequest<OperatorFilter>,

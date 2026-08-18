@@ -117,10 +117,8 @@ export {
   buildTimelineMarks,
   collectVisibleEntries,
   getAdaptiveNumBins,
-  getFsmTypeName,
   getLongEntitiesThreshold,
   getLongFsms,
-  getResourceTypeName,
   getTimelineConfig,
   getTimelineXAxisIntervalMs,
   mergeOverlaySeries,
@@ -130,6 +128,7 @@ export {
   transformResourceTree,
 } from './lib/timeline.utils';
 export type { AxisPointerSyncOptions } from './lib/timeline.utils';
+export { getFsmTypeName, getResourceTypeName } from '@quent/utils';
 
 // ─── Services – query-plan ────────────────────────────────────────────────────
 export {
