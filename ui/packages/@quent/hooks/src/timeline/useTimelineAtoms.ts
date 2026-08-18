@@ -14,7 +14,7 @@ import {
   longEntityDensityAtom,
   timelineCacheKey,
 } from '../atoms/timeline';
-import type { ZoomRange, SingleTimelineResponse } from '@quent/utils';
+import { type ZoomRange, type SingleTimelineResponse } from '@quent/utils';
 import { getFsmTypeName, getResourceTypeName } from './timeline.utils';
 
 // Record-based replacement for atomFamily(timelineDataAtom(key))

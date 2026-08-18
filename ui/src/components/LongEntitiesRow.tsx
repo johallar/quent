@@ -4,12 +4,13 @@
 import { useMemo, useState } from 'react';
 import { useEntityList } from '@quent/client';
 import {
+  useBulkInitialized,
   useDebouncedZoomRange,
   useLongEntityDensity,
   useReturnedTimelineNumBins,
   useSelectedNodeIds,
 } from '@quent/hooks';
-import type { FsmTypeDecl } from '@quent/utils';
+import { type FsmTypeDecl, MAX_TIMELINE_BINS } from '@quent/utils';
 import {
   Button,
   LONG_ENTITIES_TIMELINE_HEIGHT,
@@ -49,6 +50,7 @@ export function LongEntitiesRow({
 }: LongEntitiesRowProps) {
   const selectedNodeIds = useSelectedNodeIds();
   const debouncedZoomRange = useDebouncedZoomRange();
+  const bulkInitialized = useBulkInitialized();
   const longEntityDensity = useLongEntityDensity();
   const returnedNumBins = useReturnedTimelineNumBins(resourceId);
   const [maxEntities, setMaxEntities] = useState(ENTITIES_PER_PAGE);
@@ -57,14 +59,12 @@ export function LongEntitiesRow({
     debouncedZoomRange.end > debouncedZoomRange.start
       ? debouncedZoomRange
       : { start: 0, end: durationSeconds };
+
+  const numBins = returnedNumBins ?? (bulkInitialized ? MAX_TIMELINE_BINS * 2 : undefined);
   const minUsageSeconds =
-    returnedNumBins == null
+    numBins == null
       ? null
-      : getLongEntitiesThreshold(
-          zoomWindow.end - zoomWindow.start,
-          returnedNumBins,
-          longEntityDensity
-        );
+      : getLongEntitiesThreshold(zoomWindow.end - zoomWindow.start, numBins, longEntityDensity);
 
   const { data, isFetching, isPlaceholderData } = useEntityList(
     {
@@ -77,7 +77,7 @@ export function LongEntitiesRow({
       maxItems: maxEntities,
       filter: { scope: { Resource: { resource_id: resourceId } } },
     },
-    { enabled: returnedNumBins != null }
+    { enabled: numBins != null }
   );
 
   const entities = useMemo(() => data?.items ?? [], [data]);

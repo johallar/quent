@@ -5,9 +5,11 @@ import type { ButtonHTMLAttributes, HTMLAttributes } from 'react';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { LongEntityDensity } from '@quent/hooks';
+import { MAX_TIMELINE_BINS } from '@quent/utils';
 import { LongEntitiesRow } from './LongEntitiesRow';
 
 const mocks = vi.hoisted(() => ({
+  bulkInitialized: true,
   buildLongEntityEntries: vi.fn((items: unknown[]) => items),
   debouncedZoomRange: { start: 0.2, end: 0.6 },
   getLongEntitiesThreshold: vi.fn(
@@ -27,6 +29,7 @@ vi.mock('@quent/client', () => ({
 }));
 
 vi.mock('@quent/hooks', () => ({
+  useBulkInitialized: () => mocks.bulkInitialized,
   useDebouncedZoomRange: () => mocks.debouncedZoomRange,
   useLongEntityDensity: () => mocks.longEntityDensity,
   useReturnedTimelineNumBins: () => mocks.returnedNumBins,
@@ -50,6 +53,7 @@ vi.mock('@quent/components', () => ({
 describe('LongEntitiesRow', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mocks.bulkInitialized = true;
     mocks.debouncedZoomRange = { start: 0.2, end: 0.6 };
     mocks.longEntityDensity = 3;
     mocks.returnedNumBins = 400;
@@ -109,7 +113,34 @@ describe('LongEntitiesRow', () => {
     );
   });
 
-  it('waits for the returned timeline bin count before fetching entities', () => {
+  it('falls back to twice the maximum bin count when the timeline request fails', () => {
+    mocks.returnedNumBins = undefined;
+
+    render(
+      <LongEntitiesRow
+        engineId="engine-1"
+        queryId="query-1"
+        resourceId="resource-1"
+        durationSeconds={1}
+        fsmTypes={{}}
+        isDark={false}
+      />
+    );
+
+    expect(mocks.getLongEntitiesThreshold.mock.calls[0]?.[0]).toBeCloseTo(0.4);
+    expect(mocks.getLongEntitiesThreshold.mock.calls[0]?.slice(1)).toEqual([
+      MAX_TIMELINE_BINS * 2,
+      3,
+    ]);
+    expect(mocks.useEntityList).toHaveBeenCalledWith(
+      expect.objectContaining({ minUsageSeconds: 0.09 }),
+      { enabled: true }
+    );
+    expect(screen.getByTestId('long-entities-gantt')).toBeInTheDocument();
+  });
+
+  it('waits for the timeline request before using the fallback', () => {
+    mocks.bulkInitialized = false;
     mocks.returnedNumBins = undefined;
 
     render(

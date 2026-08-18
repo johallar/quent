@@ -44,4 +44,25 @@ describe('useReturnedTimelineNumBins', () => {
 
     expect(result.current).toBe(400);
   });
+
+  it('returns undefined when no response is cached', () => {
+    const store = createStore();
+    const request: TimelineRequest<OperatorFilter> = {
+      Resource: {
+        resource_id: 'resource-1',
+        long_entities_threshold_s: null,
+        entity_filter: { entity_type_name: 'fsm-1' },
+        application: { operator_ids: [] },
+        config: { num_bins: 200, start: 0, end: 1 },
+      },
+    };
+    store.set(visibleEntriesAtom, { 'resource-1': request });
+    const wrapper = ({ children }: PropsWithChildren) => (
+      <Provider store={store}>{children}</Provider>
+    );
+
+    const { result } = renderHook(() => useReturnedTimelineNumBins('resource-1'), { wrapper });
+
+    expect(result.current).toBeUndefined();
+  });
 });
