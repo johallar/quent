@@ -18,6 +18,7 @@ const mocks = vi.hoisted(() => ({
   ),
   longEntityDensity: 3 as LongEntityDensity,
   returnedNumBins: 400 as number | undefined,
+  returnedTimelineIsStale: false,
   longEntitiesGantt: vi.fn(
     (_props: { entries: unknown[]; height: number; minUsageSeconds: number }) => null
   ),
@@ -32,6 +33,7 @@ vi.mock('@quent/hooks', () => ({
   useBulkInitialized: () => mocks.bulkInitialized,
   useDebouncedZoomRange: () => mocks.debouncedZoomRange,
   useLongEntityDensity: () => mocks.longEntityDensity,
+  useReturnedTimelineIsStale: () => mocks.returnedTimelineIsStale,
   useReturnedTimelineNumBins: () => mocks.returnedNumBins,
   useSelectedNodeIds: () => new Set(['operator-1']),
 }));
@@ -57,6 +59,7 @@ describe('LongEntitiesRow', () => {
     mocks.debouncedZoomRange = { start: 0.2, end: 0.6 };
     mocks.longEntityDensity = 3;
     mocks.returnedNumBins = 400;
+    mocks.returnedTimelineIsStale = false;
     mocks.useEntityList.mockReturnValue({
       data: undefined,
       isFetching: false,
@@ -160,6 +163,35 @@ describe('LongEntitiesRow', () => {
       { enabled: false }
     );
     expect(screen.getByRole('status', { name: 'Loading entities' })).toBeInTheDocument();
+  });
+
+  it('keeps the previous chart visible while a new viewport timeline loads', () => {
+    const previousEntity = { id: 'entity-1' };
+    mocks.useEntityList.mockReturnValue({
+      data: { items: [previousEntity], total: 1 },
+      isFetching: false,
+      isPlaceholderData: false,
+    });
+    const props = {
+      engineId: 'engine-1',
+      queryId: 'query-1',
+      resourceId: 'resource-1',
+      durationSeconds: 1,
+      fsmTypes: {},
+      isDark: false,
+    };
+    const { rerender } = render(<LongEntitiesRow {...props} />);
+
+    mocks.returnedNumBins = undefined;
+    mocks.returnedTimelineIsStale = true;
+    rerender(<LongEntitiesRow {...props} />);
+
+    expect(mocks.useEntityList).toHaveBeenLastCalledWith(
+      expect.objectContaining({ minUsageSeconds: null }),
+      { enabled: false }
+    );
+    expect(screen.queryByRole('status', { name: 'Loading entities' })).not.toBeInTheDocument();
+    expect(screen.getByTestId('long-entities-gantt')).toBeInTheDocument();
   });
 
   it('can limit FSM states to those used on the associated resource', () => {

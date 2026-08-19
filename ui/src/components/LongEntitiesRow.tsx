@@ -1,12 +1,13 @@
 // SPDX-FileCopyrightText: Copyright (c) 2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { useEntityList } from '@quent/client';
 import {
   useBulkInitialized,
   useDebouncedZoomRange,
   useLongEntityDensity,
+  useReturnedTimelineIsStale,
   useReturnedTimelineNumBins,
   useSelectedNodeIds,
 } from '@quent/hooks';
@@ -53,6 +54,8 @@ export function LongEntitiesRow({
   const bulkInitialized = useBulkInitialized();
   const longEntityDensity = useLongEntityDensity();
   const returnedNumBins = useReturnedTimelineNumBins(resourceId);
+  const returnedTimelineIsStale = useReturnedTimelineIsStale(resourceId);
+  const previousMinUsageSeconds = useRef<number | null>(null);
   const [maxEntities, setMaxEntities] = useState(ENTITIES_PER_PAGE);
   const operatorIds = useMemo(() => [...selectedNodeIds], [selectedNodeIds]);
   const zoomWindow =
@@ -60,11 +63,17 @@ export function LongEntitiesRow({
       ? debouncedZoomRange
       : { start: 0, end: durationSeconds };
 
-  const numBins = returnedNumBins ?? (bulkInitialized ? MAX_TIMELINE_BINS * 2 : undefined);
+  const defaultNumBins = MAX_TIMELINE_BINS * 2;
+  const initializedAndNoBins = !returnedTimelineIsStale && bulkInitialized;
+  const numBins = returnedNumBins ?? (initializedAndNoBins ? defaultNumBins : undefined);
+
+  // Retain the rendered threshold while the next viewport loads.
   const minUsageSeconds =
     numBins == null
       ? null
       : getLongEntitiesThreshold(zoomWindow.end - zoomWindow.start, numBins, longEntityDensity);
+  if (minUsageSeconds != null) previousMinUsageSeconds.current = minUsageSeconds;
+  const displayedMinUsageSeconds = minUsageSeconds ?? previousMinUsageSeconds.current;
 
   const { data, isFetching, isPlaceholderData } = useEntityList(
     {
@@ -96,7 +105,7 @@ export function LongEntitiesRow({
   const isLoadingMore = isPlaceholderData && entities.length < maxEntities;
   const showMoreButton = hasMoreEntities && (!isLoadingMore || maxEntities < totalEntities);
 
-  if (minUsageSeconds == null || (!data && isFetching)) {
+  if (displayedMinUsageSeconds == null || (!data && isFetching)) {
     return (
       <div
         role="status"
@@ -116,7 +125,7 @@ export function LongEntitiesRow({
       <LongEntitiesGantt
         entries={entries}
         durationSeconds={durationSeconds}
-        minUsageSeconds={minUsageSeconds}
+        minUsageSeconds={displayedMinUsageSeconds}
         height={LONG_ENTITIES_TIMELINE_HEIGHT}
         isDark={isDark}
       />

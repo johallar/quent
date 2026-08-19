@@ -27,23 +27,37 @@ export function useTimelineData(key: string): SingleTimelineResponse | undefined
   return map[key];
 }
 
-function useReturnedTimelineData(resourceId: string): SingleTimelineResponse | undefined {
+function useReturnedTimelineState(resourceId: string): {
+  data: SingleTimelineResponse | undefined;
+  isStale: boolean;
+} {
   const timelineDataMap = useAtomValue(timelineDataMapAtom);
   const visibleEntries = useAtomValue(visibleEntriesAtom);
+  const activeSpan = useAtomValue(debouncedZoomRangeAtom);
   const request = visibleEntries[resourceId];
-  if (!request) return undefined;
+  if (!request) return { data: undefined, isStale: false };
   const key = timelineCacheKey({
     resourceId,
     resourceTypeName: getResourceTypeName(request),
     fsmTypeName: getFsmTypeName(request),
   });
-  return timelineDataMap[key];
+  const data = timelineDataMap[key];
+  if (!data) return { data: undefined, isStale: false };
+  const tolerance = data.config.bin_duration;
+  const matchesActiveSpan =
+    Math.abs(data.config.span.start - activeSpan.start) <= tolerance &&
+    Math.abs(data.config.span.end - activeSpan.end) <= tolerance;
+  return matchesActiveSpan ? { data, isStale: false } : { data: undefined, isStale: true };
 }
 
 export function useReturnedTimelineNumBins(resourceId: string): number | undefined {
-  const data = useReturnedTimelineData(resourceId);
+  const { data } = useReturnedTimelineState(resourceId);
   const numBins = Number(data?.config.num_bins);
   return Number.isInteger(numBins) && numBins > 0 ? numBins : undefined;
+}
+
+export function useReturnedTimelineIsStale(resourceId: string): boolean {
+  return useReturnedTimelineState(resourceId).isStale;
 }
 
 export const useZoomRange = () => useAtomValue(zoomRangeAtom);
