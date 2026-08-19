@@ -9,7 +9,12 @@ import { Provider as JotaiProvider, createStore } from 'jotai';
 import { QueryResourceTree } from './QueryResourceTree';
 import { applyBulkTimelineResponse, timelineCacheKey } from '@quent/hooks';
 import { timelineDataMapAtom } from '@quent/hooks/testing';
-import type { SingleTimelineResponse, QueryBundle, EntityRef } from '@quent/utils';
+import type {
+  SingleTimelineResponse,
+  QueryBundle,
+  EntityRef,
+  FiniteStateMachine,
+} from '@quent/utils';
 
 // ---------------------------------------------------------------------------
 // Mock heavy/visual dependencies so tests run without a real browser/canvas
@@ -36,6 +41,12 @@ vi.mock('@/contexts/ThemeContext', () => ({
 
 // Capture the timelineData prop passed to TimelineController on every render
 let capturedTimelineData: SingleTimelineResponse | null | undefined = undefined;
+let capturedLongEntityProps:
+  | {
+      onEntitySelect?: (fsm: FiniteStateMachine) => void;
+      selectedEntityId?: string;
+    }
+  | undefined;
 
 // Mock @quent/components: keep all actual exports but override heavy/visual ones
 vi.mock('@quent/components', async importOriginal => {
@@ -49,17 +60,34 @@ vi.mock('@quent/components', async importOriginal => {
     TreeTable: ({
       columns,
     }: {
-      columns: Array<{ headerContent?: React.ReactNode; subHeaderContent?: React.ReactNode }>;
-    }) => (
-      <>
-        {columns.map((col, i) => (
-          <React.Fragment key={i}>
-            {col.headerContent}
-            {col.subHeaderContent}
-          </React.Fragment>
-        ))}
-      </>
-    ),
+      columns: Array<{
+        headerContent?: React.ReactNode;
+        subHeaderContent?: React.ReactNode;
+        render?: (args: { item: unknown }) => React.ReactNode;
+      }>;
+    }) => {
+      const longEntityElement = columns[1]?.render?.({
+        item: {
+          id: actual.longEntitiesRowId(RESOURCE_ID),
+          type: actual.LONG_ENTITIES_ROW_TYPE,
+          entity: {},
+        },
+      });
+      if (React.isValidElement(longEntityElement)) {
+        capturedLongEntityProps = longEntityElement.props as typeof capturedLongEntityProps;
+      }
+
+      return (
+        <>
+          {columns.map((col, i) => (
+            <React.Fragment key={i}>
+              {col.headerContent}
+              {col.subHeaderContent}
+            </React.Fragment>
+          ))}
+        </>
+      );
+    },
     ResourceColumn: () => null,
     UsageColumn: () => null,
     TimelineToolbar: () => null,
@@ -121,7 +149,30 @@ const makeTimeline = (start: number, end: number): SingleTimelineResponse =>
 describe('QueryResourceTree — TimelineController always shows full-range data', () => {
   beforeEach(() => {
     capturedTimelineData = undefined;
+    capturedLongEntityProps = undefined;
     vi.mocked(clientApi.fetchBulkTimelines).mockResolvedValue({ entries: {} } as never);
+  });
+
+  it('deselects an entity when it is selected again', () => {
+    vi.mocked(clientApi.fetchSingleTimeline).mockResolvedValue(makeTimeline(0, DURATION_S));
+    const fsm = {
+      id: 'entity-1',
+      type_name: 'Task',
+      instance_name: 'Task 1',
+      transitions: [],
+    } as FiniteStateMachine;
+
+    renderWithQuery(
+      <JotaiProvider store={createStore()}>
+        <QueryResourceTree engineId="engine-1" queryBundle={makeBundle()} />
+      </JotaiProvider>
+    );
+
+    act(() => capturedLongEntityProps?.onEntitySelect?.(fsm));
+    expect(capturedLongEntityProps?.selectedEntityId).toBe(fsm.id);
+
+    act(() => capturedLongEntityProps?.onEntitySelect?.(fsm));
+    expect(capturedLongEntityProps?.selectedEntityId).toBeUndefined();
   });
 
   it('passes full-range timeline data to TimelineController', async () => {

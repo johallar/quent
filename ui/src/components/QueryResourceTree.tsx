@@ -137,6 +137,11 @@ function QueryResourceTreeContent({ queryBundle, engineId }: QueryResourceTreePr
   const [selectedFsmTypes, setSelectedFsmTypes] = useAtom(selectedFsmTypesAtom);
 
   const [drawerFsm, setDrawerFsm] = useState<FiniteStateMachine | null>(null);
+  const toggleDrawerFsm = useCallback(
+    (fsm: FiniteStateMachine) =>
+      setDrawerFsm(selectedFsm => (selectedFsm?.id === fsm.id ? null : fsm)),
+    []
+  );
   const closeDrawer = useCallback(() => setDrawerFsm(null), []);
 
   const stateColorFn = useMemo(
@@ -355,7 +360,7 @@ function QueryResourceTreeContent({ queryBundle, engineId }: QueryResourceTreePr
                   durationSeconds={durationSeconds}
                   fsmTypes={entities.fsm_types}
                   isDark={isDark}
-                  onEntitySelect={setDrawerFsm}
+                  onEntitySelect={toggleDrawerFsm}
                   selectedEntityId={drawerFsm?.id}
                   onBackgroundClick={closeDrawer}
                 />
@@ -393,7 +398,7 @@ function QueryResourceTreeContent({ queryBundle, engineId }: QueryResourceTreePr
     queryBundle,
     handleZoomChange,
     operatorEntriesByWorker,
-    setDrawerFsm,
+    toggleDrawerFsm,
     drawerFsm,
     closeDrawer,
   ]);
