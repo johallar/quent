@@ -429,7 +429,7 @@ export function nvtxMergedBarCountLabel(
   fill: string,
   count: number
 ): Array<{ type: 'text'; silent: true; style: object }> {
-  const text = `(${count} Ranges)`;
+  const text = `(${count} ranges)`;
   if (shape.width < text.length * MERGED_COUNT_CHARACTER_WIDTH + MERGED_COUNT_PADDING) return [];
   const cy = shape.y + shape.height / 2;
   return [
