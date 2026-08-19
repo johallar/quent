@@ -15,6 +15,9 @@ export {
   fetchBulkTimelines,
   fetchDataFlow,
   fetchEntityList,
+  fetchEngineContexts,
+  fetchNvtxCatalog,
+  fetchNvtxViewport,
 } from './api';
 
 // queryOptions factories
@@ -25,7 +28,14 @@ export { queriesQueryOptions } from './queries';
 export { singleTimelineQueryOptions } from './timeline';
 export { bulkTimelineQueryOptions } from './bulkTimelines';
 export { dataFlowQueryOptions } from './dataFlow';
-export { entityListInfiniteQueryOptions, entityListQueryOptions } from './entityList';
+export { entityListQueryOptions } from './entityList';
+export {
+  canonicalizeNvtxRequest,
+  canonicalizeNvtxSelections,
+  engineContextsQueryOptions,
+  nvtxCatalogQueryOptions,
+  nvtxViewportQueryOptions,
+} from './nvtx';
 
 // Hooks
 export { useQueryBundle } from './queryBundle';
@@ -34,4 +44,5 @@ export { useQueryGroups } from './queryGroups';
 export { useQueries } from './queries';
 export { useTimeline } from './timeline';
 export { useDataFlow } from './dataFlow';
-export { useEntityList, useInfiniteEntityList } from './entityList';
+export { useEntityList } from './entityList';
+export { useEngineContexts, useNvtxCatalog, useNvtxViewport } from './nvtx';
