@@ -205,10 +205,12 @@ function MarkDetailRow({ name, value }: { name: string; value: string }) {
 
 function CompactCountRow({ mark }: { mark: ActiveMark }) {
   return (
-    <div className="flex min-w-0 items-start gap-1.5">
+    <div className="flex min-w-0 items-center gap-1.5">
       <ColorSwatch color={mark.color} />
       <DataText className="min-w-0 flex-1 break-words">{mark.label}</DataText>
-      <DataText className="ml-auto shrink-0 text-muted-foreground">{mark.stateName}</DataText>
+      {mark.stateName && (
+        <DataText className="ml-auto shrink-0 text-muted-foreground">{mark.stateName}</DataText>
+      )}
     </div>
   );
 }
@@ -216,12 +218,21 @@ function CompactCountRow({ mark }: { mark: ActiveMark }) {
 function MarkBlock({ mark }: { mark: ActiveMark }) {
   return (
     <div className="min-w-0">
-      <div className="flex min-w-0 items-start gap-1">
+      <div className="flex min-w-0 items-center gap-1">
         <ColorSwatch color={mark.color} />
-        <DataText className="min-w-0 text-muted-foreground break-words">{mark.label}</DataText>
-        <DataText className="text-foreground font-medium ml-auto min-w-0 flex-1 break-words text-right">
-          {mark.stateName}
+        <DataText
+          className={cn('min-w-0 break-words', {
+            'text-muted-foreground': mark.stateName,
+            'font-medium text-foreground': !mark.stateName,
+          })}
+        >
+          {mark.label}
         </DataText>
+        {mark.stateName && (
+          <DataText className="text-foreground font-medium ml-auto min-w-0 flex-1 break-words text-right">
+            {mark.stateName}
+          </DataText>
+        )}
       </div>
       {mark.durationMs !== undefined && (
         <MarkDetailRow name="duration" value={formatDuration(mark.durationMs)} />

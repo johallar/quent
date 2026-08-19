@@ -12,6 +12,13 @@ const tagged = (v: object) => v as unknown as DynamicValue;
 
 describe('TooltipContent active marks', () => {
   const series = [{ color: '#8884d8', name: 'computing', value: 1 }];
+  const makeMarks = (count: number): ActiveMark[] =>
+    Array.from({ length: count }, (_, index) => ({
+      label: `task-${index}`,
+      stateName: 'computing',
+      color: '#ff0000',
+      durationMs: 500,
+    }));
 
   const renderWithMarks = (marks: ActiveMark[]) =>
     render(<TooltipContent timestamp={3360} series={series} windowMs={5300} activeMarks={marks} />);
@@ -88,5 +95,19 @@ describe('TooltipContent active marks', () => {
     expect(screen.getByText('task-0')).toBeInTheDocument();
     expect(screen.getByText('loading')).toBeInTheDocument();
     expect(screen.queryByText('Total')).not.toBeInTheDocument();
+  });
+
+  it('keeps the timestamp above summaries', () => {
+    render(
+      <EntityTooltipContent
+        timestamp={1_000}
+        windowMs={5_000}
+        summary="3 ranges"
+        activeMarks={makeMarks(1)}
+      />
+    );
+
+    const summary = screen.getByText('3 ranges');
+    expect(summary.previousElementSibling).not.toBeNull();
   });
 });

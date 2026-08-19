@@ -20,7 +20,7 @@ import {
   mergeNvtxGanttData,
   nvtxItemsAtTimestamp,
   nvtxLanesToGanttData,
-  nvtxMergedBarGlyph,
+  nvtxMergedBarCountLabel,
   nvtxTooltipModel,
   rgbHex,
 } from './utils';
@@ -137,7 +137,9 @@ export function NvtxGantt({
               },
             }
           : null;
-      const marker = merged ? nvtxMergedBarGlyph(clippedShape, textColor) : [];
+      const marker = merged
+        ? nvtxMergedBarCountLabel(clippedShape, textColor, datum.mergedCount ?? 1)
+        : [];
       return {
         type: 'group' as const,
         children: text ? [rect, text, ...marker] : [rect, ...marker],

@@ -164,6 +164,8 @@ export type NvtxGanttDatum = {
   mark?: NvtxMarkItem;
   /** Set when adjacent same-color bars collapsed to one pixel column. */
   mergedCount?: number;
+  /** Per-message counts retained for a merged block's tooltip. */
+  mergedTypeCounts?: Array<{ label: string; count: number }>;
 };
 
 export interface NvtxPixelBudget {
@@ -264,7 +266,7 @@ function condenseNvtxBarRun(
   endMs: number
 ): NvtxGanttDatum[] {
   if (run.length < NVTX_BAR_MERGE_MIN_COUNT) return run;
-  return [nvtxMergedDatum(run[0]!, startMs, endMs, run.length)];
+  return [nvtxMergedDatum(run, startMs, endMs)];
 }
 
 function barEndPx(startMs: number, endMs: number, originMs: number, msPerPx: number): number {
@@ -272,17 +274,18 @@ function barEndPx(startMs: number, endMs: number, originMs: number, msPerPx: num
   return Math.max((Math.max(endMs, startMs) - originMs) / msPerPx, startPx + 1);
 }
 
-function nvtxMergedDatum(
-  datum: NvtxGanttDatum,
-  startMs: number,
-  endMs: number,
-  count: number
-): NvtxGanttDatum {
-  if (count === 1 && startMs === datum.value[0] && endMs === datum.value[1]) return datum;
+function nvtxMergedDatum(run: NvtxGanttDatum[], startMs: number, endMs: number): NvtxGanttDatum {
+  const datum = run[0]!;
+  const counts = new Map<string, number>();
+  for (const item of run) {
+    const label = item.range?.message ?? item.mark?.message;
+    if (label) counts.set(label, (counts.get(label) ?? 0) + 1);
+  }
   return {
     ...datum,
     value: [startMs, endMs, datum.value[2]],
-    ...(count > 1 ? { mergedCount: count } : {}),
+    mergedCount: run.length,
+    mergedTypeCounts: [...counts].map(([label, count]) => ({ label, count })),
   };
 }
 
@@ -310,7 +313,7 @@ export function nvtxToSummaryMark(datum: NvtxGanttDatum): ActiveMark {
   const count = datum.mergedCount ?? 1;
   if (datum.mark) {
     return {
-      label: datum.mark.message,
+      label: 'Consolidated block',
       stateName: countLabel(count, 'mark', 'marks'),
       color: rgbHex(datum.mark.color),
       compact: true,
@@ -318,11 +321,24 @@ export function nvtxToSummaryMark(datum: NvtxGanttDatum): ActiveMark {
   }
   const range = datum.range!;
   return {
-    label: range.message,
+    label: 'Consolidated block',
     stateName: countLabel(count, 'range', 'ranges'),
     color: rgbHex(range.color),
     compact: true,
   };
+}
+
+function nvtxToSummaryMarks(datum: NvtxGanttDatum): ActiveMark[] {
+  const typeCounts = datum.mergedTypeCounts;
+  if (!typeCounts?.length) return [nvtxToSummaryMark(datum)];
+  const isMark = datum.mark != null;
+  const color = rgbHex(datum.mark?.color ?? datum.range?.color ?? '');
+  return typeCounts.map(({ label, count }) => ({
+    label,
+    stateName: countLabel(count, isMark ? 'mark' : 'range', isMark ? 'marks' : 'ranges'),
+    color,
+    compact: true,
+  }));
 }
 
 export const NVTX_TOOLTIP_COMPACT_LIMIT = 6;
@@ -337,13 +353,14 @@ export type NvtxTooltipModel = {
 
 /** Count rows for merged bars; full range data when the item is a single range. */
 export function nvtxTooltipModel(data: NvtxGanttDatum[]): NvtxTooltipModel {
-  const hasMerged = data.some(datum => (datum.mergedCount ?? 1) > 1);
-  const hasSingle = data.some(datum => (datum.mergedCount ?? 1) === 1);
-  const rangeCount = data.reduce(
+  const orderedData = [...data].sort((left, right) => left.value[2] - right.value[2]);
+  const hasMerged = orderedData.some(datum => (datum.mergedCount ?? 1) > 1);
+  const hasSingle = orderedData.some(datum => (datum.mergedCount ?? 1) === 1);
+  const rangeCount = orderedData.reduce(
     (sum, datum) => sum + (datum.range ? (datum.mergedCount ?? 1) : 0),
     0
   );
-  const markCount = data.reduce(
+  const markCount = orderedData.reduce(
     (sum, datum) => sum + (datum.mark ? (datum.mergedCount ?? 1) : 0),
     0
   );
@@ -352,8 +369,8 @@ export function nvtxTooltipModel(data: NvtxGanttDatum[]): NvtxTooltipModel {
     ...(markCount > 0 ? [countLabel(markCount, 'mark', 'marks')] : []),
   ];
   return {
-    marks: data.map(datum =>
-      (datum.mergedCount ?? 1) > 1 ? nvtxToSummaryMark(datum) : nvtxToActiveMark(datum)
+    marks: orderedData.flatMap(datum =>
+      (datum.mergedCount ?? 1) > 1 ? nvtxToSummaryMarks(datum) : [nvtxToActiveMark(datum)]
     ),
     summary: hasMerged ? parts.join(', ') : undefined,
     compact: hasMerged,
@@ -381,8 +398,8 @@ export function nvtxToActiveMark(datum: NvtxGanttDatum): ActiveMark {
     return nvtxToSummaryMark(datum);
   }
   return {
-    label: range.thread_name ?? range.domain_name,
-    stateName: range.message,
+    label: range.message,
+    stateName: '',
     color: rgbHex(range.color),
     durationMs: range.observed_duration != null ? range.observed_duration * 1_000 : undefined,
     attributes: [
@@ -392,9 +409,6 @@ export function nvtxToActiveMark(datum: NvtxGanttDatum): ActiveMark {
         range.observed_end != null ? formatDuration(range.observed_end * 1_000) : '(open)'
       ),
       stringAttr('kind', nvtxKindLabel(range.kind)),
-      ...(range.thread_id != null
-        ? [stringAttr('thread', range.thread_name ?? String(range.thread_id))]
-        : []),
       stringAttr('domain', range.domain_name),
       stringAttr('category', range.category_name ?? 'Uncategorized'),
     ],
@@ -405,44 +419,35 @@ export function rgbHex(color: string): string {
   return color.length >= 7 ? color.slice(0, 7) : color;
 }
 
-const MERGED_DOT_RADIUS = 1;
-const MERGED_DOT_GAP = 3.5;
-const MERGED_DOTS_MIN_WIDTH = 12;
-const MERGED_ELLIPSIS_MIN_WIDTH = 8;
+const MERGED_COUNT_CHARACTER_WIDTH = 5;
+const MERGED_COUNT_PADDING = 4;
+const MERGED_COUNT_OPACITY = 0.6;
 
-/** Teeny "more" glyph for pixel-merged bars. Dots when they fit, else an ellipsis. */
-export function nvtxMergedBarGlyph(
+/** Shows the exact item count when a merged bar is wide enough to read it. */
+export function nvtxMergedBarCountLabel(
   shape: { x: number; y: number; width: number; height: number },
-  fill: string
-): Array<{ type: 'circle' | 'text'; silent: true; shape?: object; style: object }> {
+  fill: string,
+  count: number
+): Array<{ type: 'text'; silent: true; style: object }> {
+  const text = `(${count} Ranges)`;
+  if (shape.width < text.length * MERGED_COUNT_CHARACTER_WIDTH + MERGED_COUNT_PADDING) return [];
   const cy = shape.y + shape.height / 2;
-  if (shape.width >= MERGED_DOTS_MIN_WIDTH) {
-    const right = shape.x + shape.width - 4;
-    return [0, 1, 2].map(index => ({
-      type: 'circle' as const,
-      silent: true as const,
-      shape: { cx: right - (2 - index) * MERGED_DOT_GAP, cy, r: MERGED_DOT_RADIUS },
-      style: { fill },
-    }));
-  }
-  if (shape.width >= MERGED_ELLIPSIS_MIN_WIDTH) {
-    return [
-      {
-        type: 'text' as const,
-        silent: true as const,
-        style: {
-          text: '…',
-          x: shape.x + shape.width / 2,
-          y: cy,
-          textAlign: 'center',
-          textVerticalAlign: 'middle',
-          fontSize: 9,
-          fill,
-        },
+  return [
+    {
+      type: 'text',
+      silent: true,
+      style: {
+        text,
+        x: shape.x + shape.width / 2,
+        y: cy,
+        textAlign: 'center',
+        textVerticalAlign: 'middle',
+        fontSize: 9,
+        fill,
+        opacity: MERGED_COUNT_OPACITY,
       },
-    ];
-  }
-  return [];
+    },
+  ];
 }
 
 export function nvtxKindLabel(kind: NvtxRangeItem['kind'] | 'mark'): string {
