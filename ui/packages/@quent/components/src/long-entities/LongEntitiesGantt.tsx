@@ -9,7 +9,7 @@ import {
   useTimelineEchartsTheme,
 } from '../timeline/timelineEchartsTheme';
 import { useZoomRange } from '@quent/hooks';
-import { withOpacity } from '@quent/utils';
+import { formatDuration, withOpacity } from '@quent/utils';
 import type { LongEntityEntry } from './types';
 import { GanttChart, type GanttRenderItem } from '../gantt-chart/GanttChart';
 import type { GanttHover } from '../gantt-chart/hover';
@@ -38,6 +38,7 @@ type SegmentDatum = {
 export interface LongEntitiesGanttProps {
   entries: LongEntityEntry[];
   durationSeconds: number;
+  minUsageSeconds: number;
   height?: number;
   /** Whether dark mode is active. Passed explicitly to decouple from ThemeContext. */
   isDark: boolean;
@@ -46,6 +47,7 @@ export interface LongEntitiesGanttProps {
 export function LongEntitiesGantt({
   entries,
   durationSeconds,
+  minUsageSeconds,
   height = LONG_ENTITIES_TIMELINE_HEIGHT,
   isDark,
 }: LongEntitiesGanttProps) {
@@ -165,7 +167,15 @@ export function LongEntitiesGantt({
       expandable
       expandLabel="Expand entities chart"
       collapseLabel="Collapse entities chart"
-      emptyMessage="No entities"
+      emptyMessage={
+        <div className="flex flex-col items-center gap-0.5 text-center text-muted-foreground opacity-50">
+          <div className="font-medium">No Matching Entities</div>
+          <div className="text-xs">
+            Showing entities longer than {formatDuration(minUsageSeconds * 1_000, 1)}. Zoom to see
+            more.
+          </div>
+        </div>
+      }
       renderTooltip={renderTooltip}
     />
   );

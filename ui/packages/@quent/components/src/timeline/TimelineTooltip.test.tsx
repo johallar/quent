@@ -110,4 +110,20 @@ describe('TooltipContent active marks', () => {
     const summary = screen.getByText('3 ranges');
     expect(summary.previousElementSibling).not.toBeNull();
   });
+
+  it('keeps full details for six or fewer overlapping entities', () => {
+    render(<EntityTooltipContent timestamp={1_000} windowMs={5_000} activeMarks={makeMarks(6)} />);
+
+    expect(screen.getAllByText('500.00ms')).toHaveLength(6);
+  });
+
+  it('caps detailed rows and reports entities not shown', () => {
+    render(<EntityTooltipContent timestamp={1_000} windowMs={5_000} activeMarks={makeMarks(7)} />);
+
+    expect(screen.getByText('task-0')).toBeInTheDocument();
+    expect(screen.getByText('task-5')).toBeInTheDocument();
+    expect(screen.queryByText('task-6')).not.toBeInTheDocument();
+    expect(screen.getAllByText('500.00ms')).toHaveLength(6);
+    expect(screen.getByText('1 more entity not shown')).toBeInTheDocument();
+  });
 });

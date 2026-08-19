@@ -262,16 +262,32 @@ function MarkBlock({ mark }: { mark: ActiveMark }) {
   );
 }
 
-function ActiveMarksSection({ marks }: { marks: ActiveMark[] }) {
+const ACTIVE_MARK_LIMIT = 6;
+
+function ActiveMarksSection({
+  marks,
+  itemLimit = ACTIVE_MARK_LIMIT,
+}: {
+  marks: ActiveMark[];
+  itemLimit?: number;
+}) {
   if (marks.length === 0) return null;
+  const visibleMarks = marks.slice(0, itemLimit);
+  const hiddenCount = marks.length - visibleMarks.length;
+
   return (
     <div className="mt-1 space-y-1 border-t border-border pt-1">
-      {marks.map((mark, index) =>
+      {visibleMarks.map((mark, index) =>
         mark.compact ? (
           <CompactCountRow key={index} mark={mark} />
         ) : (
           <MarkBlock key={index} mark={mark} />
         )
+      )}
+      {hiddenCount > 0 && (
+        <DataText as="div" className="pt-1 text-muted-foreground">
+          {hiddenCount} more {hiddenCount === 1 ? 'entity' : 'entities'} not shown
+        </DataText>
       )}
     </div>
   );
@@ -391,12 +407,10 @@ export function EntityTooltipContent({
   summary?: string;
   className?: string;
 }) {
-  const visibleMarks = itemLimit != null ? activeMarks.slice(0, itemLimit) : activeMarks;
-  const hiddenCount = activeMarks.length - visibleMarks.length;
   return (
     <div
       className={cn(
-        'px-2 py-1.5 bg-popover rounded text-[11px] text-foreground leading-tight shadow-md z-50',
+        'overflow-x-hidden px-2 py-1.5 bg-popover rounded text-[11px] text-foreground leading-tight shadow-md z-50',
         className
       )}
     >
@@ -408,12 +422,7 @@ export function EntityTooltipContent({
           {summary}
         </DataText>
       )}
-      <ActiveMarksSection marks={visibleMarks} />
-      {hiddenCount > 0 && (
-        <DataText as="div" className="pt-1 text-muted-foreground">
-          {hiddenCount} more not shown
-        </DataText>
-      )}
+      <ActiveMarksSection marks={activeMarks} itemLimit={itemLimit} />
     </div>
   );
 }

@@ -44,7 +44,7 @@ describe('NVTX Gantt condensation', () => {
     );
 
     expect(label?.style).toMatchObject({
-      text: `(${NVTX_BAR_MERGE_MIN_COUNT} Ranges)`,
+      text: `(${NVTX_BAR_MERGE_MIN_COUNT} ranges)`,
       opacity: 0.6,
     });
   });

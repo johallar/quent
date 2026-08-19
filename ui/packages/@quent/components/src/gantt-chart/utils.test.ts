@@ -2,7 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { describe, expect, it } from 'vitest';
-import { clipRectByRect, stackIntervalsIntoRows, type GanttRect } from './utils';
+import {
+  GANTT_RESIZE_CONTROL_HEIGHT,
+  clipRectByRect,
+  ganttExpansionLayout,
+  stackIntervalsIntoRows,
+  type GanttRect,
+} from './utils';
 
 function rect(x: number, y: number, width: number, height: number): GanttRect {
   return { x, y, width, height };
@@ -89,5 +95,29 @@ describe('stackIntervalsIntoRows', () => {
     stackIntervalsIntoRows([...existing, span(4, 12)]);
 
     expect(existing.map(entry => entry.rowIndex)).toEqual(previousRows);
+  });
+});
+
+describe('ganttExpansionLayout', () => {
+  it('reserves control space and expands to fit stacked rows', () => {
+    const collapsed = ganttExpansionLayout({
+      rowCount: 6,
+      rowHeight: 14,
+      collapsedHeight: 75,
+      isExpanded: false,
+    });
+    const expanded = ganttExpansionLayout({
+      rowCount: 6,
+      rowHeight: 14,
+      collapsedHeight: 75,
+      isExpanded: true,
+    });
+
+    expect(collapsed).toMatchObject({
+      canResize: true,
+      contentPaddingBottom: GANTT_RESIZE_CONTROL_HEIGHT,
+      maxHeight: 75,
+    });
+    expect(expanded.maxHeight).toBe(6 * 14 + GANTT_RESIZE_CONTROL_HEIGHT);
   });
 });
