@@ -3,10 +3,12 @@
 
 # Deep links
 
-Quent deep links are snapshots created by the **Copy Link** action. Opening a snapshot restores
-its saved state, but subsequent interactions do not rewrite the browser URL.
+Quent deep links are snapshots created by the **Copy Link** action. Opening a
+snapshot restores its saved state, but subsequent interactions do not rewrite
+the browser URL.
 
-Deep links currently store the shared timeline viewport and expanded resource rows:
+Deep links currently store the shared timeline viewport and expanded resource
+rows:
 
 ```json
 {
@@ -18,15 +20,16 @@ Deep links currently store the shared timeline viewport and expanded resource ro
 }
 ```
 
-The zoom values are seconds relative to the query start. Engine, query, and active tab remain
-in the readable route:
+The zoom values are seconds relative to the query start. Engine, query, and
+active tab remain in the readable route:
 
 ```text
 /profile/engine/ENGINE/query/QUERY/timeline?s=v1.COMPRESSED_STATE
 ```
 
-Incoming state is treated as untrusted data and validated with the same Zod schema used by the
-UI and command-line tool. The complete absolute URL is limited to 2,048 characters.
+Incoming state is treated as untrusted data and validated with the same Zod
+schema used by the UI and command-line tool. The complete absolute URL is
+limited to 2,048 characters.
 
 ## Agent commands
 
@@ -41,8 +44,8 @@ pixi run pnpm --dir ui deep-link create \
   --end 48.75
 ```
 
-Add `--base http://localhost:5173` to emit an absolute URL. A JSON state file may be supplied
-instead:
+Add `--base http://localhost:5173` to emit an absolute URL. A JSON state file
+may be supplied instead:
 
 ```sh
 pixi run pnpm --dir ui deep-link create \
