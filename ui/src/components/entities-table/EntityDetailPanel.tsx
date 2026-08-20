@@ -130,7 +130,7 @@ export function EntityDetailPanel({
               const pct = (ms / totalSpanMs) * 100;
               return {
                 id: name,
-                value: ms,
+                value: pct,
                 color,
                 ariaLabel: `${name}: ${pct.toFixed(1)}%`,
                 tooltip: (
