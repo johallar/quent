@@ -5,8 +5,13 @@ import { Maximize2 } from 'lucide-react';
 import { useSetZoomRange, useSetDebouncedZoomRange } from '@quent/hooks';
 import { QueryToolbar } from './QueryToolbar';
 
+interface TimelineToolbarProps {
+  durationSeconds: number;
+  filters?: React.ReactNode;
+}
+
 /** Toolbar for the timeline view: shows the active operator filter and zoom reset. */
-export function TimelineToolbar({ durationSeconds }: { durationSeconds: number }) {
+export function TimelineToolbar({ durationSeconds, filters }: TimelineToolbarProps) {
   const setZoomRange = useSetZoomRange();
   const setDebouncedZoomRange = useSetDebouncedZoomRange();
 
@@ -17,7 +22,7 @@ export function TimelineToolbar({ durationSeconds }: { durationSeconds: number }
   };
 
   return (
-    <QueryToolbar>
+    <QueryToolbar filters={filters}>
       <button
         onClick={resetZoom}
         className="inline-flex items-center gap-1 rounded-sm px-1.5 py-0.5 hover:bg-accent hover:text-accent-foreground transition-colors cursor-pointer"

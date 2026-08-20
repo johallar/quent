@@ -10,6 +10,8 @@ import { QueryResourceTree } from './QueryResourceTree';
 import { applyBulkTimelineResponse, timelineCacheKey, useZoomRange } from '@quent/hooks';
 import { timelineDataMapAtom } from '@quent/hooks/testing';
 import type { SingleTimelineResponse, QueryBundle, EntityRef } from '@quent/utils';
+import type { TreeTableItem } from '@quent/components';
+import { resourceFilterQueryAtom } from '@/atoms/resourceTree';
 
 // ---------------------------------------------------------------------------
 // Mock heavy/visual dependencies so tests run without a real browser/canvas
@@ -36,6 +38,9 @@ vi.mock('@/contexts/ThemeContext', () => ({
 
 // Capture the timelineData prop passed to TimelineController on every render
 let capturedTimelineData: SingleTimelineResponse | null | undefined = undefined;
+let capturedTreeData: TreeTableItem[] = [];
+let capturedHighlightedIds = new Set<string>();
+let capturedExpandedIds = new Set<string>();
 
 // Mock @quent/components: keep all actual exports but override heavy/visual ones
 vi.mock('@quent/components', async importOriginal => {
@@ -48,21 +53,33 @@ vi.mock('@quent/components', async importOriginal => {
     },
     TreeTable: ({
       columns,
+      controlledExpandedIds,
+      data,
+      highlightedItemIds,
     }: {
       columns: Array<{ headerContent?: React.ReactNode; subHeaderContent?: React.ReactNode }>;
+      controlledExpandedIds?: Set<string>;
+      data: TreeTableItem[];
+      highlightedItemIds?: Set<string>;
     }) => (
-      <>
+      <div
+        ref={() => {
+          capturedTreeData = data;
+          capturedHighlightedIds = highlightedItemIds ?? new Set();
+          capturedExpandedIds = controlledExpandedIds ?? new Set();
+        }}
+      >
         {columns.map((col, i) => (
           <React.Fragment key={i}>
             {col.headerContent}
             {col.subHeaderContent}
           </React.Fragment>
         ))}
-      </>
+      </div>
     ),
     ResourceColumn: () => null,
     UsageColumn: () => null,
-    TimelineToolbar: () => null,
+    TimelineToolbar: ({ filters }: { filters?: React.ReactNode }) => filters,
   };
 });
 
@@ -95,7 +112,13 @@ const makeBundle = (): QueryBundle<EntityRef> =>
       ports: {},
       resource_types: { [RESOURCE_TYPE]: { used_by: ['task'], capacities: [] } },
       resource_group_types: {},
-      resources: { [RESOURCE_ID]: { id: RESOURCE_ID, type_name: RESOURCE_TYPE } },
+      resources: {
+        [RESOURCE_ID]: {
+          id: RESOURCE_ID,
+          instance_name: 'GPU 0',
+          type_name: RESOURCE_TYPE,
+        },
+      },
       resource_groups: {},
       fsm_types: {},
     },
@@ -126,6 +149,9 @@ function ViewportProbe() {
 describe('QueryResourceTree — TimelineController always shows full-range data', () => {
   beforeEach(() => {
     capturedTimelineData = undefined;
+    capturedTreeData = [];
+    capturedHighlightedIds = new Set();
+    capturedExpandedIds = new Set();
     vi.mocked(clientApi.fetchBulkTimelines).mockResolvedValue({ entries: {} } as never);
   });
 
@@ -220,5 +246,46 @@ describe('QueryResourceTree — TimelineController always shows full-range data'
     // TimelineController must still show the full-range data — not the atom value.
     expect(capturedTimelineData?.config.span.start).toBe(0);
     expect(capturedTimelineData?.config.span.end).toBe(DURATION_S);
+  });
+});
+
+describe('QueryResourceTree — resource filtering', () => {
+  beforeEach(() => {
+    capturedTreeData = [];
+    capturedHighlightedIds = new Set();
+    capturedExpandedIds = new Set();
+    vi.mocked(clientApi.fetchSingleTimeline).mockResolvedValue(makeTimeline(0, DURATION_S));
+    vi.mocked(clientApi.fetchBulkTimelines).mockResolvedValue({ entries: {} } as never);
+  });
+
+  it('keeps matching resources, expands their path, and highlights direct matches', async () => {
+    const store = createStore();
+    store.set(resourceFilterQueryAtom, `id:${RESOURCE_ID}`);
+
+    const { getByRole } = renderWithQuery(
+      <JotaiProvider store={store}>
+        <QueryResourceTree engineId="engine-1" queryBundle={makeBundle()} />
+      </JotaiProvider>
+    );
+
+    expect(getByRole('combobox', { name: 'Filter resources' })).toHaveValue(`id:${RESOURCE_ID}`);
+    await waitFor(() => expect(capturedTreeData).toHaveLength(1));
+    expect(capturedTreeData[0]?.children?.[0]?.id).toBe(RESOURCE_ID);
+    expect(capturedHighlightedIds).toContain(RESOURCE_ID);
+    expect(capturedExpandedIds).toContain(ROOT_GROUP_ID);
+  });
+
+  it('shows an empty state when no resources match', async () => {
+    const store = createStore();
+    store.set(resourceFilterQueryAtom, 'id:missing');
+
+    const { findByText } = renderWithQuery(
+      <JotaiProvider store={store}>
+        <QueryResourceTree engineId="engine-1" queryBundle={makeBundle()} />
+      </JotaiProvider>
+    );
+
+    expect(await findByText('No resources match this filter.')).toBeInTheDocument();
+    expect(capturedTreeData).toEqual([]);
   });
 });

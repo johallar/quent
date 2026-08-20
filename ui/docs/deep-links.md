@@ -27,7 +27,8 @@ Deep links store the route and the non-default state needed to reconstruct the s
   },
   "resources": {
     "expandedRowIds": ["resource-a"],
-    "rootResourceType": "channel"
+    "rootResourceType": "channel",
+    "resourceFilter": "id:resource-a"
   },
   "dag": {
     "nodeColorField": "duration_s"
@@ -61,6 +62,10 @@ decodable.
 Default DAG, resource, data-flow, and table controls are omitted. Hover, playback, open popovers,
 and other transient state are not shared.
 
+Resource filters accept free-text name terms and the `name:`, `id:`, `type:`, and `fsm:`
+qualifiers. Quote values containing spaces. Different qualifiers are combined with AND;
+comma-separated or repeated values for one qualifier are combined with OR.
+
 ## Agent commands
 
 Create a relative timeline link:
@@ -71,7 +76,8 @@ pixi run pnpm --dir ui deep-link create \
   --query QUERY \
   --tab timeline \
   --start 12.5 \
-  --end 48.75
+  --end 48.75 \
+  --resource-filter 'id:resource-a'
 ```
 
 Add `--base http://localhost:5173` to emit an absolute URL. A JSON state file may be supplied

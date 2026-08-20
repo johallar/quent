@@ -17,6 +17,7 @@ import {
   type DeepLinkStateV2,
   validateDeepLinkSearch,
 } from './deepLink.schema';
+import { MAX_RESOURCE_FILTER_QUERY_LENGTH } from '@/features/resource-filter/resourceFilter';
 
 const state: DeepLinkStateV2 = {
   route: {
@@ -36,6 +37,7 @@ const state: DeepLinkStateV2 = {
   },
   resources: {
     expandedRowIds: ['resource-a', 'resource-b'],
+    resourceFilter: 'id:resource-a,resource-b',
     rootResourceType: 'memory',
     resourceTypeSelections: [{ rowId: 'resource-a', resourceType: 'channel' }],
     fsmSelections: [{ rowId: 'resource-a', fsmType: 'task' }],
@@ -158,6 +160,13 @@ describe('deep-link state validation', () => {
             (_, index) => `resource-${index}`
           ),
         },
+      }).success
+    ).toBe(false);
+    expect(
+      DeepLinkStateV2Schema.safeParse({
+        route: state.route,
+        timeline: state.timeline,
+        resources: { resourceFilter: 'x'.repeat(MAX_RESOURCE_FILTER_QUERY_LENGTH + 1) },
       }).success
     ).toBe(false);
   });

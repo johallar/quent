@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { Column, TreeTable } from '@quent/components';
-import { useCallback, useEffect, useMemo } from 'react';
+import { useCallback, useDeferredValue, useEffect, useMemo } from 'react';
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { useAtom } from 'jotai';
 import { useHighlightedItemIds, useBulkTimelines, useHydrateTimelineAtoms } from '@quent/hooks';
@@ -29,6 +29,7 @@ import {
   selectedTypesAtom,
   selectedFsmTypesAtom,
   rootResourceTypeAtom,
+  resourceFilterQueryAtom,
 } from '@/atoms/resourceTree';
 import { TimelineToolbar } from '@quent/components';
 import { useTheme, THEME_DARK } from '@/contexts/ThemeContext';
@@ -46,6 +47,8 @@ import {
   resourceIdFromLongEntitiesRowId,
 } from '@quent/components';
 import { LongEntitiesRow } from '@/components/LongEntitiesRow';
+import { ResourceFilterSearch } from '@/features/resource-filter/ResourceFilterSearch';
+import { filterResourceTree } from '@/features/resource-filter/resourceFilter';
 
 function getRootResourceGroupId(resourceTree: ResourceTree<EntityRef>): string | null {
   if (!('ResourceGroup' in resourceTree)) return null;
@@ -139,6 +142,8 @@ function QueryResourceTreeContent({
   const { entities, resource_tree: resourceTree } = queryBundle;
   const [selectedTypes, setSelectedTypes] = useAtom(selectedTypesAtom);
   const [selectedFsmTypes, setSelectedFsmTypes] = useAtom(selectedFsmTypesAtom);
+  const [resourceFilterQuery, setResourceFilterQuery] = useAtom(resourceFilterQueryAtom);
+  const deferredResourceFilterQuery = useDeferredValue(resourceFilterQuery);
 
   const startTime = queryBundle.start_time_unix_ns;
   const durationSeconds = queryBundle.duration_s;
@@ -156,9 +161,28 @@ function QueryResourceTreeContent({
     [resourceTree, entities]
   );
 
-  const highlightedItemIds = useHighlightedItemIds(rootItem);
+  const operatorHighlightedItemIds = useHighlightedItemIds(rootItem);
+  const resourceFilter = useMemo(
+    () => filterResourceTree(rootItem, entities, deferredResourceFilterQuery),
+    [deferredResourceFilterQuery, entities, rootItem]
+  );
+  const highlightedItemIds = useMemo(
+    () => new Set([...(operatorHighlightedItemIds ?? []), ...resourceFilter.directMatchIds]),
+    [operatorHighlightedItemIds, resourceFilter.directMatchIds]
+  );
 
   const resourceTypeOptions = useMemo(() => collectResourceTypesFromTree([rootItem]), [rootItem]);
+  const fsmTypeOptions = useMemo(
+    () =>
+      [
+        ...new Set(
+          Object.values(entities.resource_types).flatMap(
+            resourceType => resourceType?.used_by ?? []
+          )
+        ),
+      ].sort(),
+    [entities.resource_types]
+  );
 
   const [rootResourceType, setRootResourceType] = useAtom(rootResourceTypeAtom);
 
@@ -174,13 +198,17 @@ function QueryResourceTreeContent({
   const { expandedIds, handleExpandChange } = useExpandedIds(
     seedRootExpanded ? rootItem.id : undefined
   );
-  const controlledExpandedIds = expandedIds;
+  const controlledExpandedIds = useMemo(
+    () => new Set([...expandedIds, ...resourceFilter.autoExpandedIds]),
+    [expandedIds, resourceFilter.autoExpandedIds]
+  );
+  const bulkRootItem = resourceFilter.filteredRoot ?? rootItem;
 
   const { handleZoomChange, handleExpand } = useBulkTimelines({
     engineId,
     queryId: queryBundle.query_id,
-    rootItem,
-    expandedIds,
+    rootItem: bulkRootItem,
+    expandedIds: controlledExpandedIds,
     selectedTypes,
     groupFsmFilters: selectedFsmTypes,
     entities,
@@ -238,8 +266,15 @@ function QueryResourceTreeContent({
   );
 
   const treeData = useMemo(
-    () => [injectLongEntitiesRows(injectOperatorTimelineRows(rootItem, workerIdsFromPlanTree))],
-    [rootItem, workerIdsFromPlanTree]
+    () =>
+      resourceFilter.filteredRoot
+        ? [
+            injectLongEntitiesRows(
+              injectOperatorTimelineRows(resourceFilter.filteredRoot, workerIdsFromPlanTree)
+            ),
+          ]
+        : [],
+    [resourceFilter.filteredRoot, workerIdsFromPlanTree]
   );
 
   /** Operator entries per worker id (for expandable gantt under each worker resource). */
@@ -378,20 +413,38 @@ function QueryResourceTreeContent({
 
   return (
     <div className="flex min-w-0 flex-col h-full w-full">
-      <TimelineToolbar durationSeconds={durationSeconds} />
+      <TimelineToolbar
+        durationSeconds={durationSeconds}
+        filters={
+          <ResourceFilterSearch
+            errors={resourceFilter.parsed.errors}
+            fsmTypes={fsmTypeOptions}
+            matchCount={resourceFilter.matchCount}
+            onQueryChange={setResourceFilterQuery}
+            query={resourceFilterQuery}
+            resourceTypes={resourceTypeOptions}
+          />
+        }
+      />
       <div className="min-w-0 flex-1 min-h-0">
-        <TreeTable<TreeTableItem>
-          data={treeData}
-          columns={columns}
-          initialSelectedItemId={rootItem.id}
-          columnWidths={[275, 'auto']}
-          onExpandChange={onExpandChange}
-          highlightedItemIds={highlightedItemIds}
-          controlledExpandedIds={controlledExpandedIds}
-          virtualized
-          // Estimate for virtualization
-          rowHeight={DEFAULT_TIMELINE_HEIGHT}
-        />
+        {treeData.length > 0 ? (
+          <TreeTable<TreeTableItem>
+            data={treeData}
+            columns={columns}
+            initialSelectedItemId={rootItem.id}
+            columnWidths={[275, 'auto']}
+            onExpandChange={onExpandChange}
+            highlightedItemIds={highlightedItemIds}
+            controlledExpandedIds={controlledExpandedIds}
+            virtualized
+            // Estimate for virtualization
+            rowHeight={DEFAULT_TIMELINE_HEIGHT}
+          />
+        ) : (
+          <div className="flex h-full items-center justify-center px-4 text-sm text-muted-foreground">
+            No resources match this filter.
+          </div>
+        )}
       </div>
     </div>
   );

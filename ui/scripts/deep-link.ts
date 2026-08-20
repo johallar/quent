@@ -15,8 +15,8 @@ import {
 } from '../src/features/deep-link/deepLink.schema';
 
 const usage = `Usage:
-  pnpm deep-link create --engine ID --query ID --tab timeline --start S --end S [--base URL]
-  pnpm deep-link create --engine ID --query ID --tab timeline --state FILE [--base URL]
+  pnpm deep-link create --engine ID --query ID --tab timeline --start S --end S [--resource-filter QUERY] [--base URL]
+  pnpm deep-link create --engine ID --query ID --tab timeline --state FILE [--resource-filter QUERY] [--base URL]
   pnpm deep-link decode URL`;
 
 function fail(message: string): never {
@@ -52,7 +52,23 @@ async function readState(
             : {}),
         }
       : { ...raw, route };
-  const parsed = DeepLinkStateV2Schema.safeParse(candidate);
+  const resourceFilter = values['resource-filter'];
+  const candidateWithFilter =
+    typeof resourceFilter === 'string'
+      ? {
+          ...candidate,
+          resources: {
+            ...('resources' in candidate &&
+            candidate.resources &&
+            typeof candidate.resources === 'object' &&
+            !Array.isArray(candidate.resources)
+              ? candidate.resources
+              : {}),
+            resourceFilter,
+          },
+        }
+      : candidate;
+  const parsed = DeepLinkStateV2Schema.safeParse(candidateWithFilter);
   if (!parsed.success) fail(`Invalid state: ${parsed.error.message}`);
   return parsed.data;
 }
@@ -109,6 +125,7 @@ async function main() {
       end: { type: 'string' },
       engine: { type: 'string' },
       query: { type: 'string' },
+      'resource-filter': { type: 'string' },
       start: { type: 'string' },
       state: { type: 'string' },
       tab: { type: 'string' },

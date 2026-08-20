@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { z } from 'zod';
+import { MAX_RESOURCE_FILTER_QUERY_LENGTH } from '@/features/resource-filter/resourceFilter';
 
 export const MAX_ENCODED_STATE_LENGTH = 4096;
 export const MAX_EXPANDED_RESOURCE_IDS = 50;
@@ -94,6 +95,7 @@ const ResourceTreeSchema = z
       .transform(uniqueSorted)
       .optional(),
     rootResourceType: NameSchema.optional(),
+    resourceFilter: z.string().trim().min(1).max(MAX_RESOURCE_FILTER_QUERY_LENGTH).optional(),
     resourceTypeSelections: z
       .array(ResourceSelectionSchema)
       .max(MAX_RESOURCE_OVERRIDES)

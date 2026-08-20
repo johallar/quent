@@ -21,10 +21,12 @@ import { DAG_LAYOUT_DIRECTION, NODE_LABEL_FIELD } from '@quent/utils';
 import { toast } from '@quent/components';
 import {
   expandedIdsAtom,
+  resourceFilterQueryAtom,
   rootResourceTypeAtom,
   selectedFsmTypesAtom,
   selectedTypesAtom,
 } from '@/atoms/resourceTree';
+import { parseResourceFilter } from '@/features/resource-filter/resourceFilter';
 import {
   DEFAULT_OPERATOR_TABLE_ENABLED,
   OPERATOR_TABLE_INDEX_ORDER,
@@ -225,6 +227,9 @@ export function DeepLinkBoundary({
       if (resources.rootResourceType !== undefined) {
         store.set(rootResourceTypeAtom, resources.rootResourceType);
       }
+      if (resources.resourceFilter !== undefined) {
+        store.set(resourceFilterQueryAtom, resources.resourceFilter);
+      }
       if (resources.resourceTypeSelections !== undefined) {
         store.set(
           selectedTypesAtom,
@@ -291,6 +296,8 @@ export function DeepLinkBoundary({
     const resources: NonNullable<DeepLinkStateV2['resources']> = {};
     const expandedRowIds = [...store.get(expandedIdsAtom)].sort();
     if (expandedRowIds.length > 0) resources.expandedRowIds = expandedRowIds;
+    const resourceFilter = parseResourceFilter(store.get(resourceFilterQueryAtom)).canonicalQuery;
+    if (resourceFilter) resources.resourceFilter = resourceFilter;
     const rootResourceType = store.get(rootResourceTypeAtom);
     if (rootResourceType && rootResourceType !== defaultRootResourceType) {
       resources.rootResourceType = rootResourceType;
