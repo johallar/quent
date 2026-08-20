@@ -7,21 +7,7 @@ import type { Operator } from '@quent/utils';
 import type { PlanTree } from '@quent/utils';
 import type { OperatorActiveSpanEntry } from './types';
 import { parseCustomStatistics } from '../lib/queryBundle.utils';
-
-/** Clip a rect to bounds (same behavior as ECharts custom-gantt-flight example). */
-export function clipRectByRect(
-  target: { x: number; y: number; width: number; height: number },
-  bounds: { x: number; y: number; width: number; height: number }
-): { x: number; y: number; width: number; height: number } | undefined {
-  const x = Math.max(target.x, bounds.x);
-  const x2 = Math.min(target.x + target.width, bounds.x + bounds.width);
-  const y = Math.max(target.y, bounds.y);
-  const y2 = Math.min(target.y + target.height, bounds.y + bounds.height);
-  if (x2 >= x && y2 >= y) {
-    return { x, y, width: x2 - x, height: y2 - y };
-  }
-  return undefined;
-}
+import { stackIntervalsIntoRows } from '../gantt-chart/utils';
 
 /** Row type identifier for synthetic operator-timeline rows in the resource tree. */
 export const OPERATOR_TIMELINE_ROW_TYPE = 'operator-timeline';
@@ -61,35 +47,14 @@ export function getPlanIdsForWorker(planTree: PlanTree, workerId: string): strin
   return planIds;
 }
 
-/**
- * Stack operators into as few rows as possible so that no two bars overlap in the same row.
- * Uses a greedy first-fit by start time: sort by startMs, then assign each bar to the first
- * row where it doesn't overlap the last bar in that row.
- * Mutates entries in place (sets rowIndex) and returns the same array.
- */
-export function stackOperatorsIntoRows<
-  T extends { startMs: number; endMs: number; rowIndex: number },
->(entries: T[]): T[] {
-  if (entries.length === 0) return entries;
-
-  const sorted = [...entries].sort((a, b) => a.startMs - b.startMs || a.endMs - b.endMs);
-  /** For each row index, the end time of the rightmost bar in that row (no bar in row extends past this). */
-  const rowEndMs: number[] = [];
-
-  for (const entry of sorted) {
-    let row = 0;
-    while (row < rowEndMs.length && entry.startMs < rowEndMs[row]) {
-      row++;
-    }
-    if (row === rowEndMs.length) {
-      rowEndMs.push(entry.endMs);
-    } else {
-      rowEndMs[row] = Math.max(rowEndMs[row], entry.endMs);
-    }
-    entry.rowIndex = row;
-  }
-
-  return entries;
+/** Return every operator whose half-open active span contains the timestamp. */
+export function getOperatorsAtTimestamp(
+  operators: OperatorActiveSpanEntry[],
+  timestampMs: number
+): OperatorActiveSpanEntry[] {
+  return operators.filter(
+    operator => operator.startMs <= timestampMs && timestampMs < operator.endMs
+  );
 }
 
 /**
@@ -154,7 +119,7 @@ export function operatorsWithActiveSpans(
     if (entry) entries.push(entry);
   }
 
-  return stackOperatorsIntoRows(entries);
+  return stackIntervalsIntoRows(entries);
 }
 
 /**
@@ -183,5 +148,5 @@ export function operatorsWithActiveSpansForWorker(
     if (entry) entries.push(entry);
   }
 
-  return stackOperatorsIntoRows(entries);
+  return stackIntervalsIntoRows(entries);
 }

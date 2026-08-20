@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: Copyright (c) 2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-//! Generates a Rust instrumentation library source from a
+//! Generates Rust event types and an optional instrumentation surface from a
 //! [`quent_schema::Schema`].
 //!
 //! The usual workflow is build-time generation:
@@ -20,13 +20,7 @@
 //! use quent_instrumentation_build::{Options, generate};
 //!
 //! let schema = todo!();
-//! let opts = Options {
-//!     // Exporters serialize events, so a `Serialize` derive is required.
-//!     event_derives: &["Debug", "::serde::Serialize"],
-//!     record_derives: &["Debug", "::serde::Serialize"],
-//!     out_dir: std::env::var("OUT_DIR")?.into(),
-//!     file_name: None, // defaults to `<schema name>.rs`
-//! };
+//! let opts = Options::default();
 //! generate(&schema, &opts)?;
 //! ```
 //!
@@ -40,21 +34,20 @@
 //!
 //! # Restrictions
 //!
-//! The schema does not limit how many events an entity declares, but this
-//! generator caps once-cardinality
+//! The schema does not limit how many events an entity declares, but the
+//! instrumentation surface caps once-cardinality
 //! ([`Cardinality::Once`](quent_schema::Cardinality::Once)) events at 64 per
 //! entity; beyond that, generation fails with
 //! [`GenerateError::TooManyOnceEvents`].
 //!
-//! Building an exporter requires the event type to be `Serialize`, so
-//! [`Options::event_derives`] (and [`Options::record_derives`], for events
-//! carrying records or entity refs) must include a `Serialize`-providing
-//! derive; otherwise the generated code will not compile.
+//! Serde derives are opt-in through [`Options::serde`]. The generated crate
+//! must also depend on `serde` with its derive feature and enable the matching
+//! runtime crate's `serde` feature.
 
-mod any_event;
 mod common;
 mod data_type;
 mod events;
+mod model;
 mod namespace;
 mod records;
 mod runtime;
@@ -65,21 +58,27 @@ use quent_constraints::{BaseConstraintsError, Report, validate};
 use quent_schema::{Path, Schema};
 use quote::quote;
 
-/// Options controlling instrumentation library generation.
+/// Options controlling event and instrumentation source generation.
 pub struct Options {
+    /// Add handles, observers, and context integration to the event types.
+    pub instrumentation: bool,
+
+    /// Derive [`Debug`](std::fmt::Debug) on generated event and record types.
+    pub debug: bool,
+
+    /// Derive `serde::Serialize` and `serde::Deserialize` on generated event
+    /// and record types.
+    ///
+    pub serde: bool,
+
     /// Derives applied to every generated event payload enum.
     ///
-    /// Must include a `Serialize`-providing derive (e.g. `"::serde::Serialize"`):
-    /// the generated context builds exporters, which require it.
-    // TODO(johanpel): derives are kept as simple as possible for now, but
-    // eventually some built-in options for built-in exporters (e.g. serde-based
-    // or Narrow) will surface here as simpler type-safe options.
+    /// Use [`Self::debug`] and [`Self::serde`] for the built-in derives.
     pub event_derives: &'static [&'static str],
 
     /// Derives applied to every generated record struct.
     ///
-    /// Records embedded in events must also be `Serialize`, so include a
-    /// `Serialize`-providing derive (e.g. `"::serde::Serialize"`).
+    /// Use [`Self::debug`] and [`Self::serde`] for the built-in derives.
     pub record_derives: &'static [&'static str],
 
     /// Directory the generated file is written into.
@@ -89,26 +88,43 @@ pub struct Options {
     /// `None`.
     pub file_name: Option<String>,
 
-    /// Emit root and namespace-local `AnyEvent` enums that decode type-erased
-    /// events. Each enum carries [`Self::event_derives`].
+    /// Emit model-wide umbrella event enums and implement the umbrella
+    /// capability for the generated model.
     ///
-    /// No aggregate is emitted for a namespace without events.
-    pub any_event: bool,
+    /// No namespace enum is emitted without entity events, except at the root.
+    pub umbrella_event: bool,
+
+    /// Cargo package providing the analyzer for this model.
+    pub analyzer_package: Option<String>,
 }
 
 impl Default for Options {
     fn default() -> Self {
         Self {
+            instrumentation: true,
+            debug: true,
+            serde: false,
             event_derives: Default::default(),
             record_derives: Default::default(),
             out_dir: PathBuf::from(std::env::var("OUT_DIR").unwrap_or_default()),
             file_name: None,
-            any_event: false,
+            umbrella_event: false,
+            analyzer_package: None,
         }
     }
 }
 
-/// An error from generating instrumentation source.
+impl Options {
+    pub(crate) fn event_runtime(&self) -> proc_macro2::TokenStream {
+        if self.instrumentation {
+            quote! { ::quent_instrumentation }
+        } else {
+            quote! { ::quent_events }
+        }
+    }
+}
+
+/// An error from generating event or instrumentation source.
 #[derive(Debug, thiserror::Error)]
 pub enum GenerateError {
     #[error("base schema validation failed: {0}")]
@@ -139,6 +155,8 @@ pub enum GenerateError {
         /// The schema type whose generated name conflicts.
         schema_path: Path,
     },
+    #[error("field type nesting exceeds the maximum depth of {max}")]
+    TypeNestingTooDeep { max: usize },
     #[error("failed to write generated file")]
     Io(#[from] std::io::Error),
 }
@@ -148,7 +166,7 @@ pub struct GenerateInfo {
     pub warnings: Vec<String>,
 }
 
-/// Generate the full instrumentation source for `schema` with `opts`.
+/// Generate event source and, when enabled, instrumentation source for `schema`.
 pub fn generate(schema: &Schema, opts: &Options) -> Result<GenerateInfo, GenerateError> {
     let Report {
         base_constraints,
@@ -171,31 +189,31 @@ pub fn generate(schema: &Schema, opts: &Options) -> Result<GenerateInfo, Generat
     Ok(GenerateInfo { path, warnings })
 }
 
-/// Return the full instrumentation source for `schema`.
+/// Return event source and, when enabled, instrumentation source for `schema`.
 ///
 /// # Errors
 ///
 /// Returns [`GenerateError`] if a generated observer type conflicts with a
-/// schema type, a derive entry is not a parseable Rust path, or the generated
-/// code is not a valid Rust file.
+/// schema type, a field type exceeds the supported nesting depth, a derive
+/// entry is not a parseable Rust path, or the generated code is not valid Rust.
 pub fn generate_str(schema: &Schema, opts: &Options) -> Result<String, GenerateError> {
     let namespaces = namespace::Namespace::root(schema);
 
-    let reexports = runtime::reexports();
-    let entity_types = runtime::entity_types(schema);
-    let types = generate_namespace(schema, opts, &namespaces, false)?;
-    let model = runtime::generate_model(schema, &namespaces);
-    let any_event = if opts.any_event {
-        any_event::generate_any_event(&namespaces, opts)?
+    let reexports = if opts.instrumentation {
+        runtime::reexports()
     } else {
-        quote! {}
+        events::reexports()
     };
+    let entity_types = opts.instrumentation.then(|| runtime::entity_types(schema));
+    let types = generate_namespace(schema, opts, &namespaces)?;
+    let observable = opts
+        .instrumentation
+        .then(|| runtime::generate_model(schema, &namespaces));
     let file = syn::parse2::<syn::File>(quote! {
         #reexports
         #entity_types
         #types
-        #model
-        #any_event
+        #observable
     })
     .map_err(GenerateError::InvalidGeneratedCode)?;
     Ok(prettyplease::unparse(&file))
@@ -205,7 +223,6 @@ fn generate_namespace(
     schema: &Schema,
     opts: &Options,
     namespace: &namespace::Namespace<'_>,
-    include_any_event: bool,
 ) -> Result<proc_macro2::TokenStream, GenerateError> {
     let records = namespace
         .records()
@@ -217,11 +234,20 @@ fn generate_namespace(
         .iter()
         .map(|entity| events::entity_event_enum(entity, opts))
         .collect::<Result<Vec<_>, _>>()?;
-    let runtime = namespace
+    let entity_types = namespace
         .entities()
         .iter()
-        .map(|entity| runtime::entity_runtime_types(schema, entity))
-        .collect::<Result<Vec<_>, _>>()?;
+        .map(|entity| events::entity_types(entity, opts))
+        .collect::<Vec<_>>();
+    let runtime = if opts.instrumentation {
+        namespace
+            .entities()
+            .iter()
+            .map(|entity| runtime::entity_runtime_types(schema, entity, opts))
+            .collect::<Result<Vec<_>, _>>()?
+    } else {
+        Vec::new()
+    };
     let children = namespace
         .children()
         .iter()
@@ -231,7 +257,7 @@ fn generate_namespace(
                 .last()
                 .expect("child namespaces extend their parent");
             let module = common::module_ident(segment);
-            let contents = generate_namespace(schema, opts, child, true)?;
+            let contents = generate_namespace(schema, opts, child)?;
             Ok::<_, GenerateError>(quote! {
                 pub mod #module {
                     #contents
@@ -239,19 +265,20 @@ fn generate_namespace(
             })
         })
         .collect::<Result<Vec<_>, _>>()?;
-    let any_event = if include_any_event && opts.any_event && namespace.has_entities() {
-        any_event::generate_any_event(namespace, opts)?
+    let observer_storage = if opts.instrumentation {
+        runtime::observer_storage(schema, namespace)?
     } else {
         quote! {}
     };
-    let observer_storage = runtime::observer_storage(schema, namespace)?;
+    let model = model::generate(schema, namespace, opts)?;
     Ok(quote! {
         #(#records)*
         #(#events)*
+        #(#entity_types)*
         #(#runtime)*
         #(#children)*
+        #model
         #observer_storage
-        #any_event
     })
 }
 
@@ -266,6 +293,63 @@ mod path_tests {
     use quent_schema::{Annotations, DataType};
 
     #[test]
+    fn generates_event_only_umbrella_without_instrumentation() {
+        let schema = SchemaBuilder::try_new("Demo")
+            .unwrap()
+            .with_entity(entity("Query", [event("created", [])]))
+            .build()
+            .unwrap();
+        let opts = Options {
+            instrumentation: false,
+            umbrella_event: true,
+            ..Options::default()
+        };
+
+        let source = generate_str(&schema, &opts).unwrap();
+
+        assert!(source.contains("impl ::quent_events::ModelEvents for Demo"));
+        assert!(source.contains("pub enum DemoEvent"));
+        assert!(!source.contains("quent_instrumentation"));
+        assert!(!source.contains("pub struct Handle"));
+        assert!(!source.contains("Observers"));
+    }
+
+    #[test]
+    fn built_in_derive_path_spellings_are_deduplicated() {
+        let schema = SchemaBuilder::try_new("Demo")
+            .unwrap()
+            .with_record(record("Meta", []))
+            .with_entity(entity("Query", [event("created", [])]))
+            .build()
+            .unwrap();
+        let opts = Options {
+            instrumentation: false,
+            debug: true,
+            serde: true,
+            event_derives: &[
+                "Debug",
+                "std::fmt::Debug",
+                "::core::fmt::Debug",
+                "serde::Serialize",
+                "::serde::Serialize",
+            ],
+            record_derives: &[
+                "Debug",
+                "core::fmt::Debug",
+                "::std::fmt::Debug",
+                "serde::Deserialize",
+                "::serde::Deserialize",
+            ],
+            ..Options::default()
+        };
+
+        let source = generate_str(&schema, &opts).unwrap();
+
+        let derives = "#[derive(Debug, ::serde::Serialize, ::serde::Deserialize)]";
+        assert_eq!(source.matches(derives).count(), 2);
+    }
+
+    #[test]
     fn places_entity_types_in_path_modules() {
         let schema = SchemaBuilder::try_new("Demo")
             .unwrap()
@@ -277,11 +361,15 @@ mod path_tests {
         assert!(source.contains("pub mod foo"));
         assert!(source.contains("pub enum QueryEvent"));
         assert!(!source.contains("pub type Observer"));
-        assert!(source.contains(
-            "pub struct Handle<E: ::quent_instrumentation::Entity<Context = Context<Demo>>>"
-        ));
+        assert!(source.contains("pub struct Handle<"));
+        assert!(
+            source.contains(
+                "E: ::quent_instrumentation::InstrumentedEntity<Context = Context<Demo>>"
+            )
+        );
         assert!(source.contains("impl super::Handle<Query>"));
-        assert!(source.contains("impl ::quent_instrumentation::Entity for Query"));
+        assert!(source.contains("impl ::quent_instrumentation::InstrumentedEntity for Query"));
+        assert!(source.contains("impl ::quent_instrumentation::events::Entity for Query"));
         assert!(source.contains("type Context = super::Context<super::Demo>"));
         assert!(source.contains("pub struct DemoObservers"));
         assert!(source.contains("struct FooObservers"));
@@ -395,33 +483,6 @@ mod path_tests {
         assert!(source.contains("worker: ::quent_instrumentation::EntityRef<super::Worker>"));
         assert!(
             source.contains("any: ::quent_instrumentation::EntityRef<super::super::AnyEntity>")
-        );
-    }
-
-    #[test]
-    fn generates_any_event_per_entity_namespace() {
-        let schema = SchemaBuilder::try_new("Demo")
-            .unwrap()
-            .with_entity(entity("Root", [event("created", [])]))
-            .with_entity(entity("Foo::Query", [event("created", [])]))
-            .with_entity(entity("Foo::Nested::Task", [event("created", [])]))
-            .build()
-            .unwrap();
-        let opts = Options {
-            any_event: true,
-            ..Options::default()
-        };
-
-        let source = generate_str(&schema, &opts).unwrap();
-        assert!(source.contains("Root(&'a ::quent_instrumentation::Event<RootEvent>)"));
-        assert!(source.contains("Foo(foo::AnyEvent<'a>)"));
-        assert!(source.contains("Query(&'a ::quent_instrumentation::Event<QueryEvent>)"));
-        assert!(source.contains("Nested(nested::AnyEvent<'a>)"));
-        assert!(source.contains("Task(&'a ::quent_instrumentation::Event<TaskEvent>)"));
-        assert!(source.contains("foo::AnyEvent::from_any(any)"));
-        assert!(source.contains("nested::AnyEvent::from_any(any)"));
-        assert!(
-            source.rfind("pub enum AnyEvent") > source.rfind("impl ::quent_instrumentation::Model")
         );
     }
 }

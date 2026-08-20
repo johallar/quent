@@ -6,7 +6,6 @@ import { DEFAULT_STALE_TIME, fetchSingleTimeline } from '@quent/client';
 import {
   useBulkInitialized,
   useDebouncedZoomRange,
-  useHideTasks,
   timelineCacheKey,
   useTimelineData,
   useSelectedNodeIds,
@@ -16,19 +15,18 @@ import {
 } from '@quent/hooks';
 import { TimelineSkeleton } from './TimelineSkeleton';
 import { TimelineTooltipPortal } from './TimelineTooltipPortal';
+import { PlayheadLine } from './PlayheadLine';
 import type { TimelineHoverPosition } from './Timeline';
-import { useCallback, useEffect, useId, useMemo, useRef, lazy, Suspense } from 'react';
+import { useCallback, useEffect, useId, useMemo, useRef, useState, lazy, Suspense } from 'react';
+import type { EChartsInstance } from 'echarts-for-react';
 import {
   buildBinnedTimelineSeries,
-  buildTimelineMarks,
   dimSeries,
-  getLongFsms,
   mergeOverlaySeries,
   getAdaptiveNumBins,
   getTimelineConfig,
-  getLongEntitiesThreshold,
 } from '../lib/timeline.utils';
-import { TimelineSeries, TimelineMark } from './types';
+import { TimelineSeries } from './types';
 import { EntityTypeKey } from '@quent/utils';
 import { WHITE, withOpacity, type PaletteTheme } from '@quent/utils';
 import type {
@@ -90,7 +88,6 @@ export function ResourceTimeline({
   const zoomRange = useDebouncedZoomRange();
   const bulkInitialized = useBulkInitialized();
   const operatorLabel = useSelectedOperatorLabel();
-  const hideTasks = useHideTasks();
 
   const selectedNodeIds = useSelectedNodeIds();
   const operatorIds = useMemo(() => [...selectedNodeIds].sort(), [selectedNodeIds]);
@@ -143,7 +140,6 @@ export function ResourceTimeline({
       const isGroup = resourceType === EntityTypeKey.ResourceGroup;
       const start = zoomRange?.start ?? 0;
       const end = zoomRange?.end ?? durationSeconds;
-      const windowSeconds = end - start;
       const config = {
         num_bins: getAdaptiveNumBins(),
         start,
@@ -155,7 +151,7 @@ export function ResourceTimeline({
               ResourceGroup: {
                 resource_group_id: resourceId,
                 resource_type_name: resourceTypeName ?? '',
-                long_entities_threshold_s: getLongEntitiesThreshold(windowSeconds),
+                long_entities_threshold_s: null,
                 entity_filter: { entity_type_name: fsmTypeName ?? null },
                 app_params: { operator_ids: [] },
                 config,
@@ -164,7 +160,7 @@ export function ResourceTimeline({
           : {
               Resource: {
                 resource_id: resourceId,
-                long_entities_threshold_s: getLongEntitiesThreshold(windowSeconds),
+                long_entities_threshold_s: null,
                 entity_filter: { entity_type_name: fsmTypeName ?? null },
                 application: { operator_ids: [] },
                 config,
@@ -179,10 +175,9 @@ export function ResourceTimeline({
     placeholderData: keepPreviousData,
   });
 
-  const { timestamps, series, marks, yAxisLabel } = useMemo<{
+  const { timestamps, series, yAxisLabel } = useMemo<{
     timestamps: number[];
     series: TimelineSeries;
-    marks?: TimelineMark[];
     yAxisLabel?: string;
   }>(() => {
     const data = preloadedData ?? fetchedData;
@@ -196,11 +191,6 @@ export function ResourceTimeline({
       quantitySpecs,
       fsmTypes
     );
-    const longFsms = getLongFsms(data.data);
-    const filterSet =
-      resourceType === EntityTypeKey.Resource ? new Set([resourceId]) : new Set<string>();
-
-    const timelineMarks = buildTimelineMarks(longFsms, paletteTheme, filterSet, fsmTypes);
 
     if (hasOperatorFilter && operatorLabel) {
       if (overlayPreloadedData) {
@@ -216,19 +206,10 @@ export function ResourceTimeline({
             quantitySpecs,
             fsmTypes
           );
-          const opLongFsmIds = new Set(getLongFsms(overlayPreloadedData.data).map(f => f.id));
           return {
             timestamps: base.timestamps,
             series: mergeOverlaySeries(base.series, opResult.series, operatorLabel),
             yAxisLabel: base.yAxisLabel,
-            marks: buildTimelineMarks(
-              longFsms,
-              paletteTheme,
-              filterSet,
-              fsmTypes,
-              opLongFsmIds,
-              operatorLabel
-            ),
           };
         }
       }
@@ -240,11 +221,10 @@ export function ResourceTimeline({
         timestamps: base.timestamps,
         series: dimSeries(base.series),
         yAxisLabel: base.yAxisLabel,
-        marks: timelineMarks,
       };
     }
 
-    return { ...base, marks: timelineMarks };
+    return base;
   }, [
     preloadedData,
     fetchedData,
@@ -253,8 +233,6 @@ export function ResourceTimeline({
     resourceTypeDecl,
     quantitySpecs,
     fsmTypes,
-    resourceType,
-    resourceId,
     operatorLabel,
     paletteTheme,
   ]);
@@ -270,6 +248,10 @@ export function ResourceTimeline({
   // across the loading / error / data render branches.
   const ownerId = useId();
   const setTimelineHover = useSetTimelineHover();
+  const [chartInstance, setChartInstance] = useState<EChartsInstance | null>(null);
+  const handleChartReady = useCallback((instance: EChartsInstance) => {
+    setChartInstance(instance);
+  }, []);
   const handleHoverChange = useCallback(
     (position: TimelineHoverPosition | null) => {
       if (position == null) {
@@ -298,31 +280,26 @@ export function ResourceTimeline({
     );
   }
 
-  const effectiveMarks = hideTasks ? undefined : marks;
   const effectiveYAxisLabel = yAxisLabel ?? fsmTypeName;
 
   return (
-    <div className="h-full w-full">
+    <div className="relative h-full w-full">
       <Suspense fallback={<TimelineSkeleton />}>
         <Timeline
           series={series}
           timestamps={timestamps ?? []}
           durationSeconds={durationSeconds}
           showTooltip={showTooltip}
-          marks={effectiveMarks}
           isDark={isDark}
           yAxisLabel={effectiveYAxisLabel}
           onHoverChange={handleHoverChange}
+          onReady={handleChartReady}
         />
         {showTooltip && (
-          <TimelineTooltipPortal
-            ownerId={ownerId}
-            series={series}
-            timestamps={timestamps ?? []}
-            marks={effectiveMarks}
-          />
+          <TimelineTooltipPortal ownerId={ownerId} series={series} timestamps={timestamps ?? []} />
         )}
       </Suspense>
+      <PlayheadLine instance={chartInstance} />
     </div>
   );
 }

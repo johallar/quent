@@ -23,6 +23,7 @@ import type { SingleTimelineResponse } from '@quent/utils';
 import { useTimelineEchartsTheme } from './timelineEchartsTheme';
 import type { PaletteTheme } from '@quent/utils';
 import { Opts } from 'echarts-for-react/lib/types';
+import { PlayheadLine } from './PlayheadLine';
 
 const CONTROLLER_HEIGHT = 50;
 const CONTROLLER_TOP_HEADROOM_RATIO = 0.2;
@@ -37,6 +38,8 @@ const CONTROLLER_GRID_TOP = 20;
 const CONTROLLER_GRID_BOTTOM = 10;
 // Shifts the datazoom slider up so it overlaps the label row instead of sitting flush with the chart.
 const DATAZOOM_TOP_OFFSET = 5;
+// ECharts insets the slider track to make room for its handles.
+const DATAZOOM_HANDLE_INSET = 3;
 
 type TimelineControllerProps = {
   durationSeconds: number;
@@ -250,6 +253,7 @@ export function TimelineController({
           realtime: true,
           filterMode: 'none',
           minSpan: minZoomSpanPct,
+          left: TIMELINE_SPACING.left - DATAZOOM_HANDLE_INSET,
           top: CONTROLLER_GRID_TOP - DATAZOOM_TOP_OFFSET,
           height: height - CONTROLLER_GRID_TOP - CONTROLLER_GRID_BOTTOM,
           brushSelect: true,
@@ -319,18 +323,16 @@ export function TimelineController({
   }, [onZoomChange, durationSeconds]);
 
   const selfTriggeredRef = useRef(false);
-  // Bumped on chart-ready so the restore effect re-runs when the instance is
-  // recreated (e.g. theme change disposes and rebuilds the chart at 0–100%).
-  const [readyTick, setReadyTick] = useState(0);
+  const [chartInstance, setChartInstance] = useState<EChartsInstance | null>(null);
 
   const zoomRange = useZoomRange();
 
   const onChartReady = useCallback((instance: EChartsInstance) => {
     registerAxisPointerSync(instance);
-    setReadyTick(t => t + 1);
+    setChartInstance(instance);
   }, []);
 
-  const { handleChartReady, instanceRef } = useChartConnect({
+  const { handleChartReady } = useChartConnect({
     durationSeconds,
     activateBrushSelect: true,
     onReady: onChartReady,
@@ -338,41 +340,36 @@ export function TimelineController({
 
   // Restore the persisted zoom on range change or instance (re)creation.
   useEffect(() => {
-    if (readyTick === 0) return;
     if (selfTriggeredRef.current) {
       selfTriggeredRef.current = false;
       return;
     }
-    const instance = instanceRef.current;
-    if (!instance || durationSeconds === 0) return;
+    if (!chartInstance || durationSeconds === 0) return;
 
     const startPct = (zoomRange.start / durationSeconds) * 100;
     const endPct = (zoomRange.end / durationSeconds) * 100;
 
     // Mute our own dispatch so the echoed dataZoom event doesn't overwrite the atom.
     selfTriggeredRef.current = true;
-    instance.dispatchAction({
+    chartInstance.dispatchAction({
       type: 'dataZoom',
       dataZoomIndex: 0,
       start: startPct,
       end: endPct,
     });
-  }, [readyTick, zoomRange, durationSeconds, instanceRef]);
+  }, [chartInstance, zoomRange, durationSeconds]);
 
   useEffect(() => {
     return () => {
-      if (instanceRef.current) {
-        unregisterAxisPointerSync(instanceRef.current);
-        instanceRef.current = null;
-      }
+      if (chartInstance) unregisterAxisPointerSync(chartInstance);
     };
-  }, [instanceRef]);
+  }, [chartInstance]);
 
   const opts = useMemo(() => ({ renderer: 'svg' }) as Opts, []);
   const containerDims = useMemo(() => ({ width: '100%', height: `${height}px` }), [height]);
 
   return (
-    <div ref={containerRef} style={containerDims}>
+    <div ref={containerRef} style={containerDims} className="relative">
       <EChartsReactCore
         echarts={echarts}
         theme={themeName}
@@ -385,6 +382,7 @@ export function TimelineController({
         opts={opts}
         autoResize={false}
       />
+      <PlayheadLine instance={chartInstance} />
     </div>
   );
 }

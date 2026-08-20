@@ -6,14 +6,16 @@ import { ChevronUp, ChevronDown } from 'lucide-react';
 import {
   useSelectedNodeData,
   useDataFlowEnabled,
+  useDataFlowIsPlaying,
   useDataFlowMeta,
   useDataFlowFrame,
   type InspectedOperatorData,
 } from '@quent/hooks';
 import { DataText } from '../ui/data-text';
 import { thinScrollbarClass } from '../ui/thin-scroll';
-import { formatStatWithQuantity, type QuantitySpec } from '@quent/utils';
+import { cn, formatStatWithQuantity, type QuantitySpec } from '@quent/utils';
 import { DataFlowMatrix } from './DataFlowMatrix';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '../ui/tabs';
 
 const OperatorStatistics = ({
   operator,
@@ -78,19 +80,46 @@ export const DAGNodeInfoPanel = ({
 }) => {
   const selectedNodeData = useSelectedNodeData();
   const dataFlowEnabled = useDataFlowEnabled();
+  const isPlaying = useDataFlowIsPlaying();
   const dataFlowMeta = useDataFlowMeta();
   const dataFlowFrame = useDataFlowFrame();
   const [isExpanded, setIsExpanded] = useState(false);
   const selectedNodeId = selectedNodeData?.nodeId;
+  const [activeTab, setActiveTab] = useState('stats');
 
   const operatorFrame =
     dataFlowEnabled && selectedNodeData && dataFlowMeta && dataFlowFrame
       ? dataFlowFrame.perOperator.get(selectedNodeData.nodeId)
       : undefined;
 
+  const showDataFlowTab = dataFlowEnabled && dataFlowMeta != null;
+
   useEffect(() => {
     setIsExpanded(selectedNodeId !== undefined);
+    setActiveTab('stats');
   }, [selectedNodeId]);
+
+  useEffect(() => {
+    if (isPlaying && isExpanded && showDataFlowTab) {
+      setActiveTab('data-flow');
+    }
+  }, [isPlaying, isExpanded, showDataFlowTab]);
+
+  const scrollClass = cn('px-4 pb-2 h-48 overflow-auto', thinScrollbarClass);
+
+  const statsContent = selectedNodeData ? (
+    <div className="flex flex-col gap-1 pr-2 pt-1.5">
+      <OperatorStatistics operator={selectedNodeData} quantitySpecs={quantitySpecs} />
+      {selectedNodeData.relatedOperators?.map(operator => (
+        <OperatorStatistics
+          key={operator.nodeId}
+          operator={operator}
+          quantitySpecs={quantitySpecs}
+          showHeader
+        />
+      ))}
+    </div>
+  ) : null;
 
   return (
     <div className="border-t bg-card flex-shrink-0">
@@ -123,29 +152,43 @@ export const DAGNodeInfoPanel = ({
         </button>
       </div>
 
-      {isExpanded && selectedNodeData && (
-        <div className={`border-t px-4 pb-2 h-48 overflow-y-auto ${thinScrollbarClass}`}>
-          {operatorFrame && dataFlowMeta && dataFlowFrame && (
-            <DataFlowMatrix
-              meta={dataFlowMeta}
-              frame={dataFlowFrame}
-              operatorFrame={operatorFrame}
-              isDark={isDark}
-            />
-          )}
-          <div className="flex flex-col gap-1 pr-2 pt-1.5">
-            <OperatorStatistics operator={selectedNodeData} quantitySpecs={quantitySpecs} />
-            {selectedNodeData.relatedOperators?.map(operator => (
-              <OperatorStatistics
-                key={operator.nodeId}
-                operator={operator}
-                quantitySpecs={quantitySpecs}
-                showHeader
-              />
-            ))}
-          </div>
-        </div>
-      )}
+      {isExpanded &&
+        selectedNodeData &&
+        (showDataFlowTab ? (
+          <Tabs
+            value={activeTab}
+            onValueChange={setActiveTab}
+            className="border-t overflow-visible"
+          >
+            <TabsList className="h-7 py-0 px-1 rounded-none">
+              <TabsTrigger value="stats" className="text-xs px-2 py-0.5">
+                Stats
+              </TabsTrigger>
+              <TabsTrigger value="data-flow" className="text-xs px-2 py-0.5">
+                Data Flow
+              </TabsTrigger>
+            </TabsList>
+            <TabsContent value="stats" className={scrollClass}>
+              {statsContent}
+            </TabsContent>
+            <TabsContent value="data-flow" className={scrollClass}>
+              {operatorFrame && dataFlowMeta && dataFlowFrame ? (
+                <DataFlowMatrix
+                  meta={dataFlowMeta}
+                  frame={dataFlowFrame}
+                  operatorFrame={operatorFrame}
+                  isDark={isDark}
+                />
+              ) : (
+                <p className="pt-6 text-xs text-muted-foreground text-center">
+                  No tasks at this bin
+                </p>
+              )}
+            </TabsContent>
+          </Tabs>
+        ) : (
+          <div className={cn('border-t', scrollClass)}>{statsContent}</div>
+        ))}
     </div>
   );
 };

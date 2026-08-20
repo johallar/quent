@@ -6,7 +6,7 @@ import { useCallback, useEffect, useMemo } from 'react';
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { useAtom } from 'jotai';
 import { useHighlightedItemIds, useBulkTimelines, useHydrateTimelineAtoms } from '@quent/hooks';
-import { ResourceTree, QueryBundle } from '@quent/utils';
+import { ResourceTree, QueryBundle, EntityTypeKey } from '@quent/utils';
 import type { EntityRef, SingleTimelineRequest, QueryFilter, OperatorFilter } from '@quent/utils';
 import { TimelineController, TimelineRuler } from '@quent/components';
 import { collectResourceTypesFromTree } from '@quent/components';
@@ -40,6 +40,12 @@ import {
   operatorsWithActiveSpansForWorker,
   workerIdFromOperatorTimelineRowId,
 } from '@quent/components';
+import {
+  LONG_ENTITIES_ROW_TYPE,
+  longEntitiesRowId,
+  resourceIdFromLongEntitiesRowId,
+} from '@quent/components';
+import { LongEntitiesRow } from '@/components/LongEntitiesRow';
 
 function getRootResourceGroupId(resourceTree: ResourceTree<EntityRef>): string | null {
   if (!('ResourceGroup' in resourceTree)) return null;
@@ -72,6 +78,42 @@ function injectOperatorTimelineRows(item: TreeTableItem, workerIds: Set<string>)
   }
   const operatorTimelineRow = createOperatorTimelineRow(item.id);
   const children = [operatorTimelineRow, ...(transformedChildren ?? [])];
+  return { ...item, children };
+}
+
+/** Create the synthetic long-entities row for a leaf resource. */
+function createLongEntitiesRow(resourceId: string): TreeTableItem {
+  return {
+    id: longEntitiesRowId(resourceId),
+    type: LONG_ENTITIES_ROW_TYPE,
+    entity: {} as TreeTableItem['entity'],
+  };
+}
+
+function GanttRowLabel({ children }: { children: string }) {
+  return (
+    <span className="flex items-center">
+      <span aria-hidden className="mr-4 h-4 w-4 shrink-0" />
+      <span className="text-xs leading-none text-muted-foreground">{children}</span>
+    </span>
+  );
+}
+
+/**
+ * Insert a long-entities row as a sibling immediately after each leaf resource,
+ * so its compact Gantt is always shown below the resource (whenever in view)
+ * rather than gated behind expansion. Leaf resources keep no synthetic children,
+ * so they stay non-expandable. Groups (which aggregate resources) are untouched.
+ */
+function injectLongEntitiesRows(item: TreeTableItem): TreeTableItem {
+  if (!item.children?.length) return { ...item };
+  const children: TreeTableItem[] = [];
+  for (const child of item.children) {
+    children.push(injectLongEntitiesRows(child));
+    if (child.type === EntityTypeKey.Resource) {
+      children.push(createLongEntitiesRow(child.id));
+    }
+  }
   return { ...item, children };
 }
 
@@ -186,7 +228,7 @@ function QueryResourceTreeContent({ queryBundle, engineId }: QueryResourceTreePr
   );
 
   const treeData = useMemo(
-    () => [injectOperatorTimelineRows(rootItem, workerIdsFromPlanTree)],
+    () => [injectLongEntitiesRows(injectOperatorTimelineRows(rootItem, workerIdsFromPlanTree))],
     [rootItem, workerIdsFromPlanTree]
   );
 
@@ -214,7 +256,10 @@ function QueryResourceTreeContent({ queryBundle, engineId }: QueryResourceTreePr
         render: ({ item }: { item: TreeTableItem; level: number }) => {
           switch (item.type) {
             case OPERATOR_TIMELINE_ROW_TYPE: {
-              return null;
+              return <GanttRowLabel>Operators</GanttRowLabel>;
+            }
+            case LONG_ENTITIES_ROW_TYPE: {
+              return <GanttRowLabel>Entities</GanttRowLabel>;
             }
             default: {
               const selectedType =
@@ -269,6 +314,20 @@ function QueryResourceTreeContent({ queryBundle, engineId }: QueryResourceTreePr
                   operators={operators}
                   durationSeconds={durationSeconds}
                   height={DEFAULT_TIMELINE_HEIGHT}
+                  isDark={isDark}
+                />
+              );
+            }
+            case LONG_ENTITIES_ROW_TYPE: {
+              const resourceId = resourceIdFromLongEntitiesRowId(item.id);
+              if (resourceId == null) return null;
+              return (
+                <LongEntitiesRow
+                  engineId={engineId}
+                  queryId={queryBundle.query_id}
+                  resourceId={resourceId}
+                  durationSeconds={durationSeconds}
+                  fsmTypes={entities.fsm_types}
                   isDark={isDark}
                 />
               );

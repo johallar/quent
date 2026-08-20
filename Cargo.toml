@@ -29,6 +29,9 @@ members = [
     "integrations/nvtx/injection",
     "integrations/nvtx/bridge",
     "integrations/nvtx/example",
+    "integrations/nvtx/analyzer",
+    "integrations/nvtx/ui",
+    "integrations/nvtx/server",
     # Domain-specific crates
     "domains/query_engine/analyzer",
     "domains/query_engine/model",
@@ -136,6 +139,7 @@ postcard = { version = "1", default-features = false, features = ["alloc"] }
 prettyplease = "0.3.0"
 prost = "0.14.1"
 pyo3 = "0.29"
+quent-dynamic-attributes = { path = "crates/dynamic-attributes" }
 quent-resource = { path = "crates/resource" }
 rmp-serde = "1"
 rustc-hash = "2"

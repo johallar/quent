@@ -579,11 +579,11 @@ fn emit_context_bridge(
                     #q::write_sidecar(
                         &options,
                         id,
-                        <#model_type as #q::build_info::ModelSource>::model_info(),
+                        <#model_type as #q::events::Model>::model_info(),
                     );
                     inner.block_on(async {
                         let (#(#build_fields,)*) = #q::tokio::try_join!(
-                            #(inner.observer::<#build_event_tys>(options.clone()),)*
+                            #(inner.observer::<#build_event_tys>(&options),)*
                         )
                         .map_err(|e| e.to_string())?;
                         Ok::<_, String>((#(#build_wraps(#build_fields),)*))

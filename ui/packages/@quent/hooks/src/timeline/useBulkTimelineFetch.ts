@@ -19,7 +19,7 @@ import {
   bulkEntryId,
   canonicalOperatorIds,
 } from './timeline.utils';
-import { timelineCacheKey, timelineDataMapAtom } from '../atoms/timeline';
+import { bulkInitializedAtom, timelineCacheKey, timelineDataMapAtom } from '../atoms/timeline';
 
 const EMPTY_OPERATOR_IDS: readonly string[] = [];
 
@@ -137,7 +137,7 @@ export function useBulkTimelineFetch({
     requestKey,
   } = useMemo(() => buildMergedBulkEntries(entries, operatorIds), [entries, operatorIds]);
 
-  const { data } = useQuery<BulkTimelinesResponse>({
+  const { data, isFetched } = useQuery<BulkTimelinesResponse>({
     queryKey: ['bulkTimelines', engineId, queryId, debouncedZoomRange, requestKey],
     queryFn: () =>
       fetchBulkTimelines(engineId, {
@@ -153,6 +153,10 @@ export function useBulkTimelineFetch({
     if (!data) return;
     applyBulkTimelineResponse(data, idToMeta, store);
   }, [data, store, idToMeta]);
+
+  useEffect(() => {
+    if (isFetched) store.set(bulkInitializedAtom, true);
+  }, [isFetched, store]);
 
   return data;
 }

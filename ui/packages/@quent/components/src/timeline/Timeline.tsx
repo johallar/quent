@@ -9,7 +9,13 @@ import type { LineSeriesOption } from 'echarts/charts';
 import type { EChartsInstance } from 'echarts-for-react';
 import { withOpacity } from '@quent/utils';
 import type { TimelineSeriesEntry } from './types';
-import { TimelineSeries, TimelineMark, TIMELINE_SPACING, TIMELINE_X_AXIS_ANIMATION } from './types';
+import {
+  CHART_GROUP,
+  TimelineSeries,
+  TimelineMark,
+  TIMELINE_SPACING,
+  TIMELINE_X_AXIS_ANIMATION,
+} from './types';
 import {
   MARK_AREA_BORDER_OPACITY,
   MARK_AREA_FILL_OPACITY,
@@ -25,7 +31,6 @@ import { useMinZoomSpanPct } from '../lib/useMinZoomSpanPct';
 import { useTimelineWheelNavigation } from '../lib/useTimelineWheelNavigation';
 import { Opts } from 'echarts-for-react/lib/types';
 
-export const CHART_GROUP = 'timeline-sync-group';
 const DIMMED_OPACITY = 0.25;
 
 /**
@@ -49,6 +54,7 @@ export function Timeline({
   isDark,
   yAxisLabel,
   onHoverChange,
+  onReady,
 }: {
   /** Full query duration — used to set xAxis range so dataZoom percentages align across all connected charts */
   durationSeconds: number;
@@ -63,6 +69,8 @@ export function Timeline({
   yAxisLabel?: string;
   /** Pointer-state callback. */
   onHoverChange?: (position: TimelineHoverPosition | null) => void;
+  /** Called when the underlying ECharts instance is ready or recreated. */
+  onReady?: (instance: EChartsInstance) => void;
 }) {
   const { themeName, textColor, labelBackgroundColor } = useTimelineEchartsTheme(isDark);
   const maxMarkCountRef = useRef(0);
@@ -353,6 +361,7 @@ export function Timeline({
     });
 
     attachWheelNavigation(instance);
+    onReady?.(instance);
   };
 
   // If this Timeline is unmounted while the pointer is over it (e.g. a tree

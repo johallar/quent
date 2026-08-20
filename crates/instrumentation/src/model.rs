@@ -3,73 +3,74 @@
 
 //! Instrumentation models and their contexts.
 
-use crate::{ContextInner, Entity, ExporterOptions, Observer, Uuid, build_info, write_sidecar};
+use crate::{ContextExporter, ContextInner, InstrumentedEntity, Observer, Uuid};
 
 /// Provides typed access to an entity observer in a generated model.
 ///
 /// Hidden because generated observer collections implement it; callers use
 /// [`Context::observer`].
 #[doc(hidden)]
-pub trait ObserverProvider<E: Entity> {
+pub trait ObserverProvider<E: InstrumentedEntity> {
     /// Returns the observer stored for `E`.
     fn observer(&self) -> Observer<E>;
 }
 
-/// Supplies schema-specific observers and metadata to an instrumentation context.
-pub trait Model: Sized {
+/// Supplies schema-specific observers to an instrumentation context.
+pub trait InstrumentedModel {
     /// Generated observers for this model.
     ///
     /// Hidden because callers access observers through [`Context::observer`].
     #[doc(hidden)]
     type Observers;
+}
 
-    /// Builds the observers for this model.
-    ///
-    /// `exporter` is `None` for a no-op context.
-    ///
-    /// Hidden because [`Context`] invokes it during construction.
+/// Builds a model's observers from an exporter provider.
+///
+/// Generated implementations require `P` to provide an exporter for every
+/// entity event type in the model.
+#[doc(hidden)]
+pub trait ObserverBuilder<P>: InstrumentedModel {
+    /// Builds every observer from `provider`.
     ///
     /// # Errors
     ///
-    /// Returns an error when an observer or its exporter cannot be constructed.
+    /// Returns an error when an observer or exporter cannot be constructed.
     #[doc(hidden)]
     fn build_observers(
         context: &ContextInner,
-        exporter: Option<&ExporterOptions>,
+        provider: &P,
     ) -> Result<Self::Observers, Box<dyn std::error::Error>>;
-
-    /// Returns metadata describing this instrumentation model.
-    fn model_info() -> build_info::ModelInfo;
 }
 
 /// Instrumentation context for a generated model.
-pub struct Context<M: Model> {
+pub struct Context<M: InstrumentedModel> {
     observers: M::Observers,
     inner: ContextInner,
 }
 
-impl<M: Model> Context<M> {
+impl<M: quent_events::Model + InstrumentedModel> Context<M> {
     /// Creates a context and builds every entity's exporter pipeline.
-    ///
-    /// Passing `None` creates a no-op context that discards events.
-    pub fn try_new(exporter: Option<ExporterOptions>) -> Result<Self, Box<dyn std::error::Error>> {
-        Self::try_with_id(Uuid::now_v7(), exporter)
+    pub fn try_new<P>(provider: P) -> Result<Self, Box<dyn std::error::Error>>
+    where
+        M: crate::build_info::ModelSource + ObserverBuilder<P>,
+        P: ContextExporter,
+    {
+        Self::try_with_id(Uuid::now_v7(), provider)
     }
 
     /// Creates a context with the supplied ID.
-    pub fn try_with_id(
-        id: Uuid,
-        exporter: Option<ExporterOptions>,
-    ) -> Result<Self, Box<dyn std::error::Error>> {
-        let inner = if exporter.is_some() {
-            ContextInner::try_new(id)?
-        } else {
+    pub fn try_with_id<P>(id: Uuid, provider: P) -> Result<Self, Box<dyn std::error::Error>>
+    where
+        M: crate::build_info::ModelSource + ObserverBuilder<P>,
+        P: ContextExporter,
+    {
+        let inner = if provider.is_noop() {
             ContextInner::noop(id)
+        } else {
+            ContextInner::try_new(id)?
         };
-        if let Some(options) = &exporter {
-            write_sidecar(options, id, M::model_info());
-        }
-        let observers = M::build_observers(&inner, exporter.as_ref())?;
+        provider.prepare_context(id, M::model_info());
+        let observers = M::build_observers(&inner, &provider)?;
         Ok(Self { observers, inner })
     }
 
@@ -81,7 +82,7 @@ impl<M: Model> Context<M> {
     /// Returns the observer associated with entity marker `E`.
     pub fn observer<E>(&self) -> Observer<E>
     where
-        E: Entity<Context = Self>,
+        E: InstrumentedEntity<Context = Self>,
         M::Observers: ObserverProvider<E>,
     {
         self.observers.observer()

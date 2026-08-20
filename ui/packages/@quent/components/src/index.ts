@@ -44,6 +44,8 @@ export {
   NavigationMenuViewport,
 } from './ui/navigation-menu';
 export { Popover, PopoverTrigger, PopoverContent } from './ui/popover';
+export { PointerTooltipPortal } from './ui/pointer-tooltip-portal';
+export type { PointerPosition } from './ui/pointer-tooltip-portal';
 export { ResizablePanelGroup, ResizablePanel, ResizableHandle } from './ui/resizable';
 export { ScrollArea, ScrollBar } from './ui/scroll-area';
 export {
@@ -115,10 +117,8 @@ export {
   buildTimelineMarks,
   collectVisibleEntries,
   getAdaptiveNumBins,
-  getFsmTypeName,
   getLongEntitiesThreshold,
   getLongFsms,
-  getResourceTypeName,
   getTimelineConfig,
   getTimelineXAxisIntervalMs,
   mergeOverlaySeries,
@@ -128,6 +128,7 @@ export {
   transformResourceTree,
 } from './lib/timeline.utils';
 export type { AxisPointerSyncOptions } from './lib/timeline.utils';
+export { getFsmTypeName, getResourceTypeName } from '@quent/utils';
 
 // ─── Services – query-plan ────────────────────────────────────────────────────
 export {
@@ -144,10 +145,9 @@ export type { DAGData, QueryPlanDataItem, QueryPlanNodeData } from './services/q
 // DAGNode, DAGEdge, StatValue re-exported via services/query-plan/types (avoid direct @quent/utils re-export here)
 
 // ─── Timeline components ──────────────────────────────────────────────────────
-export { CHART_GROUP } from './timeline/Timeline';
-export { Timeline } from './timeline/Timeline';
 export { TimelineController } from './timeline/TimelineController';
 export { TimelineRuler } from './timeline/TimelineRuler';
+export { TimelineSettingsPopover } from './timeline/TimelineSettingsPopover';
 export { TimelineSkeleton } from './timeline/TimelineSkeleton';
 export { TimelineToolbar } from './timeline/TimelineToolbar';
 export { QueryToolbar } from './timeline/QueryToolbar';
@@ -165,6 +165,7 @@ export {
   ROLLUP_TIMELINE_COLOR_DARK,
 } from './timeline/timelineEchartsTheme';
 export {
+  CHART_GROUP,
   DEFAULT_TIMELINE_HEIGHT,
   TIMELINE_SPACING,
   TIMELINE_X_AXIS_ANIMATION,
@@ -240,19 +241,36 @@ export {
 } from './pivot-table/utils';
 export type { GroupIndexDef, RowWithGroupKeys } from './pivot-table/utils';
 
+// ─── Long-entities components ─────────────────────────────────────────────────
+export {
+  LongEntitiesGantt,
+  LONG_ENTITIES_TIMELINE_HEIGHT,
+} from './long-entities/LongEntitiesGantt';
+export type { LongEntitiesGanttProps } from './long-entities/LongEntitiesGantt';
+export type { LongEntityEntry, LongEntitySegment } from './long-entities/types';
+export {
+  buildLongEntityEntries,
+  LONG_ENTITIES_ROW_TYPE,
+  longEntitiesRowId,
+  resourceIdFromLongEntitiesRowId,
+} from './long-entities/utils';
+
 // ─── Operator-timeline components ────────────────────────────────────────────
 export { OperatorGanttChart } from './operator-timeline/OperatorGanttChart';
 export type { OperatorGanttChartProps } from './operator-timeline/OperatorGanttChart';
 export type { OperatorActiveSpanEntry } from './operator-timeline/types';
 export {
-  clipRectByRect,
   OPERATOR_TIMELINE_ROW_TYPE,
   operatorTimelineRowId,
   workerIdFromOperatorTimelineRowId,
   getWorkerIdsFromPlanTree,
   getPlanIdsForWorker,
-  stackOperatorsIntoRows,
   spanToMs,
   operatorsWithActiveSpans,
   operatorsWithActiveSpansForWorker,
 } from './operator-timeline/utils';
+export {
+  clipRectByRect,
+  stackIntervalsIntoRows,
+  stackIntervalsIntoRows as stackOperatorsIntoRows,
+} from './gantt-chart/utils';
