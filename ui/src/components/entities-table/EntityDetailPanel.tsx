@@ -4,7 +4,7 @@
 import { useState } from 'react';
 import { Check, Copy } from 'lucide-react';
 import { DataFlowBar, DataText, FsmCapacityChart, thinScrollbarClass } from '@quent/components';
-import { formatDuration, formatDurationForWindow, getColorForKey } from '@quent/utils';
+import { formatDuration, formatDurationForWindow, getColorForKey, isBytesStat } from '@quent/utils';
 import type { EntityRef, FiniteStateMachine, QueryBundle } from '@quent/utils';
 import { useTheme, THEME_DARK } from '@/contexts/ThemeContext';
 import { ResourceUsageList } from './ResourceUsageList';
@@ -149,6 +149,13 @@ export function EntityDetailPanel({
         transitions={fsm.transitions}
         isDark={theme === THEME_DARK}
         resourceLabel={resourceLabel}
+        quantitySpecs={queryBundle.quantity_specs}
+        defaultCapacityPredicate={isBytesStat}
+        getCapacityDecl={(resourceId, capacityName) => {
+          const typeName = queryBundle.entities.resources[resourceId]?.type_name;
+          const resourceType = typeName ? queryBundle.entities.resource_types[typeName] : undefined;
+          return resourceType?.capacities.find(c => c.name === capacityName);
+        }}
       />
 
       <ol className={`min-h-0 flex-1 space-y-2 overflow-auto p-3 ${thinScrollbarClass}`}>

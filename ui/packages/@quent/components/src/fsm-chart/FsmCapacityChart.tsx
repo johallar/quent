@@ -1,10 +1,10 @@
 // SPDX-FileCopyrightText: Copyright (c) 2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import EChartsReactCore from 'echarts-for-react/lib/core';
-import type { FsmTransition } from '@quent/utils';
-import { bigintToChartNumber, formatBytes, isBytesStat } from '@quent/utils';
+import type { CapacityDecl, FsmTransition, QuantitySpec } from '@quent/utils';
+import { bigintToChartNumber, formatBytes, formatQuantity } from '@quent/utils';
 import { echarts } from '../lib/echarts';
 import { useChartResize } from '../lib/useChartResize';
 import type { PointerPosition } from '../ui/pointer-tooltip-portal';
@@ -15,12 +15,18 @@ import { FsmCapacityTooltip } from './FsmCapacityTooltip';
 const CHART_HEIGHT = 90;
 const GRID = { left: 52, right: 8, top: 8, bottom: 36 };
 
-interface CapacitySeries {
-  label: string;
-  // Full-length array aligned to transitions — null where no reading exists
+interface CapacityEntry {
+  name: string;
+  statLabel: string;
   data: Array<number | null>;
-  // Original bigint values for lossless tooltip formatting
   rawData: Array<bigint | null>;
+  formatter: (v: number | bigint) => string;
+}
+
+interface ResourceSeries {
+  resourceId: string;
+  label: string;
+  capacities: CapacityEntry[];
 }
 
 interface AxisPointerEvent {
@@ -31,51 +37,114 @@ export interface FsmCapacityChartProps {
   transitions: FsmTransition[];
   isDark: boolean;
   resourceLabel: (id: string) => string;
+  quantitySpecs: { [key in string]: QuantitySpec };
+  getCapacityDecl: (resourceId: string, capacityName: string) => CapacityDecl | undefined;
+  defaultCapacityPredicate?: (name: string) => boolean;
 }
 
-export function FsmCapacityChart({ transitions, isDark, resourceLabel }: FsmCapacityChartProps) {
+const SELECT_CLASS =
+  'max-w-[140px] truncate rounded border border-border bg-background px-1 py-0.5 text-[10px] text-foreground focus:outline-none focus:ring-1 focus:ring-ring';
+
+export function FsmCapacityChart({
+  transitions,
+  isDark,
+  resourceLabel,
+  quantitySpecs,
+  getCapacityDecl,
+  defaultCapacityPredicate,
+}: FsmCapacityChartProps) {
   const { themeName } = useTimelineEchartsTheme(isDark);
   const { handleChartReady } = useChartResize();
   const [pointer, setPointer] = useState<PointerPosition | null>(null);
   const [dataIndex, setDataIndex] = useState<number | null>(null);
+  const [selectedResourceId, setSelectedResourceId] = useState<string | null>(null);
+  const [selectedCapacityName, setSelectedCapacityName] = useState<string | null>(null);
 
-  const { series, stateLabels } = useMemo(() => {
+  const { resources, stateLabels } = useMemo(() => {
     const n = transitions.length;
     const stateLabels = transitions.map((t, i) => `${i + 1}. ${t.name}`);
 
-    // Build per-resource full-length arrays (null = no reading at that state)
-    const dataMap = new Map<string, Array<number | null>>();
-    const rawMap = new Map<string, Array<bigint | null>>();
-    const labelMap = new Map<string, string>();
+    // Accumulate data keyed by resourceId → capacityName
+    const resourceMap = new Map<
+      string,
+      { label: string; caps: Map<string, { data: Array<number | null>; rawData: Array<bigint | null> }> }
+    >();
 
     transitions.forEach((t, i) => {
       t.usages.forEach(usage => {
-        const resourceName = resourceLabel(usage.resource);
+        if (!resourceMap.has(usage.resource)) {
+          resourceMap.set(usage.resource, {
+            label: resourceLabel(usage.resource),
+            caps: new Map(),
+          });
+        }
+        const entry = resourceMap.get(usage.resource)!;
         usage.capacities.forEach(([name, cap]) => {
-          if (cap == null || !isBytesStat(name)) return;
-          const key = `${usage.resource} ${name}`;
-          if (!dataMap.has(key)) {
-            dataMap.set(key, Array<number | null>(n).fill(null));
-            rawMap.set(key, Array<bigint | null>(n).fill(null));
-            labelMap.set(key, name === 'capacity_bytes' ? resourceName : `${resourceName} ${name}`);
+          if (cap == null) return;
+          if (!entry.caps.has(name)) {
+            entry.caps.set(name, {
+              data: Array<number | null>(n).fill(null),
+              rawData: Array<bigint | null>(n).fill(null),
+            });
           }
-          dataMap.get(key)![i] = bigintToChartNumber(cap);
-          rawMap.get(key)![i] = cap;
+          const capEntry = entry.caps.get(name)!;
+          capEntry.data[i] = bigintToChartNumber(cap);
+          capEntry.rawData[i] = cap;
         });
       });
     });
 
-    // Only show resources with readings in at least 2 states
-    const series: CapacitySeries[] = [...dataMap.entries()]
-      .filter(([, data]) => data.filter(v => v !== null).length >= 2)
-      .map(([key, data]) => ({
-        label: labelMap.get(key) ?? key,
-        data,
-        rawData: rawMap.get(key) ?? Array<bigint | null>(n).fill(null),
-      }));
+    // Build ResourceSeries, filtering capacities to those with ≥2 readings
+    const resources: ResourceSeries[] = [];
+    resourceMap.forEach(({ label, caps }, resourceId) => {
+      const capacities: CapacityEntry[] = [];
+      caps.forEach(({ data, rawData }, name) => {
+        if (data.filter(v => v !== null).length < 2) return;
+        const capDecl = getCapacityDecl(resourceId, name);
+        const spec = capDecl ? quantitySpecs[capDecl.quantity] : undefined;
+        const statLabel = spec?.symbol ? `${name} (${spec.symbol})` : name;
+        const formatter: (v: number | bigint) => string =
+          capDecl && spec ? v => formatQuantity(v, spec, capDecl.kind) : v => formatBytes(v);
+        capacities.push({ name, statLabel, data, rawData, formatter });
+      });
+      if (capacities.length > 0) {
+        if (defaultCapacityPredicate) {
+          capacities.sort((a, b) => {
+            const aPref = defaultCapacityPredicate(a.name) ? 0 : 1;
+            const bPref = defaultCapacityPredicate(b.name) ? 0 : 1;
+            return aPref - bPref;
+          });
+        }
+        resources.push({ resourceId, label, capacities });
+      }
+    });
 
-    return { series, stateLabels };
-  }, [transitions, resourceLabel]);
+    if (defaultCapacityPredicate) {
+      resources.sort((a, b) => {
+        const aPref = a.capacities.some(c => defaultCapacityPredicate(c.name)) ? 0 : 1;
+        const bPref = b.capacities.some(c => defaultCapacityPredicate(c.name)) ? 0 : 1;
+        return aPref - bPref;
+      });
+    }
+
+    return { resources, stateLabels };
+  }, [transitions, resourceLabel, quantitySpecs, getCapacityDecl, defaultCapacityPredicate]);
+
+  // Reset selections when the entity changes
+  useEffect(() => {
+    setSelectedResourceId(null);
+    setSelectedCapacityName(null);
+  }, [transitions]);
+
+  // Resolve active resource
+  const activeResource =
+    resources.find(r => r.resourceId === selectedResourceId) ?? resources[0] ?? null;
+
+  // Resolve active capacity — reset capacity selection when resource changes
+  const activeCapacity =
+    activeResource?.capacities.find(c => c.name === selectedCapacityName) ??
+    activeResource?.capacities[0] ??
+    null;
 
   const onEvents = useMemo(
     () => ({
@@ -92,20 +161,21 @@ export function FsmCapacityChart({ transitions, isDark, resourceLabel }: FsmCapa
     setDataIndex(null);
   };
 
-  const tooltipItems = hover
-    ? series.flatMap((item, seriesIndex) => {
-        const value = item.data[hover.dataIndex];
-        if (value == null) return [];
-        const raw = item.rawData[hover.dataIndex];
-        return [
-          {
-            id: `${item.label}-${seriesIndex}`,
-            label: item.label,
-            value: formatBytes(raw ?? value),
-          },
-        ];
-      })
-    : [];
+  const tooltipItems =
+    hover && activeCapacity && activeResource
+      ? (() => {
+          const value = activeCapacity.data[hover.dataIndex];
+          if (value == null) return [];
+          const raw = activeCapacity.rawData[hover.dataIndex];
+          return [
+            {
+              id: activeResource.label,
+              label: activeResource.label,
+              value: activeCapacity.formatter(raw ?? value),
+            },
+          ];
+        })()
+      : [];
 
   const option = useMemo(
     () => ({
@@ -119,7 +189,6 @@ export function FsmCapacityChart({ transitions, isDark, resourceLabel }: FsmCapa
           show: true,
           fontSize: 9,
           interval: 0,
-          // Show only the state number to save space; full name is in the tooltip
           formatter: (_val: string, idx: number) => String(idx + 1),
         },
         axisLine: { show: false },
@@ -131,7 +200,7 @@ export function FsmCapacityChart({ transitions, isDark, resourceLabel }: FsmCapa
         axisLabel: {
           show: true,
           fontSize: 9,
-          formatter: (v: number) => formatBytes(v, 0),
+          formatter: (v: number) => (activeCapacity ? activeCapacity.formatter(v) : formatBytes(v, 0)),
         },
         splitLine: { show: true, lineStyle: { opacity: 0.25 } },
         minInterval: 1,
@@ -141,49 +210,92 @@ export function FsmCapacityChart({ transitions, isDark, resourceLabel }: FsmCapa
         showContent: false,
         axisPointer: { type: 'line' as const, snap: true },
       },
-      series: series.map(s => ({
-        type: 'line' as const,
-        name: s.label,
-        data: s.data,
-        connectNulls: false,
-        step: 'end' as const,
-        symbol: 'circle',
-        symbolSize: 5,
-        lineStyle: { width: 1.5 },
-      })),
+      series: activeCapacity
+        ? [
+            {
+              type: 'line' as const,
+              name: activeResource?.label ?? '',
+              data: activeCapacity.data,
+              connectNulls: false,
+              step: 'end' as const,
+              symbol: 'circle',
+              symbolSize: 5,
+              lineStyle: { width: 1.5 },
+            },
+          ]
+        : [],
     }),
-    [series, stateLabels]
+    [activeCapacity, activeResource, stateLabels]
   );
 
-  if (series.length === 0) return null;
+  if (resources.length === 0) return null;
 
   return (
-    <div
-      className="shrink-0 border-b"
-      onPointerMove={event => setPointer({ clientX: event.clientX, clientY: event.clientY })}
-      onPointerLeave={clearHover}
-      onPointerCancel={clearHover}
-    >
-      <EChartsReactCore
-        echarts={echarts}
-        theme={themeName}
-        option={option}
-        style={{ height: CHART_HEIGHT }}
-        onChartReady={handleChartReady}
-        onEvents={onEvents}
-        autoResize={false}
-        notMerge={false}
-        lazyUpdate={false}
-      />
-      {hover && tooltipItems.length > 0 && (
-        <PositionedTooltip clientX={hover.clientX} clientY={hover.clientY}>
-          <FsmCapacityTooltip
-            stateIndex={hover.dataIndex}
-            stateName={transitions[hover.dataIndex]?.name ?? ''}
-            items={tooltipItems}
-          />
-        </PositionedTooltip>
-      )}
+    <div className="shrink-0 border-b">
+      <div className="flex items-center justify-between gap-2 px-2 py-1">
+        <span className="font-mono text-[10px] text-muted-foreground">
+          {activeCapacity?.statLabel}
+        </span>
+        <div className="flex items-center gap-1">
+          {resources.length > 1 && (
+            <select
+              value={activeResource?.resourceId ?? ''}
+              onChange={e => {
+                setSelectedResourceId(e.target.value);
+                setSelectedCapacityName(null);
+              }}
+              className={SELECT_CLASS}
+              aria-label="Select resource"
+            >
+              {resources.map(r => (
+                <option key={r.resourceId} value={r.resourceId}>
+                  {r.label}
+                </option>
+              ))}
+            </select>
+          )}
+          {activeResource && activeResource.capacities.length > 1 && (
+            <select
+              value={activeCapacity?.name ?? ''}
+              onChange={e => setSelectedCapacityName(e.target.value)}
+              className={SELECT_CLASS}
+              aria-label="Select capacity"
+            >
+              {activeResource.capacities.map(c => (
+                <option key={c.name} value={c.name}>
+                  {c.name}
+                </option>
+              ))}
+            </select>
+          )}
+        </div>
+      </div>
+      <div
+        onPointerMove={event => setPointer({ clientX: event.clientX, clientY: event.clientY })}
+        onPointerLeave={clearHover}
+        onPointerCancel={clearHover}
+      >
+        <EChartsReactCore
+          echarts={echarts}
+          theme={themeName}
+          option={option}
+          style={{ height: CHART_HEIGHT }}
+          onChartReady={handleChartReady}
+          onEvents={onEvents}
+          autoResize={false}
+          notMerge={false}
+          lazyUpdate={false}
+        />
+        {hover && tooltipItems.length > 0 && (
+          <PositionedTooltip clientX={hover.clientX} clientY={hover.clientY}>
+            <FsmCapacityTooltip
+              stateIndex={hover.dataIndex}
+              stateName={transitions[hover.dataIndex]?.name ?? ''}
+              items={tooltipItems}
+            />
+          </PositionedTooltip>
+        )}
+      </div>
     </div>
   );
 }
