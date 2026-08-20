@@ -7,30 +7,37 @@ import { Provider } from 'jotai';
 import {
   useSelectedNodeData,
   useSelectedNodeIds,
+  useSetOperatorSelection,
   useSetSelectedNodeData,
-  useSetSelectedNodeIds,
-  useSetSelectedOperatorLabel,
-  useSetSelectedOperatorLabels,
 } from '@quent/hooks';
 import { QueryToolbar } from './QueryToolbar';
 
 function ToolbarHarness() {
   const selectedNodeIds = useSelectedNodeIds();
   const selectedNodeData = useSelectedNodeData();
-  const setSelectedNodeIds = useSetSelectedNodeIds();
+  const setOperatorSelection = useSetOperatorSelection();
   const setSelectedNodeData = useSetSelectedNodeData();
-  const setSelectedOperatorLabel = useSetSelectedOperatorLabel();
 
   useEffect(() => {
-    setSelectedNodeIds(new Set(['parent', 'child']));
-    setSelectedOperatorLabel('Parent operator');
+    setOperatorSelection({
+      selections: new Map([
+        [
+          'parent',
+          {
+            label: 'Parent operator',
+            operatorIds: new Set(['parent', 'child']),
+          },
+        ],
+      ]),
+      activeId: 'parent',
+    });
     setSelectedNodeData({
       nodeId: 'parent',
       label: 'Parent operator',
       operationType: 'logical',
       statistics: [],
     });
-  }, [setSelectedNodeData, setSelectedNodeIds, setSelectedOperatorLabel]);
+  }, [setOperatorSelection, setSelectedNodeData]);
 
   return (
     <>
@@ -43,33 +50,25 @@ function ToolbarHarness() {
 
 function MultiOperatorToolbarHarness() {
   const selectedNodeIds = useSelectedNodeIds();
-  const setSelectedNodeIds = useSetSelectedNodeIds();
+  const setOperatorSelection = useSetOperatorSelection();
   const setSelectedNodeData = useSetSelectedNodeData();
-  const setSelectedOperatorLabel = useSetSelectedOperatorLabel();
-  const setSelectedOperatorLabels = useSetSelectedOperatorLabels();
 
   useEffect(() => {
-    const labels = new Map(
+    const selections = new Map(
       Array.from({ length: 5 }, (_, index) => {
         const number = index + 1;
-        return [`operator-${number}`, `Operator ${number}`] as const;
+        const id = `operator-${number}`;
+        return [id, { label: `Operator ${number}`, operatorIds: new Set([id]) }] as const;
       })
     );
-    setSelectedNodeIds(new Set(labels.keys()));
-    setSelectedOperatorLabels(labels);
-    setSelectedOperatorLabel('Operator 5');
+    setOperatorSelection({ selections, activeId: 'operator-5' });
     setSelectedNodeData({
       nodeId: 'operator-5',
       label: 'Operator 5',
       operationType: 'physical',
       statistics: [],
     });
-  }, [
-    setSelectedNodeData,
-    setSelectedNodeIds,
-    setSelectedOperatorLabel,
-    setSelectedOperatorLabels,
-  ]);
+  }, [setOperatorSelection, setSelectedNodeData]);
 
   return (
     <>
@@ -87,13 +86,13 @@ describe('QueryToolbar', () => {
       </Provider>
     );
 
-    fireEvent.click(await screen.findByRole('button', { name: 'Clear operator filter' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Clear all operator filters' }));
 
     expect(screen.getByTestId('selected-count')).toHaveTextContent('0');
     expect(screen.getByTestId('selected-details')).toHaveTextContent('none');
   });
 
-  it('caps visible operator badges and removes operators individually', async () => {
+  it('caps badges and supports individual and bulk clearing', async () => {
     render(
       <Provider>
         <MultiOperatorToolbarHarness />
@@ -113,5 +112,10 @@ describe('QueryToolbar', () => {
     expect(screen.getByTestId('selected-count')).toHaveTextContent('4');
     expect(screen.getByText('Operator 4')).toBeInTheDocument();
     expect(screen.getByText('and 1 more')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Clear all operator filters' }));
+
+    expect(screen.getByTestId('selected-count')).toHaveTextContent('0');
+    expect(screen.getByText('No filters')).toBeInTheDocument();
   });
 });

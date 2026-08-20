@@ -15,6 +15,18 @@ export {
   useSelectedOperatorLabels,
   useSetSelectedOperatorLabels,
 } from './dag/useSelectedOperatorLabels';
+export { useOperatorSelection, useSetOperatorSelection } from './dag/useOperatorSelection';
+export {
+  addOperatorSelection,
+  createEmptyOperatorSelectionState,
+  createOperatorSelectionState,
+  getActiveOperatorLabel,
+  getSelectedOperatorIds,
+  getSelectedOperatorLabels,
+  removeOperatorSelection,
+  type OperatorSelection,
+  type OperatorSelectionState,
+} from './dag/operatorSelection';
 export { useSelectedPlanId, useSetSelectedPlanId } from './dag/useSelectedPlanId';
 export { useHoveredWorkerId, useSetHoveredWorkerId } from './dag/useHoveredWorkerId';
 

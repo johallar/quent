@@ -4,14 +4,12 @@
 import { useMemo, type ReactNode } from 'react';
 import { X, Filter } from 'lucide-react';
 import {
+  useOperatorSelection,
   useSelectedNodeData,
-  useSelectedNodeIds,
-  useSelectedOperatorLabel,
-  useSelectedOperatorLabels,
-  useSetSelectedNodeIds,
-  useSetSelectedOperatorLabel,
-  useSetSelectedOperatorLabels,
+  useSetOperatorSelection,
   useSetSelectedNodeData,
+  createEmptyOperatorSelectionState,
+  removeOperatorSelection,
 } from '@quent/hooks';
 import { Badge } from '../ui/badge';
 import { TruncatedBadgeList } from '../ui/truncated-badge-list';
@@ -23,43 +21,28 @@ interface QueryToolbarProps {
 }
 
 export function QueryToolbar({ children }: QueryToolbarProps) {
-  const selectedNodeIds = useSelectedNodeIds();
+  const operatorSelection = useOperatorSelection();
   const selectedNodeData = useSelectedNodeData();
-  const operatorLabel = useSelectedOperatorLabel();
-  const selectedOperatorLabels = useSelectedOperatorLabels();
-  const setSelectedNodeIds = useSetSelectedNodeIds();
-  const setSelectedOperatorLabel = useSetSelectedOperatorLabel();
-  const setSelectedOperatorLabels = useSetSelectedOperatorLabels();
+  const setOperatorSelection = useSetOperatorSelection();
   const setSelectedNodeData = useSetSelectedNodeData();
 
   const selectedOperators = useMemo(
     () =>
-      Array.from(selectedOperatorLabels, ([id, label]) => ({ id, label })).filter(({ id }) =>
-        selectedNodeIds.has(id)
-      ),
-    [selectedNodeIds, selectedOperatorLabels]
+      Array.from(operatorSelection.selections, ([id, selection]) => ({
+        id,
+        label: selection.label,
+      })),
+    [operatorSelection.selections]
   );
 
   const clearOperators = () => {
-    setSelectedNodeIds(new Set());
-    setSelectedOperatorLabels(new Map());
-    setSelectedOperatorLabel(null);
+    setOperatorSelection(createEmptyOperatorSelectionState());
     setSelectedNodeData(null);
   };
 
   const removeOperator = (operatorId: string) => {
-    const nextSelectedNodeIds = new Set(selectedNodeIds);
-    const nextSelectedOperatorLabels = new Map(selectedOperatorLabels);
-    nextSelectedNodeIds.delete(operatorId);
-    nextSelectedOperatorLabels.delete(operatorId);
-    setSelectedNodeIds(nextSelectedNodeIds);
-    setSelectedOperatorLabels(nextSelectedOperatorLabels);
-
-    if (nextSelectedNodeIds.size === 0) {
-      setSelectedOperatorLabel(null);
-      setSelectedNodeData(null);
-    } else if (selectedNodeData?.nodeId === operatorId) {
-      setSelectedOperatorLabel(nextSelectedOperatorLabels.values().next().value ?? null);
+    setOperatorSelection(removeOperatorSelection(operatorSelection, operatorId));
+    if (selectedNodeData?.nodeId === operatorId) {
       setSelectedNodeData(null);
     }
   };
@@ -98,24 +81,18 @@ export function QueryToolbar({ children }: QueryToolbarProps) {
               </Badge>
             )}
           />
-        ) : operatorLabel ? (
-          <Badge
-            variant="outline"
-            className="min-w-0 max-w-48 bg-primary/10 px-1.5 py-0 font-medium text-primary"
-            title={operatorLabel}
-          >
-            <span className="truncate">{operatorLabel}</span>
-            <button
-              type="button"
-              onClick={clearOperators}
-              aria-label="Clear operator filter"
-              className="ml-0.5 shrink-0 cursor-pointer rounded-sm opacity-70 hover:opacity-100 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-            >
-              <X className="size-2.5" />
-            </button>
-          </Badge>
         ) : (
           <span className="shrink-0">No filters</span>
+        )}
+        {selectedOperators.length > 0 && (
+          <button
+            type="button"
+            onClick={clearOperators}
+            aria-label="Clear all operator filters"
+            className="shrink-0 cursor-pointer rounded-sm px-1 py-0.5 font-medium text-primary hover:bg-primary/10 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+          >
+            Clear all
+          </button>
         )}
       </div>
 

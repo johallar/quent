@@ -7,10 +7,10 @@ import { useTimelineEchartsTheme } from '../timeline/timelineEchartsTheme';
 import {
   useSelectedNodeIds,
   useSelectedNodeData,
-  useSetSelectedNodeIds,
-  useSetSelectedOperatorLabel,
-  useSelectedOperatorLabels,
-  useSetSelectedOperatorLabels,
+  useOperatorSelection,
+  useSetOperatorSelection,
+  addOperatorSelection,
+  removeOperatorSelection,
   useSetSelectedNodeData,
   useSetSelectedPlanId,
   useNodeColoringValue,
@@ -50,10 +50,8 @@ export function OperatorGanttChart({
   height = DEFAULT_HEIGHT,
   isDark,
 }: OperatorGanttChartProps) {
-  const setSelectedNodeIds = useSetSelectedNodeIds();
-  const setSelectedOperatorLabel = useSetSelectedOperatorLabel();
-  const selectedOperatorLabels = useSelectedOperatorLabels();
-  const setSelectedOperatorLabels = useSetSelectedOperatorLabels();
+  const operatorSelection = useOperatorSelection();
+  const setOperatorSelection = useSetOperatorSelection();
   const setSelectedPlanId = useSetSelectedPlanId();
   const setSelectedNodeData = useSetSelectedNodeData();
   const selectedNodeData = useSelectedNodeData();
@@ -198,25 +196,16 @@ export function OperatorGanttChart({
         if (params.seriesName !== 'operator-span') return;
         const op = operators[params.dataIndex];
         if (!op) return;
-        const nextSelectedNodeIds = new Set(selectedNodeIds);
-        const nextSelectedOperatorLabels = new Map(selectedOperatorLabels);
-        if (nextSelectedNodeIds.delete(op.operatorId)) {
-          nextSelectedOperatorLabels.delete(op.operatorId);
-          setSelectedNodeIds(nextSelectedNodeIds);
-          setSelectedOperatorLabels(nextSelectedOperatorLabels);
-          if (nextSelectedNodeIds.size === 0) {
-            setSelectedOperatorLabel(null);
-            setSelectedNodeData(null);
-          } else if (selectedNodeData?.nodeId === op.operatorId) {
-            setSelectedOperatorLabel(nextSelectedOperatorLabels.values().next().value ?? null);
+        if (operatorSelection.selections.has(op.operatorId)) {
+          setOperatorSelection(removeOperatorSelection(operatorSelection, op.operatorId));
+          if (selectedNodeData?.nodeId === op.operatorId) {
             setSelectedNodeData(null);
           }
         } else {
-          nextSelectedNodeIds.add(op.operatorId);
-          nextSelectedOperatorLabels.set(op.operatorId, op.label);
-          setSelectedNodeIds(nextSelectedNodeIds);
-          setSelectedOperatorLabels(nextSelectedOperatorLabels);
-          setSelectedOperatorLabel(op.label);
+          const nextSelection = addOperatorSelection(operatorSelection, op.operatorId, op.label, [
+            op.operatorId,
+          ]);
+          setOperatorSelection(nextSelection);
           setSelectedNodeData({
             nodeId: op.operatorId,
             label: op.label,
@@ -231,12 +220,9 @@ export function OperatorGanttChart({
     }),
     [
       operators,
+      operatorSelection,
       selectedNodeData,
-      selectedNodeIds,
-      selectedOperatorLabels,
-      setSelectedNodeIds,
-      setSelectedOperatorLabel,
-      setSelectedOperatorLabels,
+      setOperatorSelection,
       setSelectedPlanId,
       setSelectedNodeData,
     ]
