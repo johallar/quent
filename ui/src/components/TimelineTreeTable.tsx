@@ -36,6 +36,7 @@ interface TimelineTreeTableProps {
   isDark: boolean;
   trees: TimelineTreeModel[];
   controls: TimelineTreeControls;
+  footer?: ReactNode;
 }
 
 function indexTree(
@@ -51,18 +52,22 @@ function indexTree(
 
 // Standalone and combined tree containers share identical timeline setup.
 // eslint-disable-next-line react-refresh/only-export-components
-export function useTimelineTreeSetup(queryBundle: QueryBundle<EntityRef>) {
+export function useTimelineTreeSetup(
+  queryBundle: QueryBundle<EntityRef>,
+  initialZoomRange?: ZoomRange
+) {
   const { theme } = useTheme();
   const isDark = theme === THEME_DARK;
   const durationSeconds = queryBundle.duration_s;
+  const defaultZoomRange = { start: 0, end: durationSeconds };
   const startTimeMs = useMemo(
     () => nanosToMs(queryBundle.start_time_unix_ns),
     [queryBundle.start_time_unix_ns]
   );
 
   useHydrateTimelineAtoms({
-    zoomRange: { start: 0, end: durationSeconds },
-    debouncedZoomRange: { start: 0, end: durationSeconds },
+    zoomRange: initialZoomRange ?? defaultZoomRange,
+    debouncedZoomRange: initialZoomRange ?? defaultZoomRange,
     startTimeMs,
   });
 
@@ -74,6 +79,7 @@ export function TimelineTreeTable({
   isDark,
   trees,
   controls,
+  footer,
 }: TimelineTreeTableProps) {
   const { data, modelsByItemId } = useMemo(() => {
     const modelsByItemId = new Map<string, TimelineTreeModel>();
@@ -139,6 +145,7 @@ export function TimelineTreeTable({
           rowHeight={DEFAULT_TIMELINE_HEIGHT}
         />
       </div>
+      {footer}
     </div>
   );
 }

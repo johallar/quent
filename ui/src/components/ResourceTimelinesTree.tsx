@@ -3,13 +3,9 @@
 
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { useAtom } from 'jotai';
-import { useCallback, useEffect, useMemo } from 'react';
+import { useCallback, useEffect, useMemo, type ReactNode } from 'react';
 import { fetchSingleTimeline, DEFAULT_STALE_TIME } from '@quent/client';
 import {
-  DEFAULT_TIMELINE_HEIGHT,
-  LONG_ENTITIES_ROW_TYPE,
-  OPERATOR_TIMELINE_ROW_TYPE,
-  OperatorGanttChart,
   ResourceColumn,
   UsageColumn,
   buildBulkParamsForItem,
@@ -17,18 +13,11 @@ import {
   collectVisibleEntries,
   findItemById,
   getAdaptiveNumBins,
-  getWorkerIdsFromPlanTree,
-  longEntitiesRowId,
-  operatorTimelineRowId,
-  operatorsWithActiveSpansForWorker,
-  resourceIdFromLongEntitiesRowId,
   transformResourceTree,
-  workerIdFromOperatorTimelineRowId,
   type TreeTableItem,
 } from '@quent/components';
 import { useBulkTimelines, useHighlightedItemIds } from '@quent/hooks';
 import {
-  EntityTypeKey,
   type EntityRef,
   type EntityRefKey,
   type OperatorFilter,
@@ -43,7 +32,6 @@ import {
   selectedTypesAtom,
 } from '@/atoms/resourceTree';
 import { useExpandedIds } from '@/hooks/useExpandedIds';
-import { LongEntitiesRow } from '@/components/LongEntitiesRow';
 import {
   TimelineTreeTable,
   useTimelineTreeSetup,
@@ -57,63 +45,25 @@ function getRootResourceGroupId(resourceTree: ResourceTree<EntityRef>): string |
   return entityId;
 }
 
-function createOperatorTimelineRow(workerId: string): TreeTableItem {
-  return {
-    id: operatorTimelineRowId(workerId),
-    type: OPERATOR_TIMELINE_ROW_TYPE,
-    entity: {} as TreeTableItem['entity'],
-  };
-}
-
-function injectOperatorTimelineRows(item: TreeTableItem, workerIds: Set<string>): TreeTableItem {
-  const transformedChildren = item.children?.map(child =>
-    injectOperatorTimelineRows(child, workerIds)
-  );
-  if (!workerIds.has(item.id)) {
-    return transformedChildren?.length ? { ...item, children: transformedChildren } : { ...item };
-  }
-  return {
-    ...item,
-    children: [createOperatorTimelineRow(item.id), ...(transformedChildren ?? [])],
-  };
-}
-
-function createLongEntitiesRow(resourceId: string): TreeTableItem {
-  return {
-    id: longEntitiesRowId(resourceId),
-    type: LONG_ENTITIES_ROW_TYPE,
-    entity: {} as TreeTableItem['entity'],
-  };
-}
-
-function injectLongEntitiesRows(item: TreeTableItem): TreeTableItem {
-  if (!item.children?.length) return { ...item };
-  const children: TreeTableItem[] = [];
-  for (const child of item.children) {
-    children.push(injectLongEntitiesRows(child));
-    if (child.type === EntityTypeKey.Resource) {
-      children.push(createLongEntitiesRow(child.id));
-    }
-  }
-  return { ...item, children };
-}
-
-function GanttRowLabel({ children }: { children: string }) {
-  return (
-    <span className="flex items-center">
-      <span aria-hidden className="mr-4 h-4 w-4 shrink-0" />
-      <span className="text-xs leading-none text-muted-foreground">{children}</span>
-    </span>
-  );
-}
-
 export interface ResourceTimelinesTreeModel extends TimelineTreeModel, TimelineTreeControls {
   rootItem: TreeTableItem;
 }
 
-interface ResourceTimelinesTreeProps {
+export interface ResourceTimelineSubRow {
+  id: string;
+  injectRows: (rootItem: TreeTableItem) => TreeTableItem;
+  matches: (item: TreeTableItem) => boolean;
+  renderLabel: (item: TreeTableItem) => ReactNode;
+  renderTimeline: (item: TreeTableItem) => ReactNode;
+}
+
+const EMPTY_SUB_ROWS: readonly ResourceTimelineSubRow[] = [];
+
+export interface ResourceTimelinesTreeProps {
   engineId: string;
   queryBundle: QueryBundle<EntityRef>;
+  subRows?: readonly ResourceTimelineSubRow[];
+  seedRootExpanded?: boolean;
 }
 
 interface UseResourceTimelinesTreeModelProps extends ResourceTimelinesTreeProps {
@@ -126,6 +76,8 @@ export function useResourceTimelinesTreeModel({
   engineId,
   queryBundle,
   isDark,
+  subRows = EMPTY_SUB_ROWS,
+  seedRootExpanded = true,
 }: UseResourceTimelinesTreeModelProps): ResourceTimelinesTreeModel {
   const { entities, resource_tree: resourceTree } = queryBundle;
   const durationSeconds = queryBundle.duration_s;
@@ -146,7 +98,9 @@ export function useResourceTimelinesTreeModel({
     if (initial) setRootResourceType(initial);
   }, [rootResourceType, resourceTypeOptions, setRootResourceType]);
 
-  const { expandedIds, handleExpandChange } = useExpandedIds(rootItem.id);
+  const { expandedIds, handleExpandChange } = useExpandedIds(
+    seedRootExpanded ? rootItem.id : undefined
+  );
   const { handleZoomChange, handleExpand } = useBulkTimelines({
     engineId,
     queryId: queryBundle.query_id,
@@ -204,30 +158,15 @@ export function useResourceTimelinesTreeModel({
     placeholderData: keepPreviousData,
   });
 
-  const workerIdsFromPlanTree = useMemo(
-    () => new Set(getWorkerIdsFromPlanTree(queryBundle.plan_tree)),
-    [queryBundle.plan_tree]
-  );
   const tree = useMemo(
-    () => injectLongEntitiesRows(injectOperatorTimelineRows(rootItem, workerIdsFromPlanTree)),
-    [rootItem, workerIdsFromPlanTree]
+    () => subRows.reduce((item, subRow) => subRow.injectRows(item), rootItem),
+    [rootItem, subRows]
   );
-  const operatorEntriesByWorker = useMemo(() => {
-    const entries = new Map<string, ReturnType<typeof operatorsWithActiveSpansForWorker>>();
-    for (const workerId of workerIdsFromPlanTree) {
-      entries.set(workerId, operatorsWithActiveSpansForWorker(queryBundle, workerId));
-    }
-    return entries;
-  }, [queryBundle, workerIdsFromPlanTree]);
 
   const renderLabel = useCallback(
     (item: TreeTableItem) => {
-      if (item.type === OPERATOR_TIMELINE_ROW_TYPE) {
-        return <GanttRowLabel>Operators</GanttRowLabel>;
-      }
-      if (item.type === LONG_ENTITIES_ROW_TYPE) {
-        return <GanttRowLabel>Entities</GanttRowLabel>;
-      }
+      const subRow = subRows.find(candidate => candidate.matches(item));
+      if (subRow) return subRow.renderLabel(item);
 
       const selectedType = selectedTypes.get(item.id) || item.availableResourceTypes?.[0] || '';
       const availableFsmTypes = selectedType
@@ -259,37 +198,15 @@ export function useResourceTimelinesTreeModel({
       setRootResourceType,
       setSelectedFsmTypes,
       setSelectedTypes,
+      subRows,
     ]
   );
 
   const renderTimeline = useCallback(
     (item: TreeTableItem) => {
-      if (item.type === OPERATOR_TIMELINE_ROW_TYPE) {
-        const workerId = workerIdFromOperatorTimelineRowId(item.id);
-        const operators = workerId != null ? (operatorEntriesByWorker.get(workerId) ?? []) : [];
-        return (
-          <OperatorGanttChart
-            operators={operators}
-            durationSeconds={durationSeconds}
-            height={DEFAULT_TIMELINE_HEIGHT}
-            isDark={isDark}
-          />
-        );
-      }
-      if (item.type === LONG_ENTITIES_ROW_TYPE) {
-        const resourceId = resourceIdFromLongEntitiesRowId(item.id);
-        if (resourceId == null) return null;
-        return (
-          <LongEntitiesRow
-            engineId={engineId}
-            queryId={queryBundle.query_id}
-            resourceId={resourceId}
-            durationSeconds={durationSeconds}
-            fsmTypes={entities.fsm_types}
-            isDark={isDark}
-          />
-        );
-      }
+      const subRow = subRows.find(candidate => candidate.matches(item));
+      if (subRow) return subRow.renderTimeline(item);
+
       return (
         <UsageColumn
           item={item}
@@ -302,16 +219,7 @@ export function useResourceTimelinesTreeModel({
         />
       );
     },
-    [
-      durationSeconds,
-      engineId,
-      entities.fsm_types,
-      isDark,
-      operatorEntriesByWorker,
-      queryBundle,
-      selectedFsmTypes,
-      selectedTypes,
-    ]
+    [durationSeconds, engineId, isDark, queryBundle, selectedFsmTypes, selectedTypes, subRows]
   );
 
   return {
@@ -328,9 +236,20 @@ export function useResourceTimelinesTreeModel({
   };
 }
 
-export function ResourceTimelinesTree({ engineId, queryBundle }: ResourceTimelinesTreeProps) {
+export function ResourceTimelinesTree({
+  engineId,
+  queryBundle,
+  subRows,
+  seedRootExpanded,
+}: ResourceTimelinesTreeProps) {
   const { durationSeconds, isDark } = useTimelineTreeSetup(queryBundle);
-  const resourceTree = useResourceTimelinesTreeModel({ engineId, queryBundle, isDark });
+  const resourceTree = useResourceTimelinesTreeModel({
+    engineId,
+    queryBundle,
+    isDark,
+    subRows,
+    seedRootExpanded,
+  });
 
   return (
     <TimelineTreeTable
