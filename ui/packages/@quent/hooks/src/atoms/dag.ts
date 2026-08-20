@@ -9,6 +9,9 @@ export const selectedNodeIdsAtom = atom(new Set<string>());
 /** Display label of the currently selected operator */
 export const selectedOperatorLabelAtom = atom<string | null>(null);
 
+/** Display labels for operators selected independently in timeline charts */
+export const selectedOperatorLabelsAtom = atom(new Map<string, string>());
+
 /** The currently selected plan ID in the query plan tree view */
 export const selectedPlanIdAtom = atom<string>('');
 

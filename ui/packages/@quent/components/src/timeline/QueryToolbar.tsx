@@ -1,52 +1,121 @@
 // SPDX-FileCopyrightText: Copyright (c) 2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 // SPDX-License-Identifier: Apache-2.0
 
+import { useMemo, type ReactNode } from 'react';
 import { X, Filter } from 'lucide-react';
 import {
+  useSelectedNodeData,
+  useSelectedNodeIds,
   useSelectedOperatorLabel,
+  useSelectedOperatorLabels,
   useSetSelectedNodeIds,
   useSetSelectedOperatorLabel,
+  useSetSelectedOperatorLabels,
   useSetSelectedNodeData,
 } from '@quent/hooks';
+import { Badge } from '../ui/badge';
+import { TruncatedBadgeList } from '../ui/truncated-badge-list';
+
+const MAX_VISIBLE_OPERATOR_BADGES = 3;
 
 interface QueryToolbarProps {
-  children?: React.ReactNode;
+  children?: ReactNode;
 }
 
-/**
- * Generic toolbar bar that shows the currently selected operator label
- * (with a clear button) on the left, and renders any provided children on
- * the right. Used by both TimelineToolbar and PivotTableToolbar.
- */
 export function QueryToolbar({ children }: QueryToolbarProps) {
+  const selectedNodeIds = useSelectedNodeIds();
+  const selectedNodeData = useSelectedNodeData();
   const operatorLabel = useSelectedOperatorLabel();
+  const selectedOperatorLabels = useSelectedOperatorLabels();
   const setSelectedNodeIds = useSetSelectedNodeIds();
   const setSelectedOperatorLabel = useSetSelectedOperatorLabel();
+  const setSelectedOperatorLabels = useSetSelectedOperatorLabels();
   const setSelectedNodeData = useSetSelectedNodeData();
 
-  const clearOperator = () => {
+  const selectedOperators = useMemo(
+    () =>
+      Array.from(selectedOperatorLabels, ([id, label]) => ({ id, label })).filter(({ id }) =>
+        selectedNodeIds.has(id)
+      ),
+    [selectedNodeIds, selectedOperatorLabels]
+  );
+
+  const clearOperators = () => {
     setSelectedNodeIds(new Set());
+    setSelectedOperatorLabels(new Map());
     setSelectedOperatorLabel(null);
     setSelectedNodeData(null);
   };
 
+  const removeOperator = (operatorId: string) => {
+    const nextSelectedNodeIds = new Set(selectedNodeIds);
+    const nextSelectedOperatorLabels = new Map(selectedOperatorLabels);
+    nextSelectedNodeIds.delete(operatorId);
+    nextSelectedOperatorLabels.delete(operatorId);
+    setSelectedNodeIds(nextSelectedNodeIds);
+    setSelectedOperatorLabels(nextSelectedOperatorLabels);
+
+    if (nextSelectedNodeIds.size === 0) {
+      setSelectedOperatorLabel(null);
+      setSelectedNodeData(null);
+    } else if (selectedNodeData?.nodeId === operatorId) {
+      setSelectedOperatorLabel(nextSelectedOperatorLabels.values().next().value ?? null);
+      setSelectedNodeData(null);
+    }
+  };
+
   return (
-    <div className="flex items-center h-6 gap-4 px-3 py-1 border-b border-border text-xs text-muted-foreground shrink-0">
-      <div className="flex items-center gap-1.5">
-        <Filter className="h-3 w-3" />
-        {operatorLabel ? (
-          <span className="inline-flex items-center gap-1 rounded-sm bg-primary/15 text-primary px-1.5 py-0.5 font-medium">
-            {operatorLabel}
+    <div className="flex h-6 shrink-0 items-center gap-4 border-b border-border px-3 py-1 text-xs text-muted-foreground">
+      <div
+        className="flex min-w-0 max-w-[40%] items-center gap-1.5 overflow-hidden"
+        data-testid="operator-filter-badges"
+      >
+        <Filter className="h-3 w-3 shrink-0" />
+        {selectedOperators.length > 0 ? (
+          <TruncatedBadgeList
+            items={selectedOperators}
+            maxVisible={MAX_VISIBLE_OPERATOR_BADGES}
+            getItemKey={operator => operator.id}
+            getItemLabel={operator => operator.label}
+            className="min-w-0 flex-nowrap overflow-hidden"
+            overflowBadgeClassName="px-1.5 py-0"
+            renderOverflowLabel={hiddenCount => `and ${hiddenCount} more`}
+            renderBadge={operator => (
+              <Badge
+                variant="outline"
+                className="min-w-0 max-w-36 shrink bg-primary/10 px-1.5 py-0 font-medium text-primary"
+                title={operator.label}
+              >
+                <span className="truncate">{operator.label}</span>
+                <button
+                  type="button"
+                  onClick={() => removeOperator(operator.id)}
+                  aria-label={`Remove ${operator.label}`}
+                  className="ml-0.5 shrink-0 cursor-pointer rounded-sm opacity-70 hover:opacity-100 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                >
+                  <X className="size-2.5" />
+                </button>
+              </Badge>
+            )}
+          />
+        ) : operatorLabel ? (
+          <Badge
+            variant="outline"
+            className="min-w-0 max-w-48 bg-primary/10 px-1.5 py-0 font-medium text-primary"
+            title={operatorLabel}
+          >
+            <span className="truncate">{operatorLabel}</span>
             <button
-              onClick={clearOperator}
+              type="button"
+              onClick={clearOperators}
               aria-label="Clear operator filter"
-              className="rounded-sm hover:bg-primary/20 p-0.5 -mr-0.5 transition-colors cursor-pointer"
+              className="ml-0.5 shrink-0 cursor-pointer rounded-sm opacity-70 hover:opacity-100 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
             >
-              <X className="h-2.5 w-2.5" />
+              <X className="size-2.5" />
             </button>
-          </span>
+          </Badge>
         ) : (
-          <span>No filters</span>
+          <span className="shrink-0">No filters</span>
         )}
       </div>
 

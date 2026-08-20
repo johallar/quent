@@ -6,8 +6,11 @@ import { useCallback, useMemo } from 'react';
 import { useTimelineEchartsTheme } from '../timeline/timelineEchartsTheme';
 import {
   useSelectedNodeIds,
+  useSelectedNodeData,
   useSetSelectedNodeIds,
   useSetSelectedOperatorLabel,
+  useSelectedOperatorLabels,
+  useSetSelectedOperatorLabels,
   useSetSelectedNodeData,
   useSetSelectedPlanId,
   useNodeColoringValue,
@@ -49,8 +52,11 @@ export function OperatorGanttChart({
 }: OperatorGanttChartProps) {
   const setSelectedNodeIds = useSetSelectedNodeIds();
   const setSelectedOperatorLabel = useSetSelectedOperatorLabel();
+  const selectedOperatorLabels = useSelectedOperatorLabels();
+  const setSelectedOperatorLabels = useSetSelectedOperatorLabels();
   const setSelectedPlanId = useSetSelectedPlanId();
   const setSelectedNodeData = useSetSelectedNodeData();
+  const selectedNodeData = useSelectedNodeData();
   const { textColor } = useTimelineEchartsTheme(isDark);
   const nodeColoring = useNodeColoringValue();
   const [nodePalette] = useNodeColorPalette();
@@ -192,12 +198,24 @@ export function OperatorGanttChart({
         if (params.seriesName !== 'operator-span') return;
         const op = operators[params.dataIndex];
         if (!op) return;
-        if (selectedNodeIds.size === 1 && selectedNodeIds.has(op.operatorId)) {
-          setSelectedNodeIds(new Set());
-          setSelectedOperatorLabel(null);
-          setSelectedNodeData(null);
+        const nextSelectedNodeIds = new Set(selectedNodeIds);
+        const nextSelectedOperatorLabels = new Map(selectedOperatorLabels);
+        if (nextSelectedNodeIds.delete(op.operatorId)) {
+          nextSelectedOperatorLabels.delete(op.operatorId);
+          setSelectedNodeIds(nextSelectedNodeIds);
+          setSelectedOperatorLabels(nextSelectedOperatorLabels);
+          if (nextSelectedNodeIds.size === 0) {
+            setSelectedOperatorLabel(null);
+            setSelectedNodeData(null);
+          } else if (selectedNodeData?.nodeId === op.operatorId) {
+            setSelectedOperatorLabel(nextSelectedOperatorLabels.values().next().value ?? null);
+            setSelectedNodeData(null);
+          }
         } else {
-          setSelectedNodeIds(new Set([op.operatorId]));
+          nextSelectedNodeIds.add(op.operatorId);
+          nextSelectedOperatorLabels.set(op.operatorId, op.label);
+          setSelectedNodeIds(nextSelectedNodeIds);
+          setSelectedOperatorLabels(nextSelectedOperatorLabels);
           setSelectedOperatorLabel(op.label);
           setSelectedNodeData({
             nodeId: op.operatorId,
@@ -213,9 +231,12 @@ export function OperatorGanttChart({
     }),
     [
       operators,
+      selectedNodeData,
       selectedNodeIds,
+      selectedOperatorLabels,
       setSelectedNodeIds,
       setSelectedOperatorLabel,
+      setSelectedOperatorLabels,
       setSelectedPlanId,
       setSelectedNodeData,
     ]

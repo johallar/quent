@@ -11,6 +11,10 @@ export {
   useSelectedOperatorLabel,
   useSetSelectedOperatorLabel,
 } from './dag/useSelectedOperatorLabel';
+export {
+  useSelectedOperatorLabels,
+  useSetSelectedOperatorLabels,
+} from './dag/useSelectedOperatorLabels';
 export { useSelectedPlanId, useSetSelectedPlanId } from './dag/useSelectedPlanId';
 export { useHoveredWorkerId, useSetHoveredWorkerId } from './dag/useHoveredWorkerId';
 

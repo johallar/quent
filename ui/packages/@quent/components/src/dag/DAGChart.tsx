@@ -31,6 +31,7 @@ import {
   useSelectedNodeIds,
   useSetSelectedNodeIds,
   useSetSelectedOperatorLabel,
+  useSetSelectedOperatorLabels,
   useEdgeWidthConfig,
   useEdgeColoring,
   useEdgeColorPalette,
@@ -283,6 +284,7 @@ const FlowLayout = ({
   const { fitView } = useReactFlow();
   const setSelectedNodeIds = useSetSelectedNodeIds();
   const setSelectedOperatorLabel = useSetSelectedOperatorLabel();
+  const setSelectedOperatorLabels = useSetSelectedOperatorLabels();
   const setDagDisplayedNodeIds = useSetDagDisplayedNodeIds();
   const setSelectedNodeData = useSetSelectedNodeData();
   const selectedNodeIds = useSelectedNodeIds();
@@ -298,8 +300,9 @@ const FlowLayout = ({
   useEffect(() => {
     if (controlledSelectedNodeIds !== undefined) {
       setSelectedNodeIds(new Set(controlledSelectedNodeIds));
+      setSelectedOperatorLabels(new Map());
     }
-  }, [controlledSelectedNodeIds, setSelectedNodeIds]);
+  }, [controlledSelectedNodeIds, setSelectedNodeIds, setSelectedOperatorLabels]);
 
   // Publish the set of operator IDs visible in this DAG so other consumers
   // (effective highlight/heatmap atoms) can decide whether a hover-driven
@@ -391,6 +394,7 @@ const FlowLayout = ({
     (_event: MouseEvent, node: Node<QueryPlanNodeData>): void => {
       if (selectedNodeIds.has(node.id)) {
         setSelectedNodeIds(new Set());
+        setSelectedOperatorLabels(new Map());
         setSelectedOperatorLabel(null);
         setSelectedNodeData(null);
         onSelectionChange?.([]);
@@ -398,6 +402,7 @@ const FlowLayout = ({
         const selectionIds = getSelectionIds(node);
         const newSet = new Set(selectionIds);
         setSelectedNodeIds(newSet);
+        setSelectedOperatorLabels(new Map());
         setSelectedOperatorLabel(node.data.label);
         setSelectedNodeData({
           nodeId: node.id,
@@ -419,6 +424,7 @@ const FlowLayout = ({
       selectedNodeIds,
       setSelectedNodeIds,
       setSelectedOperatorLabel,
+      setSelectedOperatorLabels,
       setSelectedNodeData,
       onSelectionChange,
     ]
@@ -426,9 +432,15 @@ const FlowLayout = ({
 
   const handlePaneClick = useCallback(() => {
     setSelectedNodeIds(new Set());
+    setSelectedOperatorLabels(new Map());
     setSelectedOperatorLabel(null);
     setSelectedNodeData(null);
-  }, [setSelectedNodeIds, setSelectedOperatorLabel, setSelectedNodeData]);
+  }, [
+    setSelectedNodeIds,
+    setSelectedOperatorLabel,
+    setSelectedOperatorLabels,
+    setSelectedNodeData,
+  ]);
 
   // Re-fit view when the react-flow container is resized, but only if the user
   // hasn't interacted with the chart (to maintain any focus states applied)
