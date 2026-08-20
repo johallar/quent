@@ -52,7 +52,10 @@ const getNodeEntity = (
   return undefined;
 };
 
-const buildRelatedOperatorIdsById = (operators: Operator[]): Map<string, string[]> => {
+const buildRelatedOperatorIdsById = (
+  operators: Operator[],
+  selectedOperatorIds: ReadonlySet<string>
+): Map<string, string[]> => {
   const childrenByParentId = new Map<string, string[]>();
   for (const operator of operators) {
     for (const parentId of operator.parent_operator_ids ?? []) {
@@ -63,16 +66,16 @@ const buildRelatedOperatorIdsById = (operators: Operator[]): Map<string, string[
   }
 
   const relatedById = new Map<string, string[]>();
-  for (const operator of operators) {
+  for (const operatorId of selectedOperatorIds) {
     const related = new Set<string>();
-    const stack = [...(childrenByParentId.get(operator.id) ?? [])];
+    const stack = [...(childrenByParentId.get(operatorId) ?? [])];
     while (stack.length > 0) {
       const childId = stack.pop()!;
-      if (childId === operator.id || related.has(childId)) continue;
+      if (childId === operatorId || related.has(childId)) continue;
       related.add(childId);
       stack.push(...(childrenByParentId.get(childId) ?? []));
     }
-    relatedById.set(operator.id, [...related]);
+    relatedById.set(operatorId, [...related]);
   }
 
   return relatedById;
@@ -124,11 +127,6 @@ export const getPlanDAG = (
 
   const nodeMap = new Map<string, DAGNode>();
   const edges: DAGEdge[] = [];
-  const operators = Object.values(bundle.entities.operators).filter(
-    (operator): operator is Operator => operator !== undefined
-  );
-  const relatedOperatorIdsById = buildRelatedOperatorIdsById(operators);
-
   const plans = Object.values(bundle.entities.plans).filter(
     (plan): plan is Plan => plan !== undefined
   );
@@ -137,6 +135,19 @@ export const getPlanDAG = (
   if (!planTree) {
     throw new Error(`No plan found for planId: ${planId}`);
   }
+
+  const selectedOperatorIds = new Set(
+    planTree.edges.flatMap(edge =>
+      [edge.source, edge.target].flatMap(portId => {
+        const operatorId = bundle.entities.ports[portId]?.operator_id;
+        return operatorId ? [operatorId] : [];
+      })
+    )
+  );
+  const operators = Object.values(bundle.entities.operators).filter(
+    (operator): operator is Operator => operator !== undefined
+  );
+  const relatedOperatorIdsById = buildRelatedOperatorIdsById(operators, selectedOperatorIds);
 
   // Build the DAG from the plan's edges
   planTree.edges.forEach(edge => {

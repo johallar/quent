@@ -448,4 +448,38 @@ describe('getPlanDAG', () => {
       )
     ).toEqual(new Set(['intermediate', 'physical']));
   });
+
+  it('stops descendant traversal when operator relationships contain a cycle', () => {
+    const logical = makeOperator('logical', {
+      planId: 'logical-plan',
+      parentOperatorIds: ['physical'],
+    });
+    const sibling = makeOperator('sibling', { planId: 'logical-plan' });
+    const physical = makeOperator('physical', {
+      planId: 'physical-plan',
+      parentOperatorIds: ['logical'],
+    });
+    const logicalPlan = makePlan('logical-plan', {
+      edges: [{ source: 'logical-port', target: 'sibling-port' }],
+    });
+    const bundle = makeBundle(
+      {
+        'logical-plan': logicalPlan,
+        'physical-plan': makePlan('physical-plan'),
+      },
+      {
+        operators: { logical, sibling, physical },
+        ports: {
+          'logical-port': makePort('logical-port', 'logical'),
+          'sibling-port': makePort('sibling-port', 'sibling'),
+        },
+      }
+    );
+
+    const logicalNode = getPlanDAG(bundle, 'logical-plan').nodes.find(
+      node => node.id === 'logical'
+    )!;
+
+    expect(logicalNode.metadata!.relatedOperatorIds).toEqual(['physical']);
+  });
 });
