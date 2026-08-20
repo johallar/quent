@@ -67,7 +67,10 @@ export function FsmCapacityChart({
     // Accumulate data keyed by resourceId → capacityName
     const resourceMap = new Map<
       string,
-      { label: string; caps: Map<string, { data: Array<number | null>; rawData: Array<bigint | null> }> }
+      {
+        label: string;
+        caps: Map<string, { data: Array<number | null>; rawData: Array<bigint | null> }>;
+      }
     >();
 
     transitions.forEach((t, i) => {
@@ -200,7 +203,8 @@ export function FsmCapacityChart({
         axisLabel: {
           show: true,
           fontSize: 9,
-          formatter: (v: number) => (activeCapacity ? activeCapacity.formatter(v) : formatBytes(v, 0)),
+          formatter: (v: number) =>
+            activeCapacity ? activeCapacity.formatter(v) : formatBytes(v, 0),
         },
         splitLine: { show: true, lineStyle: { opacity: 0.25 } },
         minInterval: 1,

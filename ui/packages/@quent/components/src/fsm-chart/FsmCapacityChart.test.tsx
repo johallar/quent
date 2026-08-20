@@ -82,10 +82,10 @@ describe('FsmCapacityChart', () => {
     });
 
     it('renders nothing when all capacities have fewer than 2 readings', () => {
-      const transitions = [
-        transition('running', 0, [usage('mem-1', { capacity_bytes: 1024n })]),
-      ];
-      const { container } = render(<FsmCapacityChart {...defaultProps} transitions={transitions} />);
+      const transitions = [transition('running', 0, [usage('mem-1', { capacity_bytes: 1024n })])];
+      const { container } = render(
+        <FsmCapacityChart {...defaultProps} transitions={transitions} />
+      );
       expect(container.firstChild).toBeNull();
     });
 

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { fireEvent, render, screen } from '@testing-library/react';
-import { describe, expect, it, vi, beforeEach } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import type { EntityRef, FiniteStateMachine, QueryBundle } from '@quent/utils';
 import { EntityDetailPanel } from './EntityDetailPanel';
 
@@ -35,10 +35,7 @@ vi.mock('./TransitionAttributes', () => ({
 // Fixtures
 // ---------------------------------------------------------------------------
 
-function makeTransition(
-  name: string,
-  timestamp: number
-): FiniteStateMachine['transitions'][0] {
+function makeTransition(name: string, timestamp: number): FiniteStateMachine['transitions'][0] {
   return { name, timestamp, usages: [], attributes: [], derived_attributes: [] };
 }
 
