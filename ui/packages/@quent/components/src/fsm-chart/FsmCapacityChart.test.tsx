@@ -1,7 +1,8 @@
 // SPDX-FileCopyrightText: Copyright (c) 2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-import { fireEvent, render, screen } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import type { FsmTransition, QuantitySpec } from '@quent/utils';
 import { FsmCapacityChart } from './FsmCapacityChart';
@@ -69,6 +70,13 @@ const TWO_TRANSITIONS = [
   transition('running', 0, [usage('mem-1', { capacity_bytes: 1024n })]),
   transition('idle', 1, [usage('mem-1', { capacity_bytes: 2048n })]),
 ];
+
+/** Open a combobox by its accessible name and pick the option with the given text. */
+async function selectOption(comboboxName: string, optionName: string) {
+  const user = userEvent.setup();
+  await user.click(screen.getByRole('combobox', { name: comboboxName }));
+  await user.click(await screen.findByRole('option', { name: optionName }));
+}
 
 // ---------------------------------------------------------------------------
 // Tests
@@ -163,7 +171,7 @@ describe('FsmCapacityChart', () => {
       expect(screen.getByRole('combobox', { name: 'Select resource' })).toBeInTheDocument();
     });
 
-    it('lists all resources with data in the resource selector', () => {
+    it('lists all resources with data in the resource selector', async () => {
       const transitions = [
         transition('running', 0, [
           usage('mem-1', { capacity_bytes: 1024n }),
@@ -183,8 +191,9 @@ describe('FsmCapacityChart', () => {
         />
       );
 
-      const select = screen.getByRole('combobox', { name: 'Select resource' });
-      const options = Array.from(select.querySelectorAll('option')).map(o => o.textContent);
+      const user = userEvent.setup();
+      await user.click(screen.getByRole('combobox', { name: 'Select resource' }));
+      const options = (await screen.findAllByRole('option')).map(o => o.textContent);
       expect(options).toContain('Memory');
       expect(options).toContain('CPU');
     });
@@ -207,7 +216,7 @@ describe('FsmCapacityChart', () => {
       expect(screen.getByRole('combobox', { name: 'Select capacity' })).toBeInTheDocument();
     });
 
-    it('lists all capacities for the active resource', () => {
+    it('lists all capacities for the active resource', async () => {
       const transitions = [
         transition('running', 0, [usage('mem-1', { capacity_bytes: 1024n, unit: 1n })]),
         transition('idle', 1, [usage('mem-1', { capacity_bytes: 2048n, unit: 1n })]),
@@ -215,13 +224,14 @@ describe('FsmCapacityChart', () => {
 
       render(<FsmCapacityChart {...defaultProps} transitions={transitions} />);
 
-      const select = screen.getByRole('combobox', { name: 'Select capacity' });
-      const options = Array.from(select.querySelectorAll('option')).map(o => o.value);
+      const user = userEvent.setup();
+      await user.click(screen.getByRole('combobox', { name: 'Select capacity' }));
+      const options = (await screen.findAllByRole('option')).map(o => o.textContent);
       expect(options).toContain('capacity_bytes');
       expect(options).toContain('unit');
     });
 
-    it('resets the capacity selection when the resource changes', () => {
+    it('resets the capacity selection when the resource changes', async () => {
       const getCapacityDecl = (_id: string, name: string) => {
         if (name === 'capacity_bytes')
           return { name: 'capacity_bytes', kind: 'Occupancy' as const, quantity: 'bytes' };
@@ -252,15 +262,12 @@ describe('FsmCapacityChart', () => {
       );
 
       // Switch to Filesystem and select rate_bytes
-      const resourceSelect = screen.getByRole('combobox', { name: 'Select resource' });
-      fireEvent.change(resourceSelect, { target: { value: 'fs-1' } });
-
-      const capacitySelect = screen.getByRole('combobox', { name: 'Select capacity' });
-      fireEvent.change(capacitySelect, { target: { value: 'rate_bytes' } });
+      await selectOption('Select resource', 'Filesystem');
+      await selectOption('Select capacity', 'rate_bytes');
       expect(screen.getByText('rate_bytes (B/s)')).toBeInTheDocument();
 
       // Switch back to Memory — capacity should reset to its first capacity
-      fireEvent.change(resourceSelect, { target: { value: 'mem-1' } });
+      await selectOption('Select resource', 'Memory');
       expect(screen.getByText('capacity_bytes (B)')).toBeInTheDocument();
     });
   });
@@ -276,7 +283,7 @@ describe('FsmCapacityChart', () => {
       render(<FsmCapacityChart {...defaultProps} transitions={transitions} />);
 
       // Without a predicate, insertion order wins — unit is first
-      expect(screen.getByText('unit', { selector: 'span' })).toBeInTheDocument();
+      expect(screen.getByText('unit', { selector: 'span.font-mono' })).toBeInTheDocument();
     });
 
     it('sorts the preferred capacity to the front when a predicate is provided', () => {
@@ -326,13 +333,12 @@ describe('FsmCapacityChart', () => {
       );
 
       // Memory (with capacity_bytes) should be the active resource by default
-      const resourceSelect = screen.getByRole('combobox', { name: 'Select resource' });
-      expect((resourceSelect as HTMLSelectElement).value).toBe('mem-1');
+      expect(screen.getByRole('combobox', { name: 'Select resource' })).toHaveTextContent('Memory');
     });
   });
 
   describe('entity change', () => {
-    it('resets selections when transitions change', () => {
+    it('resets selections when transitions change', async () => {
       const getCapacityDecl = (_id: string, name: string) =>
         name === 'capacity_bytes'
           ? { name: 'capacity_bytes', kind: 'Occupancy' as const, quantity: 'bytes' }
@@ -359,9 +365,8 @@ describe('FsmCapacityChart', () => {
       );
 
       // Select the second resource
-      const resourceSelect = screen.getByRole('combobox', { name: 'Select resource' });
-      fireEvent.change(resourceSelect, { target: { value: 'mem-2' } });
-      expect((resourceSelect as HTMLSelectElement).value).toBe('mem-2');
+      await selectOption('Select resource', 'mem-2');
+      expect(screen.getByRole('combobox', { name: 'Select resource' })).toHaveTextContent('mem-2');
 
       // Simulate opening a different entity (new transitions reference)
       const secondTransitions = [

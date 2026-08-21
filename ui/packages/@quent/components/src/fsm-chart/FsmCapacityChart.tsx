@@ -9,6 +9,7 @@ import { echarts } from '../lib/echarts';
 import { useChartResize } from '../lib/useChartResize';
 import type { PointerPosition } from '../ui/pointer-tooltip-portal';
 import { PositionedTooltip } from '../ui/positioned-tooltip';
+import { SelectField } from '../ui/select-field';
 import { useTimelineEchartsTheme } from '../timeline/timelineEchartsTheme';
 import { FsmCapacityTooltip } from './FsmCapacityTooltip';
 
@@ -42,8 +43,8 @@ export interface FsmCapacityChartProps {
   defaultCapacityPredicate?: (name: string) => boolean;
 }
 
-const SELECT_CLASS =
-  'max-w-[140px] truncate rounded border border-border bg-background px-1 py-0.5 text-[10px] text-foreground focus:outline-none focus:ring-1 focus:ring-ring';
+const SELECT_TRIGGER_CLASS =
+  'h-auto w-auto max-w-[140px] gap-1 truncate rounded border border-border bg-background px-1 py-0.5 text-[10px] text-foreground focus:outline-none focus:ring-1 focus:ring-ring [&>svg]:h-3 [&>svg]:w-3';
 
 export function FsmCapacityChart({
   transitions,
@@ -242,35 +243,28 @@ export function FsmCapacityChart({
         </span>
         <div className="flex items-center gap-1">
           {resources.length > 1 && (
-            <select
+            <SelectField
+              ariaLabel="Select resource"
+              options={resources.map(r => ({ value: r.resourceId, label: r.label }))}
               value={activeResource?.resourceId ?? ''}
-              onChange={e => {
-                setSelectedResourceId(e.target.value);
+              onValueChange={value => {
+                if (!value) return;
+                setSelectedResourceId(value);
                 setSelectedCapacityName(null);
               }}
-              className={SELECT_CLASS}
-              aria-label="Select resource"
-            >
-              {resources.map(r => (
-                <option key={r.resourceId} value={r.resourceId}>
-                  {r.label}
-                </option>
-              ))}
-            </select>
+              clearable={false}
+              triggerClassName={SELECT_TRIGGER_CLASS}
+            />
           )}
           {activeResource && activeResource.capacities.length > 1 && (
-            <select
+            <SelectField
+              ariaLabel="Select capacity"
+              options={activeResource.capacities.map(c => ({ value: c.name, label: c.name }))}
               value={activeCapacity?.name ?? ''}
-              onChange={e => setSelectedCapacityName(e.target.value)}
-              className={SELECT_CLASS}
-              aria-label="Select capacity"
-            >
-              {activeResource.capacities.map(c => (
-                <option key={c.name} value={c.name}>
-                  {c.name}
-                </option>
-              ))}
-            </select>
+              onValueChange={value => value && setSelectedCapacityName(value)}
+              clearable={false}
+              triggerClassName={SELECT_TRIGGER_CLASS}
+            />
           )}
         </div>
       </div>

@@ -399,7 +399,7 @@ function QueryResourceTreeContent({ queryBundle, engineId }: QueryResourceTreePr
     handleZoomChange,
     operatorEntriesByWorker,
     toggleDrawerFsm,
-    drawerFsm,
+    drawerFsm?.id,
     closeDrawer,
   ]);
 
