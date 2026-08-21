@@ -26,6 +26,13 @@ export interface ActiveMark {
   compact?: boolean;
 }
 
+export interface TooltipItemNoun {
+  singular: string;
+  plural: string;
+}
+
+const DEFAULT_ITEM_NOUN: TooltipItemNoun = { singular: 'entity', plural: 'entities' };
+
 interface TooltipSeries {
   color: string;
   name: string;
@@ -267,9 +274,11 @@ const ACTIVE_MARK_LIMIT = 6;
 function ActiveMarksSection({
   marks,
   itemLimit = ACTIVE_MARK_LIMIT,
+  itemNoun = DEFAULT_ITEM_NOUN,
 }: {
   marks: ActiveMark[];
   itemLimit?: number;
+  itemNoun?: TooltipItemNoun;
 }) {
   if (marks.length === 0) return null;
   const visibleMarks = marks.slice(0, itemLimit);
@@ -286,7 +295,7 @@ function ActiveMarksSection({
       )}
       {hiddenCount > 0 && (
         <DataText as="div" className="pt-1 text-muted-foreground">
-          {hiddenCount} more {hiddenCount === 1 ? 'entity' : 'entities'} not shown
+          {hiddenCount} more {hiddenCount === 1 ? itemNoun.singular : itemNoun.plural} not shown
         </DataText>
       )}
     </div>
@@ -299,12 +308,14 @@ function OverlayBarTooltip({
   fmt,
   windowMs,
   activeMarks,
+  itemNoun,
 }: {
   timestamp: number;
   bars: StateBar[];
   fmt: ValueFormatter;
   windowMs: number;
   activeMarks?: ActiveMark[];
+  itemNoun?: TooltipItemNoun;
 }) {
   const visibleBars = bars
     .filter(b => b.baseValue > 0 || b.overlays.some(o => o.value > 0))
@@ -383,7 +394,7 @@ function OverlayBarTooltip({
             );
           })()}
       </div>
-      {activeMarks && <ActiveMarksSection marks={activeMarks} />}
+      {activeMarks && <ActiveMarksSection marks={activeMarks} itemNoun={itemNoun} />}
     </div>
   );
 }
@@ -394,6 +405,7 @@ export function EntityTooltipContent({
   windowMs,
   activeMarks,
   itemLimit,
+  itemNoun,
   summary,
   className,
 }: {
@@ -403,6 +415,8 @@ export function EntityTooltipContent({
   activeMarks: ActiveMark[];
   /** Hide overflow items and show a remainder line. */
   itemLimit?: number;
+  /** Singular and plural names used for hidden items. */
+  itemNoun?: TooltipItemNoun;
   /** Totals line, e.g. "12 ranges". */
   summary?: string;
   className?: string;
@@ -422,7 +436,7 @@ export function EntityTooltipContent({
           {summary}
         </DataText>
       )}
-      <ActiveMarksSection marks={activeMarks} itemLimit={itemLimit} />
+      <ActiveMarksSection marks={activeMarks} itemLimit={itemLimit} itemNoun={itemNoun} />
     </div>
   );
 }
@@ -433,12 +447,14 @@ export function TooltipContent({
   fmt = defaultFormatter,
   windowMs,
   activeMarks,
+  itemNoun,
 }: {
   timestamp: number;
   series: TooltipSeries[];
   fmt?: ValueFormatter;
   windowMs: number;
   activeMarks?: ActiveMark[];
+  itemNoun?: TooltipItemNoun;
 }) {
   const hasOverlays = series.some(s => s.isOverlay);
 
@@ -468,6 +484,7 @@ export function TooltipContent({
         fmt={fmt}
         windowMs={windowMs}
         activeMarks={activeMarks}
+        itemNoun={itemNoun}
       />
     );
   }
@@ -488,7 +505,7 @@ export function TooltipContent({
           fmt={fmt}
         />
       </section>
-      {activeMarks && <ActiveMarksSection marks={activeMarks} />}
+      {activeMarks && <ActiveMarksSection marks={activeMarks} itemNoun={itemNoun} />}
     </div>
   );
 }

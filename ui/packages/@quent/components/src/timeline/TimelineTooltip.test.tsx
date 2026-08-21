@@ -126,4 +126,17 @@ describe('TooltipContent active marks', () => {
     expect(screen.getAllByText('500.00ms')).toHaveLength(6);
     expect(screen.getByText('1 more entity not shown')).toBeInTheDocument();
   });
+
+  it('uses configurable names for hidden items', () => {
+    render(
+      <EntityTooltipContent
+        timestamp={1_000}
+        windowMs={5_000}
+        activeMarks={makeMarks(7)}
+        itemNoun={{ singular: 'range', plural: 'ranges' }}
+      />
+    );
+
+    expect(screen.getByText('1 more range not shown')).toBeInTheDocument();
+  });
 });

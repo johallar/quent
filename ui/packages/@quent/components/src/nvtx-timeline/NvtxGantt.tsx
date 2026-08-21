@@ -18,6 +18,7 @@ import { GANTT_RESIZE_CONTROL_HEIGHT, layoutGanttBar } from '../gantt-chart/util
 import { PointerTooltipPortal } from '../ui/pointer-tooltip-portal';
 import {
   mergeNvtxGanttData,
+  NVTX_MIN_BAR_WIDTH_PX,
   nvtxItemsAtTimestamp,
   nvtxLanesToGanttData,
   nvtxMergedBarCountLabel,
@@ -68,6 +69,8 @@ export function NvtxGantt({
 
   const visibleStartMs = (zoomRange.end > zoomRange.start ? zoomRange.start : 0) * 1_000;
   const visibleEndMs = (zoomRange.end > zoomRange.start ? zoomRange.end : durationSeconds) * 1_000;
+  const minimumHitWidthMs =
+    plotWidthPx > 0 ? ((visibleEndMs - visibleStartMs) * NVTX_MIN_BAR_WIDTH_PX) / plotWidthPx : 0;
 
   const customSeriesData = useMemo(() => {
     const data = nvtxLanesToGanttData(lanes);
@@ -77,7 +80,9 @@ export function NvtxGantt({
   const renderTooltip = useCallback(
     (hover: GanttHover | null) => {
       const tooltip = hover
-        ? nvtxTooltipModel(nvtxItemsAtTimestamp(customSeriesData, hover.timestampMs))
+        ? nvtxTooltipModel(
+            nvtxItemsAtTimestamp(customSeriesData, hover.timestampMs, minimumHitWidthMs)
+          )
         : null;
       return (
         <PointerTooltipPortal hover={tooltip && tooltip.marks.length > 0 ? hover : null}>
@@ -87,6 +92,7 @@ export function NvtxGantt({
               windowMs={(zoomRange.end - zoomRange.start) * 1_000}
               activeMarks={tooltip.marks}
               itemLimit={tooltip.itemLimit}
+              itemNoun={tooltip.itemNoun}
               summary={tooltip.summary}
               className="max-w-[20rem]"
             />
@@ -94,7 +100,7 @@ export function NvtxGantt({
         </PointerTooltipPortal>
       );
     },
-    [customSeriesData, zoomRange.end, zoomRange.start]
+    [customSeriesData, minimumHitWidthMs, zoomRange.end, zoomRange.start]
   );
 
   const renderItem: GanttRenderItem = useCallback(
@@ -103,7 +109,7 @@ export function NvtxGantt({
       if (!datum) return null;
       const layout = layoutGanttBar(params, api, {
         barHeight: BAR_HEIGHT,
-        minWidth: 2,
+        minWidth: NVTX_MIN_BAR_WIDTH_PX,
         allowInstant: true,
       });
       if (!layout) return null;
@@ -138,7 +144,12 @@ export function NvtxGantt({
             }
           : null;
       const marker = merged
-        ? nvtxMergedBarCountLabel(clippedShape, textColor, datum.mergedCount ?? 1)
+        ? nvtxMergedBarCountLabel(
+            clippedShape,
+            textColor,
+            datum.mergedCount ?? 1,
+            datum.mark ? 'mark' : 'range'
+          )
         : [];
       return {
         type: 'group' as const,

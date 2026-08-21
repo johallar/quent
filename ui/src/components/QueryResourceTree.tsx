@@ -143,7 +143,7 @@ function NvtxSectionLabel({
   ];
   return (
     <div className="flex items-center">
-      <ChartGantt aria-hidden className="mr-4 h-4 w-4 shrink-0 text-muted-foreground" />
+      <ChartGantt aria-hidden className="mr-4 h-4 w-4 shrink-0 text-foreground" />
       <div className="flex flex-col gap-y-1 pb-1">
         <span className="text-xs font-semibold leading-none">NVTX</span>
         <InlineSelector

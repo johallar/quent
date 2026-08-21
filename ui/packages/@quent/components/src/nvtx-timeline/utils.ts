@@ -12,7 +12,7 @@ import type {
 } from '@quent/utils';
 import { formatDuration } from '@quent/utils';
 import type { TreeTableItem } from '../resource-tree/types';
-import type { ActiveMark } from '../timeline/TimelineTooltip';
+import type { ActiveMark, TooltipItemNoun } from '../timeline/TimelineTooltip';
 
 export const NVTX_SECTION_ROW_TYPE = 'nvtx-section';
 export const NVTX_DOMAIN_ROW_TYPE = 'nvtx-domain';
@@ -25,6 +25,9 @@ const PROCESS_PREFIX = '__nvtx_process__';
 const MARKS_PREFIX = '__nvtx_marks__';
 
 const STUB_ENTITY = {} as TreeTableItem['entity'];
+const RANGE_ITEM_NOUN: TooltipItemNoun = { singular: 'range', plural: 'ranges' };
+const MARK_ITEM_NOUN: TooltipItemNoun = { singular: 'mark', plural: 'marks' };
+const MIXED_ITEM_NOUN: TooltipItemNoun = { singular: 'item', plural: 'items' };
 
 export function nvtxDomainRowId(domainId: string): string {
   return `${DOMAIN_PREFIX}${domainId}`;
@@ -174,6 +177,8 @@ export interface NvtxPixelBudget {
   plotWidthPx: number;
 }
 
+export const NVTX_MIN_BAR_WIDTH_PX = 2;
+
 /** Flatten viewport lanes into Gantt datums. Thread depth is the row index. */
 export function nvtxLanesToGanttData(lanes: NvtxLane[]): NvtxGanttDatum[] {
   const data: NvtxGanttDatum[] = [];
@@ -291,11 +296,12 @@ function nvtxMergedDatum(run: NvtxGanttDatum[], startMs: number, endMs: number):
 
 export function nvtxItemsAtTimestamp(
   data: NvtxGanttDatum[],
-  timestampMs: number
+  timestampMs: number,
+  minimumHitWidthMs: number
 ): NvtxGanttDatum[] {
   return data.filter(datum => {
     const [startMs, endMs] = datum.value;
-    const hitEnd = Math.max(endMs, startMs + 1);
+    const hitEnd = Math.max(endMs, startMs + minimumHitWidthMs);
     return startMs <= timestampMs && timestampMs < hitEnd;
   });
 }
@@ -349,6 +355,7 @@ export type NvtxTooltipModel = {
   summary?: string;
   compact: boolean;
   itemLimit: number;
+  itemNoun: TooltipItemNoun;
 };
 
 /** Count rows for merged bars; full range data when the item is a single range. */
@@ -368,6 +375,12 @@ export function nvtxTooltipModel(data: NvtxGanttDatum[]): NvtxTooltipModel {
     ...(rangeCount > 0 ? [countLabel(rangeCount, 'range', 'ranges')] : []),
     ...(markCount > 0 ? [countLabel(markCount, 'mark', 'marks')] : []),
   ];
+  const itemNoun =
+    rangeCount > 0 && markCount === 0
+      ? RANGE_ITEM_NOUN
+      : markCount > 0 && rangeCount === 0
+        ? MARK_ITEM_NOUN
+        : MIXED_ITEM_NOUN;
   return {
     marks: orderedData.flatMap(datum =>
       (datum.mergedCount ?? 1) > 1 ? nvtxToSummaryMarks(datum) : [nvtxToActiveMark(datum)]
@@ -375,6 +388,7 @@ export function nvtxTooltipModel(data: NvtxGanttDatum[]): NvtxTooltipModel {
     summary: hasMerged ? parts.join(', ') : undefined,
     compact: hasMerged,
     itemLimit: hasSingle ? NVTX_TOOLTIP_DETAIL_LIMIT : NVTX_TOOLTIP_COMPACT_LIMIT,
+    itemNoun,
   };
 }
 
@@ -397,6 +411,10 @@ export function nvtxToActiveMark(datum: NvtxGanttDatum): ActiveMark {
   if (mergedCount > 1) {
     return nvtxToSummaryMark(datum);
   }
+  const threadAttributes = [
+    ...(range.thread_name != null ? [stringAttr('thread', range.thread_name)] : []),
+    ...(range.thread_id != null ? [stringAttr('thread ID', range.thread_id.toString())] : []),
+  ];
   return {
     label: range.message,
     stateName: '',
@@ -411,6 +429,7 @@ export function nvtxToActiveMark(datum: NvtxGanttDatum): ActiveMark {
       stringAttr('kind', nvtxKindLabel(range.kind)),
       stringAttr('domain', range.domain_name),
       stringAttr('category', range.category_name ?? 'Uncategorized'),
+      ...threadAttributes,
     ],
   };
 }
@@ -427,9 +446,10 @@ const MERGED_COUNT_OPACITY = 0.6;
 export function nvtxMergedBarCountLabel(
   shape: { x: number; y: number; width: number; height: number },
   fill: string,
-  count: number
+  count: number,
+  kind: 'mark' | 'range'
 ): Array<{ type: 'text'; silent: true; style: object }> {
-  const text = `(${count} ranges)`;
+  const text = `(${count} ${count === 1 ? kind : `${kind}s`})`;
   if (shape.width < text.length * MERGED_COUNT_CHARACTER_WIDTH + MERGED_COUNT_PADDING) return [];
   const cy = shape.y + shape.height / 2;
   return [
