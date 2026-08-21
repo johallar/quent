@@ -20,6 +20,7 @@ import {
   formatAttributeValue,
   isBytesRateStat,
   isNumericValue,
+  bigintToChartNumber,
 } from './formatters';
 import type { QuantitySpec } from './types/index';
 
@@ -323,6 +324,37 @@ describe('formatBytes', () => {
 
   it('respects the decimals parameter', () => {
     expect(formatBytes(1536, 2)).toBe('1.50 KiB');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// bigintToChartNumber
+// ---------------------------------------------------------------------------
+
+describe('bigintToChartNumber', () => {
+  it('converts values within MAX_SAFE_INTEGER exactly', () => {
+    expect(bigintToChartNumber(0n)).toBe(0);
+    expect(bigintToChartNumber(1024n)).toBe(1024);
+    expect(bigintToChartNumber(BigInt(Number.MAX_SAFE_INTEGER))).toBe(Number.MAX_SAFE_INTEGER);
+  });
+
+  it('scales values just above MAX_SAFE_INTEGER within a safe relative error', () => {
+    const n = BigInt(Number.MAX_SAFE_INTEGER) + 1n;
+    const result = bigintToChartNumber(n);
+    expect(Number.isSafeInteger(result) || result <= Number.MAX_SAFE_INTEGER * 2).toBe(true);
+    expect(Math.abs(result - Number(n)) / Number(n)).toBeLessThan(1e-9);
+  });
+
+  it('retains precision for values above 2^63', () => {
+    const n = 1n << 63n;
+    const result = bigintToChartNumber(n);
+    expect(Math.abs(result - Number(n)) / Number(n)).toBeLessThan(1e-9);
+  });
+
+  it('retains precision for u64::MAX', () => {
+    const n = (1n << 64n) - 1n;
+    const result = bigintToChartNumber(n);
+    expect(Math.abs(result - Number(n)) / Number(n)).toBeLessThan(1e-9);
   });
 });
 

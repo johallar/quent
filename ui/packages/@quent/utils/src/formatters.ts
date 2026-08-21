@@ -269,12 +269,15 @@ export function formatBytes(value: number | bigint, decimals = 1): string {
 /**
  * Convert a bigint to a JS number safe for use as a chart data point.
  * Values within Number.MAX_SAFE_INTEGER are converted exactly. Larger values
- * are scaled to the nearest KiB to stay within safe integer range (preserving
- * precision up to ~9 EiB).
+ * are right-shifted by just enough bits to fit their mantissa within 53 bits
+ * before conversion, so precision is retained regardless of magnitude (up to
+ * and beyond u64::MAX).
  */
 export function bigintToChartNumber(n: bigint): number {
   if (n <= BigInt(Number.MAX_SAFE_INTEGER)) return Number(n);
-  return Number(n >> 10n) * 1024;
+  const bitLength = n.toString(2).length;
+  const shift = BigInt(bitLength - 53);
+  return Number(n >> shift) * 2 ** Number(shift);
 }
 
 /** Bytes-like statistic names (pivot tables, DAG field labels). */
