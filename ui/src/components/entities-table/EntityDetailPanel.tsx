@@ -4,7 +4,13 @@
 import { useEffect, useRef, useState } from 'react';
 import { Check, Copy } from 'lucide-react';
 import { DataFlowBar, DataText, FsmCapacityChart, thinScrollbarClass } from '@quent/components';
-import { formatDuration, formatDurationForWindow, getColorForKey, isBytesStat } from '@quent/utils';
+import {
+  cn,
+  formatDuration,
+  formatDurationForWindow,
+  getColorForKey,
+  isBytesStat,
+} from '@quent/utils';
 import type { EntityRef, FiniteStateMachine, QueryBundle } from '@quent/utils';
 import { useTheme, THEME_DARK } from '@/contexts/ThemeContext';
 import { ResourceUsageList } from './ResourceUsageList';
@@ -171,7 +177,7 @@ export function EntityDetailPanel({
         }}
       />
 
-      <ol className={`min-h-0 flex-1 space-y-2 overflow-auto p-3 ${thinScrollbarClass}`}>
+      <ol className={cn('min-h-0 flex-1 space-y-2 overflow-auto p-3', thinScrollbarClass)}>
         {fsm.transitions.map((transition, index) => {
           const durationMs = durations[index] ?? null;
           const isBottleneck =
@@ -198,9 +204,10 @@ export function EntityDetailPanel({
                 <div className="flex shrink-0 flex-col items-end">
                   {durationMs != null && (
                     <DataText
-                      className={`tabular-nums text-sm font-medium ${
-                        isBottleneck ? 'text-orange-500 dark:text-orange-400' : ''
-                      }`}
+                      className={cn(
+                        'tabular-nums text-sm font-medium',
+                        isBottleneck && 'text-orange-500 dark:text-orange-400'
+                      )}
                     >
                       {formatDuration(durationMs)}
                     </DataText>

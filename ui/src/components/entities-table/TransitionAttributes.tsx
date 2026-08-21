@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { Card } from '@quent/components';
-import { formatAttributeValue, unwrapTaggedValue } from '@quent/utils';
+import { cn, formatAttributeValue, unwrapTaggedValue } from '@quent/utils';
 import type { DynamicAttribute } from '@quent/utils';
 
 interface TransitionAttributesProps {
@@ -47,7 +47,7 @@ function AttributeGroup({
   return (
     <Card className="bg-muted/20 p-2 shadow-none">
       <h4 className="text-xs font-medium">{title}</h4>
-      <dl className={`mt-1 space-y-0.5 border-t pt-1 text-xs ${derived ? 'italic' : ''}`}>
+      <dl className={cn('mt-1 space-y-0.5 border-t pt-1 text-xs', derived && 'italic')}>
         {attributes.map((attribute, index) => {
           const { label, value } = resolveAttributeDisplay(attribute, operatorLabel);
           return (
