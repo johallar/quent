@@ -163,12 +163,23 @@ impl NvtxCapture {
         self.layout
     }
 
-    /// Whether this operator task should emit libcudf/CCCL/pipeline ranges.
-    pub fn emit_task_ranges(&self, task_index: usize) -> bool {
+    /// Select task offsets uniformly across one thread's workload.
+    pub fn sampled_task_offsets(&self, task_count: usize, max_samples: usize) -> Vec<usize> {
         let every = self.layout.task_every;
-        every != 0 && task_index.is_multiple_of(every) && self.has_range_capacity()
+        if every == 0 || task_count == 0 || max_samples == 0 {
+            return Vec::new();
+        }
+        let candidate_count = task_count.div_ceil(every);
+        let sample_count = max_samples.min(candidate_count);
+        if sample_count == 1 {
+            return vec![(candidate_count / 2) * every];
+        }
+        (0..sample_count)
+            .map(|index| index * (candidate_count - 1) / (sample_count - 1) * every)
+            .collect()
     }
 
+    #[cfg(test)]
     fn ranges_emitted(&self) -> usize {
         self.ranges_emitted.load(Ordering::Relaxed)
     }
@@ -263,7 +274,18 @@ impl NvtxCapture {
         message: &str,
         category: u32,
     ) -> NvtxPushGuard<'_> {
-        let active = self.try_reserve_range();
+        self.push_if(true, domain, thread_id, message, category)
+    }
+
+    pub fn push_if(
+        &self,
+        enabled: bool,
+        domain: u64,
+        thread_id: u32,
+        message: &str,
+        category: u32,
+    ) -> NvtxPushGuard<'_> {
+        let active = enabled && self.try_reserve_range();
         if active {
             self.emit(NvtxEvent::RangePush {
                 domain,
@@ -326,10 +348,6 @@ impl NvtxCapture {
             capture: self,
             handle,
         }
-    }
-
-    fn has_range_capacity(&self) -> bool {
-        self.layout.num_domains != 0 && self.ranges_emitted() < self.layout.max_ranges
     }
 
     fn try_reserve_range(&self) -> bool {
@@ -670,7 +688,7 @@ mod tests {
     }
 
     #[test]
-    fn emit_task_ranges_keeps_every_nth_task() {
+    fn task_samples_honor_stride_and_span_the_workload() {
         let sampled = NvtxCapture::noop(
             Uuid::now_v7(),
             NvtxLayout {
@@ -678,9 +696,7 @@ mod tests {
                 ..NvtxLayout::default()
             },
         );
-        assert!(sampled.emit_task_ranges(0));
-        assert!(!sampled.emit_task_ranges(1));
-        assert!(sampled.emit_task_ranges(5));
+        assert_eq!(sampled.sampled_task_offsets(100, 4), vec![0, 30, 60, 95]);
         let none = NvtxCapture::noop(
             Uuid::now_v7(),
             NvtxLayout {
@@ -688,7 +704,14 @@ mod tests {
                 ..NvtxLayout::default()
             },
         );
-        assert!(!none.emit_task_ranges(0));
+        assert!(none.sampled_task_offsets(100, 4).is_empty());
+    }
+
+    #[test]
+    fn task_samples_include_both_ends_when_possible() {
+        let nvtx = NvtxCapture::noop(Uuid::now_v7(), NvtxLayout::default());
+        assert_eq!(nvtx.sampled_task_offsets(100, 4), vec![0, 33, 66, 99]);
+        assert_eq!(nvtx.sampled_task_offsets(100, 1), vec![50]);
     }
 
     #[test]

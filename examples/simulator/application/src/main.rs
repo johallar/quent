@@ -4,7 +4,10 @@
 use std::{
     collections::HashMap,
     fmt::{Debug, Display},
-    sync::atomic::{AtomicU64, Ordering},
+    sync::{
+        Barrier,
+        atomic::{AtomicU64, Ordering},
+    },
     time::Duration,
 };
 
@@ -18,7 +21,7 @@ use quent_query_engine_model::{
     operator, plan, port, query_group, worker,
 };
 use quent_simulator_instrumentation::{
-    DEFAULT_MAX_NVTX_RANGES, NvtxCapture, NvtxCategory, NvtxLayout, SimulatorContext,
+    DEFAULT_MAX_NVTX_RANGES, NvtxCapture, NvtxCategory, NvtxLayout, NvtxPushGuard, SimulatorContext,
 };
 use rand::{RngExt, distr::slice::Choose, rng};
 use tracing::{debug, info};
@@ -74,6 +77,57 @@ struct Args {
 
     #[command(flatten)]
     exporter: ExporterArgs,
+}
+
+const QUERY_LEVEL_NVTX_RANGES: usize = 3;
+const TARGET_NVTX_RANGES_PER_CLUSTER: usize = 32;
+
+#[derive(Clone, Copy)]
+struct NvtxWorkload {
+    query_count: usize,
+    worker_thread_count: usize,
+}
+
+#[derive(Clone, Copy)]
+struct NvtxExecution<'a> {
+    capture: &'a NvtxCapture,
+    workload: NvtxWorkload,
+    query_barrier: &'a Barrier,
+}
+
+impl NvtxWorkload {
+    fn from_args(args: &Args) -> Self {
+        Self {
+            query_count: args.num_query_groups.saturating_mul(args.num_queries),
+            worker_thread_count: args.num_workers.saturating_mul(args.num_threads),
+        }
+    }
+
+    fn detailed_ranges_per_thread(self, layout: NvtxLayout) -> usize {
+        let query_thread_count = self.query_count.saturating_mul(self.worker_thread_count);
+        if layout.num_domains == 0 || query_thread_count == 0 {
+            return 0;
+        }
+        let query_ranges = self.query_count.saturating_mul(QUERY_LEVEL_NVTX_RANGES);
+        let envelope_ranges = query_thread_count.saturating_mul(layout.num_domains);
+        layout
+            .max_ranges
+            .saturating_sub(query_ranges.saturating_add(envelope_ranges))
+            / query_thread_count
+    }
+}
+
+fn nvtx_push_budgeted<'a>(
+    nvtx: &'a NvtxCapture,
+    range_budget: &mut usize,
+    domain: u64,
+    thread_id: u32,
+    message: &str,
+    category: u32,
+) -> NvtxPushGuard<'a> {
+    let enabled = *range_budget != 0;
+    *range_budget = range_budget.saturating_sub(1);
+    nvtx.push_if(enabled, domain, thread_id, message, category)
 }
 
 fn initialize_tracing() {
@@ -242,36 +296,46 @@ fn nvtx_category_for_operator(kind: Physical) -> NvtxCategory {
     }
 }
 
-fn nvtx_libcudf_scan(nvtx: &NvtxCapture, thread_id: u32) {
+fn nvtx_libcudf_scan(nvtx: &NvtxCapture, thread_id: u32, range_budget: &mut usize) {
     let Some(domain) = nvtx.try_domain(2) else {
         return;
     };
-    let _parquet = nvtx.push(
+    let _parquet = nvtx_push_budgeted(
+        nvtx,
+        range_budget,
         domain,
         thread_id,
         "read_parquet",
         nvtx.category_id(NvtxCategory::Io),
     );
     {
-        let _chunk = nvtx.push(
+        let _chunk = nvtx_push_budgeted(
+            nvtx,
+            range_budget,
             domain,
             thread_id,
             "read_chunk_internal",
             nvtx.category_id(NvtxCategory::Internal),
         );
         {
-            let _decode = nvtx.push(
+            let _decode = nvtx_push_budgeted(
+                nvtx,
+                range_budget,
                 domain,
                 thread_id,
                 "decode_page_data",
                 nvtx.category_id(NvtxCategory::Compute),
             );
-            let _extra = nvtx.push_nested(thread_id, nvtx.layout().num_nested_ranges);
+            let nested_count = nvtx.layout().num_nested_ranges.min(*range_budget);
+            *range_budget -= nested_count;
+            let _extra = nvtx.push_nested(thread_id, nested_count);
             sleep_short();
         }
     }
     {
-        let _copy = nvtx.push(
+        let _copy = nvtx_push_budgeted(
+            nvtx,
+            range_budget,
             domain,
             thread_id,
             "copy_if",
@@ -280,7 +344,9 @@ fn nvtx_libcudf_scan(nvtx: &NvtxCapture, thread_id: u32) {
         sleep_short();
     }
     {
-        let _finalize = nvtx.push(
+        let _finalize = nvtx_push_budgeted(
+            nvtx,
+            range_budget,
             domain,
             thread_id,
             "finalize_output",
@@ -290,11 +356,13 @@ fn nvtx_libcudf_scan(nvtx: &NvtxCapture, thread_id: u32) {
     }
 }
 
-fn nvtx_cccl_kernel(nvtx: &NvtxCapture, thread_id: u32, index: usize) {
+fn nvtx_cccl_kernel(nvtx: &NvtxCapture, thread_id: u32, index: usize, range_budget: &mut usize) {
     let Some(domain) = nvtx.try_domain(1) else {
         return;
     };
-    let _kernel = nvtx.push(
+    let _kernel = nvtx_push_budgeted(
+        nvtx,
+        range_budget,
         domain,
         thread_id,
         NvtxCapture::cccl_kernel_name(index),
@@ -713,14 +781,17 @@ impl Worker {
         engine: &Engine,
         operator: &Operator<Physical>,
         thread: Uuid,
+        range_budget: &mut usize,
     ) {
         let thread_ref = Ref::new(thread);
         let mem_ref = Ref::new(self.memory);
         let nvtx_thread_id = self.nvtx_thread_id(thread);
         let category = nvtx.category_id(nvtx_category_for_operator(operator.kind));
-        let emit_nvtx = nvtx.emit_task_ranges(index);
+        let emit_nvtx = *range_budget != 0;
         let _op = emit_nvtx.then(|| {
-            nvtx.push(
+            nvtx_push_budgeted(
+                nvtx,
+                range_budget,
                 nvtx.domain_at(0),
                 nvtx_thread_id,
                 &format!(
@@ -731,7 +802,9 @@ impl Worker {
             )
         });
         let _execute = emit_nvtx.then(|| {
-            nvtx.push(
+            nvtx_push_budgeted(
+                nvtx,
+                range_budget,
                 nvtx.domain_at(0),
                 nvtx_thread_id,
                 nvtx_execute_name(operator.kind),
@@ -756,7 +829,7 @@ impl Worker {
         let num_bytes = rng().random_range(0..1024) * 1024 * 1024;
 
         if emit_nvtx && operator.kind == Physical::FileSystemScan {
-            nvtx_libcudf_scan(nvtx, nvtx_thread_id);
+            nvtx_libcudf_scan(nvtx, nvtx_thread_id, range_budget);
         }
 
         {
@@ -776,7 +849,7 @@ impl Worker {
 
         if load {
             if emit_nvtx && operator.kind != Physical::FileSystemScan {
-                nvtx_libcudf_scan(nvtx, nvtx_thread_id);
+                nvtx_libcudf_scan(nvtx, nvtx_thread_id, range_budget);
             }
             task.loading(
                 Some(usage(thread_ref)),
@@ -788,11 +861,18 @@ impl Worker {
 
         {
             if emit_nvtx {
-                nvtx_cccl_kernel(nvtx, nvtx_thread_id, index.wrapping_add(op_id));
+                nvtx_cccl_kernel(
+                    nvtx,
+                    nvtx_thread_id,
+                    index.wrapping_add(op_id),
+                    range_budget,
+                );
                 if operator.kind == Physical::JoinLocal
                     && let Some(domain) = nvtx.try_domain(2)
                 {
-                    let _binop = nvtx.push(
+                    let _binop = nvtx_push_budgeted(
+                        nvtx,
+                        range_budget,
                         domain,
                         nvtx_thread_id,
                         "binary_operation",
@@ -829,11 +909,16 @@ impl Worker {
     fn execute_logical_plan(
         &self,
         context: &SimulatorContext,
-        nvtx: &NvtxCapture,
+        nvtx_execution: NvtxExecution<'_>,
         engine: &Engine,
         l_plan: &Plan<Logical>,
         num_tasks: usize,
     ) {
+        let NvtxExecution {
+            capture: nvtx,
+            workload: nvtx_workload,
+            query_barrier: nvtx_query_barrier,
+        } = nvtx_execution;
         let physical_plan = simulate_planning(l_plan);
         physical_plan.declare(context, Some(self.id));
 
@@ -884,6 +969,8 @@ impl Worker {
         if physical_plan.execute {
             // On each thread, run a bunch of tasks for each operator.
             let tasks_per_thread_per_op = num_tasks / self.threads.len();
+            let detailed_ranges_per_thread =
+                nvtx_workload.detailed_ranges_per_thread(nvtx.layout());
             let plan = &physical_plan;
             let nodes = &nodes;
             std::thread::scope(|s| {
@@ -892,16 +979,53 @@ impl Worker {
                     s.spawn({
                         let thread_id = *thread_id;
                         move || {
+                            let _query_envelopes = (0..nvtx.layout().num_domains)
+                                .map(|domain_index| {
+                                    nvtx.push(
+                                        nvtx.domain_at(domain_index),
+                                        nvtx_thread_id,
+                                        "query thread execution",
+                                        nvtx.category_id(NvtxCategory::Internal),
+                                    )
+                                })
+                                .collect::<Vec<_>>();
+                            nvtx_query_barrier.wait();
                             let pipeline = nodes
                                 .iter()
                                 .map(|node_idx| nvtx_pipeline_op(plan.dag[*node_idx].kind))
                                 .collect::<Vec<_>>()
                                 .join(" -> ");
-                            for task_index in thread_index * tasks_per_thread_per_op
-                                ..(thread_index + 1) * tasks_per_thread_per_op
-                            {
-                                let _pipeline_task = nvtx.emit_task_ranges(task_index).then(|| {
-                                    nvtx.push(
+                            let requested_clusters = if detailed_ranges_per_thread == 0 {
+                                0
+                            } else {
+                                detailed_ranges_per_thread
+                                    .div_ceil(TARGET_NVTX_RANGES_PER_CLUSTER)
+                                    .max(2)
+                                    .min(detailed_ranges_per_thread)
+                            };
+                            let sampled_offsets = nvtx
+                                .sampled_task_offsets(tasks_per_thread_per_op, requested_clusters);
+                            let mut next_cluster = 0;
+                            let task_range = thread_index * tasks_per_thread_per_op
+                                ..(thread_index + 1) * tasks_per_thread_per_op;
+                            for (task_offset, task_index) in task_range.enumerate() {
+                                let mut range_budget =
+                                    if sampled_offsets.get(next_cluster) == Some(&task_offset) {
+                                        let cluster_count = sampled_offsets.len();
+                                        let budget = detailed_ranges_per_thread / cluster_count
+                                            + usize::from(
+                                                next_cluster
+                                                    < detailed_ranges_per_thread % cluster_count,
+                                            );
+                                        next_cluster += 1;
+                                        budget
+                                    } else {
+                                        0
+                                    };
+                                let _pipeline_task = (range_budget != 0).then(|| {
+                                    nvtx_push_budgeted(
+                                        nvtx,
+                                        &mut range_budget,
                                         nvtx.domain_at(0),
                                         nvtx_thread_id,
                                         &format!("Pipeline 0 Task {task_index} [{pipeline}]"),
@@ -911,7 +1035,14 @@ impl Worker {
                                 for (op_id, node_idx) in nodes.iter().enumerate() {
                                     let op = &plan.dag[*node_idx];
                                     self.execute_physical_operator_task(
-                                        context, nvtx, task_index, op_id, engine, op, thread_id,
+                                        context,
+                                        nvtx,
+                                        task_index,
+                                        op_id,
+                                        engine,
+                                        op,
+                                        thread_id,
+                                        &mut range_budget,
                                     );
                                     op.tasks_processed.fetch_add(1, Ordering::Relaxed);
                                     let edges =
@@ -936,6 +1067,7 @@ impl Worker {
                                     }
                                 }
                             }
+                            nvtx_query_barrier.wait();
                         }
                     });
                 }
@@ -1332,6 +1464,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     info!("Simulating with: {args:?}");
 
     let mut engine = Engine::new();
+    let nvtx_workload = NvtxWorkload::from_args(&args);
 
     let exporter = args.exporter.into_options();
     let context = match exporter.clone() {
@@ -1422,12 +1555,18 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             }
 
             let workers: Vec<_> = engine.workers.values().collect();
+            let nvtx_query_barrier = Barrier::new(nvtx_workload.worker_thread_count.max(1));
+            let nvtx_execution = NvtxExecution {
+                capture: &nvtx,
+                workload: nvtx_workload,
+                query_barrier: &nvtx_query_barrier,
+            };
             std::thread::scope(|s| {
                 for worker in workers {
                     s.spawn(|| {
                         worker.execute_logical_plan(
                             &context,
-                            &nvtx,
+                            nvtx_execution,
                             &engine,
                             &l_plan,
                             args.num_tasks,
@@ -1453,4 +1592,35 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     info!("simulation completed");
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn nvtx_budget_is_divided_across_every_query_thread() {
+        let workload = NvtxWorkload {
+            query_count: 2,
+            worker_thread_count: 10,
+        };
+        let layout = NvtxLayout {
+            num_domains: 3,
+            max_ranges: 1_000,
+            ..NvtxLayout::default()
+        };
+        assert_eq!(workload.detailed_ranges_per_thread(layout), 46);
+    }
+
+    #[test]
+    fn default_cap_reserves_full_query_envelopes() {
+        let workload = NvtxWorkload {
+            query_count: 4,
+            worker_thread_count: 64,
+        };
+        assert_eq!(
+            workload.detailed_ranges_per_thread(NvtxLayout::default()),
+            75
+        );
+    }
 }
