@@ -20,7 +20,7 @@ import {
   FLOW_BAR_TRACK_GAP,
   FLOW_BAR_LABEL_HEIGHT,
 } from '../dag/layout';
-import { DataFlowBar } from './DataFlowBar';
+import { SegmentedBar } from '../segmented-bar/SegmentedBar';
 
 const BAR_TRANSITION = 'width 120ms linear';
 
@@ -133,7 +133,7 @@ export const NodeFlowBar = memo(
         style={{ marginTop: FLOW_BAR_TOP_MARGIN }}
         data-testid="node-flow-bar"
       >
-        <DataFlowBar
+        <SegmentedBar
           segments={stateSegments}
           fillValue={total}
           maxValue={frame.maxTotal}
@@ -144,7 +144,7 @@ export const NodeFlowBar = memo(
           trackClassName={hasData ? 'bg-muted/40' : 'bg-transparent'}
           labelTestId="flow-segment-label"
         />
-        <DataFlowBar
+        <SegmentedBar
           segments={dimensionSegments}
           fillValue={total}
           maxValue={frame.maxTotal}

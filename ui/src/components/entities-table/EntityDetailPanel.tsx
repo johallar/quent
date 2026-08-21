@@ -3,7 +3,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { Check, Copy } from 'lucide-react';
-import { DataFlowBar, DataText, FsmCapacityChart, thinScrollbarClass } from '@quent/components';
+import { DataText, FsmCapacityChart, SegmentedBar, thinScrollbarClass } from '@quent/components';
 import {
   cn,
   formatDuration,
@@ -138,7 +138,7 @@ export function EntityDetailPanel({
           </div>
         )}
         {totalSpanMs > 0 && stateTimeMs.size > 0 && (
-          <DataFlowBar
+          <SegmentedBar
             className="mt-2"
             trackClassName="rounded-full bg-transparent"
             height={8}

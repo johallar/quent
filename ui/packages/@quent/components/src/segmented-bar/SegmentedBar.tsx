@@ -6,7 +6,7 @@ import { cn } from '@quent/utils';
 import { PointerTooltipPortal, type PointerPosition } from '../ui/pointer-tooltip-portal';
 import { SegmentValueLabel } from './SegmentValueLabel';
 
-export interface DataFlowBarSegment {
+export interface SegmentedBarSegment {
   id: string;
   value: number;
   color: string;
@@ -18,8 +18,8 @@ export interface DataFlowBarSegment {
   title?: string;
 }
 
-export interface DataFlowBarProps {
-  segments: DataFlowBarSegment[];
+export interface SegmentedBarProps {
+  segments: SegmentedBarSegment[];
   fillValue?: number;
   maxValue?: number;
   height?: number | string;
@@ -33,7 +33,7 @@ export interface DataFlowBarProps {
   style?: CSSProperties;
 }
 
-export function DataFlowBar({
+export function SegmentedBar({
   segments,
   fillValue,
   maxValue,
@@ -46,7 +46,7 @@ export function DataFlowBar({
   trackClassName,
   labelTestId,
   style,
-}: DataFlowBarProps) {
+}: SegmentedBarProps) {
   const [tooltip, setTooltip] = useState<{
     content: ReactNode;
     pointer: PointerPosition;

@@ -195,9 +195,11 @@ export { DagPlayhead } from './dag/DagPlayhead';
 
 // ─── Query-plan components ────────────────────────────────────────────────────
 export { QueryPlanNode } from './query-plan/QueryPlanNode';
-export { DataFlowBar } from './query-plan/DataFlowBar';
-export type { DataFlowBarProps, DataFlowBarSegment } from './query-plan/DataFlowBar';
 export { NodeFlowBar } from './query-plan/NodeFlowBar';
+
+// ─── Segmented-bar components ─────────────────────────────────────────────────
+export { SegmentedBar } from './segmented-bar/SegmentedBar';
+export type { SegmentedBarProps, SegmentedBarSegment } from './segmented-bar/SegmentedBar';
 
 // ─── Resource-tree components ─────────────────────────────────────────────────
 export { InlineSelector } from './resource-tree/InlineSelector';

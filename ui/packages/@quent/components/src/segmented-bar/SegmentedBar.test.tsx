@@ -3,7 +3,7 @@
 
 import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
-import { DataFlowBar } from './DataFlowBar';
+import { SegmentedBar } from './SegmentedBar';
 
 const segments = [
   {
@@ -16,10 +16,10 @@ const segments = [
   },
 ];
 
-describe('DataFlowBar', () => {
+describe('SegmentedBar', () => {
   it('configures height, fill scaling, labels, and tooltips', () => {
     const { container, rerender } = render(
-      <DataFlowBar
+      <SegmentedBar
         segments={segments}
         fillValue={2}
         maxValue={10}
@@ -41,7 +41,7 @@ describe('DataFlowBar', () => {
     expect(screen.queryByText('Running: 2')).not.toBeInTheDocument();
 
     rerender(
-      <DataFlowBar segments={segments} showLabels showTooltips labelTestId="segment-label" />
+      <SegmentedBar segments={segments} showLabels showTooltips labelTestId="segment-label" />
     );
 
     fireEvent.mouseEnter(screen.getByRole('img', { name: 'running: 20%' }), {
