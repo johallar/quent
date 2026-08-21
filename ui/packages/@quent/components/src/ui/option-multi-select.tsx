@@ -10,7 +10,8 @@ import { Input } from './input';
 import { Popover, PopoverContent, PopoverTrigger } from './popover';
 
 interface OptionMultiSelectProps {
-  label: string;
+  label?: string;
+  ariaLabel?: string;
   triggerText: string;
   options: string[];
   selectedOptionIds: Set<string> | null;
@@ -22,10 +23,13 @@ interface OptionMultiSelectProps {
   noneSelectedText?: string;
   maxVisibleBadges?: number;
   showSelectedBadges?: boolean;
+  className?: string;
+  triggerClassName?: string;
 }
 
 export function OptionMultiSelect({
   label,
+  ariaLabel,
   triggerText,
   options,
   selectedOptionIds,
@@ -37,13 +41,18 @@ export function OptionMultiSelect({
   noneSelectedText = 'None selected',
   maxVisibleBadges = 6,
   showSelectedBadges = true,
+  className,
+  triggerClassName,
 }: OptionMultiSelectProps) {
   const [search, setSearch] = useState('');
 
   const isSelected = (option: string): boolean =>
     selectedOptionIds ? selectedOptionIds.has(option) : true;
 
-  const selectedOptions = useMemo(() => options.filter(isSelected), [options, selectedOptionIds]);
+  const selectedOptions = useMemo(
+    () => options.filter(option => (selectedOptionIds ? selectedOptionIds.has(option) : true)),
+    [options, selectedOptionIds]
+  );
   const visibleSelectedOptions = selectedOptions.slice(0, maxVisibleBadges);
   const hiddenSelectedCount = Math.max(0, selectedOptions.length - visibleSelectedOptions.length);
 
@@ -56,8 +65,8 @@ export function OptionMultiSelect({
   }, [options, search]);
 
   return (
-    <div className="flex items-center gap-1 px-3 py-1.5 border-t border-border/50">
-      <span className="text-xs text-muted-foreground shrink-0 mr-1">{label}:</span>
+    <div className={cn('flex items-center gap-1 border-t border-border/50 px-3 py-1.5', className)}>
+      {label && <span className="mr-1 shrink-0 text-xs text-muted-foreground">{label}:</span>}
       <Popover
         onOpenChange={open => {
           if (!open) {
@@ -67,10 +76,14 @@ export function OptionMultiSelect({
       >
         <PopoverTrigger asChild>
           <Button
-            variant="outline"
-            size="sm"
+            aria-label={ariaLabel ?? label}
+            className={cn(
+              'h-7 min-w-36 cursor-pointer justify-between gap-2 px-2 text-xs font-normal',
+              triggerClassName
+            )}
             role="combobox"
-            className="h-7 min-w-36 justify-between gap-2 px-2 text-xs font-normal"
+            size="sm"
+            variant="outline"
           >
             <span className="truncate">
               {selectedOptions.length > 0

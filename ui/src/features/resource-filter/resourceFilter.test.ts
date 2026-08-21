@@ -4,7 +4,7 @@
 import { describe, expect, it } from 'vitest';
 import type { TreeTableItem } from '@quent/components';
 import { EntityTypeKey, type QueryEntities } from '@quent/utils';
-import { filterResourceTree, parseResourceFilter } from './resourceFilter';
+import { EMPTY_RESOURCE_FILTER, filterResourceTree, type ResourceFilter } from './resourceFilter';
 
 function resource(id: string, name: string, typeName: string): TreeTableItem {
   return {
@@ -41,86 +41,78 @@ const entities = {
   },
 } as unknown as QueryEntities;
 
-describe('parseResourceFilter', () => {
-  it('parses free text, quoted values, and whitespace after a qualifier', () => {
-    const parsed = parseResourceFilter('GPU name:"worker one" id: gpu-0 type:gpu');
-
-    expect(parsed.nameTerms).toEqual(['gpu']);
-    expect(parsed.filters.name).toEqual(['worker one']);
-    expect(parsed.filters.id).toEqual(['gpu-0']);
-    expect(parsed.filters.type).toEqual(['gpu']);
-    expect(parsed.errors).toEqual([]);
-    expect(parsed.canonicalQuery).toBe('gpu name:"worker one" id:gpu-0 type:gpu');
-  });
-
-  it('combines repeated and comma-separated qualifier values as alternatives', () => {
-    const parsed = parseResourceFilter('id:gpu-0,gpu-1 id:cpu-0 fsm:task fsm:transfer');
-
-    expect(parsed.filters.id).toEqual(['gpu-0', 'gpu-1', 'cpu-0']);
-    expect(parsed.filters.fsm).toEqual(['task', 'transfer']);
-  });
-
-  it('reports unknown qualifiers, missing values, and unclosed quotes', () => {
-    const parsed = parseResourceFilter('wat:value id: name:"unfinished');
-
-    expect(parsed.errors).toEqual([
-      'Unclosed quote',
-      'Unknown qualifier "wat"',
-      'Missing value for "id:"',
-    ]);
-  });
-});
+function filter(overrides: Partial<ResourceFilter>) {
+  return filterResourceTree(root, entities, { ...EMPTY_RESOURCE_FILTER, ...overrides });
+}
 
 describe('filterResourceTree', () => {
-  it('matches free-text names and preserves their ancestor path', () => {
-    const result = filterResourceTree(root, entities, 'GPU 1');
+  it('matches names and promotes matches through nonmatching ancestors', () => {
+    const result = filter({ search: 'GPU 1' });
 
-    expect(result.filteredRoot?.children).toHaveLength(1);
-    expect(result.filteredRoot?.children?.[0]?.children?.map(item => item.id)).toEqual(['gpu-1']);
+    expect(result.filteredItems.map(item => item.id)).toEqual(['gpu-1']);
     expect(result.directMatchIds).toEqual(new Set(['gpu-1']));
-    expect(result.autoExpandedIds).toEqual(new Set(['worker-a', 'query']));
+    expect(result.autoExpandedIds).toEqual(new Set(['query', 'worker-a']));
   });
 
-  it('matches exact IDs and treats multiple ID values as alternatives', () => {
-    const result = filterResourceTree(root, entities, 'id:gpu-0,cpu-0');
+  it('matches resource IDs', () => {
+    const result = filter({ search: 'gpu-0' });
 
+    expect(result.filteredItems.map(item => item.id)).toEqual(['gpu-0']);
+    expect(result.directMatchIds).toEqual(new Set(['gpu-0']));
+  });
+
+  it('matches comma-delimited search terms as alternatives', () => {
+    const result = filter({ search: 'gpu-0, cpu-0' });
+
+    expect(result.filteredItems.map(item => item.id)).toEqual(['gpu-0', 'cpu-0']);
     expect(result.directMatchIds).toEqual(new Set(['gpu-0', 'cpu-0']));
+  });
+
+  it('searches displayed type labels', () => {
+    const result = filter({ search: 'ResourceGroup' });
+
+    expect(result.filteredItems.map(item => item.id)).toEqual(['query']);
+    expect(result.filteredItems[0]?.children?.map(item => item.id)).toEqual(['worker-a']);
     expect(result.matchCount).toBe(2);
-    expect(result.filteredRoot?.children?.map(item => item.id)).toEqual(['worker-a', 'cpu-0']);
+    expect(result.autoExpandedIds).toEqual(new Set(['query']));
   });
 
-  it('matches resource types and FSM declarations on leaf resources', () => {
-    const result = filterResourceTree(root, entities, 'type:gpu fsm:transfer');
+  it('matches selected resource types as alternatives', () => {
+    const result = filter({ resourceTypes: ['gpu', 'cpu'] });
 
-    expect(result.directMatchIds).toEqual(new Set(['gpu-0', 'gpu-1']));
-    expect(result.filteredRoot?.children?.[0]?.children?.map(item => item.id)).toEqual([
-      'gpu-0',
-      'gpu-1',
-    ]);
+    expect(result.directMatchIds).toEqual(new Set(['gpu-0', 'gpu-1', 'cpu-0']));
+    expect(result.filteredItems.map(item => item.id)).toEqual(['gpu-0', 'gpu-1', 'cpu-0']);
   });
 
-  it('ANDs different qualifiers', () => {
-    const result = filterResourceTree(root, entities, 'name:"GPU 0" fsm:task');
+  it('matches selected FSM declarations as alternatives', () => {
+    const result = filter({ fsmTypes: ['transfer', 'task'] });
+
+    expect(result.directMatchIds).toEqual(new Set(['gpu-0', 'gpu-1', 'cpu-0']));
+    expect(result.filteredItems.map(item => item.id)).toEqual(['gpu-0', 'gpu-1', 'cpu-0']);
+  });
+
+  it('ANDs the search and specific filters', () => {
+    const result = filter({ search: 'GPU 0', fsmTypes: ['task'] });
 
     expect(result.directMatchIds).toEqual(new Set(['gpu-0']));
   });
 
-  it('retains a directly matched group subtree and expands the group', () => {
-    const result = filterResourceTree(root, entities, 'id:worker-a');
+  it('hides nonmatching descendants of a matched group', () => {
+    const result = filter({ search: 'Worker A' });
 
-    expect(result.filteredRoot?.children?.[0]).toBe(worker);
-    expect(result.autoExpandedIds).toEqual(new Set(['worker-a', 'query']));
+    expect(result.filteredItems).toEqual([{ ...worker, children: [] }]);
+    expect(result.autoExpandedIds).toEqual(new Set(['query']));
   });
 
   it('returns no tree when nothing matches', () => {
-    const result = filterResourceTree(root, entities, 'id:missing');
+    const result = filter({ search: 'missing' });
 
-    expect(result.filteredRoot).toBeNull();
+    expect(result.filteredItems).toEqual([]);
     expect(result.matchCount).toBe(0);
   });
 
-  it('returns the original tree for an empty or invalid-only query', () => {
-    expect(filterResourceTree(root, entities, '').filteredRoot).toBe(root);
-    expect(filterResourceTree(root, entities, 'unknown:value').filteredRoot).toBe(root);
+  it('returns the original tree when no filters are active', () => {
+    expect(filterResourceTree(root, entities, EMPTY_RESOURCE_FILTER).filteredItems).toEqual([root]);
+    expect(filter({ showOthers: true }).isActive).toBe(false);
   });
 });

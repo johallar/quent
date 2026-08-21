@@ -39,7 +39,6 @@ export function QueryToolbar({ children, filters }: QueryToolbarProps) {
             <button
               aria-label={`Clear operator filter ${operatorLabel}`}
               onClick={clearOperator}
-              aria-label="Clear operator filter"
               className="rounded-sm hover:bg-primary/20 p-0.5 -mr-0.5 transition-colors cursor-pointer"
               type="button"
             >

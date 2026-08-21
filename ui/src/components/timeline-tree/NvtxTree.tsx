@@ -303,7 +303,7 @@ export function useNvtxTreeModel({
   );
 
   return {
-    tree: tree as TimelineTreeItem | null,
+    trees: tree ? [tree as TimelineTreeItem] : [],
     initialSelectedItemId: tree?.id,
     expandedIds,
     onExpandChange: handleExpandChange,

@@ -2,6 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { atom } from 'jotai';
+import {
+  EMPTY_RESOURCE_FILTER,
+  type ResourceFilter,
+} from '@/features/resource-filter/resourceFilter';
 
 /**
  * Per-query resource-tree state. Lives at the per-query Jotai provider scope
@@ -18,4 +22,4 @@ export const selectedFsmTypesAtom = atom<Map<string, string | null>>(
 export const rootResourceTypeAtom = atom<string | null>(null);
 export const selectedNvtxDomainAtom = atom<string | null>(null);
 export const selectedNvtxCategoriesAtom = atom<Map<string, string>>(new Map());
-export const resourceFilterQueryAtom = atom('');
+export const resourceFilterAtom = atom<ResourceFilter>(EMPTY_RESOURCE_FILTER);

@@ -44,7 +44,12 @@ const state: DeepLinkStateV2 = {
   },
   resources: {
     expandedRowIds: ['resource-a', 'resource-b'],
-    resourceFilter: 'id:resource-a,resource-b',
+    resourceFilter: {
+      search: 'resource',
+      resourceTypes: ['channel', 'memory'],
+      fsmTypes: ['task', 'transfer'],
+      showOthers: true,
+    },
     rootResourceType: 'memory',
     resourceTypeSelections: [{ rowId: 'resource-a', resourceType: 'channel' }],
     fsmSelections: [{ rowId: 'resource-a', fsmType: 'task' }],
@@ -182,7 +187,9 @@ describe('deep-link state validation', () => {
       DeepLinkStateV2Schema.safeParse({
         route: state.route,
         timeline: state.timeline,
-        resources: { resourceFilter: 'x'.repeat(MAX_RESOURCE_FILTER_QUERY_LENGTH + 1) },
+        resources: {
+          resourceFilter: { search: 'x'.repeat(MAX_RESOURCE_FILTER_QUERY_LENGTH + 1) },
+        },
       }).success
     ).toBe(false);
   });

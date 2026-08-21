@@ -100,6 +100,19 @@ const FsmSelectionSchema = z
   })
   .strip();
 
+const ResourceFilterSchema = z
+  .object({
+    search: z.string().trim().min(1).max(MAX_RESOURCE_FILTER_QUERY_LENGTH).optional(),
+    resourceTypes: z
+      .array(NameSchema)
+      .max(MAX_RESOURCE_OVERRIDES)
+      .transform(uniqueSorted)
+      .optional(),
+    fsmTypes: z.array(NameSchema).max(MAX_RESOURCE_OVERRIDES).transform(uniqueSorted).optional(),
+    showOthers: z.boolean().optional(),
+  })
+  .strip();
+
 const ResourceTreeSchema = z
   .object({
     expandedRowIds: z
@@ -108,7 +121,7 @@ const ResourceTreeSchema = z
       .transform(uniqueSorted)
       .optional(),
     rootResourceType: NameSchema.optional(),
-    resourceFilter: z.string().trim().min(1).max(MAX_RESOURCE_FILTER_QUERY_LENGTH).optional(),
+    resourceFilter: ResourceFilterSchema.optional(),
     resourceTypeSelections: z
       .array(ResourceSelectionSchema)
       .max(MAX_RESOURCE_OVERRIDES)

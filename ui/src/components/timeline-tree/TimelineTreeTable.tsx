@@ -26,12 +26,14 @@ import { useTheme, THEME_DARK } from '@/contexts/ThemeContext';
 export type TimelineTreeItem = TreeTableItem<EntityTypeValue | NvtxTreeEntity>;
 
 export interface TimelineTreeModel {
-  tree: TimelineTreeItem | null;
+  trees: TimelineTreeItem[];
   renderLabel: (item: TimelineTreeItem) => ReactNode;
   renderTimeline: (item: TimelineTreeItem) => ReactNode;
 }
 
 export interface TimelineTreeControls {
+  emptyMessage?: string;
+  filters?: ReactNode;
   initialSelectedItemId?: string;
   expandedIds: Set<string>;
   highlightedItemIds?: Set<string>;
@@ -94,11 +96,10 @@ export function TimelineTreeTable({
     const modelsByItemId = new Map<string, TimelineTreeModel>();
     const data: TimelineTreeItem[] = [];
     for (const model of trees) {
-      if (!model.tree) {
-        continue;
+      for (const tree of model.trees) {
+        data.push(tree);
+        indexTree(tree, model, modelsByItemId);
       }
-      data.push(model.tree);
-      indexTree(model.tree, model, modelsByItemId);
     }
     return { data, modelsByItemId };
   }, [trees]);
@@ -142,19 +143,25 @@ export function TimelineTreeTable({
 
   return (
     <div className="flex h-full w-full min-w-0 flex-col">
-      <TimelineToolbar durationSeconds={durationSeconds} />
+      <TimelineToolbar durationSeconds={durationSeconds} filters={controls.filters} />
       <div className="min-h-0 min-w-0 flex-1">
-        <TreeTable<TimelineTreeItem>
-          data={data}
-          columns={columns}
-          initialSelectedItemId={controls.initialSelectedItemId}
-          columnWidths={[275, 'auto']}
-          onExpandChange={controls.onExpandChange}
-          highlightedItemIds={controls.highlightedItemIds}
-          controlledExpandedIds={controls.expandedIds}
-          virtualized
-          rowHeight={DEFAULT_TIMELINE_HEIGHT}
-        />
+        {data.length > 0 ? (
+          <TreeTable<TimelineTreeItem>
+            data={data}
+            columns={columns}
+            initialSelectedItemId={controls.initialSelectedItemId}
+            columnWidths={[275, 'auto']}
+            onExpandChange={controls.onExpandChange}
+            highlightedItemIds={controls.highlightedItemIds}
+            controlledExpandedIds={controls.expandedIds}
+            virtualized
+            rowHeight={DEFAULT_TIMELINE_HEIGHT}
+          />
+        ) : (
+          <div className="flex h-full items-center justify-center px-4 text-sm text-muted-foreground">
+            {controls.emptyMessage ?? 'No timeline data available.'}
+          </div>
+        )}
       </div>
       {children}
     </div>

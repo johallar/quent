@@ -15,11 +15,12 @@ import { NVTX_SECTION_ID, toast, Toaster } from '@quent/components';
 import { render, screen, waitFor, userEvent } from '@/test/test-utils';
 import {
   expandedIdsAtom,
-  resourceFilterQueryAtom,
+  resourceFilterAtom,
   rootResourceTypeAtom,
   selectedFsmTypesAtom,
   selectedTypesAtom,
 } from '@/atoms/resourceTree';
+import type { ResourceFilter } from '@/features/resource-filter/resourceFilter';
 import {
   OPERATOR_TABLE_INDEX_ORDER,
   OPERATOR_TABLE_PERSIST_KEY,
@@ -66,7 +67,7 @@ function SerializableStateProbe() {
   const selectedTypes = useAtomValue(selectedTypesAtom);
   const selectedFsmTypes = useAtomValue(selectedFsmTypesAtom);
   const rootResourceType = useAtomValue(rootResourceTypeAtom);
-  const resourceFilter = useAtomValue(resourceFilterQueryAtom);
+  const resourceFilter = useAtomValue(resourceFilterAtom);
   return (
     <output data-testid="serializable-state">
       {JSON.stringify({
@@ -115,12 +116,12 @@ function SeedEmptyDataFlowDimensions() {
   return null;
 }
 
-function SeedResourceFilter({ query }: { query: string }) {
-  const setResourceFilter = useSetAtom(resourceFilterQueryAtom);
+function SeedResourceFilter({ filter }: { filter: ResourceFilter }) {
+  const setResourceFilter = useSetAtom(resourceFilterAtom);
 
   useLayoutEffect(() => {
-    setResourceFilter(query);
-  }, [query, setResourceFilter]);
+    setResourceFilter(filter);
+  }, [filter, setResourceFilter]);
   return null;
 }
 
@@ -223,7 +224,12 @@ describe('DeepLinkBoundary', () => {
       selection: { planId: 'plan-a', operatorNodeIds: ['operator-a'] },
       resources: {
         expandedRowIds: ['worker-a'],
-        resourceFilter: 'type:channel fsm:task',
+        resourceFilter: {
+          search: 'worker',
+          resourceTypes: ['channel', 'memory'],
+          fsmTypes: ['task', 'transfer'],
+          showOthers: true,
+        },
         rootResourceType: 'channel',
         resourceTypeSelections: [{ rowId: 'worker-a', resourceType: 'memory' }],
         fsmSelections: [{ rowId: 'worker-a', fsmType: 'task' }],
@@ -298,7 +304,12 @@ describe('DeepLinkBoundary', () => {
         selectedTypes: [['worker-a', 'memory']],
         selectedFsmTypes: [['worker-a', 'task']],
         rootResourceType: 'channel',
-        resourceFilter: 'type:channel fsm:task',
+        resourceFilter: {
+          search: 'worker',
+          resourceTypes: ['channel', 'memory'],
+          fsmTypes: ['task', 'transfer'],
+          showOthers: true,
+        },
       },
     });
   });
@@ -372,7 +383,14 @@ describe('DeepLinkBoundary', () => {
             <SeedViewport start={20} end={60} />
             <SeedExpandedRows ids={[RESOURCE_B_ID, NVTX_SECTION_ID, RESOURCE_A_ID]} />
             <SeedEmptyDataFlowDimensions />
-            <SeedResourceFilter query="id:resource-b id:resource-a" />
+            <SeedResourceFilter
+              filter={{
+                search: 'resource',
+                resourceTypes: ['channel'],
+                fsmTypes: [],
+                showOthers: false,
+              }}
+            />
             <ViewportProbe />
             <CopyLinkButton />
           </DeepLinkBoundary>
@@ -402,7 +420,7 @@ describe('DeepLinkBoundary', () => {
           timeline: { zoomRange: { start: 20, end: 60 } },
           resources: {
             expandedRowIds: [RESOURCE_A_ID, RESOURCE_B_ID, NVTX_SECTION_ID],
-            resourceFilter: 'id:resource-b,resource-a',
+            resourceFilter: { search: 'resource', resourceTypes: ['channel'] },
           },
         },
       },

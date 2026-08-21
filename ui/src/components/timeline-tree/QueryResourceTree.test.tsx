@@ -4,6 +4,7 @@
 import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { waitFor, act } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { renderWithQuery } from '@/test/test-utils';
 import { Provider as JotaiProvider, createStore } from 'jotai';
 import { QueryResourceTree } from './QueryResourceTree';
@@ -21,6 +22,7 @@ import {
   OPERATOR_TIMELINE_ROW_TYPE,
   type TreeTableItem,
 } from '@quent/components';
+import { resourceFilterAtom } from '@/atoms/resourceTree';
 import type { ResourceTimelineSubRow } from './sub-rows';
 
 // ---------------------------------------------------------------------------
@@ -49,6 +51,8 @@ vi.mock('@/contexts/ThemeContext', () => ({
 // Capture the timelineData prop passed to TimelineController on every render
 let capturedTimelineData: SingleTimelineResponse | null | undefined = undefined;
 let capturedTreeData: TreeTableItem[] = [];
+let capturedHighlightedIds = new Set<string>();
+let capturedExpandedIds = new Set<string>();
 let capturedInlineSelectors: Array<{
   id: string;
   value: string;
@@ -77,9 +81,13 @@ vi.mock('@quent/components', async importOriginal => {
         subHeaderContent?: React.ReactNode;
         render?: (props: { item: TreeTableItem; level?: number }) => React.ReactNode;
       }>;
+      controlledExpandedIds?: Set<string>;
       data: TreeTableItem[];
+      highlightedItemIds?: Set<string>;
     }) => {
       capturedTreeData = props.data;
+      capturedHighlightedIds = props.highlightedItemIds ?? new Set();
+      capturedExpandedIds = props.controlledExpandedIds ?? new Set();
       const longEntityElement = props.columns[1]?.render?.({
         item: {
           id: actual.longEntitiesRowId(RESOURCE_ID),
@@ -116,7 +124,7 @@ vi.mock('@quent/components', async importOriginal => {
     },
     ResourceColumn: () => null,
     UsageColumn: () => null,
-    TimelineToolbar: () => null,
+    TimelineToolbar: ({ filters }: { filters?: React.ReactNode }) => filters,
   };
 });
 
@@ -154,7 +162,9 @@ const makeBundle = (workerId: string | null = null): QueryBundle<EntityRef> =>
       ports: {},
       resource_types: { [RESOURCE_TYPE]: { used_by: ['task'], capacities: [] } },
       resource_group_types: {},
-      resources: { [RESOURCE_ID]: { id: RESOURCE_ID, type_name: RESOURCE_TYPE } },
+      resources: {
+        [RESOURCE_ID]: { id: RESOURCE_ID, instance_name: 'GPU 0', type_name: RESOURCE_TYPE },
+      },
       resource_groups: {},
       fsm_types: {},
     },
@@ -209,6 +219,8 @@ beforeEach(() => {
   capturedInlineSelectors = [];
   capturedTimelineData = undefined;
   capturedTreeData = [];
+  capturedHighlightedIds = new Set();
+  capturedExpandedIds = new Set();
   capturedLongEntityProps = undefined;
   vi.mocked(clientApi.useNvtxStream).mockReturnValue({
     contextId: undefined,
@@ -447,5 +459,82 @@ describe('QueryResourceTree — configurable resource subrows', () => {
     expect(rowTypes).toContain(CUSTOM_SUB_ROW_TYPE);
     expect(rowTypes).not.toContain(OPERATOR_TIMELINE_ROW_TYPE);
     expect(rowTypes).not.toContain(LONG_ENTITIES_ROW_TYPE);
+  });
+});
+
+describe('QueryResourceTree — resource filtering', () => {
+  beforeEach(() => {
+    capturedTreeData = [];
+    capturedHighlightedIds = new Set();
+    capturedExpandedIds = new Set();
+    vi.mocked(clientApi.fetchSingleTimeline).mockResolvedValue(makeTimeline(0, DURATION_S));
+    vi.mocked(clientApi.fetchBulkTimelines).mockResolvedValue({ entries: {} } as never);
+  });
+
+  it('shows matching resources without nonmatching ancestor rows', async () => {
+    const store = createStore();
+    store.set(resourceFilterAtom, {
+      search: 'GPU 0',
+      resourceTypes: [],
+      fsmTypes: [],
+      showOthers: false,
+    });
+
+    const { getByRole } = renderWithQuery(
+      <JotaiProvider store={store}>
+        <QueryResourceTree engineId="engine-1" queryBundle={makeBundle()} />
+      </JotaiProvider>
+    );
+
+    await userEvent.click(getByRole('button', { name: 'Resource filters, 1 selected filter' }));
+    expect(getByRole('textbox', { name: 'Search resource names, labels, and IDs' })).toHaveValue(
+      'GPU 0'
+    );
+    await waitFor(() => expect(capturedTreeData).toHaveLength(1));
+    expect(capturedTreeData[0]?.id).toBe(RESOURCE_ID);
+    expect(capturedTreeData[0]?.children).toEqual([]);
+    expect(capturedHighlightedIds).not.toContain(RESOURCE_ID);
+  });
+
+  it('shows the whole tree and highlights matches when Show All is selected', async () => {
+    const store = createStore();
+    store.set(resourceFilterAtom, {
+      search: 'GPU 0',
+      resourceTypes: [],
+      fsmTypes: [],
+      showOthers: true,
+    });
+
+    const { getByRole } = renderWithQuery(
+      <JotaiProvider store={store}>
+        <QueryResourceTree engineId="engine-1" queryBundle={makeBundle()} />
+      </JotaiProvider>
+    );
+
+    await userEvent.click(getByRole('button', { name: 'Resource filters, 1 selected filter' }));
+    expect(getByRole('checkbox', { name: 'Show All' })).toBeChecked();
+    await waitFor(() => expect(capturedTreeData[0]?.id).toBe(ROOT_GROUP_ID));
+    expect(capturedTreeData[0]?.children?.[0]?.id).toBe(RESOURCE_ID);
+    expect(capturedHighlightedIds).toContain(RESOURCE_ID);
+    expect(capturedExpandedIds).toContain(ROOT_GROUP_ID);
+  });
+
+  it('shows an empty state when no resources match', async () => {
+    const store = createStore();
+    store.set(resourceFilterAtom, {
+      search: 'missing',
+      resourceTypes: [],
+      fsmTypes: [],
+      showOthers: false,
+    });
+
+    const { findByText } = renderWithQuery(
+      <JotaiProvider store={store}>
+        <QueryResourceTree engineId="engine-1" queryBundle={makeBundle()} />
+      </JotaiProvider>
+    );
+
+    expect(await findByText('No resources match this filter.')).toBeInTheDocument();
+    expect(capturedTreeData).toEqual([]);
   });
 });

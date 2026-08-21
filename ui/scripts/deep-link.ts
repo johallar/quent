@@ -15,14 +15,25 @@ import {
 } from '../src/features/deep-link/deepLink.schema';
 
 const usage = `Usage:
-  pnpm deep-link create --engine ID --query ID --tab timeline --start S --end S [--resource-filter QUERY] [--base URL]
-  pnpm deep-link create --engine ID --query ID --tab timeline --state FILE [--resource-filter QUERY] [--base URL]
+  pnpm deep-link create --engine ID --query ID --tab timeline --start S --end S [--resource-search TEXT] [--resource-types TYPES] [--fsm-types TYPES] [--show-others] [--base URL]
+  pnpm deep-link create --engine ID --query ID --tab timeline --state FILE [--resource-search TEXT] [--resource-types TYPES] [--fsm-types TYPES] [--show-others] [--base URL]
   pnpm deep-link decode URL`;
 
 function fail(message: string): never {
   console.error(message);
   console.error(usage);
   process.exit(1);
+}
+
+function parseList(value: string | boolean | undefined): string[] | undefined {
+  if (typeof value !== 'string') {
+    return undefined;
+  }
+  const values = value
+    .split(',')
+    .map(item => item.trim())
+    .filter(Boolean);
+  return values.length > 0 ? values : undefined;
 }
 
 async function readState(
@@ -52,9 +63,16 @@ async function readState(
             : {}),
         }
       : { ...raw, route };
-  const resourceFilter = values['resource-filter'];
+  const resourceFilter = {
+    ...(typeof values['resource-search'] === 'string' ? { search: values['resource-search'] } : {}),
+    ...(parseList(values['resource-types'])
+      ? { resourceTypes: parseList(values['resource-types']) }
+      : {}),
+    ...(parseList(values['fsm-types']) ? { fsmTypes: parseList(values['fsm-types']) } : {}),
+    ...(values['show-others'] === true ? { showOthers: true } : {}),
+  };
   const candidateWithFilter =
-    typeof resourceFilter === 'string'
+    Object.keys(resourceFilter).length > 0
       ? {
           ...candidate,
           resources: {
@@ -140,8 +158,11 @@ async function main() {
       base: { type: 'string' },
       end: { type: 'string' },
       engine: { type: 'string' },
+      'fsm-types': { type: 'string' },
       query: { type: 'string' },
-      'resource-filter': { type: 'string' },
+      'resource-search': { type: 'string' },
+      'resource-types': { type: 'string' },
+      'show-others': { type: 'boolean' },
       start: { type: 'string' },
       state: { type: 'string' },
       tab: { type: 'string' },

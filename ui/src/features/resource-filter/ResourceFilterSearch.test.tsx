@@ -7,54 +7,132 @@ import { describe, expect, it, vi } from 'vitest';
 import { ResourceFilterSearch } from './ResourceFilterSearch';
 
 describe('ResourceFilterSearch', () => {
-  it('updates and clears the query', async () => {
+  it('updates and clears the name and label search', async () => {
     const user = userEvent.setup();
-    const onQueryChange = vi.fn();
+    const onSearchChange = vi.fn();
     const { rerender } = render(
       <ResourceFilterSearch
-        errors={[]}
         fsmTypes={['task']}
         matchCount={2}
-        onQueryChange={onQueryChange}
-        query=""
+        onFsmTypesChange={vi.fn()}
+        onResourceTypesChange={vi.fn()}
+        onSearchChange={onSearchChange}
+        onShowOthersChange={vi.fn()}
         resourceTypes={['gpu']}
+        search=""
+        selectedFsmTypes={[]}
+        selectedResourceTypes={[]}
+        showOthers={false}
       />
     );
 
-    await user.type(screen.getByRole('combobox', { name: 'Filter resources' }), 'id:gpu-0');
-    expect(onQueryChange).toHaveBeenCalled();
+    expect(screen.queryByRole('textbox')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('1 selected filter')).not.toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Resource filters' }));
+    await user.type(
+      screen.getByRole('textbox', { name: 'Search resource names, labels, and IDs' }),
+      'GPU'
+    );
+    expect(onSearchChange).toHaveBeenCalled();
 
     rerender(
       <ResourceFilterSearch
-        errors={[]}
         fsmTypes={['task']}
         matchCount={1}
-        onQueryChange={onQueryChange}
-        query="id:gpu-0"
+        onFsmTypesChange={vi.fn()}
+        onResourceTypesChange={vi.fn()}
+        onSearchChange={onSearchChange}
+        onShowOthersChange={vi.fn()}
         resourceTypes={['gpu']}
+        search="GPU"
+        selectedFsmTypes={[]}
+        selectedResourceTypes={[]}
+        showOthers={false}
       />
     );
+    expect(
+      screen.getByRole('button', { name: 'Resource filters, 1 selected filter' })
+    ).toBeInTheDocument();
+    expect(screen.getByLabelText('1 selected filter')).toHaveTextContent('1');
     expect(screen.getByText('1 match')).toBeInTheDocument();
 
-    await user.click(screen.getByRole('button', { name: 'Clear resource filter' }));
-    expect(onQueryChange).toHaveBeenLastCalledWith('');
+    await user.click(screen.getByRole('button', { name: 'Clear resource search' }));
+    expect(onSearchChange).toHaveBeenLastCalledWith('');
   });
 
-  it('offers known type and FSM suggestions and reports parse errors', () => {
-    const { container } = render(
+  it('offers separate resource type and FSM type multiselects', async () => {
+    const user = userEvent.setup();
+    const onResourceTypesChange = vi.fn();
+    const onFsmTypesChange = vi.fn();
+    const onSearchChange = vi.fn();
+    const onShowOthersChange = vi.fn();
+    render(
       <ResourceFilterSearch
-        errors={['Unknown qualifier "wat"']}
-        fsmTypes={['task']}
+        fsmTypes={['task', 'transfer']}
         matchCount={0}
-        onQueryChange={vi.fn()}
-        query="wat:value"
-        resourceTypes={['gpu']}
+        onFsmTypesChange={onFsmTypesChange}
+        onResourceTypesChange={onResourceTypesChange}
+        onSearchChange={onSearchChange}
+        onShowOthersChange={onShowOthersChange}
+        resourceTypes={['cpu', 'gpu']}
+        search=""
+        selectedFsmTypes={[]}
+        selectedResourceTypes={[]}
+        showOthers={false}
       />
     );
 
-    const suggestions = [...container.querySelectorAll('option')].map(option => option.value);
-    expect(suggestions).toContain('type:gpu');
-    expect(suggestions).toContain('fsm:task');
-    expect(screen.getByText('Unknown qualifier "wat"')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Resource filters' }));
+    await user.click(screen.getByRole('combobox', { name: 'Filter by resource type' }));
+    const resourceListbox = screen.getByRole('listbox');
+    expect(resourceListbox).toHaveAttribute('aria-multiselectable');
+    await user.click(screen.getByRole('option', { name: 'gpu' }));
+    expect(onResourceTypesChange).toHaveBeenCalledWith(['gpu']);
+
+    await user.click(screen.getByRole('combobox', { name: 'Filter by FSM type' }));
+    await user.click(screen.getByRole('option', { name: 'task' }));
+    expect(onFsmTypesChange).toHaveBeenCalledWith(['task']);
+
+    const showOthers = screen.getByRole('checkbox', { name: 'Show All' });
+    expect(showOthers).not.toBeChecked();
+    expect(showOthers).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Clear' })).toBeDisabled();
+  });
+
+  it('enables Show All and Clear when filters are active', async () => {
+    const user = userEvent.setup();
+    const onResourceTypesChange = vi.fn();
+    const onFsmTypesChange = vi.fn();
+    const onSearchChange = vi.fn();
+    const onShowOthersChange = vi.fn();
+    render(
+      <ResourceFilterSearch
+        fsmTypes={['task']}
+        matchCount={1}
+        onFsmTypesChange={onFsmTypesChange}
+        onResourceTypesChange={onResourceTypesChange}
+        onSearchChange={onSearchChange}
+        onShowOthersChange={onShowOthersChange}
+        resourceTypes={['gpu']}
+        search="gpu"
+        selectedFsmTypes={[]}
+        selectedResourceTypes={[]}
+        showOthers={false}
+      />
+    );
+
+    await user.click(screen.getByRole('button', { name: 'Resource filters, 1 selected filter' }));
+    const showOthers = screen.getByRole('checkbox', { name: 'Show All' });
+    expect(showOthers).toBeEnabled();
+    await user.click(showOthers);
+    expect(onShowOthersChange).toHaveBeenCalledWith(true);
+
+    const clear = screen.getByRole('button', { name: 'Clear' });
+    expect(clear).toBeEnabled();
+    await user.click(clear);
+    expect(onSearchChange).toHaveBeenLastCalledWith('');
+    expect(onResourceTypesChange).toHaveBeenLastCalledWith([]);
+    expect(onFsmTypesChange).toHaveBeenLastCalledWith([]);
+    expect(onShowOthersChange).toHaveBeenLastCalledWith(false);
   });
 });
