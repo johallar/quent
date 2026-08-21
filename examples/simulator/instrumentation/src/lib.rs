@@ -21,8 +21,8 @@ entity! {
 #[cfg(feature = "collector")]
 pub use collector_sink::SimulatorCollectorSink;
 pub use nvtx::{
-    NvtxCapture, NvtxCategory, NvtxLayout, NvtxPushGuard, NvtxPushStack, NvtxResourceGuard,
-    NvtxStartGuard,
+    DEFAULT_MAX_NVTX_RANGES, NvtxCapture, NvtxCategory, NvtxLayout, NvtxPushGuard, NvtxPushStack,
+    NvtxResourceGuard, NvtxStartGuard,
 };
 pub use quent_query_engine_model::{engine, operator, plan, port, query, query_group, worker};
 pub use quent_stdlib::{channel, memory, processor};

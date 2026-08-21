@@ -17,7 +17,9 @@ use quent_query_engine_model::{
     engine::{self, EngineImplementationAttributes},
     operator, plan, port, query_group, worker,
 };
-use quent_simulator_instrumentation::{NvtxCapture, NvtxCategory, NvtxLayout, SimulatorContext};
+use quent_simulator_instrumentation::{
+    DEFAULT_MAX_NVTX_RANGES, NvtxCapture, NvtxCategory, NvtxLayout, SimulatorContext,
+};
 use rand::{RngExt, distr::slice::Choose, rng};
 use tracing::{debug, info};
 use uuid::Uuid;
@@ -65,6 +67,10 @@ struct Args {
     /// Emit per-task NVTX ranges on 1 in N tasks (`0` skips them).
     #[arg(long, default_value_t = 1)]
     nvtx_task_every: usize,
+
+    /// Maximum NVTX ranges emitted across the simulation (`0` disables ranges).
+    #[arg(long, default_value_t = DEFAULT_MAX_NVTX_RANGES)]
+    max_nvtx_ranges: usize,
 
     #[command(flatten)]
     exporter: ExporterArgs,
@@ -1338,6 +1344,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         num_marks: args.num_nvtx_marks,
         num_nested_ranges: args.num_nvtx_nested_ranges,
         task_every: args.nvtx_task_every,
+        max_ranges: args.max_nvtx_ranges,
     };
     let nvtx = match exporter.as_ref() {
         Some(provider) => NvtxCapture::try_new(context.id(), provider, nvtx_layout)?,

@@ -10,7 +10,7 @@ use std::{
     collections::HashMap,
     sync::{
         Mutex,
-        atomic::{AtomicU32, AtomicU64, Ordering},
+        atomic::{AtomicU32, AtomicU64, AtomicUsize, Ordering},
     },
 };
 
@@ -54,6 +54,8 @@ const CCCL_KERNELS: &[&str] = &[
 /// Start from a plausible Linux TID so unnamed threads render as `thread 186143`.
 const OS_THREAD_BASE: u32 = 186_143;
 
+pub const DEFAULT_MAX_NVTX_RANGES: usize = 20_000;
+
 /// How many NVTX domains, categories, marks, and extra nested ranges to emit.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct NvtxLayout {
@@ -67,6 +69,8 @@ pub struct NvtxLayout {
     pub num_nested_ranges: usize,
     /// Emit per-task NVTX ranges on 1 in N operator tasks (`0` skips them).
     pub task_every: usize,
+    /// Maximum ranges emitted across the entire simulation.
+    pub max_ranges: usize,
 }
 
 impl Default for NvtxLayout {
@@ -77,6 +81,7 @@ impl Default for NvtxLayout {
             num_marks: 2,
             num_nested_ranges: 0,
             task_every: 1,
+            max_ranges: DEFAULT_MAX_NVTX_RANGES,
         }
     }
 }
@@ -112,6 +117,7 @@ pub struct NvtxCapture {
     next_range_id: AtomicU64,
     next_resource_handle: AtomicU64,
     next_string_handle: AtomicU64,
+    ranges_emitted: AtomicUsize,
     registered_strings: Mutex<HashMap<(u64, String), u64>>,
 }
 
@@ -126,6 +132,7 @@ impl NvtxCapture {
             next_range_id: AtomicU64::new(1),
             next_resource_handle: AtomicU64::new(1),
             next_string_handle: AtomicU64::new(1),
+            ranges_emitted: AtomicUsize::new(0),
             registered_strings: Mutex::new(HashMap::new()),
         }
     }
@@ -147,6 +154,7 @@ impl NvtxCapture {
             next_range_id: AtomicU64::new(1),
             next_resource_handle: AtomicU64::new(1),
             next_string_handle: AtomicU64::new(1),
+            ranges_emitted: AtomicUsize::new(0),
             registered_strings: Mutex::new(HashMap::new()),
         })
     }
@@ -158,7 +166,11 @@ impl NvtxCapture {
     /// Whether this operator task should emit libcudf/CCCL/pipeline ranges.
     pub fn emit_task_ranges(&self, task_index: usize) -> bool {
         let every = self.layout.task_every;
-        every != 0 && task_index.is_multiple_of(every)
+        every != 0 && task_index.is_multiple_of(every) && self.has_range_capacity()
+    }
+
+    fn ranges_emitted(&self) -> usize {
+        self.ranges_emitted.load(Ordering::Relaxed)
     }
 
     /// Domain handle `0..num_domains`, wrapping `index`. `0` is the default domain.
@@ -251,15 +263,19 @@ impl NvtxCapture {
         message: &str,
         category: u32,
     ) -> NvtxPushGuard<'_> {
-        self.emit(NvtxEvent::RangePush {
-            domain,
-            thread_id,
-            attributes: self.attributes(domain, message, category),
-        });
+        let active = self.try_reserve_range();
+        if active {
+            self.emit(NvtxEvent::RangePush {
+                domain,
+                thread_id,
+                attributes: self.attributes(domain, message, category),
+            });
+        }
         NvtxPushGuard {
             capture: self,
             domain,
             thread_id,
+            active,
         }
     }
 
@@ -280,11 +296,14 @@ impl NvtxCapture {
 
     /// Open a process-wide range; the matching end is emitted when the guard drops.
     pub fn start(&self, domain: u64, message: &str, category: u32) -> NvtxStartGuard<'_> {
-        let range_id = self.next_range_id.fetch_add(1, Ordering::Relaxed);
-        self.emit(NvtxEvent::RangeStart {
-            domain,
-            range_id,
-            attributes: self.attributes(domain, message, category),
+        let range_id = self.try_reserve_range().then(|| {
+            let range_id = self.next_range_id.fetch_add(1, Ordering::Relaxed);
+            self.emit(NvtxEvent::RangeStart {
+                domain,
+                range_id,
+                attributes: self.attributes(domain, message, category),
+            });
+            range_id
         });
         NvtxStartGuard {
             capture: self,
@@ -307,6 +326,21 @@ impl NvtxCapture {
             capture: self,
             handle,
         }
+    }
+
+    fn has_range_capacity(&self) -> bool {
+        self.layout.num_domains != 0 && self.ranges_emitted() < self.layout.max_ranges
+    }
+
+    fn try_reserve_range(&self) -> bool {
+        if self.layout.num_domains == 0 {
+            return false;
+        }
+        self.ranges_emitted
+            .fetch_update(Ordering::Relaxed, Ordering::Relaxed, |count| {
+                (count < self.layout.max_ranges).then_some(count + 1)
+            })
+            .is_ok()
     }
 
     fn emit(&self, event: NvtxEvent) {
@@ -351,14 +385,17 @@ pub struct NvtxPushGuard<'a> {
     capture: &'a NvtxCapture,
     domain: u64,
     thread_id: u32,
+    active: bool,
 }
 
 impl Drop for NvtxPushGuard<'_> {
     fn drop(&mut self) {
-        self.capture.emit(NvtxEvent::RangePop {
-            domain: self.domain,
-            thread_id: self.thread_id,
-        });
+        if self.active {
+            self.capture.emit(NvtxEvent::RangePop {
+                domain: self.domain,
+                thread_id: self.thread_id,
+            });
+        }
     }
 }
 
@@ -377,15 +414,17 @@ impl Drop for NvtxPushStack<'_> {
 pub struct NvtxStartGuard<'a> {
     capture: &'a NvtxCapture,
     domain: u64,
-    range_id: u64,
+    range_id: Option<u64>,
 }
 
 impl Drop for NvtxStartGuard<'_> {
     fn drop(&mut self) {
-        self.capture.emit(NvtxEvent::RangeEnd {
-            domain: self.domain,
-            range_id: self.range_id,
-        });
+        if let Some(range_id) = self.range_id {
+            self.capture.emit(NvtxEvent::RangeEnd {
+                domain: self.domain,
+                range_id,
+            });
+        }
     }
 }
 
@@ -546,6 +585,11 @@ mod tests {
     }
 
     #[test]
+    fn default_range_limit_is_twenty_thousand() {
+        assert_eq!(NvtxLayout::default().max_ranges, 20_000);
+    }
+
+    #[test]
     fn schema_declares_named_domains_skipping_default() {
         let layout = NvtxLayout {
             num_domains: 3,
@@ -553,6 +597,7 @@ mod tests {
             num_marks: 0,
             num_nested_ranges: 0,
             task_every: 1,
+            max_ranges: DEFAULT_MAX_NVTX_RANGES,
         };
         let captured = collect(layout, |nvtx| nvtx.declare_schema());
         let domains: Vec<_> = captured
@@ -614,6 +659,7 @@ mod tests {
                 num_marks: 8,
                 num_nested_ranges: 8,
                 task_every: 1,
+                max_ranges: DEFAULT_MAX_NVTX_RANGES,
             },
             |nvtx| {
                 nvtx.declare_schema();
@@ -643,5 +689,56 @@ mod tests {
             },
         );
         assert!(!none.emit_task_ranges(0));
+    }
+
+    #[test]
+    fn range_limit_is_global_across_threads_and_range_types() {
+        const MAX_RANGES: usize = 20;
+        let captured = collect(
+            NvtxLayout {
+                max_ranges: MAX_RANGES,
+                ..NvtxLayout::default()
+            },
+            |nvtx| {
+                std::thread::scope(|scope| {
+                    for thread_id in 1u32..=4 {
+                        scope.spawn(move || {
+                            for index in 0usize..10 {
+                                if index.is_multiple_of(2) {
+                                    let _range = nvtx.push(0, thread_id, "push", 0);
+                                } else {
+                                    let _range = nvtx.start(0, "start", 0);
+                                }
+                            }
+                        });
+                    }
+                });
+                assert_eq!(nvtx.ranges_emitted(), MAX_RANGES);
+            },
+        );
+        let model = NvtxModelBuilder::build(captured);
+        assert_eq!(model.spans().len(), MAX_RANGES);
+        assert!(model.anomalies().is_faithful());
+    }
+
+    #[test]
+    fn zero_range_limit_still_emits_marks() {
+        let captured = collect(
+            NvtxLayout {
+                max_ranges: 0,
+                ..NvtxLayout::default()
+            },
+            |nvtx| {
+                let thread_id = nvtx.alloc_thread();
+                let _push = nvtx.push(0, thread_id, "skipped", 0);
+                let _start = nvtx.start(0, "skipped", 0);
+                nvtx.mark(0, "kept", 0);
+                assert_eq!(nvtx.ranges_emitted(), 0);
+            },
+        );
+        let model = NvtxModelBuilder::build(captured);
+        assert!(model.spans().is_empty());
+        assert_eq!(model.marks().len(), 1);
+        assert!(model.anomalies().is_faithful());
     }
 }
