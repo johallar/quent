@@ -3,6 +3,7 @@
 
 import { useCallback, useEffect, useLayoutEffect, useMemo, useState, type ReactNode } from 'react';
 import { useAtom } from 'jotai';
+import { Loader2 } from 'lucide-react';
 import { useReadZoomRange, useSetDebouncedZoomRange, useSetZoomRange } from '@quent/hooks';
 import { toast } from '@quent/components';
 import { expandedIdsAtom } from '@/atoms/resourceTree';
@@ -173,7 +174,18 @@ export function DeepLinkBoundary({
 
   return (
     <DeepLinkContext.Provider value={value}>
-      {isHydrated ? children : null}
+      {isHydrated ? (
+        children
+      ) : (
+        <div
+          role="status"
+          aria-label="Loading shared query"
+          className="flex min-h-[calc(100vh-4rem)] w-full items-center justify-center gap-2 text-muted-foreground"
+        >
+          <Loader2 className="size-5 animate-spin" aria-hidden="true" />
+          <span>Loading shared view...</span>
+        </div>
+      )}
     </DeepLinkContext.Provider>
   );
 }

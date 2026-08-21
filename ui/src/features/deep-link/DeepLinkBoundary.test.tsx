@@ -100,6 +100,37 @@ describe('DeepLinkBoundary', () => {
     );
   });
 
+  it('shows a spinner while waiting for the query to be ready', () => {
+    const encoded = encodeDeepLinkState({
+      zoomRange: { start: 10, end: 40 },
+    });
+    expect(encoded.ok).toBe(true);
+    if (!encoded.ok) return;
+
+    const { rerender } = render(
+      <JotaiProvider>
+        <DeepLinkBoundary durationSeconds={0} encodedState={encoded.value} isQueryReady={false}>
+          <div data-testid="deep-link-content" />
+        </DeepLinkBoundary>
+      </JotaiProvider>
+    );
+
+    const loadingState = screen.getByRole('status', { name: 'Loading shared query' });
+    expect(loadingState.querySelector('svg')).toHaveClass('animate-spin');
+    expect(screen.queryByTestId('deep-link-content')).not.toBeInTheDocument();
+
+    rerender(
+      <JotaiProvider>
+        <DeepLinkBoundary durationSeconds={100} encodedState={encoded.value} isQueryReady>
+          <div data-testid="deep-link-content" />
+        </DeepLinkBoundary>
+      </JotaiProvider>
+    );
+
+    expect(screen.queryByRole('status', { name: 'Loading shared query' })).not.toBeInTheDocument();
+    expect(screen.getByTestId('deep-link-content')).toBeInTheDocument();
+  });
+
   it('does not subscribe to render-time timeline hydration', () => {
     const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined);
 
