@@ -38,15 +38,32 @@ export function selectAllNvtxDomains(catalog: NvtxCatalog): NvtxDomainSelection[
     .sort((left, right) => compareDecimalIds(left.domain_id, right.domain_id));
 }
 
-/** One complete domain selection, or every domain when `domainId` is null. */
+export interface NvtxCategoryFilter {
+  categoryId: number | null;
+  includeUncategorized: boolean;
+}
+
+/** Visible domains with each domain's optional category filter applied. */
 export function selectNvtxDomains(
   catalog: NvtxCatalog,
-  domainId: string | null
+  domainId: string | null,
+  categoryFilters: ReadonlyMap<string, NvtxCategoryFilter> = new Map()
 ): NvtxDomainSelection[] {
   const selections = selectAllNvtxDomains(catalog);
-  return domainId == null
-    ? selections
-    : selections.filter(selection => selection.domain_id === domainId);
+  return selections
+    .filter(selection => domainId == null || selection.domain_id === domainId)
+    .flatMap(selection => {
+      const filter = categoryFilters.get(selection.domain_id);
+      if (!filter) return [selection];
+      if (filter.categoryId != null) {
+        return selection.category_ids.includes(filter.categoryId)
+          ? [{ ...selection, category_ids: [filter.categoryId], include_uncategorized: false }]
+          : [];
+      }
+      return filter.includeUncategorized && selection.include_uncategorized
+        ? [{ ...selection, category_ids: [], include_uncategorized: true }]
+        : [];
+    });
 }
 
 export const engineContextsQueryOptions = (engineId: string) =>
@@ -132,7 +149,12 @@ export function useNvtxStream(
   engineId: string,
   queryStartUnixNs: bigint,
   viewport: NvtxViewportWindow,
-  options?: { staleTime?: number; enabled?: boolean; domainId?: string | null }
+  options?: {
+    staleTime?: number;
+    enabled?: boolean;
+    domainId?: string | null;
+    categoryFilters?: ReadonlyMap<string, NvtxCategoryFilter>;
+  }
 ) {
   const contextsQuery = useEngineContexts(engineId);
   const contextIds = Object.keys(contextsQuery.data?.context_resources ?? {});
@@ -146,8 +168,11 @@ export function useNvtxStream(
   const catalog = matched?.catalog ?? null;
   const contextId = matched?.contextId;
   const selections = useMemo(
-    () => (catalog ? selectNvtxDomains(catalog, options?.domainId ?? null) : []),
-    [catalog, options?.domainId]
+    () =>
+      catalog
+        ? selectNvtxDomains(catalog, options?.domainId ?? null, options?.categoryFilters)
+        : [],
+    [catalog, options?.categoryFilters, options?.domainId]
   );
   const request = useMemo(
     (): NvtxViewportRequest => ({ viewport, selections }),

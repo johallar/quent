@@ -55,7 +55,7 @@ function treeItem(id: string, type: string, children?: TreeTableItem[]): TreeTab
   return { id, type, entity: STUB_ENTITY, ...(children?.length ? { children } : {}) };
 }
 
-/** NVTX lanes for one domain, or domain sub-trees when all domains are selected. */
+/** NVTX domains with their lane rows, optionally narrowed to one domain. */
 export function buildNvtxTree(
   catalog: NvtxCatalog,
   viewport: NvtxViewportResponse | null,
@@ -79,15 +79,9 @@ export function buildNvtxTree(
     }
     return [...threadRows, ...extraRows];
   });
-  const children =
-    selectedDomainId == null
-      ? visibleDomains.flatMap((domain, index) => {
-          const lanes = domainLanes[index] ?? [];
-          return lanes.length > 0
-            ? [treeItem(nvtxDomainRowId(domain.domain_id), NVTX_DOMAIN_ROW_TYPE, lanes)]
-            : [];
-        })
-      : (domainLanes[0] ?? []);
+  const children = visibleDomains.map((domain, index) =>
+    treeItem(nvtxDomainRowId(domain.domain_id), NVTX_DOMAIN_ROW_TYPE, domainLanes[index])
+  );
   return treeItem(NVTX_SECTION_ID, NVTX_SECTION_ROW_TYPE, children);
 }
 
@@ -123,11 +117,13 @@ export function indexNvtxLanes(viewport: NvtxViewportResponse | null): Map<strin
 export function nvtxDomainMeta(
   catalog: NvtxCatalog,
   rowId: string
-): { name: string; color: string } | null {
+): { domainId: string; name: string; color: string } | null {
   if (!rowId.startsWith(DOMAIN_PREFIX)) return null;
   const domainId = rowId.slice(DOMAIN_PREFIX.length);
   const domain = catalog.domains.find(item => item.domain_id === domainId);
-  return domain ? { name: domain.name, color: rgbHex(domain.color) } : null;
+  return domain
+    ? { domainId: domain.domain_id, name: domain.name, color: rgbHex(domain.color) }
+    : null;
 }
 
 export function nvtxLaneLabel(

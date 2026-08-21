@@ -28,13 +28,19 @@ const catalog = {
 } as NvtxCatalog;
 
 describe('NVTX resource tree', () => {
-  it('puts the selected domain lanes directly below the NVTX row', () => {
+  it('keeps the selected domain header above its lanes', () => {
     const tree = buildNvtxTree(catalog, null, '3');
 
     expect(tree?.children).toEqual([
       expect.objectContaining({
-        id: nvtxThreadRowId('3', 303),
-        type: NVTX_LANE_ROW_TYPE,
+        id: nvtxDomainRowId('3'),
+        type: NVTX_DOMAIN_ROW_TYPE,
+        children: [
+          expect.objectContaining({
+            id: nvtxThreadRowId('3', 303),
+            type: NVTX_LANE_ROW_TYPE,
+          }),
+        ],
       }),
     ]);
   });

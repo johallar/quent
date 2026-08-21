@@ -27,7 +27,12 @@ import { TreeTableItem } from '@quent/components';
 import { ResourceColumn } from '@quent/components';
 import { UsageColumn } from '@quent/components';
 import { DEFAULT_TIMELINE_HEIGHT } from '@quent/components';
-import { fetchSingleTimeline, DEFAULT_STALE_TIME, useNvtxStream } from '@quent/client';
+import {
+  fetchSingleTimeline,
+  DEFAULT_STALE_TIME,
+  useNvtxStream,
+  type NvtxCategoryFilter,
+} from '@quent/client';
 import {
   transformResourceTree,
   getAdaptiveNumBins,
@@ -43,6 +48,7 @@ import {
   rootResourceTypeAtom,
   expandedIdsAtom,
   selectedNvtxDomainAtom,
+  selectedNvtxCategoriesAtom,
 } from '@/atoms/resourceTree';
 import { TimelineToolbar } from '@quent/components';
 import { useTheme, THEME_DARK } from '@/contexts/ThemeContext';
@@ -127,6 +133,8 @@ function GanttRowLabel({ children }: { children: string }) {
 }
 
 const NVTX_ALL_DOMAINS = '__all__';
+const NVTX_ALL_CATEGORIES = '__all__';
+const NVTX_UNCATEGORIZED = '__uncategorized__';
 
 function NvtxSectionLabel({
   catalog,
@@ -137,7 +145,7 @@ function NvtxSectionLabel({
   selectedDomainId: string | null;
   onDomainChange: (domainId: string | null) => void;
 }) {
-  const options = [
+  const domainOptions = [
     { value: NVTX_ALL_DOMAINS, label: 'All' },
     ...catalog.domains.map(domain => ({ value: domain.domain_id, label: domain.name })),
   ];
@@ -150,7 +158,7 @@ function NvtxSectionLabel({
           id="nvtx-domain"
           label="Domain"
           value={selectedDomainId ?? NVTX_ALL_DOMAINS}
-          options={options}
+          options={domainOptions}
           onChange={(_, value) => onDomainChange(value === NVTX_ALL_DOMAINS ? null : value)}
         />
       </div>
@@ -158,16 +166,43 @@ function NvtxSectionLabel({
   );
 }
 
-function NvtxDomainLabel({ name, color }: { name: string; color: string }) {
+function NvtxDomainLabel({
+  domain,
+  color,
+  selectedCategoryId,
+  onCategoryChange,
+}: {
+  domain: NvtxCatalog['domains'][number];
+  color: string;
+  selectedCategoryId: string | null;
+  onCategoryChange: (categoryId: string | null) => void;
+}) {
+  const categoryOptions = [
+    { value: NVTX_ALL_CATEGORIES, label: 'All' },
+    ...domain.categories.map(category => ({
+      value: String(category.category_id),
+      label: category.name,
+    })),
+    ...(domain.has_uncategorized ? [{ value: NVTX_UNCATEGORIZED, label: 'Uncategorized' }] : []),
+  ];
   return (
-    <span className="flex min-w-0 items-center gap-1.5 text-xs leading-none">
-      <span
-        aria-hidden
-        className="inline-block h-2 w-2 shrink-0 rounded-full"
-        style={{ backgroundColor: color }}
+    <div className="flex min-w-0 flex-col gap-y-1 pb-1">
+      <span className="flex min-w-0 items-center gap-1.5 text-xs leading-none">
+        <span
+          aria-hidden
+          className="inline-block h-2 w-2 shrink-0 rounded-full"
+          style={{ backgroundColor: color }}
+        />
+        <span className="truncate">{domain.name}</span>
+      </span>
+      <InlineSelector
+        id={`nvtx-category-${domain.domain_id}`}
+        label="Category"
+        value={selectedCategoryId ?? NVTX_ALL_CATEGORIES}
+        options={categoryOptions}
+        onChange={(_, value) => onCategoryChange(value === NVTX_ALL_CATEGORIES ? null : value)}
       />
-      <span className="truncate">{name}</span>
-    </span>
+    </div>
   );
 }
 
@@ -205,6 +240,7 @@ function QueryResourceTreeContent({ queryBundle, engineId }: QueryResourceTreePr
   const [selectedTypes, setSelectedTypes] = useAtom(selectedTypesAtom);
   const [selectedFsmTypes, setSelectedFsmTypes] = useAtom(selectedFsmTypesAtom);
   const [selectedNvtxDomain, setSelectedNvtxDomain] = useAtom(selectedNvtxDomainAtom);
+  const [selectedNvtxCategories, setSelectedNvtxCategories] = useAtom(selectedNvtxCategoriesAtom);
 
   const startTime = queryBundle.start_time_unix_ns;
   const durationSeconds = queryBundle.duration_s;
@@ -246,11 +282,26 @@ function QueryResourceTreeContent({ queryBundle, engineId }: QueryResourceTreePr
     const { start, end } = debouncedZoomRange;
     return end > start ? { start, end } : { start: 0, end: durationSeconds };
   }, [debouncedZoomRange, durationSeconds]);
+  const nvtxCategoryFilters = useMemo(() => {
+    const filters = new Map<string, NvtxCategoryFilter>();
+    for (const [domainId, categoryId] of selectedNvtxCategories) {
+      filters.set(
+        domainId,
+        categoryId === NVTX_UNCATEGORIZED
+          ? { categoryId: null, includeUncategorized: true }
+          : { categoryId: Number(categoryId), includeUncategorized: false }
+      );
+    }
+    return filters;
+  }, [selectedNvtxCategories]);
   const { catalog: nvtxCatalog, viewport: nvtxViewport } = useNvtxStream(
     engineId,
     queryBundle.start_time_unix_ns,
     nvtxWindow,
-    { domainId: selectedNvtxDomain }
+    {
+      domainId: selectedNvtxDomain,
+      categoryFilters: nvtxCategoryFilters,
+    }
   );
 
   useEffect(() => {
@@ -265,14 +316,35 @@ function QueryResourceTreeContent({ queryBundle, engineId }: QueryResourceTreePr
   }, [nvtxCatalog, setExpandedIds]);
 
   useEffect(() => {
+    if (!nvtxCatalog) return;
     if (
       selectedNvtxDomain != null &&
-      nvtxCatalog &&
       !nvtxCatalog.domains.some(domain => domain.domain_id === selectedNvtxDomain)
     ) {
       setSelectedNvtxDomain(null);
     }
-  }, [nvtxCatalog, selectedNvtxDomain, setSelectedNvtxDomain]);
+    const nextCategories = new Map(selectedNvtxCategories);
+    let changed = false;
+    for (const [domainId, categoryId] of nextCategories) {
+      const domain = nvtxCatalog.domains.find(item => item.domain_id === domainId);
+      const isValid =
+        domain != null &&
+        (categoryId === NVTX_UNCATEGORIZED
+          ? domain.has_uncategorized
+          : domain.categories.some(category => String(category.category_id) === categoryId));
+      if (!isValid) {
+        nextCategories.delete(domainId);
+        changed = true;
+      }
+    }
+    if (changed) setSelectedNvtxCategories(nextCategories);
+  }, [
+    nvtxCatalog,
+    selectedNvtxCategories,
+    selectedNvtxDomain,
+    setSelectedNvtxCategories,
+    setSelectedNvtxDomain,
+  ]);
 
   const { handleZoomChange, handleExpand } = useBulkTimelines({
     engineId,
@@ -387,8 +459,25 @@ function QueryResourceTreeContent({ queryBundle, engineId }: QueryResourceTreePr
               ) : null;
             }
             case NVTX_DOMAIN_ROW_TYPE: {
-              const domain = nvtxCatalog ? nvtxDomainMeta(nvtxCatalog, item.id) : null;
-              return domain ? <NvtxDomainLabel name={domain.name} color={domain.color} /> : null;
+              const meta = nvtxCatalog ? nvtxDomainMeta(nvtxCatalog, item.id) : null;
+              const domain = meta
+                ? nvtxCatalog?.domains.find(item => item.domain_id === meta.domainId)
+                : null;
+              return domain && meta ? (
+                <NvtxDomainLabel
+                  domain={domain}
+                  color={meta.color}
+                  selectedCategoryId={selectedNvtxCategories.get(domain.domain_id) ?? null}
+                  onCategoryChange={categoryId => {
+                    setSelectedNvtxCategories(previous => {
+                      const next = new Map(previous);
+                      if (categoryId == null) next.delete(domain.domain_id);
+                      else next.set(domain.domain_id, categoryId);
+                      return next;
+                    });
+                  }}
+                />
+              ) : null;
             }
             case NVTX_LANE_ROW_TYPE: {
               const label = nvtxCatalog ? nvtxLaneLabel(nvtxCatalog, nvtxViewport, item.id) : '';
@@ -517,7 +606,9 @@ function QueryResourceTreeContent({ queryBundle, engineId }: QueryResourceTreePr
     nvtxCatalog,
     nvtxViewport,
     nvtxLanesByRowId,
+    selectedNvtxCategories,
     selectedNvtxDomain,
+    setSelectedNvtxCategories,
     setSelectedNvtxDomain,
   ]);
 

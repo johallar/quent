@@ -91,7 +91,7 @@ describe('NVTX client', () => {
     );
   });
 
-  it('selects one NVTX domain or all domains', () => {
+  it('selects NVTX domains and categories', () => {
     const catalog = {
       domains: [
         {
@@ -111,6 +111,37 @@ describe('NVTX client', () => {
     expect(selectNvtxDomains(catalog, null).map(selection => selection.domain_id)).toEqual([
       '1',
       '3',
+    ]);
+    expect(
+      selectNvtxDomains(
+        catalog,
+        '1',
+        new Map([['1', { categoryId: 7, includeUncategorized: false }]])
+      )
+    ).toEqual([{ domain_id: '1', category_ids: [7], include_uncategorized: false }]);
+    expect(
+      selectNvtxDomains(
+        catalog,
+        '1',
+        new Map([['1', { categoryId: null, includeUncategorized: true }]])
+      )
+    ).toEqual([{ domain_id: '1', category_ids: [], include_uncategorized: true }]);
+    expect(
+      selectNvtxDomains(
+        catalog,
+        '1',
+        new Map([['1', { categoryId: 8, includeUncategorized: false }]])
+      )
+    ).toEqual([]);
+    expect(
+      selectNvtxDomains(
+        catalog,
+        null,
+        new Map([['1', { categoryId: 7, includeUncategorized: false }]])
+      )
+    ).toEqual([
+      { domain_id: '1', category_ids: [7], include_uncategorized: false },
+      { domain_id: '3', category_ids: [], include_uncategorized: true },
     ]);
   });
 
