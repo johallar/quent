@@ -3,7 +3,7 @@
 
 import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
-import type { FsmTransition } from '@quent/utils';
+import type { FsmTransition, QuantitySpec } from '@quent/utils';
 import { FsmCapacityChart } from './FsmCapacityChart';
 
 // ECharts renders to canvas and is not testable in jsdom; stub it out.
@@ -37,25 +37,25 @@ const BYTES_SPEC = {
   symbol: 'B',
   singular: 'byte',
   plural: 'bytes',
-  occupancy_prefix: 'binary',
-  rate_prefix: 'decimal',
-} as const;
+  occupancy_prefix: 'Iec',
+  rate_prefix: 'Si',
+} satisfies QuantitySpec;
 
 const UNIT_SPEC = {
   symbol: '',
   singular: 'unit',
   plural: 'units',
-  occupancy_prefix: 'none',
-  rate_prefix: 'none',
-} as const;
+  occupancy_prefix: 'None',
+  rate_prefix: 'None',
+} satisfies QuantitySpec;
 
 const RATE_SPEC = {
   symbol: 'B/s',
   singular: 'byte per second',
   plural: 'bytes per second',
-  occupancy_prefix: 'binary',
-  rate_prefix: 'decimal',
-} as const;
+  occupancy_prefix: 'Iec',
+  rate_prefix: 'Si',
+} satisfies QuantitySpec;
 
 const defaultProps = {
   isDark: false,
