@@ -136,10 +136,7 @@ export function useNvtxTreeModel({
   }, [catalog, selectedNvtxDomain, setSelectedNvtxDomain]);
 
   const lanesByRowId = useMemo(() => indexNvtxLanes(viewport), [viewport]);
-  const laneRowIdsKey = useMemo(
-    () => [...lanesByRowId.keys()].sort().join('\0'),
-    [lanesByRowId]
-  );
+  const laneRowIdsKey = useMemo(() => [...lanesByRowId.keys()].sort().join('\0'), [lanesByRowId]);
   const laneRowIds = useMemo(
     () => new Set(laneRowIdsKey ? laneRowIdsKey.split('\0') : []),
     [laneRowIdsKey]
