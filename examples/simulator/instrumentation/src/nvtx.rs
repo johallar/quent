@@ -24,6 +24,7 @@ const DOMAIN_NAMES: &[&str] = &["CCCL", "libcudf", "CUB", "NCCL", "cuBLAS", "Thr
 const CAPTURE_DOMAIN_HANDLES: &[u64] = &[0, 3, 1, 4, 5, 6, 7];
 
 const CATEGORY_NAMES: &[&str] = &["API", "Internal", "Memory", "Compute", "IO"];
+const GENERIC_POINTER: i32 = 0x0001_0001;
 
 const LIBCUDF_FRAMES: &[&str] = &[
     "read_parquet",
@@ -72,10 +73,32 @@ impl Default for NvtxLayout {
     fn default() -> Self {
         Self {
             num_domains: 3,
-            num_categories: 0,
-            num_marks: 0,
+            num_categories: CATEGORY_NAMES.len(),
+            num_marks: 2,
             num_nested_ranges: 0,
             task_every: 1,
+        }
+    }
+}
+
+/// Workload categories shared across every simulated domain.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum NvtxCategory {
+    Api,
+    Internal,
+    Memory,
+    Compute,
+    Io,
+}
+
+impl NvtxCategory {
+    const fn index(self) -> usize {
+        match self {
+            Self::Api => 0,
+            Self::Internal => 1,
+            Self::Memory => 2,
+            Self::Compute => 3,
+            Self::Io => 4,
         }
     }
 }
@@ -87,6 +110,7 @@ pub struct NvtxCapture {
     layout: NvtxLayout,
     next_thread_id: AtomicU32,
     next_range_id: AtomicU64,
+    next_resource_handle: AtomicU64,
     next_string_handle: AtomicU64,
     registered_strings: Mutex<HashMap<(u64, String), u64>>,
 }
@@ -100,6 +124,7 @@ impl NvtxCapture {
             layout,
             next_thread_id: AtomicU32::new(OS_THREAD_BASE),
             next_range_id: AtomicU64::new(1),
+            next_resource_handle: AtomicU64::new(1),
             next_string_handle: AtomicU64::new(1),
             registered_strings: Mutex::new(HashMap::new()),
         }
@@ -120,6 +145,7 @@ impl NvtxCapture {
             layout,
             next_thread_id: AtomicU32::new(OS_THREAD_BASE),
             next_range_id: AtomicU64::new(1),
+            next_resource_handle: AtomicU64::new(1),
             next_string_handle: AtomicU64::new(1),
             registered_strings: Mutex::new(HashMap::new()),
         })
@@ -157,6 +183,10 @@ impl NvtxCapture {
         }
     }
 
+    pub fn category_id(&self, category: NvtxCategory) -> u32 {
+        self.category_at(category.index())
+    }
+
     pub fn cccl_kernel_name(index: usize) -> &'static str {
         CCCL_KERNELS[index % CCCL_KERNELS.len()]
     }
@@ -177,6 +207,16 @@ impl NvtxCapture {
                     category,
                     name: category_name(category),
                 });
+            }
+        }
+    }
+
+    /// Destroy every named domain after its simulated entities have closed.
+    pub fn destroy_schema(&self) {
+        for index in (0..self.layout.num_domains).rev() {
+            let domain = domain_handle(index);
+            if domain != 0 {
+                self.emit(NvtxEvent::DomainDestroy { domain });
             }
         }
     }
@@ -253,6 +293,22 @@ impl NvtxCapture {
         }
     }
 
+    /// Create a generic-pointer resource; its matching destroy is emitted on drop.
+    pub fn resource(&self, domain: u64, message: &str) -> NvtxResourceGuard<'_> {
+        let handle = self.next_resource_handle.fetch_add(1, Ordering::Relaxed);
+        self.emit(NvtxEvent::ResourceCreate {
+            domain,
+            handle,
+            identifier_type: GENERIC_POINTER,
+            identifier: handle,
+            message: Some(self.message(domain, message)),
+        });
+        NvtxResourceGuard {
+            capture: self,
+            handle,
+        }
+    }
+
     fn emit(&self, event: NvtxEvent) {
         if self.layout.num_domains == 0 {
             return;
@@ -261,13 +317,17 @@ impl NvtxCapture {
     }
 
     fn attributes(&self, domain: u64, message: &str, category: u32) -> NvtxEventAttributes {
+        NvtxEventAttributes {
+            category,
+            color: None,
+            message: Some(self.message(domain, message)),
+            payload: None,
+        }
+    }
+
+    fn message(&self, domain: u64, message: &str) -> NvtxMessage {
         if domain == 0 {
-            return NvtxEventAttributes {
-                category,
-                color: None,
-                message: Some(NvtxMessage::String(message.to_owned())),
-                payload: None,
-            };
+            return NvtxMessage::String(message.to_owned());
         }
         let key = (domain, message.to_owned());
         let handle = {
@@ -282,12 +342,7 @@ impl NvtxCapture {
                 handle
             })
         };
-        NvtxEventAttributes {
-            category,
-            color: None,
-            message: Some(NvtxMessage::RegisteredHandle(handle)),
-            payload: None,
-        }
+        NvtxMessage::RegisteredHandle(handle)
     }
 }
 
@@ -334,6 +389,20 @@ impl Drop for NvtxStartGuard<'_> {
     }
 }
 
+/// Destroys the matching [`NvtxEvent::ResourceCreate`] on drop.
+pub struct NvtxResourceGuard<'a> {
+    capture: &'a NvtxCapture,
+    handle: u64,
+}
+
+impl Drop for NvtxResourceGuard<'_> {
+    fn drop(&mut self) {
+        self.capture.emit(NvtxEvent::ResourceDestroy {
+            handle: self.handle,
+        });
+    }
+}
+
 fn domain_name(index: usize) -> String {
     DOMAIN_NAMES
         .get(index.saturating_sub(1))
@@ -359,7 +428,10 @@ fn category_name(category: u32) -> String {
 
 #[cfg(test)]
 mod tests {
-    use std::sync::{Arc, Mutex};
+    use std::{
+        collections::HashSet,
+        sync::{Arc, Mutex},
+    };
 
     use nvtx_analyzer::NvtxModelBuilder;
     use quent_model::EventCallback;
@@ -394,6 +466,83 @@ mod tests {
         let model = NvtxModelBuilder::build(captured);
         assert_eq!(model.spans().len(), 2);
         assert!(model.anomalies().is_faithful());
+    }
+
+    #[test]
+    fn emits_every_core_nvtx_event_type() {
+        let captured = collect(NvtxLayout::default(), |nvtx| {
+            nvtx.declare_schema();
+            let thread_id = nvtx.name_thread("main");
+            nvtx.mark(
+                nvtx.domain_at(0),
+                "checkpoint",
+                nvtx.category_id(NvtxCategory::Api),
+            );
+            {
+                let _push = nvtx.push(
+                    nvtx.domain_at(1),
+                    thread_id,
+                    "push/pop",
+                    nvtx.category_id(NvtxCategory::Internal),
+                );
+                let _start = nvtx.start(
+                    nvtx.domain_at(0),
+                    "start/end",
+                    nvtx.category_id(NvtxCategory::Compute),
+                );
+                let _resource = nvtx.resource(nvtx.domain_at(2), "device buffer");
+            }
+            nvtx.destroy_schema();
+        });
+        let kinds: HashSet<_> = captured
+            .iter()
+            .map(|event| match event.data.0 {
+                NvtxEvent::RangePush { .. } => "RangePush",
+                NvtxEvent::RangePop { .. } => "RangePop",
+                NvtxEvent::RangeStart { .. } => "RangeStart",
+                NvtxEvent::RangeEnd { .. } => "RangeEnd",
+                NvtxEvent::Mark { .. } => "Mark",
+                NvtxEvent::DomainCreate { .. } => "DomainCreate",
+                NvtxEvent::DomainDestroy { .. } => "DomainDestroy",
+                NvtxEvent::RegisterString { .. } => "RegisterString",
+                NvtxEvent::NameCategory { .. } => "NameCategory",
+                NvtxEvent::NameThread { .. } => "NameThread",
+                NvtxEvent::ResourceCreate { .. } => "ResourceCreate",
+                NvtxEvent::ResourceDestroy { .. } => "ResourceDestroy",
+            })
+            .collect();
+        assert_eq!(
+            kinds,
+            HashSet::from([
+                "RangePush",
+                "RangePop",
+                "RangeStart",
+                "RangeEnd",
+                "Mark",
+                "DomainCreate",
+                "DomainDestroy",
+                "RegisterString",
+                "NameCategory",
+                "NameThread",
+                "ResourceCreate",
+                "ResourceDestroy",
+            ])
+        );
+
+        let model = NvtxModelBuilder::build(captured);
+        assert_eq!(model.marks().len(), 1);
+        assert_eq!(model.resources().count(), 1);
+        assert!(model.anomalies().is_faithful());
+    }
+
+    #[test]
+    fn workload_categories_resolve_to_distinct_ids() {
+        let nvtx = NvtxCapture::noop(Uuid::now_v7(), NvtxLayout::default());
+        assert_eq!(nvtx.category_id(NvtxCategory::Api), 1);
+        assert_eq!(nvtx.category_id(NvtxCategory::Internal), 2);
+        assert_eq!(nvtx.category_id(NvtxCategory::Memory), 3);
+        assert_eq!(nvtx.category_id(NvtxCategory::Compute), 4);
+        assert_eq!(nvtx.category_id(NvtxCategory::Io), 5);
     }
 
     #[test]
