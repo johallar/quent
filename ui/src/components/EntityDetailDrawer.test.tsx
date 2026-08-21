@@ -48,4 +48,29 @@ describe('EntityDetailDrawer', () => {
 
     expect(onClose).toHaveBeenCalledOnce();
   });
+
+  it('does not close when a long-entities Gantt entity is clicked', async () => {
+    const onClose = vi.fn();
+    const user = userEvent.setup();
+
+    render(
+      <>
+        <div data-long-entities-gantt>
+          <button type="button">Entity bar</button>
+        </div>
+        <EntityDetailDrawer
+          fsm={fsm}
+          resourceLabel={id => id}
+          operatorLabel={id => id}
+          onClose={onClose}
+          queryBundle={queryBundle}
+        />
+      </>
+    );
+
+    await waitFor(() => expect(document.body).toHaveStyle({ pointerEvents: 'auto' }));
+    await user.click(screen.getByText('Entity bar'));
+
+    expect(onClose).not.toHaveBeenCalled();
+  });
 });

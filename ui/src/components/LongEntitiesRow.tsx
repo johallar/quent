@@ -137,7 +137,7 @@ export function LongEntitiesRow({
   }
 
   return (
-    <div>
+    <div data-long-entities-gantt>
       <LongEntitiesGantt
         entries={entries}
         durationSeconds={durationSeconds}

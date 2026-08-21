@@ -45,7 +45,16 @@ export function EntityDetailDrawer({
     >
       <DrawerPortal>
         <DrawerContent
-          onPointerDownOutside={onClose}
+          onPointerDownOutside={event => {
+            const target = event.detail.originalEvent.target;
+            // Entity clicks on the long-entities Gantt already toggle the
+            // selection via onEntitySelect; closing here first would clear
+            // drawerFsm before that handler runs, breaking the toggle.
+            if (target instanceof Element && target.closest('[data-long-entities-gantt]')) {
+              return;
+            }
+            onClose();
+          }}
           className="h-full w-80 shadow-xl sm:max-w-none"
         >
           <div className="flex shrink-0 items-center justify-between border-b bg-card px-3 py-2">
