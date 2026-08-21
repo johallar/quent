@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: Copyright (c) 2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Check, Copy } from 'lucide-react';
 import { DataFlowBar, DataText, FsmCapacityChart, thinScrollbarClass } from '@quent/components';
 import { formatDuration, formatDurationForWindow, getColorForKey, isBytesStat } from '@quent/utils';
@@ -28,6 +28,15 @@ export function EntityDetailPanel({
   const { theme } = useTheme();
   const paletteTheme = theme === THEME_DARK ? ('dark' as const) : ('light' as const);
   const [copied, setCopied] = useState(false);
+  const copiedTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (copiedTimeoutRef.current != null) {
+        clearTimeout(copiedTimeoutRef.current);
+      }
+    };
+  }, []);
 
   if (!fsm) {
     return (
@@ -37,6 +46,7 @@ export function EntityDetailPanel({
     );
   }
 
+  const fsmId = fsm.id;
   const firstTs = fsm.transitions[0]?.timestamp ?? 0;
   const lastTs = fsm.transitions[fsm.transitions.length - 1]?.timestamp ?? firstTs;
   const totalSpanMs = (lastTs - firstTs) * 1000;
@@ -75,9 +85,12 @@ export function EntityDetailPanel({
   }
 
   function copyId() {
-    void navigator.clipboard.writeText(fsm!.id);
+    void navigator.clipboard.writeText(fsmId);
     setCopied(true);
-    setTimeout(() => setCopied(false), 1500);
+    if (copiedTimeoutRef.current != null) {
+      clearTimeout(copiedTimeoutRef.current);
+    }
+    copiedTimeoutRef.current = setTimeout(() => setCopied(false), 1500);
   }
 
   return (
