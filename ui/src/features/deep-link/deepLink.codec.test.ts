@@ -14,12 +14,15 @@ import {
   validateDeepLinkSearch,
 } from './deepLink.schema';
 
+const RESOURCE_A_ID = '01a025ff-ea8b-7881-9d31-72a275872c9d';
+const RESOURCE_B_ID = '01a025ff-ea8b-7881-9d31-72a275872c9e';
+
 const state = {
   zoomRange: {
     start: 12.5,
     end: 48.75,
   },
-  expandedResourceIds: ['resource-a', 'resource-b'],
+  expandedResourceIds: [RESOURCE_A_ID, RESOURCE_B_ID],
 };
 
 describe('deep-link codec', () => {
@@ -79,18 +82,24 @@ describe('deep-link state validation', () => {
     expect(
       DeepLinkStateV1Schema.parse({
         zoomRange: state.zoomRange,
-        expandedResourceIds: ['resource-b', 'resource-a', 'resource-b'],
+        expandedResourceIds: [RESOURCE_B_ID, RESOURCE_A_ID, RESOURCE_B_ID],
       }).expandedResourceIds
-    ).toEqual(['resource-a', 'resource-b']);
+    ).toEqual([RESOURCE_A_ID, RESOURCE_B_ID]);
     expect(DeepLinkStateV1Schema.safeParse({ zoomRange: { start: 20, end: 10 } }).success).toBe(
       false
     );
     expect(
       DeepLinkStateV1Schema.safeParse({
         zoomRange: state.zoomRange,
+        expandedResourceIds: ['resource-a'],
+      }).success
+    ).toBe(false);
+    expect(
+      DeepLinkStateV1Schema.safeParse({
+        zoomRange: state.zoomRange,
         expandedResourceIds: Array.from(
           { length: MAX_EXPANDED_RESOURCE_IDS + 1 },
-          (_, index) => `resource-${index}`
+          (_, index) => `00000000-0000-4000-8000-${index.toString().padStart(12, '0')}`
         ),
       }).success
     ).toBe(false);

@@ -16,7 +16,10 @@ rows:
     "start": 12.5,
     "end": 48.75
   },
-  "expandedResourceIds": ["resource-a", "resource-b"]
+  "expandedResourceIds": [
+    "01a025ff-ea8b-7881-9d31-72a275872c9d",
+    "01a025ff-ea8b-7881-9d31-72a275872c9e"
+  ]
 }
 ```
 

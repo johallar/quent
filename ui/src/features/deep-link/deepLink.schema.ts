@@ -19,7 +19,7 @@ export const DeepLinkStateV1Schema = z
   .object({
     zoomRange: ZoomRangeSchema,
     expandedResourceIds: z
-      .array(z.string().min(1).max(1024))
+      .array(z.uuid())
       .max(MAX_EXPANDED_RESOURCE_IDS)
       .transform(ids => [...new Set(ids)].sort())
       .optional(),

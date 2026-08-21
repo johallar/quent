@@ -19,6 +19,9 @@ import { decodeDeepLinkState, encodeDeepLinkState } from './deepLink.codec';
 import { DEEP_LINK_NAV_SLOT_ID } from './deepLink.constants';
 import { useDeepLink } from './deepLink.context';
 
+const RESOURCE_A_ID = '01a025ff-ea8b-7881-9d31-72a275872c9d';
+const RESOURCE_B_ID = '01a025ff-ea8b-7881-9d31-72a275872c9e';
+
 function ViewportProbe() {
   const immediate = useZoomRange();
   const debounced = useDebouncedZoomRange();
@@ -72,7 +75,7 @@ describe('DeepLinkBoundary', () => {
   it('hydrates timeline viewport and expanded rows before rendering children', () => {
     const encoded = encodeDeepLinkState({
       zoomRange: { start: 10, end: 40 },
-      expandedResourceIds: ['resource-b', 'resource-a'],
+      expandedResourceIds: [RESOURCE_B_ID, RESOURCE_A_ID],
     });
     expect(encoded.ok).toBe(true);
     if (!encoded.ok) return;
@@ -93,7 +96,7 @@ describe('DeepLinkBoundary', () => {
       })
     );
     expect(screen.getByTestId('expanded-rows')).toHaveTextContent(
-      JSON.stringify(['resource-a', 'resource-b'])
+      JSON.stringify([RESOURCE_A_ID, RESOURCE_B_ID])
     );
   });
 
@@ -164,7 +167,7 @@ describe('DeepLinkBoundary', () => {
         <JotaiProvider>
           <DeepLinkBoundary durationSeconds={100} isQueryReady>
             <SeedViewport start={20} end={60} />
-            <SeedExpandedRows ids={['resource-b', 'resource-a']} />
+            <SeedExpandedRows ids={[RESOURCE_B_ID, RESOURCE_A_ID]} />
             <ViewportProbe />
             <CopyLinkButton />
           </DeepLinkBoundary>
@@ -189,7 +192,7 @@ describe('DeepLinkBoundary', () => {
       ok: true,
       value: {
         zoomRange: { start: 20, end: 60 },
-        expandedResourceIds: ['resource-a', 'resource-b'],
+        expandedResourceIds: [RESOURCE_A_ID, RESOURCE_B_ID],
       },
     });
     expect(window.location.href).toBe(originalUrl);
