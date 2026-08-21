@@ -155,4 +155,19 @@ describe('NVTX Gantt tooltip', () => {
       { label: 'type B', stateName: '5 ranges', color: '#76b900', compact: true },
     ]);
   });
+
+  it('aggregates consolidated counts by mark type', () => {
+    const data = [
+      ...Array.from({ length: 3 }, (_, index) => markDatum('type A', index)),
+      ...Array.from({ length: 5 }, (_, index) => markDatum('type B', index + 3)),
+    ];
+    const tooltip = nvtxTooltipModel(mergeNvtxGanttData(data, budget));
+
+    expect(tooltip.summary).toBe('8 marks');
+    expect(tooltip.itemNoun).toEqual({ singular: 'mark', plural: 'marks' });
+    expect(tooltip.marks).toEqual([
+      { label: 'type A', stateName: '3 marks', color: '#76b900', compact: true },
+      { label: 'type B', stateName: '5 marks', color: '#76b900', compact: true },
+    ]);
+  });
 });

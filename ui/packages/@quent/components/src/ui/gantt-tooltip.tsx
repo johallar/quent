@@ -52,7 +52,7 @@ export function GanttTooltipPortal({
         </ul>
         {hiddenCount > 0 && (
           <DataText as="div" className="pt-1 text-muted-foreground">
-            {hiddenCount} more {hiddenCount === 1 ? 'range' : 'ranges'} not shown
+            {hiddenCount} more {hiddenCount === 1 ? 'item' : 'items'} not shown
           </DataText>
         )}
       </div>

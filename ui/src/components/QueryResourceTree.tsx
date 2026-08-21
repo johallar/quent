@@ -335,11 +335,19 @@ function QueryResourceTreeContent({ queryBundle, engineId }: QueryResourceTreePr
     [queryBundle.plan_tree]
   );
 
-  const nvtxTree = useMemo(
-    () => (nvtxCatalog ? buildNvtxTree(nvtxCatalog, nvtxViewport, selectedNvtxDomain) : null),
-    [nvtxCatalog, nvtxViewport, selectedNvtxDomain]
-  );
   const nvtxLanesByRowId = useMemo(() => indexNvtxLanes(nvtxViewport), [nvtxViewport]);
+  const nvtxLaneRowIdsKey = useMemo(
+    () => [...nvtxLanesByRowId.keys()].sort().join('\0'),
+    [nvtxLanesByRowId]
+  );
+  const nvtxLaneRowIds = useMemo(
+    () => new Set(nvtxLaneRowIdsKey ? nvtxLaneRowIdsKey.split('\0') : []),
+    [nvtxLaneRowIdsKey]
+  );
+  const nvtxTree = useMemo(
+    () => (nvtxCatalog ? buildNvtxTree(nvtxCatalog, nvtxLaneRowIds, selectedNvtxDomain) : null),
+    [nvtxCatalog, nvtxLaneRowIds, selectedNvtxDomain]
+  );
 
   const treeData = useMemo(() => {
     const resourceRoot = injectLongEntitiesRows(
@@ -391,7 +399,9 @@ function QueryResourceTreeContent({ queryBundle, engineId }: QueryResourceTreePr
               return domain ? <NvtxDomainLabel name={domain.name} color={domain.color} /> : null;
             }
             case NVTX_LANE_ROW_TYPE: {
-              const label = nvtxCatalog ? nvtxLaneLabel(nvtxCatalog, nvtxViewport, item.id) : '';
+              const label = nvtxCatalog
+                ? nvtxLaneLabel(nvtxCatalog, nvtxLanesByRowId, item.id)
+                : '';
               return (
                 <span className="truncate text-xs leading-none text-muted-foreground">{label}</span>
               );
@@ -515,7 +525,6 @@ function QueryResourceTreeContent({ queryBundle, engineId }: QueryResourceTreePr
     handleZoomChange,
     operatorEntriesByWorker,
     nvtxCatalog,
-    nvtxViewport,
     nvtxLanesByRowId,
     selectedNvtxDomain,
     setSelectedNvtxDomain,

@@ -21,7 +21,7 @@ function ProfileLayout() {
   const queryId = queryMatch?.params?.queryId;
 
   return (
-    <Provider key={queryId ?? ''}>
+    <Provider key={`${engineId}:${queryId ?? ''}`}>
       <ResizablePanelGroup orientation="horizontal" className="h-full min-w-0">
         <ResizablePanel defaultSize="33%" minSize="15%" collapsible collapsedSize="0%">
           {queryId && queryId !== '' ? (

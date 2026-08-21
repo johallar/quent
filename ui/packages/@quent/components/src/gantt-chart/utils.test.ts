@@ -9,6 +9,7 @@ import {
   stackIntervalsIntoRows,
   type GanttRect,
 } from './utils';
+import { TIMELINE_SPACING } from '../timeline/types';
 
 function rect(x: number, y: number, width: number, height: number): GanttRect {
   return { x, y, width, height };
@@ -118,6 +119,9 @@ describe('ganttExpansionLayout', () => {
       contentPaddingBottom: GANTT_RESIZE_CONTROL_HEIGHT,
       maxHeight: 75,
     });
-    expect(expanded.maxHeight).toBe(6 * 14 + GANTT_RESIZE_CONTROL_HEIGHT);
+    const contentHeight =
+      6 * 14 + TIMELINE_SPACING.top + TIMELINE_SPACING.bottom + GANTT_RESIZE_CONTROL_HEIGHT;
+    expect(collapsed.contentHeight).toBe(contentHeight);
+    expect(expanded.maxHeight).toBe(contentHeight);
   });
 });

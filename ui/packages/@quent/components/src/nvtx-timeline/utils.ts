@@ -57,11 +57,10 @@ function treeItem(id: string, type: string, children?: TreeTableItem[]): TreeTab
 
 /** NVTX lanes for one domain, or domain sub-trees when all domains are selected. */
 export function buildNvtxTree(
-  catalog: NvtxCatalog,
-  viewport: NvtxViewportResponse | null,
+  catalog: Pick<NvtxCatalog, 'domains'>,
+  laneRowIds: ReadonlySet<string>,
   selectedDomainId: string | null = null
 ): TreeTableItem | null {
-  const viewportLanes = indexNvtxLanes(viewport);
   const visibleDomains = catalog.domains.filter(
     domain => selectedDomainId == null || domain.domain_id === selectedDomainId
   );
@@ -71,10 +70,10 @@ export function buildNvtxTree(
       treeItem(nvtxThreadRowId(domain.domain_id, thread.thread_id), NVTX_LANE_ROW_TYPE)
     );
     const extraRows: TreeTableItem[] = [];
-    if (viewportLanes.has(nvtxProcessRowId(domain.domain_id))) {
+    if (laneRowIds.has(nvtxProcessRowId(domain.domain_id))) {
       extraRows.push(treeItem(nvtxProcessRowId(domain.domain_id), NVTX_LANE_ROW_TYPE));
     }
-    if (viewportLanes.has(nvtxMarksRowId(domain.domain_id))) {
+    if (laneRowIds.has(nvtxMarksRowId(domain.domain_id))) {
       extraRows.push(treeItem(nvtxMarksRowId(domain.domain_id), NVTX_LANE_ROW_TYPE));
     }
     return [...threadRows, ...extraRows];
@@ -121,7 +120,7 @@ export function indexNvtxLanes(viewport: NvtxViewportResponse | null): Map<strin
 }
 
 export function nvtxDomainMeta(
-  catalog: NvtxCatalog,
+  catalog: Pick<NvtxCatalog, 'domains'>,
   rowId: string
 ): { name: string; color: string } | null {
   if (!rowId.startsWith(DOMAIN_PREFIX)) return null;
@@ -131,8 +130,8 @@ export function nvtxDomainMeta(
 }
 
 export function nvtxLaneLabel(
-  catalog: NvtxCatalog,
-  viewport: NvtxViewportResponse | null,
+  catalog: Pick<NvtxCatalog, 'domains'>,
+  lanesByRowId: ReadonlyMap<string, NvtxLane[]>,
   rowId: string,
   includeDomain = false
 ): string {
@@ -147,7 +146,7 @@ export function nvtxLaneLabel(
   const threadId = Number(rowId.slice(separator + 2));
   const thread = domain?.threads.find(item => item.thread_id === threadId);
   if (thread) return `${prefix}${thread.name}`;
-  const lanes = indexNvtxLanes(viewport).get(rowId);
+  const lanes = lanesByRowId.get(rowId);
   return `${prefix}${lanes?.[0]?.label ?? `thread ${threadId}`}`;
 }
 

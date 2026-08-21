@@ -130,16 +130,19 @@ export function ganttExpansionLayout({
 }): {
   canResize: boolean;
   resizeControlHeight: number;
+  contentHeight: number;
   maxHeight: number;
   contentPaddingBottom: number;
   gridSpacing: GanttGridSpacing;
 } {
-  const canResize = rowCount * rowHeight > collapsedHeight;
+  const rowsHeight = rowCount * rowHeight + TIMELINE_SPACING.top + TIMELINE_SPACING.bottom;
+  const canResize = rowsHeight > collapsedHeight;
   const resizeControlHeight = canResize ? GANTT_RESIZE_CONTROL_HEIGHT : 0;
-  const contentHeight = Math.max(collapsedHeight, rowCount * rowHeight + resizeControlHeight);
+  const contentHeight = Math.max(collapsedHeight, rowsHeight + resizeControlHeight);
   return {
     canResize,
     resizeControlHeight,
+    contentHeight,
     maxHeight: isExpanded ? contentHeight : collapsedHeight,
     contentPaddingBottom: resizeControlHeight,
     gridSpacing: {

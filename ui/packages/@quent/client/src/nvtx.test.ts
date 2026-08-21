@@ -28,6 +28,24 @@ const request: NvtxViewportRequest = {
   ],
 };
 
+function nvtxDomain(
+  domainId: string,
+  categoryIds: number[],
+  hasUncategorized: boolean
+): NvtxCatalog['domains'][number] {
+  return {
+    domain_id: domainId,
+    name: `domain ${domainId}`,
+    color: '#000000ff',
+    threads: [],
+    categories: categoryIds.map(categoryId => ({
+      category_id: categoryId,
+      name: `category ${categoryId}`,
+    })),
+    has_uncategorized: hasUncategorized,
+  };
+}
+
 describe('NVTX client', () => {
   afterEach(() => vi.unstubAllGlobals());
 
@@ -93,19 +111,8 @@ describe('NVTX client', () => {
 
   it('selects one NVTX domain or all domains', () => {
     const catalog = {
-      domains: [
-        {
-          domain_id: '1',
-          categories: [{ category_id: 7 }],
-          has_uncategorized: true,
-        },
-        {
-          domain_id: '3',
-          categories: [],
-          has_uncategorized: true,
-        },
-      ],
-    } as NvtxCatalog;
+      domains: [nvtxDomain('1', [7], true), nvtxDomain('3', [], true)],
+    } satisfies Pick<NvtxCatalog, 'domains'>;
 
     expect(selectNvtxDomains(catalog, '3').map(selection => selection.domain_id)).toEqual(['3']);
     expect(selectNvtxDomains(catalog, null).map(selection => selection.domain_id)).toEqual([

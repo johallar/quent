@@ -109,7 +109,8 @@ export function GanttChart<T extends GanttDatum>({
   const resolvedMaxHeight = expansion?.maxHeight ?? maxHeight;
   const resolvedPadding = expansion?.contentPaddingBottom ?? contentPaddingBottom;
   const resolvedGridSpacing = expansion?.gridSpacing ?? gridSpacing;
-  const chartHeight = Math.max(height, rowCount * rowHeight + resolvedPadding);
+  const chartHeight =
+    expansion?.contentHeight ?? Math.max(height, rowCount * rowHeight + resolvedPadding);
   const wrapperHeight = Math.min(chartHeight, resolvedMaxHeight);
   const shouldAnimateHeight = expandable || animateHeight;
 
