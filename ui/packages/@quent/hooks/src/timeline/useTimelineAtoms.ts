@@ -67,6 +67,10 @@ export const useGetZoomRange = () => {
   return useCallback(() => store.get(zoomRangeAtom), [store]);
 };
 export const useSetZoomRange = () => useSetAtom(zoomRangeAtom);
+export function useReadZoomRange() {
+  const store = useStore();
+  return useCallback(() => store.get(zoomRangeAtom), [store]);
+}
 export const useDebouncedZoomRange = () => useAtomValue(debouncedZoomRangeAtom);
 export const useSetDebouncedZoomRange = () => useSetAtom(debouncedZoomRangeAtom);
 export const useLongEntityDensity = () => useAtomValue(longEntityDensityAtom);

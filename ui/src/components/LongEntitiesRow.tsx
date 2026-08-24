@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: Copyright (c) 2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-import { useMemo, useRef, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import { useEntityList } from '@quent/client';
 import {
   useBulkInitialized,
@@ -11,7 +11,7 @@ import {
   useReturnedTimelineNumBins,
   useSelectedNodeIds,
 } from '@quent/hooks';
-import { type FsmTypeDecl, MAX_TIMELINE_BINS } from '@quent/utils';
+import { type FiniteStateMachine, type FsmTypeDecl, MAX_TIMELINE_BINS } from '@quent/utils';
 import {
   Button,
   LONG_ENTITIES_TIMELINE_HEIGHT,
@@ -19,6 +19,7 @@ import {
   Skeleton,
   buildLongEntityEntries,
   getLongEntitiesThreshold,
+  type LongEntityEntry,
 } from '@quent/components';
 
 const ENTITIES_PER_PAGE = 100;
@@ -33,6 +34,9 @@ type LongEntitiesRowProps = {
   isDark: boolean;
   /** Defaults to all states; resource scope keeps states used on this row's resource. */
   fsmStateScope?: 'all' | 'resource';
+  onEntitySelect?: (fsm: FiniteStateMachine) => void;
+  selectedEntityId?: string;
+  onBackgroundClick?: () => void;
 };
 
 /**
@@ -48,6 +52,9 @@ export function LongEntitiesRow({
   fsmTypes,
   isDark,
   fsmStateScope = 'resource',
+  onEntitySelect,
+  selectedEntityId,
+  onBackgroundClick,
 }: LongEntitiesRowProps) {
   const selectedNodeIds = useSelectedNodeIds();
   const debouncedZoomRange = useDebouncedZoomRange();
@@ -105,6 +112,15 @@ export function LongEntitiesRow({
   const isLoadingMore = isPlaceholderData && entities.length < maxEntities;
   const showMoreButton = hasMoreEntities && (!isLoadingMore || maxEntities < totalEntities);
 
+  const handleEntityClick = useCallback(
+    (entry: LongEntityEntry) => {
+      if (!onEntitySelect) return;
+      const fsm = entities.find(e => e.id === entry.entityId);
+      if (fsm) onEntitySelect(fsm);
+    },
+    [entities, onEntitySelect]
+  );
+
   if (displayedMinUsageSeconds == null || (!data && isFetching)) {
     return (
       <div
@@ -121,13 +137,16 @@ export function LongEntitiesRow({
   }
 
   return (
-    <div>
+    <div data-long-entities-gantt>
       <LongEntitiesGantt
         entries={entries}
         durationSeconds={durationSeconds}
         minUsageSeconds={displayedMinUsageSeconds}
         height={LONG_ENTITIES_TIMELINE_HEIGHT}
         isDark={isDark}
+        onEntityClick={onEntitySelect ? handleEntityClick : undefined}
+        selectedEntityId={selectedEntityId}
+        onBackgroundClick={onBackgroundClick}
       />
 
       {showMoreButton && (

@@ -21,6 +21,7 @@ export {
   useReturnedTimelineIsStale,
   useZoomRange,
   useGetZoomRange,
+  useReadZoomRange,
   useSetZoomRange,
   useDebouncedZoomRange,
   useSetDebouncedZoomRange,
@@ -93,6 +94,7 @@ export {
 export type {
   HoveredStatInfo,
   HighlightedNodeIdsState,
+  InspectedOperatorData,
   InspectedNodeData,
 } from './atoms/dagControls';
 

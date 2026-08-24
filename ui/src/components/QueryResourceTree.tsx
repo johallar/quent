@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { Column, TreeTable } from '@quent/components';
-import { useCallback, useEffect, useMemo, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ChartGantt } from 'lucide-react';
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { useAtom, useSetAtom } from 'jotai';
@@ -73,6 +73,9 @@ import {
   nvtxDomainMeta,
   nvtxLaneLabel,
 } from '@quent/components';
+import { EntityDetailDrawer } from '@/components/EntityDetailDrawer';
+import type { FiniteStateMachine } from '@quent/utils';
+import { createFsmTypeColorFn } from '@quent/utils';
 
 function getRootResourceGroupId(resourceTree: ResourceTree<EntityRef>): string | null {
   if (!('ResourceGroup' in resourceTree)) return null;
@@ -192,13 +195,20 @@ function injectLongEntitiesRows(item: TreeTableItem): TreeTableItem {
 interface QueryResourceTreeProps {
   engineId: string;
   queryBundle: QueryBundle<EntityRef>;
+  initialZoomRange?: { start: number; end: number };
+  seedRootExpanded?: boolean;
 }
 
 export function QueryResourceTree(props: QueryResourceTreeProps) {
   return <QueryResourceTreeContent {...props} />;
 }
 
-function QueryResourceTreeContent({ queryBundle, engineId }: QueryResourceTreeProps) {
+function QueryResourceTreeContent({
+  queryBundle,
+  engineId,
+  initialZoomRange,
+  seedRootExpanded = true,
+}: QueryResourceTreeProps) {
   const { theme } = useTheme();
   const isDark = theme === THEME_DARK;
   const { entities, resource_tree: resourceTree } = queryBundle;
@@ -206,13 +216,42 @@ function QueryResourceTreeContent({ queryBundle, engineId }: QueryResourceTreePr
   const [selectedFsmTypes, setSelectedFsmTypes] = useAtom(selectedFsmTypesAtom);
   const [selectedNvtxDomain, setSelectedNvtxDomain] = useAtom(selectedNvtxDomainAtom);
 
+  const [drawerFsm, setDrawerFsm] = useState<FiniteStateMachine | null>(null);
+  const toggleDrawerFsm = useCallback(
+    (fsm: FiniteStateMachine) =>
+      setDrawerFsm(selectedFsm => (selectedFsm?.id === fsm.id ? null : fsm)),
+    []
+  );
+  const closeDrawer = useCallback(() => setDrawerFsm(null), []);
+
+  const stateColorFn = useMemo(
+    () => createFsmTypeColorFn(entities.fsm_types, isDark ? 'dark' : 'light'),
+    [entities.fsm_types, isDark]
+  );
+
+  const resourceLabel = useCallback(
+    (id: string) => {
+      const r = entities.resources[id];
+      return r ? `${r.instance_name} (${r.type_name})` : id;
+    },
+    [entities.resources]
+  );
+  const operatorLabel = useCallback(
+    (id: string) => {
+      const op = entities.operators[id];
+      return op ? (op.instance_name ?? op.operator_type_name ?? id) : id;
+    },
+    [entities.operators]
+  );
+
   const startTime = queryBundle.start_time_unix_ns;
   const durationSeconds = queryBundle.duration_s;
   const startTimeMs = useMemo(() => nanosToMs(startTime), [startTime]);
+  const defaultZoomRange = { start: 0, end: durationSeconds };
 
   useHydrateTimelineAtoms({
-    zoomRange: { start: 0, end: durationSeconds },
-    debouncedZoomRange: { start: 0, end: durationSeconds },
+    zoomRange: initialZoomRange ?? defaultZoomRange,
+    debouncedZoomRange: initialZoomRange ?? defaultZoomRange,
     startTimeMs,
   });
 
@@ -236,7 +275,9 @@ function QueryResourceTreeContent({ queryBundle, engineId }: QueryResourceTreePr
 
   const rootResourceGroupId = useMemo(() => getRootResourceGroupId(resourceTree), [resourceTree]);
 
-  const { expandedIds, handleExpandChange } = useExpandedIds(rootItem.id);
+  const { expandedIds, handleExpandChange } = useExpandedIds(
+    seedRootExpanded ? rootItem.id : undefined
+  );
   const setExpandedIds = useSetAtom(expandedIdsAtom);
   const controlledExpandedIds = expandedIds;
   const seededNvtxExpansion = useRef(false);
@@ -474,6 +515,9 @@ function QueryResourceTreeContent({ queryBundle, engineId }: QueryResourceTreePr
                   durationSeconds={durationSeconds}
                   fsmTypes={entities.fsm_types}
                   isDark={isDark}
+                  onEntitySelect={toggleDrawerFsm}
+                  selectedEntityId={drawerFsm?.id}
+                  onBackgroundClick={closeDrawer}
                 />
               );
             }
@@ -528,6 +572,9 @@ function QueryResourceTreeContent({ queryBundle, engineId }: QueryResourceTreePr
     nvtxLanesByRowId,
     selectedNvtxDomain,
     setSelectedNvtxDomain,
+    toggleDrawerFsm,
+    drawerFsm?.id,
+    closeDrawer,
   ]);
 
   return (
@@ -547,6 +594,14 @@ function QueryResourceTreeContent({ queryBundle, engineId }: QueryResourceTreePr
           rowHeight={DEFAULT_TIMELINE_HEIGHT}
         />
       </div>
+      <EntityDetailDrawer
+        fsm={drawerFsm}
+        resourceLabel={resourceLabel}
+        operatorLabel={operatorLabel}
+        onClose={closeDrawer}
+        stateColorFn={stateColorFn}
+        queryBundle={queryBundle}
+      />
     </div>
   );
 }

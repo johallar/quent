@@ -30,6 +30,18 @@ export {
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
 } from './ui/dropdown-menu';
+export {
+  Drawer,
+  DrawerPortal,
+  DrawerOverlay,
+  DrawerTrigger,
+  DrawerClose,
+  DrawerContent,
+  DrawerHeader,
+  DrawerFooter,
+  DrawerTitle,
+  DrawerDescription,
+} from './ui/drawer';
 export { HoverCard, HoverCardTrigger, HoverCardContent } from './ui/hover-card';
 export { Input } from './ui/input';
 export {
@@ -46,6 +58,7 @@ export {
 export { Popover, PopoverTrigger, PopoverContent } from './ui/popover';
 export { PointerTooltipPortal } from './ui/pointer-tooltip-portal';
 export type { PointerPosition } from './ui/pointer-tooltip-portal';
+export { PositionedTooltip } from './ui/positioned-tooltip';
 export { ResizablePanelGroup, ResizablePanel, ResizableHandle } from './ui/resizable';
 export { ScrollArea, ScrollBar } from './ui/scroll-area';
 export {
@@ -92,6 +105,21 @@ export {
   TableCaption,
 } from './ui/table';
 export { Tabs, TabsList, TabsTrigger, TabsContent } from './ui/tabs';
+export {
+  Toaster,
+  Toast,
+  ToastAction,
+  ToastClose,
+  ToastContent,
+  ToastDescription,
+  ToastPortal,
+  ToastProvider,
+  ToastTitle,
+  ToastViewport,
+  createToastManager,
+  toast,
+  useToastManager,
+} from './ui/toast';
 
 // ─── ECharts ──────────────────────────────────────────────────────────────────
 export { echarts } from './lib/echarts';
@@ -185,6 +213,10 @@ export { DagPlayhead } from './dag/DagPlayhead';
 export { QueryPlanNode } from './query-plan/QueryPlanNode';
 export { NodeFlowBar } from './query-plan/NodeFlowBar';
 
+// ─── Segmented-bar components ─────────────────────────────────────────────────
+export { SegmentedBar } from './segmented-bar/SegmentedBar';
+export type { SegmentedBarProps, SegmentedBarSegment } from './segmented-bar/SegmentedBar';
+
 // ─── Resource-tree components ─────────────────────────────────────────────────
 export { InlineSelector } from './resource-tree/InlineSelector';
 export type { InlineSelectorOption } from './resource-tree/InlineSelector';
@@ -242,6 +274,10 @@ export {
   rowGroupKey,
 } from './pivot-table/utils';
 export type { GroupIndexDef, RowWithGroupKeys } from './pivot-table/utils';
+
+// ─── FSM chart components ─────────────────────────────────────────────────────
+export { FsmCapacityChart } from './fsm-chart/FsmCapacityChart';
+export type { FsmCapacityChartProps } from './fsm-chart/FsmCapacityChart';
 
 // ─── Long-entities components ─────────────────────────────────────────────────
 export {
