@@ -47,8 +47,21 @@ export interface InspectedNodeData extends InspectedOperatorData {
   relatedOperators?: InspectedOperatorData[];
 }
 
-/** Data for the currently selected/pinned node (persists in the panel after click) */
-export const selectedNodeDataAtom = atom<InspectedNodeData | null>(null);
+/** Inspected details for every selected operator, keyed by selection id. */
+export const selectedNodesDataAtom = atom<ReadonlyMap<string, InspectedNodeData>>(new Map());
+
+/** Last pinned node; writing replaces the whole inspected-node map. */
+export const selectedNodeDataAtom = atom(
+  get => {
+    const map = get(selectedNodesDataAtom);
+    let last: InspectedNodeData | null = null;
+    for (const value of map.values()) last = value;
+    return last;
+  },
+  (_get, set, value: InspectedNodeData | null) => {
+    set(selectedNodesDataAtom, value == null ? new Map() : new Map([[value.nodeId, value]]));
+  }
+);
 
 /** Consolidated hover/highlight state shared between table and DAG. */
 export const highlightedNodeIdsAtom = atom<HighlightedNodeIdsState>({

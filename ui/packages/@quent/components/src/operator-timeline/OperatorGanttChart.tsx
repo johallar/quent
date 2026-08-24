@@ -6,12 +6,14 @@ import { useCallback, useMemo } from 'react';
 import { useTimelineEchartsTheme } from '../timeline/timelineEchartsTheme';
 import {
   useSelectedNodeIds,
-  useSelectedNodeData,
   useOperatorSelection,
   useSetOperatorSelection,
   addOperatorSelection,
   removeOperatorSelection,
-  useSetSelectedNodeData,
+  upsertInspectedNodeData,
+  removeInspectedNodeData,
+  useSelectedNodesDataMap,
+  useSetSelectedNodesData,
   useSetSelectedPlanId,
   useNodeColoringValue,
   useNodeColorPalette,
@@ -53,8 +55,8 @@ export function OperatorGanttChart({
   const operatorSelection = useOperatorSelection();
   const setOperatorSelection = useSetOperatorSelection();
   const setSelectedPlanId = useSetSelectedPlanId();
-  const setSelectedNodeData = useSetSelectedNodeData();
-  const selectedNodeData = useSelectedNodeData();
+  const selectedNodesData = useSelectedNodesDataMap();
+  const setSelectedNodesData = useSetSelectedNodesData();
   const { textColor } = useTimelineEchartsTheme(isDark);
   const nodeColoring = useNodeColoringValue();
   const [nodePalette] = useNodeColorPalette();
@@ -198,20 +200,20 @@ export function OperatorGanttChart({
         if (!op) return;
         if (operatorSelection.selections.has(op.operatorId)) {
           setOperatorSelection(removeOperatorSelection(operatorSelection, op.operatorId));
-          if (selectedNodeData?.nodeId === op.operatorId) {
-            setSelectedNodeData(null);
-          }
+          setSelectedNodesData(removeInspectedNodeData(selectedNodesData, op.operatorId));
         } else {
           const nextSelection = addOperatorSelection(operatorSelection, op.operatorId, op.label, [
             op.operatorId,
           ]);
           setOperatorSelection(nextSelection);
-          setSelectedNodeData({
-            nodeId: op.operatorId,
-            label: op.label,
-            operationType: op.typeName,
-            statistics: op.statistics,
-          });
+          setSelectedNodesData(
+            upsertInspectedNodeData(selectedNodesData, {
+              nodeId: op.operatorId,
+              label: op.label,
+              operationType: op.typeName,
+              statistics: op.statistics,
+            })
+          );
           if (op.planId) {
             setSelectedPlanId(op.planId);
           }
@@ -221,10 +223,10 @@ export function OperatorGanttChart({
     [
       operators,
       operatorSelection,
-      selectedNodeData,
+      selectedNodesData,
       setOperatorSelection,
       setSelectedPlanId,
-      setSelectedNodeData,
+      setSelectedNodesData,
     ]
   );
 

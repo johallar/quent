@@ -29,7 +29,6 @@ import {
 import '@xyflow/react/dist/style.css';
 import {
   useSelectedNodeIds,
-  useSelectedNodeData,
   useOperatorSelection,
   useSetOperatorSelection,
   addOperatorSelection,
@@ -37,17 +36,21 @@ import {
   createOperatorSelectionState,
   getSelectedOperatorIds,
   removeOperatorSelection,
+  upsertInspectedNodeData,
+  removeInspectedNodeData,
   useEdgeWidthConfig,
   useEdgeColoring,
   useEdgeColorPalette,
   useSelectedEdgeWidthField,
   useSelectedEdgeColorField,
   useEffectiveHighlightedNodeIds,
-  useSetSelectedNodeData,
+  useSelectedNodesDataMap,
+  useSetSelectedNodesData,
   useSetDagDisplayedNodeIds,
   useSelectedDagLayoutDirection,
   useDataFlowEnabled,
   useDataFlowMeta,
+  type InspectedNodeData,
 } from '@quent/hooks';
 import { calculateLayout, NODE_LAYOUT_WIDTH, NODE_LAYOUT_HEIGHT, FLOW_BAR_HEIGHT } from './layout';
 import type { DAGData } from '../services/query-plan/types';
@@ -269,6 +272,21 @@ interface DAGProps {
   onSelectionChange?: (nodeIds: string[]) => void;
 }
 
+function inspectedNodeFromFlowNode(node: Node<QueryPlanNodeData>): InspectedNodeData {
+  return {
+    nodeId: node.id,
+    label: node.data.label,
+    operationType: node.data.operationType,
+    statistics: parseCustomStatistics(node.data.metadata?.rawNode),
+    relatedOperators: node.data.metadata?.relatedOperators?.map(operator => ({
+      nodeId: operator.id,
+      label: operator.instance_name ?? operator.operator_type_name ?? 'Operator',
+      operationType: operator.operator_type_name?.toLowerCase() ?? 'operator',
+      statistics: parseCustomStatistics(operator),
+    })),
+  };
+}
+
 const FlowLayout = ({
   data,
   containerRef,
@@ -288,8 +306,8 @@ const FlowLayout = ({
   const operatorSelection = useOperatorSelection();
   const setOperatorSelection = useSetOperatorSelection();
   const setDagDisplayedNodeIds = useSetDagDisplayedNodeIds();
-  const selectedNodeData = useSelectedNodeData();
-  const setSelectedNodeData = useSetSelectedNodeData();
+  const selectedNodesData = useSelectedNodesDataMap();
+  const setSelectedNodesData = useSetSelectedNodesData();
   const [layoutDirection] = useSelectedDagLayoutDirection();
   const dataFlowEnabled = useDataFlowEnabled();
   const dataFlowMeta = useDataFlowMeta();
@@ -397,9 +415,7 @@ const FlowLayout = ({
         const nextSelection = removeOperatorSelection(operatorSelection, node.id);
 
         setOperatorSelection(nextSelection);
-        if (selectedNodeData?.nodeId === node.id) {
-          setSelectedNodeData(null);
-        }
+        setSelectedNodesData(removeInspectedNodeData(selectedNodesData, node.id));
         onSelectionChange?.([...getSelectedOperatorIds(nextSelection)]);
       } else {
         const selectionIds = getSelectionIds(node);
@@ -411,36 +427,27 @@ const FlowLayout = ({
         );
 
         setOperatorSelection(nextSelection);
-        setSelectedNodeData({
-          nodeId: node.id,
-          label: node.data.label,
-          operationType: node.data.operationType,
-          statistics: parseCustomStatistics(node.data.metadata?.rawNode),
-          relatedOperators: node.data.metadata?.relatedOperators?.map(operator => ({
-            nodeId: operator.id,
-            label: operator.instance_name ?? operator.operator_type_name ?? 'Operator',
-            operationType: operator.operator_type_name?.toLowerCase() ?? 'operator',
-            statistics: parseCustomStatistics(operator),
-          })),
-        });
+        setSelectedNodesData(
+          upsertInspectedNodeData(selectedNodesData, inspectedNodeFromFlowNode(node))
+        );
         onSelectionChange?.([...getSelectedOperatorIds(nextSelection)]);
       }
     },
     [
       getSelectionIds,
       operatorSelection,
-      selectedNodeData,
+      selectedNodesData,
       setOperatorSelection,
-      setSelectedNodeData,
+      setSelectedNodesData,
       onSelectionChange,
     ]
   );
 
   const handlePaneClick = useCallback(() => {
     setOperatorSelection(createEmptyOperatorSelectionState());
-    setSelectedNodeData(null);
+    setSelectedNodesData(new Map());
     onSelectionChange?.([]);
-  }, [onSelectionChange, setOperatorSelection, setSelectedNodeData]);
+  }, [onSelectionChange, setOperatorSelection, setSelectedNodesData]);
 
   // Re-fit view when the react-flow container is resized, but only if the user
   // hasn't interacted with the chart (to maintain any focus states applied)

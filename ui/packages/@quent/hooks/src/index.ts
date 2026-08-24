@@ -27,6 +27,7 @@ export {
   type OperatorSelection,
   type OperatorSelectionState,
 } from './dag/operatorSelection';
+export { upsertInspectedNodeData, removeInspectedNodeData } from './dag/inspectedNodeData';
 export { useSelectedPlanId, useSetSelectedPlanId } from './dag/useSelectedPlanId';
 export { useHoveredWorkerId, useSetHoveredWorkerId } from './dag/useHoveredWorkerId';
 
@@ -98,6 +99,9 @@ export {
   useSelectedDagLayoutDirection,
   useSelectedNodeData,
   useSetSelectedNodeData,
+  useSelectedNodesData,
+  useSelectedNodesDataMap,
+  useSetSelectedNodesData,
   useHighlightedNodeIds,
   useSetHighlightedNodeIds,
   useEffectiveHighlightedNodeIds,
