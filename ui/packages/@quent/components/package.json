@@ -5,9 +5,7 @@
   "type": "module",
   "main": "src/index.ts",
   "exports": {
-    ".": "./src/index.ts",
-    "./lib/utils": "./src/lib/utils.ts",
-    "./ui/*": "./src/ui/*.tsx"
+    ".": "./src/index.ts"
   },
   "sideEffects": [
     "**/echarts.ts",
