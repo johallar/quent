@@ -7,8 +7,9 @@ Quent deep links are snapshots created by the **Copy Link** action. Opening a
 snapshot restores its saved state, but subsequent interactions do not rewrite
 the browser URL.
 
-Deep links currently store the shared timeline viewport and expanded resource
-rows:
+Deep links currently store the shared timeline viewport and expanded timeline
+tree rows. The `expandedResourceIds` name is retained for v1 compatibility and
+may contain stable synthetic row IDs:
 
 ```json
 {
@@ -17,6 +18,7 @@ rows:
     "end": 48.75
   },
   "expandedResourceIds": [
+    "__nvtx__",
     "01a025ff-ea8b-7881-9d31-72a275872c9d",
     "01a025ff-ea8b-7881-9d31-72a275872c9e"
   ]

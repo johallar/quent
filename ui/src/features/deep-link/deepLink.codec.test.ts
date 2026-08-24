@@ -10,6 +10,7 @@ import {
 } from './deepLink.codec';
 import {
   DeepLinkStateV1Schema,
+  MAX_EXPANDED_RESOURCE_ID_LENGTH,
   MAX_EXPANDED_RESOURCE_IDS,
   validateDeepLinkSearch,
 } from './deepLink.schema';
@@ -77,21 +78,27 @@ describe('deep-link search validation', () => {
 });
 
 describe('deep-link state validation', () => {
-  it('strips unknown keys, validates the viewport, and canonicalizes expanded IDs', () => {
+  it('strips unknown keys, validates the viewport, and canonicalizes expanded row IDs', () => {
     expect(DeepLinkStateV1Schema.parse({ ...state, futureField: true })).toEqual(state);
     expect(
       DeepLinkStateV1Schema.parse({
         zoomRange: state.zoomRange,
-        expandedResourceIds: [RESOURCE_B_ID, RESOURCE_A_ID, RESOURCE_B_ID],
+        expandedResourceIds: [RESOURCE_B_ID, '__nvtx__', RESOURCE_A_ID, RESOURCE_B_ID],
       }).expandedResourceIds
-    ).toEqual([RESOURCE_A_ID, RESOURCE_B_ID]);
+    ).toEqual([RESOURCE_A_ID, RESOURCE_B_ID, '__nvtx__']);
     expect(DeepLinkStateV1Schema.safeParse({ zoomRange: { start: 20, end: 10 } }).success).toBe(
       false
     );
     expect(
       DeepLinkStateV1Schema.safeParse({
         zoomRange: state.zoomRange,
-        expandedResourceIds: ['resource-a'],
+        expandedResourceIds: [''],
+      }).success
+    ).toBe(false);
+    expect(
+      DeepLinkStateV1Schema.safeParse({
+        zoomRange: state.zoomRange,
+        expandedResourceIds: ['x'.repeat(MAX_EXPANDED_RESOURCE_ID_LENGTH + 1)],
       }).success
     ).toBe(false);
     expect(

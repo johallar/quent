@@ -21,6 +21,7 @@ import { useDeepLink } from './deepLink.context';
 
 const RESOURCE_A_ID = '01a025ff-ea8b-7881-9d31-72a275872c9d';
 const RESOURCE_B_ID = '01a025ff-ea8b-7881-9d31-72a275872c9e';
+const NVTX_SECTION_ID = '__nvtx__';
 
 function ViewportProbe() {
   const immediate = useZoomRange();
@@ -198,7 +199,7 @@ describe('DeepLinkBoundary', () => {
         <JotaiProvider>
           <DeepLinkBoundary durationSeconds={100} isQueryReady>
             <SeedViewport start={20} end={60} />
-            <SeedExpandedRows ids={[RESOURCE_B_ID, RESOURCE_A_ID]} />
+            <SeedExpandedRows ids={[RESOURCE_B_ID, NVTX_SECTION_ID, RESOURCE_A_ID]} />
             <ViewportProbe />
             <CopyLinkButton />
           </DeepLinkBoundary>
@@ -223,7 +224,7 @@ describe('DeepLinkBoundary', () => {
       ok: true,
       value: {
         zoomRange: { start: 20, end: 60 },
-        expandedResourceIds: [RESOURCE_A_ID, RESOURCE_B_ID],
+        expandedResourceIds: [RESOURCE_A_ID, RESOURCE_B_ID, NVTX_SECTION_ID],
       },
     });
     expect(window.location.href).toBe(originalUrl);
