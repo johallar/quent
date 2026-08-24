@@ -47,6 +47,7 @@ import { calculateLayout, NODE_LAYOUT_WIDTH, NODE_LAYOUT_HEIGHT, FLOW_BAR_HEIGHT
 import type { DAGData } from '../services/query-plan/types';
 import { QueryPlanNode, type QueryPlanNodeData } from '../query-plan/QueryPlanNode';
 import { DAGLegend } from './DAGLegend';
+import { resolveInspectedNodeData } from './dagSelection';
 import { parseCustomStatistics } from '../lib/queryBundle.utils';
 import {
   continuousColor,
@@ -312,17 +313,9 @@ const FlowLayout = ({
   }, [data.nodes, setDagDisplayedNodeIds]);
 
   useEffect(() => {
-    if (selectedNodeIds.size !== 1) return;
-    const selectedId = [...selectedNodeIds][0]!;
-    const selected = data.nodes.find(node => node.id === selectedId);
-    if (!selected) return;
-    setSelectedOperatorLabel(selected.label);
-    setSelectedNodeData({
-      nodeId: selected.id,
-      label: selected.label,
-      operationType: selected.type,
-      statistics: parseCustomStatistics(selected.metadata?.rawNode),
-    });
+    const selected = resolveInspectedNodeData(data.nodes, selectedNodeIds);
+    setSelectedOperatorLabel(selected?.label ?? null);
+    setSelectedNodeData(selected);
   }, [data.nodes, selectedNodeIds, setSelectedNodeData, setSelectedOperatorLabel]);
 
   const handleMoveStart = useCallback<OnMoveStart>(event => {
