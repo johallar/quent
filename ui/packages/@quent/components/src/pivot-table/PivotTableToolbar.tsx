@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { useCallback } from 'react';
-import { cn } from '@quent/utils';
+import { cn, AGG_MODES } from '@quent/utils';
 import { useColumnDragDrop } from '@quent/hooks';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import { OptionMultiSelect } from '../ui/option-multi-select';
@@ -117,7 +117,7 @@ export function PivotTableToolbar({
                   --
                 </SelectItem>
               )}
-              {(['sum', 'mean', 'min', 'max', 'stdev'] as AggMode[]).map(mode => (
+              {AGG_MODES.filter(mode => mode !== 'value').map(mode => (
                 <SelectItem key={mode} value={mode} className="text-xs">
                   {mode}
                 </SelectItem>

@@ -14,9 +14,12 @@ import {
   DeepLinkStateV2Schema,
   DeepLinkStateV1Schema,
   MAX_EXPANDED_RESOURCE_IDS,
+  OperatorGroupSchema,
   type DeepLinkStateV2,
   validateDeepLinkSearch,
 } from './deepLink.schema';
+import { CONTINUOUS_PALETTES, DAG_LAYOUT_DIRECTION, NODE_LABEL_FIELD } from '@quent/utils';
+import { OPERATOR_TABLE_INDEX_ORDER } from '@/components/operator-table/types';
 
 const state: DeepLinkStateV2 = {
   route: {
@@ -175,5 +178,28 @@ describe('deep-link state validation', () => {
       zoomRange: { start: 1, end: 2 },
       expandedResourceIds: ['a', 'b'],
     });
+  });
+
+  it('derives enum vocabularies from shared constants', () => {
+    const base = { route: state.route, timeline: state.timeline };
+    for (const palette of Object.keys(CONTINUOUS_PALETTES)) {
+      expect(
+        DeepLinkStateV2Schema.safeParse({
+          ...base,
+          dag: { nodeColorPalette: palette, edgeColorPalette: palette },
+        }).success
+      ).toBe(true);
+    }
+    for (const nodeLabelField of Object.values(NODE_LABEL_FIELD)) {
+      expect(DeepLinkStateV2Schema.safeParse({ ...base, dag: { nodeLabelField } }).success).toBe(
+        true
+      );
+    }
+    for (const layoutDirection of Object.values(DAG_LAYOUT_DIRECTION)) {
+      expect(DeepLinkStateV2Schema.safeParse({ ...base, dag: { layoutDirection } }).success).toBe(
+        true
+      );
+    }
+    expect(OperatorGroupSchema.options).toEqual([...OPERATOR_TABLE_INDEX_ORDER]);
   });
 });

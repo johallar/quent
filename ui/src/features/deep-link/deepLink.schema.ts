@@ -2,6 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { z } from 'zod';
+import {
+  CONTINUOUS_PALETTES,
+  DAG_LAYOUT_DIRECTION,
+  NODE_LABEL_FIELD,
+  AGG_MODES,
+} from '@quent/utils';
+import { OPERATOR_TABLE_INDEX_ORDER } from '@/components/operator-table/types';
 
 export const MAX_ENCODED_STATE_LENGTH = 4096;
 export const MAX_EXPANDED_RESOURCE_IDS = 50;
@@ -29,6 +36,12 @@ function canonicalSelections<T extends { rowId: string }>(values: T[]): T[] {
   return [...new Map(values.map(value => [value.rowId, value])).values()].sort((a, b) =>
     a.rowId.localeCompare(b.rowId)
   );
+}
+
+function enumKeys<T extends Record<string, unknown>>(
+  obj: T
+): [keyof T & string, ...(keyof T & string)[]] {
+  return Object.keys(obj) as [keyof T & string, ...(keyof T & string)[]];
 }
 
 export const ZoomRangeSchema = z
@@ -107,7 +120,7 @@ const ResourceTreeSchema = z
   })
   .strip();
 
-const ContinuousPaletteSchema = z.enum(['blue', 'teal', 'purple', 'orange', 'viridis']);
+const ContinuousPaletteSchema = z.enum(enumKeys(CONTINUOUS_PALETTES));
 
 const DagControlsSchema = z
   .object({
@@ -116,8 +129,8 @@ const DagControlsSchema = z
     edgeWidthField: NameSchema.optional(),
     edgeColorField: NameSchema.optional(),
     edgeColorPalette: ContinuousPaletteSchema.optional(),
-    nodeLabelField: z.enum(['name', 'id', 'type']).optional(),
-    layoutDirection: z.enum(['bottom-to-top', 'top-to-bottom']).optional(),
+    nodeLabelField: z.enum(NODE_LABEL_FIELD).optional(),
+    layoutDirection: z.enum(DAG_LAYOUT_DIRECTION).optional(),
   })
   .strip();
 
@@ -131,13 +144,7 @@ const DataFlowSchema = z
   })
   .strip();
 
-export const OperatorGroupSchema = z.enum([
-  'partition',
-  'parent_item_type',
-  'parent_item',
-  'item_type',
-  'item',
-]);
+export const OperatorGroupSchema = z.enum(OPERATOR_TABLE_INDEX_ORDER);
 
 const OperatorTableSchema = z
   .object({
@@ -152,7 +159,7 @@ const OperatorTableSchema = z
       .transform(uniqueInOrder)
       .optional(),
     visibleStats: z.array(NameSchema).max(MAX_VISIBLE_STATS).transform(uniqueInOrder).optional(),
-    aggregation: z.enum(['value', 'sum', 'mean', 'min', 'max', 'stdev']).optional(),
+    aggregation: z.enum(AGG_MODES).optional(),
     sort: z
       .array(
         z
