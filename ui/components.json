@@ -11,6 +11,6 @@
   "aliases": {
     "components": "@quent/components",
     "ui": "@quent/components/ui",
-    "utils": "@quent/components/lib/utils"
+    "utils": "@quent/utils"
   }
 }

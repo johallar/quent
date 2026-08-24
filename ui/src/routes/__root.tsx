@@ -20,11 +20,22 @@ function AppNav({ highlightProfile }: { highlightProfile?: boolean }) {
   return (
     <nav className="sticky top-0 z-50 w-full border-b bg-card shadow-sm">
       <div className="w-full flex h-16 items-center justify-between px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center gap-3">
+        <Link
+          to="/"
+          className="flex items-center gap-3 rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        >
+          <span
+            aria-hidden="true"
+            className="size-8 shrink-0 bg-current text-primary"
+            style={{
+              WebkitMask: "url('/logo.svg') center / contain no-repeat",
+              mask: "url('/logo.svg') center / contain no-repeat",
+            }}
+          />
           <h1 className="text-2xl font-semibold text-primary">
             QUENT <span className="font-light text-muted-foreground">UI</span>
           </h1>
-        </div>
+        </Link>
         <div className="flex-1 flex items-center justify-center">
           <NavBarNavigator />
         </div>

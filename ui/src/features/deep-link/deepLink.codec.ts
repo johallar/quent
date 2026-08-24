@@ -26,8 +26,7 @@ export type DeepLinkErrorCode =
   | 'invalid-url';
 
 export type DeepLinkResult<T> =
-  | { ok: true; value: T }
-  | { ok: false; code: DeepLinkErrorCode; message: string };
+  { ok: true; value: T } | { ok: false; code: DeepLinkErrorCode; message: string };
 
 function failure(code: DeepLinkErrorCode, message: string): DeepLinkResult<never> {
   return { ok: false, code, message };

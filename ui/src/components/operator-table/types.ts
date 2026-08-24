@@ -4,11 +4,7 @@
 import type { StatValue } from '@quent/utils';
 
 export type OperatorTableIndexKey =
-  | 'partition'
-  | 'parent_item_type'
-  | 'parent_item'
-  | 'item_type'
-  | 'item';
+  'partition' | 'parent_item_type' | 'parent_item' | 'item_type' | 'item';
 
 export const OPERATOR_TABLE_PERSIST_KEY = 'operatorTable';
 export const OPERATOR_TABLE_INDEX_ORDER: OperatorTableIndexKey[] = [

@@ -25,7 +25,8 @@
     "@quent/client": "workspace:*",
     "@quent/hooks": "workspace:*",
     "@quent/utils": "workspace:*",
-    "d3-dag": "^1.2.1"
+    "d3-dag": "^1.2.1",
+    "vaul": "^1.1.2"
   },
   "peerDependencies": {
     "@tanstack/react-query": "^5.0.0",
