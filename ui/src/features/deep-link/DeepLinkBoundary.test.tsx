@@ -140,6 +140,26 @@ describe('DeepLinkBoundary', () => {
     );
   });
 
+  it('hydrates a legacy v1 viewport without version-specific branching', () => {
+    render(
+      <JotaiProvider>
+        <DeepLinkBoundary
+          {...BOUNDARY_PROPS}
+          encodedState="v1.H4sIAAAAAAACA6tWqsrPzw1KzEtPVbKqViouSSwqUbIy0FFKzUsB0nomBua1tQAidcVYJQAAAA"
+        >
+          <ViewportProbe />
+        </DeepLinkBoundary>
+      </JotaiProvider>
+    );
+
+    expect(screen.getByTestId('viewport')).toHaveTextContent(
+      JSON.stringify({
+        immediate: { start: 0, end: 0.407 },
+        debounced: { start: 0, end: 0.407 },
+      })
+    );
+  });
+
   it('hydrates comprehensive view state before rendering children', () => {
     const encoded = encodeDeepLinkState({
       route: { engineId: 'e', queryId: 'q', tab: 'timeline' },
@@ -314,9 +334,12 @@ describe('DeepLinkBoundary', () => {
     expect(decodeDeepLinkState(encoded!)).toEqual({
       ok: true,
       value: {
-        route: { engineId: 'e', queryId: 'q', tab: 'timeline' },
-        timeline: { zoomRange: { start: 20, end: 60 } },
-        resources: { expandedRowIds: ['resource-a', 'resource-b'] },
+        version: 'v2',
+        data: {
+          route: { engineId: 'e', queryId: 'q', tab: 'timeline' },
+          timeline: { zoomRange: { start: 20, end: 60 } },
+          resources: { expandedRowIds: ['resource-a', 'resource-b'] },
+        },
       },
     });
     expect(window.location.href).toBe(originalUrl);

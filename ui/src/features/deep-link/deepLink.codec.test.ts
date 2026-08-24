@@ -73,7 +73,10 @@ describe('deep-link codec', () => {
     expect(first).toEqual(second);
     expect(first.ok).toBe(true);
     if (!first.ok) return;
-    expect(decodeDeepLinkState(first.value)).toEqual({ ok: true, value: state });
+    expect(decodeDeepLinkState(first.value)).toEqual({
+      ok: true,
+      value: { version: 'v2', data: state },
+    });
   });
 
   it('keeps the current version in the supported schema registry', () => {
@@ -97,7 +100,7 @@ describe('deep-link codec', () => {
 
     expect(decodeDeepLinkState(encoded)).toEqual({
       ok: true,
-      value: { zoomRange: { start: 0, end: 0.407 } },
+      value: { version: 'v1', data: { zoomRange: { start: 0, end: 0.407 } } },
     });
   });
 

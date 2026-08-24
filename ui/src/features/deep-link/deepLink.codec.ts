@@ -3,11 +3,13 @@
 
 import { gunzipSync, gzipSync, strFromU8, strToU8 } from 'fflate';
 import {
+  SUPPORTED_DEEP_LINK_SCHEMAS,
+  type DeepLinkVersion,
+  type VersionedDeepLinkState,
+} from './deepLink.fields';
+import {
   DeepLinkStateV2Schema,
   MAX_ENCODED_STATE_LENGTH,
-  SUPPORTED_DEEP_LINK_SCHEMAS,
-  type DecodedDeepLinkState,
-  type DeepLinkVersion,
   type DeepLinkStateV2,
 } from './deepLink.schema';
 
@@ -65,7 +67,7 @@ export function encodeDeepLinkState(state: DeepLinkStateV2): DeepLinkResult<stri
   return { ok: true, value: encoded };
 }
 
-export function decodeDeepLinkState(encoded: string): DeepLinkResult<DecodedDeepLinkState> {
+export function decodeDeepLinkState(encoded: string): DeepLinkResult<VersionedDeepLinkState> {
   if (encoded.length > MAX_ENCODED_STATE_LENGTH) {
     return failure('payload-too-large', 'The deep-link state exceeds the supported size.');
   }
@@ -98,7 +100,7 @@ export function decodeDeepLinkState(encoded: string): DeepLinkResult<DecodedDeep
     if (!parsed.success) {
       return failure('invalid-state', `The deep-link state does not match the ${version} schema.`);
     }
-    return { ok: true, value: parsed.data };
+    return { ok: true, value: { version: versionedSchema.version, data: parsed.data } };
   } catch {
     return failure('invalid-encoding', 'The deep-link state could not be decoded.');
   }

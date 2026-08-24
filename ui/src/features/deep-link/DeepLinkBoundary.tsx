@@ -37,13 +37,9 @@ import {
   type DeepLinkContextValue,
   type DeepLinkIntakeStatus,
 } from './deepLink.context';
+import { readDeepLinkFields, type DeepLinkFields } from './deepLink.fields';
 import { normalizeZoomRange, resolveCapturedZoomRange } from './deepLink.normalize';
-import {
-  OperatorGroupSchema,
-  type DeepLinkStateV1,
-  type DeepLinkStateV2,
-  type DeepLinkTab,
-} from './deepLink.schema';
+import { OperatorGroupSchema, type DeepLinkStateV2, type DeepLinkTab } from './deepLink.schema';
 
 interface DeepLinkBoundaryProps {
   children: ReactNode;
@@ -58,18 +54,14 @@ interface DeepLinkBoundaryProps {
 
 type IntakeState = {
   initialExpandedResourceIds: readonly string[] | null;
-  initialZoomRange: DeepLinkStateV2['timeline']['zoomRange'] | null;
-  state: DeepLinkStateV2 | null;
+  initialZoomRange: NonNullable<DeepLinkFields['zoomRange']> | null;
+  fields: DeepLinkFields | null;
   isResolved: boolean;
   status: DeepLinkIntakeStatus;
 };
 
 function hasKeys(value: object): boolean {
   return Object.keys(value).length > 0;
-}
-
-function isV2State(state: DeepLinkStateV1 | DeepLinkStateV2): state is DeepLinkStateV2 {
-  return 'route' in state;
 }
 
 function isOperatorGroup(value: string): value is (typeof OperatorGroupSchema.options)[number] {
@@ -103,7 +95,7 @@ export function DeepLinkBoundary({
       return {
         initialExpandedResourceIds: null,
         initialZoomRange: null,
-        state: null,
+        fields: null,
         isResolved: true,
         status: { kind: 'idle' } satisfies DeepLinkIntakeStatus,
       };
@@ -112,7 +104,7 @@ export function DeepLinkBoundary({
       return {
         initialExpandedResourceIds: null,
         initialZoomRange: null,
-        state: null,
+        fields: null,
         isResolved: false,
         status: { kind: 'idle' } satisfies DeepLinkIntakeStatus,
       };
@@ -123,23 +115,23 @@ export function DeepLinkBoundary({
       return {
         initialExpandedResourceIds: null,
         initialZoomRange: null,
-        state: null,
+        fields: null,
         isResolved: true,
         status: { kind: 'error', message: decoded.message } satisfies DeepLinkIntakeStatus,
       };
     }
 
-    const decodedState = decoded.value;
+    const fields = readDeepLinkFields(decoded.value);
     if (
-      isV2State(decodedState) &&
-      (decodedState.route.engineId !== intakeRoute.engineId ||
-        decodedState.route.queryId !== intakeRoute.queryId ||
-        decodedState.route.tab !== intakeRoute.activeTab)
+      fields.route &&
+      (fields.route.engineId !== intakeRoute.engineId ||
+        fields.route.queryId !== intakeRoute.queryId ||
+        fields.route.tab !== intakeRoute.activeTab)
     ) {
       return {
         initialExpandedResourceIds: null,
         initialZoomRange: null,
-        state: null,
+        fields: null,
         isResolved: true,
         status: {
           kind: 'error',
@@ -148,18 +140,15 @@ export function DeepLinkBoundary({
       };
     }
 
-    const zoomRange = isV2State(decodedState)
-      ? decodedState.timeline.zoomRange
-      : decodedState.zoomRange;
-    const expandedResourceIds = isV2State(decodedState)
-      ? (decodedState.resources?.expandedRowIds ?? null)
-      : (decodedState.expandedResourceIds ?? null);
-    const normalized = normalizeZoomRange(zoomRange, durationSeconds);
-    if (!normalized) {
+    const expandedResourceIds = fields.expandedResourceIds ?? null;
+    const normalized = fields.zoomRange
+      ? normalizeZoomRange(fields.zoomRange, durationSeconds)
+      : null;
+    if (fields.zoomRange && !normalized) {
       return {
         initialExpandedResourceIds: expandedResourceIds,
         initialZoomRange: null,
-        state: isV2State(decodedState) ? decodedState : null,
+        fields,
         isResolved: true,
         status: {
           kind: 'error',
@@ -170,10 +159,10 @@ export function DeepLinkBoundary({
 
     return {
       initialExpandedResourceIds: expandedResourceIds,
-      initialZoomRange: normalized.range,
-      state: isV2State(decodedState) ? decodedState : null,
+      initialZoomRange: normalized?.range ?? null,
+      fields,
       isResolved: true,
-      status: normalized.wasAdjusted
+      status: normalized?.wasAdjusted
         ? ({
             kind: 'warning',
             message: 'The shared timeline viewport was adjusted to fit this query.',
@@ -220,8 +209,8 @@ export function DeepLinkBoundary({
     if (intake.initialExpandedResourceIds !== null) {
       store.set(expandedIdsAtom, new Set(intake.initialExpandedResourceIds));
     }
-    if (intake.state?.resources) {
-      const resources = intake.state.resources;
+    if (intake.fields?.resources) {
+      const resources = intake.fields.resources;
       if (resources.rootResourceType !== undefined) {
         store.set(rootResourceTypeAtom, resources.rootResourceType);
       }
@@ -238,20 +227,20 @@ export function DeepLinkBoundary({
         );
       }
     }
-    if (intake.state) {
+    if (intake.fields) {
       hydrateSerializableViewState({
-        selection: intake.state.selection,
-        dag: intake.state.dag,
-        dataFlow: intake.state.dataFlow
+        selection: intake.fields.selection,
+        dag: intake.fields.dag,
+        dataFlow: intake.fields.dataFlow
           ? {
-              enabled: intake.state.dataFlow.enabled,
-              measure: intake.state.dataFlow.measure,
-              labelMeasure: intake.state.dataFlow.labelMeasure,
-              dimensions: intake.state.dataFlow.dimensions,
-              playheadS: intake.state.dataFlow.playheadS,
+              enabled: intake.fields.dataFlow.enabled,
+              measure: intake.fields.dataFlow.measure,
+              labelMeasure: intake.fields.dataFlow.labelMeasure,
+              dimensions: intake.fields.dataFlow.dimensions,
+              playheadS: intake.fields.dataFlow.playheadS,
             }
           : undefined,
-        operatorTable: intake.state.operatorTable,
+        operatorTable: intake.fields.operatorTable,
       });
     }
     setIsHydrated(true);
@@ -259,7 +248,7 @@ export function DeepLinkBoundary({
     intake.initialExpandedResourceIds,
     intake.initialZoomRange,
     intake.isResolved,
-    intake.state,
+    intake.fields,
     hydrateSerializableViewState,
     setDebouncedZoomRange,
     setZoomRange,
