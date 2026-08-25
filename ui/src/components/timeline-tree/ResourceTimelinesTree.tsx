@@ -3,7 +3,7 @@
 
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { useAtom } from 'jotai';
-import { useCallback, useEffect, useMemo, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo } from 'react';
 import { fetchSingleTimeline, DEFAULT_STALE_TIME } from '@quent/client';
 import {
   ResourceColumn,
@@ -32,6 +32,7 @@ import {
   selectedTypesAtom,
 } from '@/atoms/resourceTree';
 import { useExpandedIds } from '@/hooks/useExpandedIds';
+import type { ResourceTimelineSubRow } from './subRow';
 import {
   TimelineTreeTable,
   useTimelineTreeSetup,
@@ -50,13 +51,7 @@ export interface ResourceTimelinesTreeModel extends TimelineTreeModel, TimelineT
   rootItem: TreeTableItem;
 }
 
-export interface ResourceTimelineSubRow {
-  id: string;
-  injectRows: (rootItem: TreeTableItem) => TreeTableItem;
-  matches: (item: TimelineTreeItem) => boolean;
-  renderLabel: (item: TimelineTreeItem) => ReactNode;
-  renderTimeline: (item: TimelineTreeItem) => ReactNode;
-}
+export type { ResourceTimelineSubRow };
 
 const EMPTY_SUB_ROWS: readonly ResourceTimelineSubRow[] = [];
 

@@ -14,7 +14,7 @@ import {
   type QueryBundle,
 } from '@quent/utils';
 import { LongEntitiesRow } from '@/components/LongEntitiesRow';
-import type { ResourceTimelineSubRow } from './ResourceTimelinesTree';
+import { createSyntheticSubRow, createTimelineSubRow, mapTreeItems } from './subRow';
 
 interface LongEntitiesTimelineSubRowOptions {
   engineId: string;
@@ -25,26 +25,6 @@ interface LongEntitiesTimelineSubRowOptions {
   onBackgroundClick?: () => void;
 }
 
-function createLongEntitiesRow(resourceId: string): TreeTableItem {
-  return {
-    id: longEntitiesRowId(resourceId),
-    type: LONG_ENTITIES_ROW_TYPE,
-    entity: {} as TreeTableItem['entity'],
-  };
-}
-
-function injectLongEntitiesRows(item: TreeTableItem): TreeTableItem {
-  if (!item.children?.length) return { ...item };
-  const children: TreeTableItem[] = [];
-  for (const child of item.children) {
-    children.push(injectLongEntitiesRows(child));
-    if (child.type === EntityTypeKey.Resource) {
-      children.push(createLongEntitiesRow(child.id));
-    }
-  }
-  return { ...item, children };
-}
-
 export function createLongEntitiesTimelineSubRow({
   engineId,
   queryBundle,
@@ -52,17 +32,22 @@ export function createLongEntitiesTimelineSubRow({
   onEntitySelect,
   selectedEntityId,
   onBackgroundClick,
-}: LongEntitiesTimelineSubRowOptions): ResourceTimelineSubRow {
-  return {
+}: LongEntitiesTimelineSubRowOptions) {
+  return createTimelineSubRow({
     id: 'long-entities',
-    injectRows: injectLongEntitiesRows,
-    matches: item => item.type === LONG_ENTITIES_ROW_TYPE,
-    renderLabel: () => (
-      <span className="flex items-center">
-        <span aria-hidden className="mr-4 h-4 w-4 shrink-0" />
-        <span className="text-xs leading-none text-muted-foreground">Entities</span>
-      </span>
-    ),
+    rowType: LONG_ENTITIES_ROW_TYPE,
+    label: 'Entities',
+    injectRows: rootItem =>
+      mapTreeItems(rootItem, (_item, children) => {
+        const next: TreeTableItem[] = [];
+        for (const child of children) {
+          next.push(child);
+          if (child.type === EntityTypeKey.Resource) {
+            next.push(createSyntheticSubRow(longEntitiesRowId(child.id), LONG_ENTITIES_ROW_TYPE));
+          }
+        }
+        return next;
+      }),
     renderTimeline: item => {
       const resourceId = resourceIdFromLongEntitiesRowId(item.id);
       if (resourceId == null) return null;
@@ -80,5 +65,5 @@ export function createLongEntitiesTimelineSubRow({
         />
       );
     },
-  };
+  });
 }

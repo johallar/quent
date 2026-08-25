@@ -9,57 +9,38 @@ import {
   operatorTimelineRowId,
   operatorsWithActiveSpansForWorker,
   workerIdFromOperatorTimelineRowId,
-  type TreeTableItem,
 } from '@quent/components';
 import type { EntityRef, QueryBundle } from '@quent/utils';
-import type { ResourceTimelineSubRow } from './ResourceTimelinesTree';
+import { createSyntheticSubRow, createTimelineSubRow, mapTreeItems } from './subRow';
 
 interface OperatorGanttTimelineSubRowOptions {
   queryBundle: QueryBundle<EntityRef>;
   isDark: boolean;
 }
 
-function createOperatorTimelineRow(workerId: string): TreeTableItem {
-  return {
-    id: operatorTimelineRowId(workerId),
-    type: OPERATOR_TIMELINE_ROW_TYPE,
-    entity: {} as TreeTableItem['entity'],
-  };
-}
-
-function injectOperatorTimelineRows(item: TreeTableItem, workerIds: Set<string>): TreeTableItem {
-  const transformedChildren = item.children?.map(child =>
-    injectOperatorTimelineRows(child, workerIds)
-  );
-  if (!workerIds.has(item.id)) {
-    return transformedChildren?.length ? { ...item, children: transformedChildren } : { ...item };
-  }
-  return {
-    ...item,
-    children: [createOperatorTimelineRow(item.id), ...(transformedChildren ?? [])],
-  };
-}
-
 export function createOperatorGanttTimelineSubRow({
   queryBundle,
   isDark,
-}: OperatorGanttTimelineSubRowOptions): ResourceTimelineSubRow {
+}: OperatorGanttTimelineSubRowOptions) {
   const workerIds = new Set(getWorkerIdsFromPlanTree(queryBundle.plan_tree));
   const entriesByWorker = new Map<string, ReturnType<typeof operatorsWithActiveSpansForWorker>>();
   for (const workerId of workerIds) {
     entriesByWorker.set(workerId, operatorsWithActiveSpansForWorker(queryBundle, workerId));
   }
 
-  return {
+  return createTimelineSubRow({
     id: 'operator-gantt',
-    injectRows: rootItem => injectOperatorTimelineRows(rootItem, workerIds),
-    matches: item => item.type === OPERATOR_TIMELINE_ROW_TYPE,
-    renderLabel: () => (
-      <span className="flex items-center">
-        <span aria-hidden className="mr-4 h-4 w-4 shrink-0" />
-        <span className="text-xs leading-none text-muted-foreground">Operators</span>
-      </span>
-    ),
+    rowType: OPERATOR_TIMELINE_ROW_TYPE,
+    label: 'Operators',
+    injectRows: rootItem =>
+      mapTreeItems(rootItem, (item, children) =>
+        workerIds.has(item.id)
+          ? [
+              createSyntheticSubRow(operatorTimelineRowId(item.id), OPERATOR_TIMELINE_ROW_TYPE),
+              ...children,
+            ]
+          : children
+      ),
     renderTimeline: item => {
       const workerId = workerIdFromOperatorTimelineRowId(item.id);
       const operators = workerId != null ? (entriesByWorker.get(workerId) ?? []) : [];
@@ -72,5 +53,5 @@ export function createOperatorGanttTimelineSubRow({
         />
       );
     },
-  };
+  });
 }

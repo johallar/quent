@@ -20,7 +20,7 @@ import {
   OPERATOR_TIMELINE_ROW_TYPE,
   type TreeTableItem,
 } from '@quent/components';
-import type { ResourceTimelineSubRow } from './ResourceTimelinesTree';
+import type { ResourceTimelineSubRow } from './subRow';
 
 // ---------------------------------------------------------------------------
 // Mock heavy/visual dependencies so tests run without a real browser/canvas
