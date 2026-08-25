@@ -28,6 +28,24 @@ const request: NvtxViewportRequest = {
   ],
 };
 
+function nvtxDomain(
+  domainId: string,
+  categoryIds: number[],
+  hasUncategorized: boolean
+): NvtxCatalog['domains'][number] {
+  return {
+    domain_id: domainId,
+    name: `domain ${domainId}`,
+    color: '#000000ff',
+    threads: [],
+    categories: categoryIds.map(categoryId => ({
+      category_id: categoryId,
+      name: `category ${categoryId}`,
+    })),
+    has_uncategorized: hasUncategorized,
+  };
+}
+
 describe('NVTX client', () => {
   afterEach(() => vi.unstubAllGlobals());
 
@@ -47,6 +65,16 @@ describe('NVTX client', () => {
   it('propagates non-404 catalog failures', async () => {
     stubFetch(new Response(null, { status: 500, statusText: 'Internal Server Error' }));
     await expect(fetchNvtxCatalog('context-1', QUERY_START_UNIX_NS)).rejects.toThrow(
+      'API Error: 500 Internal Server Error'
+    );
+  });
+
+  it('treats viewport 404 as optional absence and propagates other failures', async () => {
+    stubFetch(new Response(null, { status: 404, statusText: 'Not Found' }));
+    await expect(fetchNvtxViewport('context-1', QUERY_START_UNIX_NS, request)).resolves.toBeNull();
+
+    stubFetch(new Response(null, { status: 500, statusText: 'Internal Server Error' }));
+    await expect(fetchNvtxViewport('context-1', QUERY_START_UNIX_NS, request)).rejects.toThrow(
       'API Error: 500 Internal Server Error'
     );
   });
@@ -93,19 +121,8 @@ describe('NVTX client', () => {
 
   it('selects NVTX domains and categories', () => {
     const catalog = {
-      domains: [
-        {
-          domain_id: '1',
-          categories: [{ category_id: 7 }],
-          has_uncategorized: true,
-        },
-        {
-          domain_id: '3',
-          categories: [],
-          has_uncategorized: true,
-        },
-      ],
-    } as NvtxCatalog;
+      domains: [nvtxDomain('1', [7], true), nvtxDomain('3', [], true)],
+    } satisfies Pick<NvtxCatalog, 'domains'>;
 
     expect(selectNvtxDomains(catalog, '3').map(selection => selection.domain_id)).toEqual(['3']);
     expect(selectNvtxDomains(catalog, null).map(selection => selection.domain_id)).toEqual([
@@ -166,8 +183,8 @@ describe('NVTX client', () => {
       )
     );
     const viewport = await fetchNvtxViewport('context-1', QUERY_START_UNIX_NS, request);
-    expect(viewport.statistics[0]?.count).toBe(1n);
-    expect(viewport.statistics[0]?.observed_count).toBe(1n);
-    expect(viewport.statistics[0]?.total_duration).toBe(1.25);
+    expect(viewport?.statistics[0]?.count).toBe(1n);
+    expect(viewport?.statistics[0]?.observed_count).toBe(1n);
+    expect(viewport?.statistics[0]?.total_duration).toBe(1.25);
   });
 });

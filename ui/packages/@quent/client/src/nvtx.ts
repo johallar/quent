@@ -22,7 +22,7 @@ function compareDecimalIds(left: string, right: string): number {
 }
 
 /** Every catalog domain/category, matching the server's initial UI selection. */
-export function selectAllNvtxDomains(catalog: NvtxCatalog): NvtxDomainSelection[] {
+export function selectAllNvtxDomains(catalog: Pick<NvtxCatalog, 'domains'>): NvtxDomainSelection[] {
   return catalog.domains
     .flatMap(domain => {
       const category_ids = domain.categories.map(category => category.category_id);
@@ -45,7 +45,7 @@ export interface NvtxCategoryFilter {
 
 /** Visible domains with each domain's optional category filter applied. */
 export function selectNvtxDomains(
-  catalog: NvtxCatalog,
+  catalog: Pick<NvtxCatalog, 'domains'>,
   domainId: string | null,
   categoryFilters: ReadonlyMap<string, NvtxCategoryFilter> = new Map()
 ): NvtxDomainSelection[] {

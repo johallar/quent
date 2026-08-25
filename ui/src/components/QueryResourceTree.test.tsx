@@ -7,9 +7,15 @@ import { waitFor, act } from '@testing-library/react';
 import { renderWithQuery } from '@/test/test-utils';
 import { Provider as JotaiProvider, createStore } from 'jotai';
 import { QueryResourceTree } from './QueryResourceTree';
-import { applyBulkTimelineResponse, timelineCacheKey } from '@quent/hooks';
+import { applyBulkTimelineResponse, timelineCacheKey, useZoomRange } from '@quent/hooks';
 import { timelineDataMapAtom } from '@quent/hooks/testing';
-import type { SingleTimelineResponse, QueryBundle, EntityRef, NvtxCatalog } from '@quent/utils';
+import type {
+  SingleTimelineResponse,
+  QueryBundle,
+  EntityRef,
+  FiniteStateMachine,
+  NvtxCatalog,
+} from '@quent/utils';
 
 // ---------------------------------------------------------------------------
 // Mock heavy/visual dependencies so tests run without a real browser/canvas
@@ -38,6 +44,8 @@ vi.mock('@/contexts/ThemeContext', () => ({
 let capturedTimelineData: SingleTimelineResponse | null | undefined = undefined;
 interface TestTreeItem {
   id: string;
+  type?: string;
+  entity?: unknown;
   children?: TestTreeItem[];
 }
 
@@ -47,6 +55,12 @@ let capturedInlineSelectors: Array<{
   options: Array<string | { value: string; label: string }>;
   onChange: (id: string, value: string) => void;
 }> = [];
+let capturedLongEntityProps:
+  | {
+      onEntitySelect?: (fsm: FiniteStateMachine) => void;
+      selectedEntityId?: string;
+    }
+  | undefined;
 
 // Mock @quent/components: keep all actual exports but override heavy/visual ones
 vi.mock('@quent/components', async importOriginal => {
@@ -61,10 +75,21 @@ vi.mock('@quent/components', async importOriginal => {
       columns: Array<{
         headerContent?: React.ReactNode;
         subHeaderContent?: React.ReactNode;
-        render?: (props: { item: TestTreeItem; level: number }) => React.ReactNode;
+        render?: (props: { item: TestTreeItem; level?: number }) => React.ReactNode;
       }>;
       data: TestTreeItem[];
     }) => {
+      const longEntityElement = props.columns[1]?.render?.({
+        item: {
+          id: actual.longEntitiesRowId(RESOURCE_ID),
+          type: actual.LONG_ENTITIES_ROW_TYPE,
+          entity: {},
+        },
+      });
+      if (React.isValidElement(longEntityElement)) {
+        capturedLongEntityProps = longEntityElement.props as typeof capturedLongEntityProps;
+      }
+
       const renderItems = (items: TestTreeItem[], level = 0): React.ReactNode =>
         items.map(item => (
           <React.Fragment key={item.id}>
@@ -151,8 +176,15 @@ const makeTimeline = (start: number, end: number): SingleTimelineResponse =>
     data: { Binned: { series: {} } },
   }) as unknown as SingleTimelineResponse;
 
+function ViewportProbe() {
+  const range = useZoomRange();
+  return <output data-testid="viewport">{JSON.stringify(range)}</output>;
+}
+
 beforeEach(() => {
   capturedInlineSelectors = [];
+  capturedTimelineData = undefined;
+  capturedLongEntityProps = undefined;
   vi.mocked(clientApi.useNvtxStream).mockReturnValue({
     contextId: undefined,
     catalog: null,
@@ -163,8 +195,29 @@ beforeEach(() => {
 
 describe('QueryResourceTree — TimelineController always shows full-range data', () => {
   beforeEach(() => {
-    capturedTimelineData = undefined;
     vi.mocked(clientApi.fetchBulkTimelines).mockResolvedValue({ entries: {} } as never);
+  });
+
+  it('deselects an entity when it is selected again', () => {
+    vi.mocked(clientApi.fetchSingleTimeline).mockResolvedValue(makeTimeline(0, DURATION_S));
+    const fsm = {
+      id: 'entity-1',
+      type_name: 'Task',
+      instance_name: 'Task 1',
+      transitions: [],
+    } as FiniteStateMachine;
+
+    renderWithQuery(
+      <JotaiProvider store={createStore()}>
+        <QueryResourceTree engineId="engine-1" queryBundle={makeBundle()} />
+      </JotaiProvider>
+    );
+
+    act(() => capturedLongEntityProps?.onEntitySelect?.(fsm));
+    expect(capturedLongEntityProps?.selectedEntityId).toBe(fsm.id);
+
+    act(() => capturedLongEntityProps?.onEntitySelect?.(fsm));
+    expect(capturedLongEntityProps?.selectedEntityId).toBeUndefined();
   });
 
   it('passes full-range timeline data to TimelineController', async () => {
@@ -181,6 +234,26 @@ describe('QueryResourceTree — TimelineController always shows full-range data'
     await waitFor(() => expect(capturedTimelineData).toBe(fullRange));
     expect(capturedTimelineData?.config.span.start).toBe(0);
     expect(capturedTimelineData?.config.span.end).toBe(DURATION_S);
+  });
+
+  it('hydrates an imported initial viewport instead of the full query range', async () => {
+    vi.mocked(clientApi.fetchSingleTimeline).mockResolvedValue(makeTimeline(0, DURATION_S));
+
+    const store = createStore();
+    const { getByTestId } = renderWithQuery(
+      <JotaiProvider store={store}>
+        <QueryResourceTree
+          engineId="engine-1"
+          queryBundle={makeBundle()}
+          initialZoomRange={{ start: 25, end: 75 }}
+        />
+        <ViewportProbe />
+      </JotaiProvider>
+    );
+
+    await waitFor(() =>
+      expect(getByTestId('viewport')).toHaveTextContent(JSON.stringify({ start: 25, end: 75 }))
+    );
   });
 
   it('is unaffected when a zoom-bounded bulk fetch overwrites the same atom cache key', async () => {
@@ -209,7 +282,7 @@ describe('QueryResourceTree — TimelineController always shows full-range data'
         {
           resourceId: ROOT_GROUP_ID,
           resourceTypeName: RESOURCE_TYPE,
-          operatorId: null,
+          operatorIds: [],
           fsmTypeName: null,
         },
       ],

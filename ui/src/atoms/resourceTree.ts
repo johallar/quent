@@ -5,7 +5,7 @@ import { atom } from 'jotai';
 
 /**
  * Per-query resource-tree state. Lives at the per-query Jotai provider scope
- * (keyed by `queryId` in `routes/profile.engine.$engineId.tsx`) so it
+ * (keyed by engine and query in `routes/profile.engine.$engineId.tsx`) so it
  * persists across `/timeline` ↔ `/operators` tab switches and resets on
  * query change.
  */
