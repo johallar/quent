@@ -10,16 +10,25 @@ import {
   TreeTable,
   nanosToMs,
   type Column,
+  type NvtxTreeEntity,
   type TreeTableItem,
 } from '@quent/components';
 import { useHydrateTimelineAtoms } from '@quent/hooks';
-import type { EntityRef, QueryBundle, SingleTimelineResponse, ZoomRange } from '@quent/utils';
+import type {
+  EntityRef,
+  EntityTypeValue,
+  QueryBundle,
+  SingleTimelineResponse,
+  ZoomRange,
+} from '@quent/utils';
 import { useTheme, THEME_DARK } from '@/contexts/ThemeContext';
 
+export type TimelineTreeItem = TreeTableItem<EntityTypeValue | NvtxTreeEntity>;
+
 export interface TimelineTreeModel {
-  tree: TreeTableItem | null;
-  renderLabel: (item: TreeTableItem) => ReactNode;
-  renderTimeline: (item: TreeTableItem) => ReactNode;
+  tree: TimelineTreeItem | null;
+  renderLabel: (item: TimelineTreeItem) => ReactNode;
+  renderTimeline: (item: TimelineTreeItem) => ReactNode;
 }
 
 export interface TimelineTreeControls {
@@ -40,7 +49,7 @@ interface TimelineTreeTableProps {
 }
 
 function indexTree(
-  item: TreeTableItem,
+  item: TimelineTreeItem,
   model: TimelineTreeModel,
   modelsByItemId: Map<string, TimelineTreeModel>
 ) {
@@ -83,7 +92,7 @@ export function TimelineTreeTable({
 }: TimelineTreeTableProps) {
   const { data, modelsByItemId } = useMemo(() => {
     const modelsByItemId = new Map<string, TimelineTreeModel>();
-    const data: TreeTableItem[] = [];
+    const data: TimelineTreeItem[] = [];
     for (const model of trees) {
       if (!model.tree) continue;
       data.push(model.tree);
@@ -104,7 +113,7 @@ export function TimelineTreeTable({
               Resource
             </div>
           ),
-          render: ({ item }: { item: TreeTableItem }) =>
+          render: ({ item }: { item: TimelineTreeItem }) =>
             modelsByItemId.get(item.id)?.renderLabel(item) ?? null,
         },
         {
@@ -122,10 +131,10 @@ export function TimelineTreeTable({
             </div>
           ),
           subHeaderContent: <TimelineRuler isDark={isDark} />,
-          render: ({ item }: { item: TreeTableItem }) =>
+          render: ({ item }: { item: TimelineTreeItem }) =>
             modelsByItemId.get(item.id)?.renderTimeline(item) ?? null,
         },
-      ] satisfies Column<TreeTableItem>[],
+      ] satisfies Column<TimelineTreeItem>[],
     [controls.onZoomChange, controls.timelineData, durationSeconds, isDark, modelsByItemId]
   );
 
@@ -133,7 +142,7 @@ export function TimelineTreeTable({
     <div className="flex h-full w-full min-w-0 flex-col">
       <TimelineToolbar durationSeconds={durationSeconds} />
       <div className="min-h-0 min-w-0 flex-1">
-        <TreeTable<TreeTableItem>
+        <TreeTable<TimelineTreeItem>
           data={data}
           columns={columns}
           initialSelectedItemId={controls.initialSelectedItemId}

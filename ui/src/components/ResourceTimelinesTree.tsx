@@ -36,6 +36,7 @@ import {
   TimelineTreeTable,
   useTimelineTreeSetup,
   type TimelineTreeControls,
+  type TimelineTreeItem,
   type TimelineTreeModel,
 } from '@/components/TimelineTreeTable';
 
@@ -52,9 +53,9 @@ export interface ResourceTimelinesTreeModel extends TimelineTreeModel, TimelineT
 export interface ResourceTimelineSubRow {
   id: string;
   injectRows: (rootItem: TreeTableItem) => TreeTableItem;
-  matches: (item: TreeTableItem) => boolean;
-  renderLabel: (item: TreeTableItem) => ReactNode;
-  renderTimeline: (item: TreeTableItem) => ReactNode;
+  matches: (item: TimelineTreeItem) => boolean;
+  renderLabel: (item: TimelineTreeItem) => ReactNode;
+  renderTimeline: (item: TimelineTreeItem) => ReactNode;
 }
 
 const EMPTY_SUB_ROWS: readonly ResourceTimelineSubRow[] = [];
@@ -164,7 +165,7 @@ export function useResourceTimelinesTreeModel({
   );
 
   const renderLabel = useCallback(
-    (item: TreeTableItem) => {
+    (item: TimelineTreeItem) => {
       const subRow = subRows.find(candidate => candidate.matches(item));
       if (subRow) return subRow.renderLabel(item);
 
@@ -174,7 +175,7 @@ export function useResourceTimelinesTreeModel({
         : undefined;
       return (
         <ResourceColumn
-          item={item}
+          item={item as TreeTableItem}
           selectedType={selectedType}
           onTypeChange={(itemId, newType) => {
             setSelectedTypes(previous => new Map(previous).set(itemId, newType));
@@ -203,13 +204,13 @@ export function useResourceTimelinesTreeModel({
   );
 
   const renderTimeline = useCallback(
-    (item: TreeTableItem) => {
+    (item: TimelineTreeItem) => {
       const subRow = subRows.find(candidate => candidate.matches(item));
       if (subRow) return subRow.renderTimeline(item);
 
       return (
         <UsageColumn
-          item={item}
+          item={item as TreeTableItem}
           engineId={engineId}
           queryBundle={queryBundle}
           selectedTypes={selectedTypes}
@@ -224,7 +225,7 @@ export function useResourceTimelinesTreeModel({
 
   return {
     rootItem,
-    tree,
+    tree: tree as TimelineTreeItem,
     initialSelectedItemId: rootItem.id,
     expandedIds,
     highlightedItemIds,

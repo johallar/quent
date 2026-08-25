@@ -19,7 +19,6 @@ import {
   nvtxDefaultExpandedIds,
   nvtxDomainMeta,
   nvtxLaneLabel,
-  type TreeTableItem,
 } from '@quent/components';
 import { useDebouncedZoomRange, useSetDebouncedZoomRange, useSetZoomRange } from '@quent/hooks';
 import type { EntityRef, NvtxCatalog, QueryBundle } from '@quent/utils';
@@ -29,6 +28,7 @@ import {
   TimelineTreeTable,
   useTimelineTreeSetup,
   type TimelineTreeControls,
+  type TimelineTreeItem,
   type TimelineTreeModel,
 } from '@/components/TimelineTreeTable';
 
@@ -154,7 +154,7 @@ export function useNvtxTreeModel({
   );
 
   const renderLabel = useCallback(
-    (item: TreeTableItem) => {
+    (item: TimelineTreeItem) => {
       if (item.type === NVTX_SECTION_ROW_TYPE) {
         return catalog ? (
           <NvtxSectionLabel
@@ -178,7 +178,7 @@ export function useNvtxTreeModel({
   );
 
   const renderTimeline = useCallback(
-    (item: TreeTableItem) => {
+    (item: TimelineTreeItem) => {
       if (item.type === NVTX_SECTION_ROW_TYPE || item.type === NVTX_DOMAIN_ROW_TYPE) {
         return <div style={{ minHeight: DEFAULT_TIMELINE_HEIGHT }} />;
       }
@@ -198,7 +198,7 @@ export function useNvtxTreeModel({
   );
 
   return {
-    tree,
+    tree: tree as TimelineTreeItem | null,
     initialSelectedItemId: tree?.id,
     expandedIds,
     onExpandChange: handleExpandChange,
