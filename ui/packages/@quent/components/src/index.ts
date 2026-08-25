@@ -169,6 +169,11 @@ export type { DAGData, QueryPlanDataItem, QueryPlanNodeData } from './services/q
 
 // ─── Timeline components ──────────────────────────────────────────────────────
 export { TimelineController } from './timeline/TimelineController';
+export { TimelinePointerArea } from './timeline/TimelinePointerArea';
+export type {
+  TimelinePointerAreaProps,
+  TimelinePointerRange,
+} from './timeline/TimelinePointerArea';
 export { TimelineRuler } from './timeline/TimelineRuler';
 export { TimelineSettingsPopover } from './timeline/TimelineSettingsPopover';
 export { TimelineSkeleton } from './timeline/TimelineSkeleton';

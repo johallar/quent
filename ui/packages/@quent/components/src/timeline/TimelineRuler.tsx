@@ -15,8 +15,7 @@ import {
   TIMELINE_LABEL_FONT_SIZE,
 } from './timelineEchartsTheme';
 import { TIMELINE_SPACING } from './types';
-import { TimelinePointerLine } from './TimelinePointerLine';
-import { useTimelinePointerHandlers } from './useTimelinePointer';
+import { TimelinePointerArea } from './TimelinePointerArea';
 
 const RULER_HEIGHT = 22;
 const RULER_TARGET_TICKS = 7;
@@ -41,7 +40,6 @@ export function TimelineRuler({ isDark, mode = 'relative' }: TimelineRulerProps)
     useTimelineEchartsTheme(isDark);
   const { handleChartReady } = useChartResize();
   const zoomRange = useZoomRange();
-  const pointerHandlers = useTimelinePointerHandlers();
 
   const zoomedStartMs = zoomRange.start * 1000;
   const zoomedEndMs = zoomRange.end * 1000;
@@ -151,7 +149,7 @@ export function TimelineRuler({ isDark, mode = 'relative' }: TimelineRulerProps)
   ]);
 
   return (
-    <div className="relative h-full w-full" {...pointerHandlers}>
+    <TimelinePointerArea className="h-full w-full">
       <EChartsReactCore
         echarts={echarts}
         theme={themeName}
@@ -163,7 +161,6 @@ export function TimelineRuler({ isDark, mode = 'relative' }: TimelineRulerProps)
         opts={{ renderer: 'svg' }}
         autoResize={false}
       />
-      <TimelinePointerLine />
-    </div>
+    </TimelinePointerArea>
   );
 }

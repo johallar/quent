@@ -22,8 +22,7 @@ import { useTimelineEchartsTheme } from './timelineEchartsTheme';
 import type { PaletteTheme } from '@quent/utils';
 import { Opts } from 'echarts-for-react/lib/types';
 import { PlayheadLine } from './PlayheadLine';
-import { TimelinePointerLine } from './TimelinePointerLine';
-import { useTimelinePointerHandlers } from './useTimelinePointer';
+import { TimelinePointerArea } from './TimelinePointerArea';
 
 const CONTROLLER_HEIGHT = 50;
 const CONTROLLER_TOP_HEADROOM_RATIO = 0.2;
@@ -353,10 +352,9 @@ export function TimelineController({
 
   const opts = useMemo(() => ({ renderer: 'svg' }) as Opts, []);
   const containerDims = useMemo(() => ({ width: '100%', height: `${height}px` }), [height]);
-  const pointerHandlers = useTimelinePointerHandlers({ range: pointerRange });
 
   return (
-    <div ref={containerRef} style={containerDims} className="relative" {...pointerHandlers}>
+    <TimelinePointerArea ref={containerRef} style={containerDims} range={pointerRange}>
       <EChartsReactCore
         echarts={echarts}
         theme={themeName}
@@ -369,8 +367,7 @@ export function TimelineController({
         opts={opts}
         autoResize={false}
       />
-      <TimelinePointerLine range={pointerRange} />
       <PlayheadLine instance={chartInstance} />
-    </div>
+    </TimelinePointerArea>
   );
 }

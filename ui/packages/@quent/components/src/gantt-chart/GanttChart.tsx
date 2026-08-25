@@ -19,9 +19,8 @@ import { useChartConnect } from '../lib/useChartConnect';
 import { useMinZoomSpanPct } from '../lib/useMinZoomSpanPct';
 import { useTimelineWheelNavigation } from '../lib/useTimelineWheelNavigation';
 import { PlayheadLine } from '../timeline/PlayheadLine';
-import { TimelinePointerLine } from '../timeline/TimelinePointerLine';
+import { TimelinePointerArea } from '../timeline/TimelinePointerArea';
 import { CHART_GROUP, TIMELINE_SPACING } from '../timeline/types';
-import { useTimelinePointerHandlers } from '../timeline/useTimelinePointer';
 import { useTimelineEchartsTheme } from '../timeline/timelineEchartsTheme';
 import { Button } from '../ui/button';
 import { HiddenScroll } from '../ui/thin-scroll';
@@ -121,10 +120,6 @@ export function GanttChart<T extends GanttDatum>({
     typeof resolvedGridSpacing?.right === 'number'
       ? resolvedGridSpacing.right
       : TIMELINE_SPACING.right;
-  const pointerHandlers = useTimelinePointerHandlers({
-    left: pointerLeft,
-    right: pointerRight,
-  });
   const chartHeight =
     expansion?.contentHeight ?? Math.max(height, rowCount * rowHeight + resolvedPadding);
   const wrapperHeight = Math.min(chartHeight, resolvedMaxHeight);
@@ -204,7 +199,7 @@ export function GanttChart<T extends GanttDatum>({
   }, [instanceRef]);
 
   return (
-    <div className="relative" {...pointerHandlers}>
+    <TimelinePointerArea left={pointerLeft} right={pointerRight}>
       <HiddenScroll
         ref={wrapperRef}
         className={
@@ -232,7 +227,6 @@ export function GanttChart<T extends GanttDatum>({
           </div>
         )}
       </HiddenScroll>
-      <TimelinePointerLine left={pointerLeft} right={pointerRight} />
       {showPlayhead && <PlayheadLine instance={chartInstance} />}
       {expansion?.canResize && (
         <Button
@@ -252,6 +246,6 @@ export function GanttChart<T extends GanttDatum>({
         </Button>
       )}
       {data.length > 0 && renderTooltip?.(hover)}
-    </div>
+    </TimelinePointerArea>
   );
 }

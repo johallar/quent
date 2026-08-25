@@ -30,8 +30,7 @@ import { useChartConnect } from '../lib/useChartConnect';
 import { useMinZoomSpanPct } from '../lib/useMinZoomSpanPct';
 import { useTimelineWheelNavigation } from '../lib/useTimelineWheelNavigation';
 import { Opts } from 'echarts-for-react/lib/types';
-import { TimelinePointerLine } from './TimelinePointerLine';
-import { useTimelinePointerHandlers } from './useTimelinePointer';
+import { TimelinePointerArea } from './TimelinePointerArea';
 
 const DIMMED_OPACITY = 0.25;
 
@@ -361,7 +360,6 @@ export function Timeline({
 
   const style = useMemo(() => ({ width: '100%', height: '100%' }), []);
   const opts = useMemo(() => ({ renderer: 'svg' }) as Opts, []);
-  const pointerHandlers = useTimelinePointerHandlers();
 
   const { handleChartReady } = useChartConnect({
     durationSeconds,
@@ -370,7 +368,7 @@ export function Timeline({
   });
 
   return (
-    <div className="relative h-full w-full" {...pointerHandlers}>
+    <TimelinePointerArea className="h-full w-full">
       {(yAxisLabel != null || maxValue != null) && (
         <div
           className="absolute z-[8] pointer-events-none flex flex-col items-start gap-px text-[10px] leading-none"
@@ -409,8 +407,7 @@ export function Timeline({
         replaceMerge={['series']}
         autoResize={false}
       />
-      <TimelinePointerLine />
-    </div>
+    </TimelinePointerArea>
   );
 }
 
