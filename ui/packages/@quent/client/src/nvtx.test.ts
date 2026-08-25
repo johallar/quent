@@ -69,6 +69,16 @@ describe('NVTX client', () => {
     );
   });
 
+  it('treats viewport 404 as optional absence and propagates other failures', async () => {
+    stubFetch(new Response(null, { status: 404, statusText: 'Not Found' }));
+    await expect(fetchNvtxViewport('context-1', QUERY_START_UNIX_NS, request)).resolves.toBeNull();
+
+    stubFetch(new Response(null, { status: 500, statusText: 'Internal Server Error' }));
+    await expect(fetchNvtxViewport('context-1', QUERY_START_UNIX_NS, request)).rejects.toThrow(
+      'API Error: 500 Internal Server Error'
+    );
+  });
+
   it('canonicalizes at the fetch boundary without validating during render', async () => {
     const fetchMock = stubFetch(
       new Response('{"viewport":{"start":-0.25,"end":1.5},"domains":[],"statistics":[]}', {
@@ -142,8 +152,8 @@ describe('NVTX client', () => {
       )
     );
     const viewport = await fetchNvtxViewport('context-1', QUERY_START_UNIX_NS, request);
-    expect(viewport.statistics[0]?.count).toBe(1n);
-    expect(viewport.statistics[0]?.observed_count).toBe(1n);
-    expect(viewport.statistics[0]?.total_duration).toBe(1.25);
+    expect(viewport?.statistics[0]?.count).toBe(1n);
+    expect(viewport?.statistics[0]?.observed_count).toBe(1n);
+    expect(viewport?.statistics[0]?.total_duration).toBe(1.25);
   });
 });
