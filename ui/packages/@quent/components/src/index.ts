@@ -136,10 +136,6 @@ export { getIconForType, collectResourceTypesFromTree } from './lib/resource.uti
 export {
   nanosToMs,
   connectChart,
-  registerAxisPointerSync,
-  unregisterAxisPointerSync,
-  broadcastSyncedPointer,
-  hideSyncedPointer,
   buildBinnedTimelineSeries,
   buildBulkParamsForItem,
   buildTimelineMarks,
@@ -155,7 +151,6 @@ export {
   findItemById,
   transformResourceTree,
 } from './lib/timeline.utils';
-export type { AxisPointerSyncOptions } from './lib/timeline.utils';
 export { getFsmTypeName, getResourceTypeName } from '@quent/utils';
 
 // ─── Services – query-plan ────────────────────────────────────────────────────
