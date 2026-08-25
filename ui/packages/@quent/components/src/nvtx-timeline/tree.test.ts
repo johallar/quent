@@ -9,6 +9,7 @@ import {
   NVTX_DOMAIN_ROW_TYPE,
   NVTX_LANE_ROW_TYPE,
   nvtxDomainRowId,
+  nvtxDomainMeta,
   nvtxLaneLabel,
   nvtxMarksRowId,
   nvtxProcessRowId,
@@ -43,8 +44,14 @@ describe('NVTX resource tree', () => {
       expect.objectContaining({
         id: nvtxThreadRowId('3', 303),
         type: NVTX_LANE_ROW_TYPE,
+        entity: expect.objectContaining({
+          nvtxKind: 'thread',
+          domain: catalog.domains[1],
+          thread: catalog.domains[1]?.threads[0],
+        }),
       }),
     ]);
+    expect(nvtxLaneLabel(tree!.children![0]!.entity)).toBe('worker 3');
   });
 
   it('keeps each domain in a sub-tree when showing all domains', () => {
@@ -62,7 +69,9 @@ describe('NVTX resource tree', () => {
         children: [expect.objectContaining({ id: nvtxThreadRowId('3', 303) })],
       }),
     ]);
-    expect(nvtxLaneLabel(catalog, new Map(), nvtxThreadRowId('3', 303))).toBe('worker 3');
+    const domainRow = tree!.children![1]!;
+    expect(nvtxDomainMeta(domainRow.entity)).toEqual({ name: 'CCCL', color: '#000000' });
+    expect(nvtxLaneLabel(domainRow.children![0]!.entity)).toBe('worker 3');
   });
 
   it('appends process and marks lanes after thread rows', () => {
@@ -100,6 +109,11 @@ describe('NVTX resource tree', () => {
       nvtxThreadRowId('3', 303),
       nvtxProcessRowId('3'),
       nvtxMarksRowId('3'),
+    ]);
+    expect(tree?.children?.map(item => nvtxLaneLabel(item.entity))).toEqual([
+      'worker 3',
+      'Process ranges',
+      'Marks',
     ]);
   });
 });

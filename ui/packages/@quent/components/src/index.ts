@@ -329,7 +329,9 @@ export {
   nvtxMarksRowId,
   buildNvtxTree,
   indexNvtxLanes,
+  isNvtxTreeEntity,
   nvtxDomainMeta,
   nvtxLaneLabel,
   nvtxDefaultExpandedIds,
 } from './nvtx-timeline/utils';
+export type { NvtxTreeEntity, NvtxTreeItem } from './nvtx-timeline/utils';

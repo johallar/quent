@@ -15,6 +15,7 @@ import {
 import { ResourceTree, QueryBundle, EntityTypeKey } from '@quent/utils';
 import type {
   EntityRef,
+  EntityTypeValue,
   NvtxCatalog,
   SingleTimelineRequest,
   QueryFilter,
@@ -69,10 +70,12 @@ import {
   InlineSelector,
   buildNvtxTree,
   indexNvtxLanes,
+  isNvtxTreeEntity,
   nvtxDefaultExpandedIds,
   nvtxDomainMeta,
   nvtxLaneLabel,
 } from '@quent/components';
+import type { NvtxTreeEntity } from '@quent/components';
 import { EntityDetailDrawer } from '@/components/EntityDetailDrawer';
 import type { FiniteStateMachine } from '@quent/utils';
 import { createFsmTypeColorFn } from '@quent/utils';
@@ -130,6 +133,7 @@ function GanttRowLabel({ children }: { children: string }) {
 }
 
 const NVTX_ALL_DOMAINS = '__all__';
+type QueryTreeTableItem = TreeTableItem<EntityTypeValue | NvtxTreeEntity>;
 
 function NvtxSectionLabel({
   catalog,
@@ -418,7 +422,7 @@ function QueryResourceTreeContent({
             Resource
           </div>
         ),
-        render: ({ item }: { item: TreeTableItem; level: number }) => {
+        render: ({ item }: { item: QueryTreeTableItem; level: number }) => {
           switch (item.type) {
             case OPERATOR_TIMELINE_ROW_TYPE: {
               return <GanttRowLabel>Operators</GanttRowLabel>;
@@ -436,13 +440,11 @@ function QueryResourceTreeContent({
               ) : null;
             }
             case NVTX_DOMAIN_ROW_TYPE: {
-              const domain = nvtxCatalog ? nvtxDomainMeta(nvtxCatalog, item.id) : null;
+              const domain = isNvtxTreeEntity(item.entity) ? nvtxDomainMeta(item.entity) : null;
               return domain ? <NvtxDomainLabel name={domain.name} color={domain.color} /> : null;
             }
             case NVTX_LANE_ROW_TYPE: {
-              const label = nvtxCatalog
-                ? nvtxLaneLabel(nvtxCatalog, nvtxLanesByRowId, item.id)
-                : '';
+              const label = isNvtxTreeEntity(item.entity) ? nvtxLaneLabel(item.entity) : '';
               return (
                 <span className="truncate text-xs leading-none text-muted-foreground">{label}</span>
               );
@@ -455,7 +457,7 @@ function QueryResourceTreeContent({
                 : undefined;
               return (
                 <ResourceColumn
-                  item={item}
+                  item={item as TreeTableItem}
                   selectedType={selectedType}
                   onTypeChange={(itemId, newType) => {
                     setSelectedTypes(prev => new Map(prev).set(itemId, newType));
@@ -489,7 +491,7 @@ function QueryResourceTreeContent({
           </div>
         ),
         subHeaderContent: <TimelineRuler isDark={isDark} />,
-        render: ({ item }: { item: TreeTableItem }) => {
+        render: ({ item }: { item: QueryTreeTableItem }) => {
           switch (item.type) {
             case OPERATOR_TIMELINE_ROW_TYPE: {
               const workerId = workerIdFromOperatorTimelineRowId(item.id);
@@ -539,7 +541,7 @@ function QueryResourceTreeContent({
             default: {
               return (
                 <UsageColumn
-                  item={item}
+                  item={item as TreeTableItem}
                   engineId={engineId}
                   queryBundle={queryBundle}
                   selectedTypes={selectedTypes}
@@ -552,7 +554,7 @@ function QueryResourceTreeContent({
           }
         },
       },
-    ] satisfies Column<TreeTableItem>[];
+    ] satisfies Column<QueryTreeTableItem>[];
   }, [
     durationSeconds,
     fetchedRootTimeline,
@@ -581,7 +583,7 @@ function QueryResourceTreeContent({
     <div className="flex min-w-0 flex-col h-full w-full">
       <TimelineToolbar durationSeconds={durationSeconds} />
       <div className="min-w-0 flex-1 min-h-0">
-        <TreeTable<TreeTableItem>
+        <TreeTable<QueryTreeTableItem>
           data={treeData}
           columns={columns}
           initialSelectedItemId={rootItem.id}
