@@ -32,7 +32,7 @@ import {
   selectedTypesAtom,
 } from '@/atoms/resourceTree';
 import { useExpandedIds } from '@/hooks/useExpandedIds';
-import type { ResourceTimelineSubRow } from './subRow';
+import type { ResourceTimelineSubRow } from './sub-rows';
 import {
   TimelineTreeTable,
   useTimelineTreeSetup,

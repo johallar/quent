@@ -5,9 +5,8 @@ import { useCallback, useMemo, useState } from 'react';
 import { createFsmTypeColorFn } from '@quent/utils';
 import type { EntityRef, FiniteStateMachine, QueryBundle, ZoomRange } from '@quent/utils';
 import { EntityDetailDrawer } from '@/components/EntityDetailDrawer';
-import { createLongEntitiesTimelineSubRow } from './LongEntitiesTimelineSubRow';
 import { useNvtxTreeModel } from './NvtxTree';
-import { createOperatorGanttTimelineSubRow } from './OperatorGanttTimelineSubRow';
+import { createLongEntitiesTimelineSubRow, createOperatorGanttTimelineSubRow } from './sub-rows';
 import {
   useResourceTimelinesTreeModel,
   type ResourceTimelineSubRow,

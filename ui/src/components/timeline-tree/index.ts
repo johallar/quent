@@ -16,6 +16,10 @@ export {
   type ResourceTimelinesTreeProps,
 } from './ResourceTimelinesTree';
 export { NvtxTree, useNvtxTreeModel, type NvtxTreeModel } from './NvtxTree';
-export { createTimelineSubRow, mapTreeItems, type ResourceTimelineSubRow } from './subRow';
-export { createLongEntitiesTimelineSubRow } from './LongEntitiesTimelineSubRow';
-export { createOperatorGanttTimelineSubRow } from './OperatorGanttTimelineSubRow';
+export {
+  createLongEntitiesTimelineSubRow,
+  createOperatorGanttTimelineSubRow,
+  createTimelineSubRow,
+  mapTreeItems,
+  type ResourceTimelineSubRow,
+} from './sub-rows';

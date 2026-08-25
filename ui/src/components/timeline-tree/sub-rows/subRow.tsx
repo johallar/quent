@@ -3,7 +3,7 @@
 
 import type { ReactNode } from 'react';
 import type { TreeTableItem } from '@quent/components';
-import type { TimelineTreeItem } from './TimelineTreeTable';
+import type { TimelineTreeItem } from '../TimelineTreeTable';
 
 export interface ResourceTimelineSubRow {
   id: string;
