@@ -14,7 +14,7 @@ import {
   type QueryBundle,
 } from '@quent/utils';
 import { LongEntitiesRow } from '@/components/LongEntitiesRow';
-import type { ResourceTimelineSubRow } from '@/components/ResourceTimelinesTree';
+import type { ResourceTimelineSubRow } from './ResourceTimelinesTree';
 
 interface LongEntitiesTimelineSubRowOptions {
   engineId: string;

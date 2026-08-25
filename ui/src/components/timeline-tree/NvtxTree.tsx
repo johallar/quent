@@ -30,7 +30,7 @@ import {
   type TimelineTreeControls,
   type TimelineTreeItem,
   type TimelineTreeModel,
-} from '@/components/TimelineTreeTable';
+} from './TimelineTreeTable';
 
 const NVTX_ALL_DOMAINS = '__all__';
 

@@ -5,14 +5,14 @@ import { useCallback, useMemo, useState } from 'react';
 import { createFsmTypeColorFn } from '@quent/utils';
 import type { EntityRef, FiniteStateMachine, QueryBundle, ZoomRange } from '@quent/utils';
 import { EntityDetailDrawer } from '@/components/EntityDetailDrawer';
-import { createLongEntitiesTimelineSubRow } from '@/components/LongEntitiesTimelineSubRow';
-import { useNvtxTreeModel } from '@/components/NvtxTree';
-import { createOperatorGanttTimelineSubRow } from '@/components/OperatorGanttTimelineSubRow';
+import { createLongEntitiesTimelineSubRow } from './LongEntitiesTimelineSubRow';
+import { useNvtxTreeModel } from './NvtxTree';
+import { createOperatorGanttTimelineSubRow } from './OperatorGanttTimelineSubRow';
 import {
   useResourceTimelinesTreeModel,
   type ResourceTimelineSubRow,
-} from '@/components/ResourceTimelinesTree';
-import { TimelineTreeTable, useTimelineTreeSetup } from '@/components/TimelineTreeTable';
+} from './ResourceTimelinesTree';
+import { TimelineTreeTable, useTimelineTreeSetup } from './TimelineTreeTable';
 
 export interface QueryResourceTreeProps {
   engineId: string;
@@ -94,16 +94,15 @@ export function QueryResourceTree({
       isDark={isDark}
       trees={[resourceTree, nvtxTree]}
       controls={resourceTree}
-      footer={
-        <EntityDetailDrawer
-          fsm={drawerFsm}
-          resourceLabel={resourceLabel}
-          operatorLabel={operatorLabel}
-          onClose={closeDrawer}
-          stateColorFn={stateColorFn}
-          queryBundle={queryBundle}
-        />
-      }
-    />
+    >
+      <EntityDetailDrawer
+        fsm={drawerFsm}
+        resourceLabel={resourceLabel}
+        operatorLabel={operatorLabel}
+        onClose={closeDrawer}
+        stateColorFn={stateColorFn}
+        queryBundle={queryBundle}
+      />
+    </TimelineTreeTable>
   );
 }

@@ -12,7 +12,7 @@ import {
   type TreeTableItem,
 } from '@quent/components';
 import type { EntityRef, QueryBundle } from '@quent/utils';
-import type { ResourceTimelineSubRow } from '@/components/ResourceTimelinesTree';
+import type { ResourceTimelineSubRow } from './ResourceTimelinesTree';
 
 interface OperatorGanttTimelineSubRowOptions {
   queryBundle: QueryBundle<EntityRef>;

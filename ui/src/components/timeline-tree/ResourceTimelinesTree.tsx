@@ -38,7 +38,7 @@ import {
   type TimelineTreeControls,
   type TimelineTreeItem,
   type TimelineTreeModel,
-} from '@/components/TimelineTreeTable';
+} from './TimelineTreeTable';
 
 function getRootResourceGroupId(resourceTree: ResourceTree<EntityRef>): string | null {
   if (!('ResourceGroup' in resourceTree)) return null;

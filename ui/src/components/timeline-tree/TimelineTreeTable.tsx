@@ -45,7 +45,7 @@ interface TimelineTreeTableProps {
   isDark: boolean;
   trees: TimelineTreeModel[];
   controls: TimelineTreeControls;
-  footer?: ReactNode;
+  children?: ReactNode;
 }
 
 function indexTree(
@@ -88,7 +88,7 @@ export function TimelineTreeTable({
   isDark,
   trees,
   controls,
-  footer,
+  children,
 }: TimelineTreeTableProps) {
   const { data, modelsByItemId } = useMemo(() => {
     const modelsByItemId = new Map<string, TimelineTreeModel>();
@@ -154,7 +154,7 @@ export function TimelineTreeTable({
           rowHeight={DEFAULT_TIMELINE_HEIGHT}
         />
       </div>
-      {footer}
+      {children}
     </div>
   );
 }
