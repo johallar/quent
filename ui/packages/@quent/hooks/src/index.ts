@@ -20,6 +20,7 @@ export {
   useReturnedTimelineNumBins,
   useReturnedTimelineIsStale,
   useZoomRange,
+  useGetZoomRange,
   useReadZoomRange,
   useSetZoomRange,
   useDebouncedZoomRange,

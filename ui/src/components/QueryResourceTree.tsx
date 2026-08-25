@@ -2,12 +2,25 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { Column, TreeTable } from '@quent/components';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { ChartGantt } from 'lucide-react';
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
-import { useAtom } from 'jotai';
-import { useHighlightedItemIds, useBulkTimelines, useHydrateTimelineAtoms } from '@quent/hooks';
+import { useAtom, useSetAtom } from 'jotai';
+import {
+  useHighlightedItemIds,
+  useBulkTimelines,
+  useHydrateTimelineAtoms,
+  useDebouncedZoomRange,
+} from '@quent/hooks';
 import { ResourceTree, QueryBundle, EntityTypeKey } from '@quent/utils';
-import type { EntityRef, SingleTimelineRequest, QueryFilter, OperatorFilter } from '@quent/utils';
+import type {
+  EntityRef,
+  EntityTypeValue,
+  NvtxCatalog,
+  SingleTimelineRequest,
+  QueryFilter,
+  OperatorFilter,
+} from '@quent/utils';
 import { TimelineController, TimelineRuler } from '@quent/components';
 import { collectResourceTypesFromTree } from '@quent/components';
 import { EntityRefKey } from '@quent/utils';
@@ -15,7 +28,7 @@ import { TreeTableItem } from '@quent/components';
 import { ResourceColumn } from '@quent/components';
 import { UsageColumn } from '@quent/components';
 import { DEFAULT_TIMELINE_HEIGHT } from '@quent/components';
-import { fetchSingleTimeline, DEFAULT_STALE_TIME } from '@quent/client';
+import { fetchSingleTimeline, DEFAULT_STALE_TIME, useNvtxStream } from '@quent/client';
 import {
   transformResourceTree,
   getAdaptiveNumBins,
@@ -29,6 +42,8 @@ import {
   selectedTypesAtom,
   selectedFsmTypesAtom,
   rootResourceTypeAtom,
+  expandedIdsAtom,
+  selectedNvtxDomainAtom,
 } from '@/atoms/resourceTree';
 import { TimelineToolbar } from '@quent/components';
 import { useTheme, THEME_DARK } from '@/contexts/ThemeContext';
@@ -46,6 +61,21 @@ import {
   resourceIdFromLongEntitiesRowId,
 } from '@quent/components';
 import { LongEntitiesRow } from '@/components/LongEntitiesRow';
+import {
+  NvtxGantt,
+  NVTX_GANTT_HEIGHT,
+  NVTX_DOMAIN_ROW_TYPE,
+  NVTX_LANE_ROW_TYPE,
+  NVTX_SECTION_ROW_TYPE,
+  InlineSelector,
+  buildNvtxTree,
+  indexNvtxLanes,
+  isNvtxTreeEntity,
+  nvtxDefaultExpandedIds,
+  nvtxDomainMeta,
+  nvtxLaneLabel,
+} from '@quent/components';
+import type { NvtxTreeEntity } from '@quent/components';
 import { EntityDetailDrawer } from '@/components/EntityDetailDrawer';
 import type { FiniteStateMachine } from '@quent/utils';
 import { createFsmTypeColorFn } from '@quent/utils';
@@ -102,6 +132,52 @@ function GanttRowLabel({ children }: { children: string }) {
   );
 }
 
+const NVTX_ALL_DOMAINS = '__all__';
+type QueryTreeTableItem = TreeTableItem<EntityTypeValue | NvtxTreeEntity>;
+
+function NvtxSectionLabel({
+  catalog,
+  selectedDomainId,
+  onDomainChange,
+}: {
+  catalog: NvtxCatalog;
+  selectedDomainId: string | null;
+  onDomainChange: (domainId: string | null) => void;
+}) {
+  const options = [
+    { value: NVTX_ALL_DOMAINS, label: 'All' },
+    ...catalog.domains.map(domain => ({ value: domain.domain_id, label: domain.name })),
+  ];
+  return (
+    <div className="flex items-center">
+      <ChartGantt aria-hidden className="mr-4 h-4 w-4 shrink-0 text-foreground" />
+      <div className="flex flex-col gap-y-1 pb-1">
+        <span className="text-xs font-semibold leading-none">NVTX</span>
+        <InlineSelector
+          id="nvtx-domain"
+          label="Domain"
+          value={selectedDomainId ?? NVTX_ALL_DOMAINS}
+          options={options}
+          onChange={(_, value) => onDomainChange(value === NVTX_ALL_DOMAINS ? null : value)}
+        />
+      </div>
+    </div>
+  );
+}
+
+function NvtxDomainLabel({ name, color }: { name: string; color: string }) {
+  return (
+    <span className="flex min-w-0 items-center gap-1.5 text-xs leading-none">
+      <span
+        aria-hidden
+        className="inline-block h-2 w-2 shrink-0 rounded-full"
+        style={{ backgroundColor: color }}
+      />
+      <span className="truncate">{name}</span>
+    </span>
+  );
+}
+
 /**
  * Insert a long-entities row as a sibling immediately after each leaf resource,
  * so its compact Gantt is always shown below the resource (whenever in view)
@@ -142,6 +218,7 @@ function QueryResourceTreeContent({
   const { entities, resource_tree: resourceTree } = queryBundle;
   const [selectedTypes, setSelectedTypes] = useAtom(selectedTypesAtom);
   const [selectedFsmTypes, setSelectedFsmTypes] = useAtom(selectedFsmTypesAtom);
+  const [selectedNvtxDomain, setSelectedNvtxDomain] = useAtom(selectedNvtxDomainAtom);
 
   const [drawerFsm, setDrawerFsm] = useState<FiniteStateMachine | null>(null);
   const toggleDrawerFsm = useCallback(
@@ -205,7 +282,42 @@ function QueryResourceTreeContent({
   const { expandedIds, handleExpandChange } = useExpandedIds(
     seedRootExpanded ? rootItem.id : undefined
   );
+  const setExpandedIds = useSetAtom(expandedIdsAtom);
   const controlledExpandedIds = expandedIds;
+  const seededNvtxExpansion = useRef(false);
+
+  const debouncedZoomRange = useDebouncedZoomRange();
+  const nvtxWindow = useMemo(() => {
+    const { start, end } = debouncedZoomRange;
+    return end > start ? { start, end } : { start: 0, end: durationSeconds };
+  }, [debouncedZoomRange, durationSeconds]);
+  const { catalog: nvtxCatalog, viewport: nvtxViewport } = useNvtxStream(
+    engineId,
+    queryBundle.start_time_unix_ns,
+    nvtxWindow,
+    { domainId: selectedNvtxDomain }
+  );
+
+  useEffect(() => {
+    if (!nvtxCatalog || seededNvtxExpansion.current) return;
+    seededNvtxExpansion.current = true;
+    const ids = nvtxDefaultExpandedIds(nvtxCatalog);
+    setExpandedIds(prev => {
+      const next = new Set(prev);
+      for (const id of ids) next.add(id);
+      return next;
+    });
+  }, [nvtxCatalog, setExpandedIds]);
+
+  useEffect(() => {
+    if (
+      selectedNvtxDomain != null &&
+      nvtxCatalog &&
+      !nvtxCatalog.domains.some(domain => domain.domain_id === selectedNvtxDomain)
+    ) {
+      setSelectedNvtxDomain(null);
+    }
+  }, [nvtxCatalog, selectedNvtxDomain, setSelectedNvtxDomain]);
 
   const { handleZoomChange, handleExpand } = useBulkTimelines({
     engineId,
@@ -268,10 +380,26 @@ function QueryResourceTreeContent({
     [queryBundle.plan_tree]
   );
 
-  const treeData = useMemo(
-    () => [injectLongEntitiesRows(injectOperatorTimelineRows(rootItem, workerIdsFromPlanTree))],
-    [rootItem, workerIdsFromPlanTree]
+  const nvtxLanesByRowId = useMemo(() => indexNvtxLanes(nvtxViewport), [nvtxViewport]);
+  const nvtxLaneRowIdsKey = useMemo(
+    () => [...nvtxLanesByRowId.keys()].sort().join('\0'),
+    [nvtxLanesByRowId]
   );
+  const nvtxLaneRowIds = useMemo(
+    () => new Set(nvtxLaneRowIdsKey ? nvtxLaneRowIdsKey.split('\0') : []),
+    [nvtxLaneRowIdsKey]
+  );
+  const nvtxTree = useMemo(
+    () => (nvtxCatalog ? buildNvtxTree(nvtxCatalog, nvtxLaneRowIds, selectedNvtxDomain) : null),
+    [nvtxCatalog, nvtxLaneRowIds, selectedNvtxDomain]
+  );
+
+  const treeData = useMemo(() => {
+    const resourceRoot = injectLongEntitiesRows(
+      injectOperatorTimelineRows(rootItem, workerIdsFromPlanTree)
+    );
+    return nvtxTree ? [resourceRoot, nvtxTree] : [resourceRoot];
+  }, [rootItem, workerIdsFromPlanTree, nvtxTree]);
 
   /** Operator entries per worker id (for expandable gantt under each worker resource). */
   const operatorEntriesByWorker = useMemo(() => {
@@ -294,13 +422,32 @@ function QueryResourceTreeContent({
             Resource
           </div>
         ),
-        render: ({ item }: { item: TreeTableItem; level: number }) => {
+        render: ({ item }: { item: QueryTreeTableItem; level: number }) => {
           switch (item.type) {
             case OPERATOR_TIMELINE_ROW_TYPE: {
               return <GanttRowLabel>Operators</GanttRowLabel>;
             }
             case LONG_ENTITIES_ROW_TYPE: {
               return <GanttRowLabel>Entities</GanttRowLabel>;
+            }
+            case NVTX_SECTION_ROW_TYPE: {
+              return nvtxCatalog ? (
+                <NvtxSectionLabel
+                  catalog={nvtxCatalog}
+                  selectedDomainId={selectedNvtxDomain}
+                  onDomainChange={setSelectedNvtxDomain}
+                />
+              ) : null;
+            }
+            case NVTX_DOMAIN_ROW_TYPE: {
+              const domain = isNvtxTreeEntity(item.entity) ? nvtxDomainMeta(item.entity) : null;
+              return domain ? <NvtxDomainLabel name={domain.name} color={domain.color} /> : null;
+            }
+            case NVTX_LANE_ROW_TYPE: {
+              const label = isNvtxTreeEntity(item.entity) ? nvtxLaneLabel(item.entity) : '';
+              return (
+                <span className="truncate text-xs leading-none text-muted-foreground">{label}</span>
+              );
             }
             default: {
               const selectedType =
@@ -310,7 +457,7 @@ function QueryResourceTreeContent({
                 : undefined;
               return (
                 <ResourceColumn
-                  item={item}
+                  item={item as TreeTableItem}
                   selectedType={selectedType}
                   onTypeChange={(itemId, newType) => {
                     setSelectedTypes(prev => new Map(prev).set(itemId, newType));
@@ -344,7 +491,7 @@ function QueryResourceTreeContent({
           </div>
         ),
         subHeaderContent: <TimelineRuler isDark={isDark} />,
-        render: ({ item }: { item: TreeTableItem }) => {
+        render: ({ item }: { item: QueryTreeTableItem }) => {
           switch (item.type) {
             case OPERATOR_TIMELINE_ROW_TYPE: {
               const workerId = workerIdFromOperatorTimelineRowId(item.id);
@@ -376,10 +523,25 @@ function QueryResourceTreeContent({
                 />
               );
             }
+            case NVTX_SECTION_ROW_TYPE:
+            case NVTX_DOMAIN_ROW_TYPE: {
+              return <div style={{ minHeight: DEFAULT_TIMELINE_HEIGHT }} />;
+            }
+            case NVTX_LANE_ROW_TYPE: {
+              const lanes = nvtxLanesByRowId.get(item.id) ?? [];
+              return (
+                <NvtxGantt
+                  lanes={lanes}
+                  durationSeconds={durationSeconds}
+                  height={NVTX_GANTT_HEIGHT}
+                  isDark={isDark}
+                />
+              );
+            }
             default: {
               return (
                 <UsageColumn
-                  item={item}
+                  item={item as TreeTableItem}
                   engineId={engineId}
                   queryBundle={queryBundle}
                   selectedTypes={selectedTypes}
@@ -392,7 +554,7 @@ function QueryResourceTreeContent({
           }
         },
       },
-    ] satisfies Column<TreeTableItem>[];
+    ] satisfies Column<QueryTreeTableItem>[];
   }, [
     durationSeconds,
     fetchedRootTimeline,
@@ -408,6 +570,10 @@ function QueryResourceTreeContent({
     queryBundle,
     handleZoomChange,
     operatorEntriesByWorker,
+    nvtxCatalog,
+    nvtxLanesByRowId,
+    selectedNvtxDomain,
+    setSelectedNvtxDomain,
     toggleDrawerFsm,
     drawerFsm?.id,
     closeDrawer,
@@ -417,7 +583,7 @@ function QueryResourceTreeContent({
     <div className="flex min-w-0 flex-col h-full w-full">
       <TimelineToolbar durationSeconds={durationSeconds} />
       <div className="min-w-0 flex-1 min-h-0">
-        <TreeTable<TreeTableItem>
+        <TreeTable<QueryTreeTableItem>
           data={treeData}
           columns={columns}
           initialSelectedItemId={rootItem.id}

@@ -11,7 +11,7 @@ import {
   useSetZoomRange,
   useZoomRange,
 } from '@quent/hooks';
-import { toast, Toaster } from '@quent/components';
+import { NVTX_SECTION_ID, toast, Toaster } from '@quent/components';
 import { render, screen, waitFor, userEvent } from '@/test/test-utils';
 import {
   expandedIdsAtom,
@@ -36,6 +36,9 @@ const BOUNDARY_PROPS = {
   durationSeconds: 100,
   isQueryReady: true,
 };
+
+const RESOURCE_A_ID = '01a025ff-ea8b-7881-9d31-72a275872c9d';
+const RESOURCE_B_ID = '01a025ff-ea8b-7881-9d31-72a275872c9e';
 
 function ViewportProbe() {
   const immediate = useZoomRange();
@@ -115,7 +118,7 @@ describe('DeepLinkBoundary', () => {
     const encoded = encodeDeepLinkState({
       route: { engineId: 'e', queryId: 'q', tab: 'timeline' },
       timeline: { zoomRange: { start: 10, end: 40 } },
-      resources: { expandedRowIds: ['resource-b', 'resource-a'] },
+      resources: { expandedRowIds: [RESOURCE_B_ID, RESOURCE_A_ID] },
     });
     expect(encoded.ok).toBe(true);
     if (!encoded.ok) return;
@@ -136,7 +139,7 @@ describe('DeepLinkBoundary', () => {
       })
     );
     expect(screen.getByTestId('expanded-rows')).toHaveTextContent(
-      JSON.stringify(['resource-a', 'resource-b'])
+      JSON.stringify([RESOURCE_A_ID, RESOURCE_B_ID])
     );
   });
 
@@ -310,7 +313,7 @@ describe('DeepLinkBoundary', () => {
         <JotaiProvider>
           <DeepLinkBoundary {...BOUNDARY_PROPS}>
             <SeedViewport start={20} end={60} />
-            <SeedExpandedRows ids={['resource-b', 'resource-a']} />
+            <SeedExpandedRows ids={[RESOURCE_B_ID, NVTX_SECTION_ID, RESOURCE_A_ID]} />
             <ViewportProbe />
             <CopyLinkButton />
           </DeepLinkBoundary>
@@ -338,7 +341,7 @@ describe('DeepLinkBoundary', () => {
         data: {
           route: { engineId: 'e', queryId: 'q', tab: 'timeline' },
           timeline: { zoomRange: { start: 20, end: 60 } },
-          resources: { expandedRowIds: ['resource-a', 'resource-b'] },
+          resources: { expandedRowIds: [RESOURCE_A_ID, RESOURCE_B_ID, NVTX_SECTION_ID] },
         },
       },
     });

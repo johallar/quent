@@ -62,6 +62,10 @@ export function useReturnedTimelineIsStale(resourceId: string): boolean {
 }
 
 export const useZoomRange = () => useAtomValue(zoomRangeAtom);
+export const useGetZoomRange = () => {
+  const store = useStore();
+  return useCallback(() => store.get(zoomRangeAtom), [store]);
+};
 export const useSetZoomRange = () => useSetAtom(zoomRangeAtom);
 export function useReadZoomRange() {
   const store = useStore();

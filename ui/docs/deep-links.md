@@ -8,7 +8,8 @@ snapshot restores its saved state, but subsequent interactions do not rewrite
 the browser URL.
 
 Deep links store the route and the non-default state needed to reconstruct the
-shared view:
+shared view. Expanded row IDs may include stable synthetic IDs such as
+`__nvtx__`:
 
 ```json
 {
@@ -28,7 +29,7 @@ shared view:
     "operatorNodeIds": ["operator-a"]
   },
   "resources": {
-    "expandedRowIds": ["resource-a"],
+    "expandedRowIds": ["__nvtx__", "01a025ff-ea8b-7881-9d31-72a275872c9d", "resource-a"],
     "rootResourceType": "channel"
   },
   "dag": {
@@ -58,8 +59,9 @@ payload so mismatched or transplanted state can be rejected:
 Incoming state is treated as untrusted data and validated with the same Zod
 schema used by the UI and command-line tool. Limits are established on string
 and array lengths (see `deepLink.schema.ts`), and the complete absolute URL is
-limited to 2,048 characters. Existing `v1` viewport/resource links remain
-decodable.
+limited to 4,096 characters. Existing `v1` viewport/resource links remain
+decodable. The v1 `expandedResourceIds` name is retained for compatibility and
+may also contain synthetic row IDs.
 
 Default DAG, resource, data-flow, and table controls are omitted. Hover,
 playback, open popovers, and other transient state are not shared.

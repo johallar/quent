@@ -21,6 +21,10 @@ import {
 import { CONTINUOUS_PALETTES, DAG_LAYOUT_DIRECTION, NODE_LABEL_FIELD } from '@quent/utils';
 import { OPERATOR_TABLE_INDEX_ORDER } from '@/components/operator-table/types';
 
+const RESOURCE_A_ID = '01a025ff-ea8b-7881-9d31-72a275872c9d';
+const RESOURCE_B_ID = '01a025ff-ea8b-7881-9d31-72a275872c9e';
+const NVTX_SECTION_ID = '__nvtx__';
+
 const state: DeepLinkStateV2 = {
   route: {
     engineId: 'engine-a',
@@ -145,9 +149,11 @@ describe('deep-link state validation', () => {
       DeepLinkStateV2Schema.parse({
         route: state.route,
         timeline: state.timeline,
-        resources: { expandedRowIds: ['resource-b', 'resource-a', 'resource-b'] },
+        resources: {
+          expandedRowIds: [RESOURCE_B_ID, NVTX_SECTION_ID, RESOURCE_A_ID, RESOURCE_B_ID],
+        },
       }).resources?.expandedRowIds
-    ).toEqual(['resource-a', 'resource-b']);
+    ).toEqual([RESOURCE_A_ID, RESOURCE_B_ID, NVTX_SECTION_ID]);
     expect(
       DeepLinkStateV2Schema.safeParse({
         route: state.route,
@@ -178,6 +184,21 @@ describe('deep-link state validation', () => {
       zoomRange: { start: 1, end: 2 },
       expandedResourceIds: ['a', 'b'],
     });
+    expect(
+      DeepLinkStateV1Schema.parse({
+        zoomRange: { start: 1, end: 2 },
+        expandedResourceIds: [RESOURCE_B_ID, NVTX_SECTION_ID, RESOURCE_A_ID, RESOURCE_B_ID],
+      }).expandedResourceIds
+    ).toEqual([RESOURCE_A_ID, RESOURCE_B_ID, NVTX_SECTION_ID]);
+    expect(DeepLinkStateV1Schema.safeParse({ zoomRange: { start: 20, end: 10 } }).success).toBe(
+      false
+    );
+    expect(
+      DeepLinkStateV1Schema.safeParse({
+        zoomRange: { start: 1, end: 2 },
+        expandedResourceIds: [''],
+      }).success
+    ).toBe(false);
   });
 
   it('derives enum vocabularies from shared constants', () => {

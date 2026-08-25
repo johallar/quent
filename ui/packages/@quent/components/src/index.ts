@@ -180,6 +180,7 @@ export { TimelineSkeleton } from './timeline/TimelineSkeleton';
 export { TimelineToolbar } from './timeline/TimelineToolbar';
 export { QueryToolbar } from './timeline/QueryToolbar';
 export { TooltipContent } from './timeline/TimelineTooltip';
+export type { TooltipItemNoun } from './timeline/TimelineTooltip';
 export { TimelineTooltipPortal } from './timeline/TimelineTooltipPortal';
 export {
   useTimelineEchartsTheme,
@@ -218,6 +219,7 @@ export type { SegmentedBarProps, SegmentedBarSegment } from './segmented-bar/Seg
 
 // ─── Resource-tree components ─────────────────────────────────────────────────
 export { InlineSelector } from './resource-tree/InlineSelector';
+export type { InlineSelectorOption } from './resource-tree/InlineSelector';
 export { ResourceColumn } from './resource-tree/ResourceColumn';
 export { ResourceGroupRow } from './resource-tree/ResourceGroupRow';
 export { ResourceRow } from './resource-tree/ResourceRow';
@@ -309,4 +311,27 @@ export {
   clipRectByRect,
   stackIntervalsIntoRows,
   stackIntervalsIntoRows as stackOperatorsIntoRows,
+  layoutGanttBar,
+  ganttExpansionLayout,
 } from './gantt-chart/utils';
+
+// ─── NVTX timeline ────────────────────────────────────────────────────────────
+export { NvtxGantt, NVTX_GANTT_HEIGHT } from './nvtx-timeline/NvtxGantt';
+export type { NvtxGanttProps } from './nvtx-timeline/NvtxGantt';
+export {
+  NVTX_SECTION_ROW_TYPE,
+  NVTX_DOMAIN_ROW_TYPE,
+  NVTX_LANE_ROW_TYPE,
+  NVTX_SECTION_ID,
+  nvtxDomainRowId,
+  nvtxThreadRowId,
+  nvtxProcessRowId,
+  nvtxMarksRowId,
+  buildNvtxTree,
+  indexNvtxLanes,
+  isNvtxTreeEntity,
+  nvtxDomainMeta,
+  nvtxLaneLabel,
+  nvtxDefaultExpandedIds,
+} from './nvtx-timeline/utils';
+export type { NvtxTreeEntity, NvtxTreeItem } from './nvtx-timeline/utils';
