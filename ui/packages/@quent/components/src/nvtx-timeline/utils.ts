@@ -183,11 +183,11 @@ export interface NvtxPixelBudget {
 
 export const NVTX_MIN_BAR_WIDTH_PX = 2;
 
-/** Flatten viewport lanes into Gantt datums. Thread depth is the row index. */
+/** Flatten populated viewport lanes into contiguous Gantt rows. */
 export function nvtxLanesToGanttData(lanes: NvtxLane[]): NvtxGanttDatum[] {
   const data: NvtxGanttDatum[] = [];
-  for (const lane of lanes) {
-    const rowIndex = isThreadIdentity(lane.identity) ? lane.identity.depth : 0;
+  const populatedLanes = lanes.filter(lane => lane.ranges.length > 0 || lane.marks.length > 0);
+  for (const [rowIndex, lane] of populatedLanes.entries()) {
     for (const range of lane.ranges) {
       data.push({
         value: [range.display_start * 1_000, range.display_end * 1_000, rowIndex],
