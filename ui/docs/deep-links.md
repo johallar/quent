@@ -56,9 +56,10 @@ payload so mismatched or transplanted state can be rejected:
 ```
 
 Incoming state is treated as untrusted data and validated with the same Zod
-schema used by the UI and command-line tool. Arrays and identifier lengths have
-individual caps, and the complete absolute URL is limited to 2,048 characters.
-Existing `v1` viewport/resource links remain decodable.
+schema used by the UI and command-line tool. Limits are established on string
+and array lengths (see `deepLink.schema.ts`), and the complete absolute URL is
+limited to 2,048 characters. Existing `v1` viewport/resource links remain
+decodable.
 
 Default DAG, resource, data-flow, and table controls are omitted. Hover,
 playback, open popovers, and other transient state are not shared.
