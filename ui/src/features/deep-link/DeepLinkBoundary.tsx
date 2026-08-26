@@ -30,7 +30,7 @@ import {
   OPERATOR_TABLE_INDEX_ORDER,
   OPERATOR_TABLE_PERSIST_KEY,
 } from '@/components/operator-table/types';
-import { buildDeepLinkUrl, decodeDeepLinkState } from './deepLink.codec';
+import { buildDeepLinkUrl, decodeDeepLinkState, DEEP_LINK_SEARCH_KEY } from './deepLink.codec';
 import {
   DeepLinkContext,
   type CopyLinkResult,
@@ -243,8 +243,18 @@ export function DeepLinkBoundary({
         operatorTable: intake.fields.operatorTable,
       });
     }
+    if (encodedState) {
+      const url = new URL(window.location.href);
+      url.searchParams.delete(DEEP_LINK_SEARCH_KEY);
+      window.history.replaceState(
+        window.history.state,
+        '',
+        `${url.pathname}${url.search}${url.hash}`
+      );
+    }
     setIsHydrated(true);
   }, [
+    encodedState,
     intake.initialExpandedResourceIds,
     intake.initialZoomRange,
     intake.isResolved,

@@ -143,6 +143,31 @@ describe('DeepLinkBoundary', () => {
     );
   });
 
+  it('removes consumed shared state from the address bar', () => {
+    const encoded = encodeDeepLinkState({
+      route: { engineId: 'e', queryId: 'q', tab: 'timeline' },
+      timeline: { zoomRange: { start: 10, end: 40 } },
+    });
+    expect(encoded.ok).toBe(true);
+    if (!encoded.ok) return;
+    window.history.replaceState(
+      null,
+      '',
+      `/profile/engine/e/query/q/timeline?s=${encodeURIComponent(encoded.value)}&unrelated=kept#view`
+    );
+
+    render(
+      <JotaiProvider>
+        <DeepLinkBoundary {...BOUNDARY_PROPS} encodedState={encoded.value}>
+          <ViewportProbe />
+        </DeepLinkBoundary>
+      </JotaiProvider>
+    );
+
+    expect(window.location.search).toBe('?unrelated=kept');
+    expect(window.location.hash).toBe('#view');
+  });
+
   it('hydrates a legacy v1 viewport without version-specific branching', () => {
     render(
       <JotaiProvider>

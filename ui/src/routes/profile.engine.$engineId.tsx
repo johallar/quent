@@ -53,7 +53,7 @@ function ProfileLayout() {
   const activeTab = timelineMatch ? 'timeline' : operatorsMatch ? 'operators' : undefined;
 
   return (
-    <Provider key={`${engineId}:${queryId ?? ''}:${encodedState ?? ''}`}>
+    <Provider key={`${engineId}:${queryId ?? ''}`}>
       <DeepLinkBoundary
         engineId={engineId}
         queryId={queryId}

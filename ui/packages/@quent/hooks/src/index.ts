@@ -139,7 +139,6 @@ export type {
 // Utility hooks
 export { useDeferredReady } from './dag/useDeferredReady';
 
-// Serializable state bridge for application deep links
 export { useSerializableViewState } from './deepLink/useSerializableViewState';
 export type {
   HydratableViewState,
