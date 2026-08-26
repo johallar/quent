@@ -115,12 +115,16 @@ export function useNvtxTreeModel({
   );
 
   useEffect(() => {
-    if (!catalog || seededExpansion.current) return;
+    if (!catalog || seededExpansion.current) {
+      return;
+    }
     seededExpansion.current = true;
     const ids = nvtxDefaultExpandedIds(catalog);
     setExpandedIds(previous => {
       const next = new Set(previous);
-      for (const id of ids) next.add(id);
+      for (const id of ids) {
+        next.add(id);
+      }
       return next;
     });
   }, [catalog, setExpandedIds]);

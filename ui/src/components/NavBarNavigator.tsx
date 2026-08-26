@@ -121,7 +121,9 @@ export function NavBarNavigator() {
     enabled: !!engineId && !!queryGroupId,
   });
 
-  if (!queryBundle || !engineId) return null;
+  if (!queryBundle || !engineId) {
+    return null;
+  }
 
   const engineItems =
     engines?.map(engine => ({
@@ -144,14 +146,18 @@ export function NavBarNavigator() {
   const queryName = queryBundle.entities.query.instance_name ?? queryBundle.entities.query.id;
 
   const handleEngineChange = async (newEngineId: string) => {
-    if (newEngineId === engineId) return;
+    if (newEngineId === engineId) {
+      return;
+    }
     try {
       const groups = await queryClient.fetchQuery({
         queryKey: ['list_coordinators', newEngineId],
         queryFn: () => fetchListCoordinators(newEngineId),
       });
       const firstGroup = groups[0];
-      if (!firstGroup) return;
+      if (!firstGroup) {
+        return;
+      }
       const groupQueries = await queryClient.fetchQuery({
         queryKey: ['list_queries', newEngineId, firstGroup.id],
         queryFn: () => fetchListQueries(newEngineId, firstGroup.id),
@@ -170,7 +176,9 @@ export function NavBarNavigator() {
   };
 
   const handleQueryGroupChange = async (newGroupId: string) => {
-    if (newGroupId === queryGroupId) return;
+    if (newGroupId === queryGroupId) {
+      return;
+    }
     try {
       const groupQueries = await queryClient.fetchQuery({
         queryKey: ['list_queries', engineId, newGroupId],
@@ -190,7 +198,9 @@ export function NavBarNavigator() {
   };
 
   const handleQueryChange = (newQueryId: string) => {
-    if (newQueryId === queryId) return;
+    if (newQueryId === queryId) {
+      return;
+    }
     navigate({
       to: '/profile/engine/$engineId/query/$queryId',
       params: { engineId, queryId: newQueryId },

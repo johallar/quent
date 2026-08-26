@@ -50,7 +50,9 @@ export function createLongEntitiesTimelineSubRow({
       }),
     renderTimeline: item => {
       const resourceId = resourceIdFromLongEntitiesRowId(item.id);
-      if (resourceId == null) return null;
+      if (resourceId == null) {
+        return null;
+      }
       return (
         <LongEntitiesRow
           engineId={engineId}

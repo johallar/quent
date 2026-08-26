@@ -170,7 +170,9 @@ export function deriveCapacityLabel(
   quantitySpecs: { [key in string]?: QuantitySpec } | undefined
 ): string | undefined {
   const meaningful = resourceTypeDecl?.capacities.filter(c => c.name !== 'unit') ?? [];
-  if (meaningful.length === 0) return undefined;
+  if (meaningful.length === 0) {
+    return undefined;
+  }
   if (meaningful.length === 1) {
     const cap = meaningful[0]!;
     const spec = quantitySpecs?.[cap.quantity];
@@ -190,8 +192,12 @@ export function getTimelineConfig(response: SingleTimelineResponse): BinnedSpanS
 
 /** Extract long_fsms from a ResourceTimeline response. */
 export function getLongFsms(data: ResourceTimeline): FiniteStateMachine[] {
-  if ('Binned' in data) return data.Binned.long_fsms;
-  if ('BinnedByState' in data) return data.BinnedByState.long_fsms;
+  if ('Binned' in data) {
+    return data.Binned.long_fsms;
+  }
+  if ('BinnedByState' in data) {
+    return data.BinnedByState.long_fsms;
+  }
   return [];
 }
 
@@ -211,7 +217,9 @@ export function buildTimelineMarks(
   overlayFsmIds?: Set<string>,
   overlayLabel?: string
 ): TimelineMark[] | undefined {
-  if (longFsms.length === 0) return undefined;
+  if (longFsms.length === 0) {
+    return undefined;
+  }
 
   const colorFsm = createFsmTypeColorFn(fsmTypes ?? {}, theme);
 
@@ -295,14 +303,20 @@ export function mergeOverlaySeries(
 
 /** Extract the resource_type_name from a TimelineRequest (empty string for Resource requests) */
 export function getResourceTypeName(params: TimelineRequest<OperatorFilter> | undefined): string {
-  if (!params) return '';
-  if ('ResourceGroup' in params) return params.ResourceGroup.resource_type_name;
+  if (!params) {
+    return '';
+  }
+  if ('ResourceGroup' in params) {
+    return params.ResourceGroup.resource_type_name;
+  }
   return '';
 }
 
 /** Extract the entity_type_name (FSM filter) from a TimelineRequest */
 export function getFsmTypeName(params: TimelineRequest<OperatorFilter>): string | null {
-  if ('ResourceGroup' in params) return params.ResourceGroup.entity_filter.entity_type_name;
+  if ('ResourceGroup' in params) {
+    return params.ResourceGroup.entity_filter.entity_type_name;
+  }
   return params.Resource.entity_filter.entity_type_name;
 }
 
@@ -399,7 +413,9 @@ export function getTimelineXAxisIntervalMs(spanMs: number, targetSplits: number 
   // Choose the largest "nice" interval that still satisfies the minimum split count.
   for (let i = NICE_TIMELINE_INTERVALS_MS.length - 1; i >= 0; i--) {
     const intervalMs = NICE_TIMELINE_INTERVALS_MS[i]!;
-    if (intervalMs <= maxAllowedStep) return intervalMs;
+    if (intervalMs <= maxAllowedStep) {
+      return intervalMs;
+    }
   }
 
   // Fallback for very small spans where even the smallest nice interval is too coarse.
@@ -452,7 +468,9 @@ const lookupEntity = (
   entityId: string
 ): EntityTypeValue | undefined => {
   const entityKey = entityRefToEntitiesKey(entityType);
-  if (!entityKey) return undefined; // handles Task and future unknown EntityRef variants
+  if (!entityKey) {
+    return undefined;
+  } // handles Task and future unknown EntityRef variants
 
   const entityValue = entities[entityKey];
 
@@ -501,11 +519,15 @@ export const transformResourceTree = (
 
 /** Recursively find a TreeTableItem by id */
 export function findItemById(root: TreeTableItem, id: string): TreeTableItem | undefined {
-  if (root.id === id) return root;
+  if (root.id === id) {
+    return root;
+  }
   if (root.children) {
     for (const child of root.children) {
       const found = findItemById(child, id);
-      if (found) return found;
+      if (found) {
+        return found;
+      }
     }
   }
   return undefined;
@@ -518,7 +540,9 @@ function lookupFsmTypeName(item: TreeTableItem, entities: QueryEntities): string
   const typeName =
     item.entity && 'type_name' in item.entity ? (item.entity.type_name as string) : undefined;
   const usedBy = typeName ? entities.resource_types[typeName]?.used_by : undefined;
-  if (usedBy && usedBy.length === 1) return usedBy[0]!;
+  if (usedBy && usedBy.length === 1) {
+    return usedBy[0]!;
+  }
   return null;
 }
 
@@ -623,14 +647,20 @@ export function computeVisibleMaxValue(
     overlayEntries.length > 0
       ? overlayEntries
       : allEntries.filter(e => !e.isDimmed && !e.isOverlay);
-  if (!entries.length || !entries[0]?.values.length) return null;
+  if (!entries.length || !entries[0]?.values.length) {
+    return null;
+  }
   let max = 0;
   const binDurationMs = (entries[0]?.binDuration ?? 0) * 1_000;
   for (let i = 0; i < entries[0].values.length; i++) {
     const t = timestamps[i];
-    if (t === undefined || t + binDurationMs <= zoomStartMs || t >= zoomEndMs) continue;
+    if (t === undefined || t + binDurationMs <= zoomStartMs || t >= zoomEndMs) {
+      continue;
+    }
     const sum = entries.reduce((acc, e) => acc + (e.values[i] ?? 0), 0);
-    if (sum > max) max = sum;
+    if (sum > max) {
+      max = sum;
+    }
   }
   return max > 0 ? max : null;
 }

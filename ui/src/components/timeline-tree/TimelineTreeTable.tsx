@@ -94,7 +94,9 @@ export function TimelineTreeTable({
     const modelsByItemId = new Map<string, TimelineTreeModel>();
     const data: TimelineTreeItem[] = [];
     for (const model of trees) {
-      if (!model.tree) continue;
+      if (!model.tree) {
+        continue;
+      }
       data.push(model.tree);
       indexTree(model.tree, model, modelsByItemId);
     }

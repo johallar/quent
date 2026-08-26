@@ -42,7 +42,9 @@ import {
 } from './TimelineTreeTable';
 
 function getRootResourceGroupId(resourceTree: ResourceTree<EntityRef>): string | null {
-  if (!('ResourceGroup' in resourceTree)) return null;
+  if (!('ResourceGroup' in resourceTree)) {
+    return null;
+  }
   const [, entityId] = Object.entries(resourceTree.ResourceGroup.id)[0] as [EntityRefKey, string];
   return entityId;
 }
@@ -89,9 +91,13 @@ export function useResourceTimelinesTreeModel({
   const resourceTypeOptions = useMemo(() => collectResourceTypesFromTree([rootItem]), [rootItem]);
 
   useEffect(() => {
-    if (rootResourceType != null) return;
+    if (rootResourceType != null) {
+      return;
+    }
     const initial = resourceTypeOptions[0];
-    if (initial) setRootResourceType(initial);
+    if (initial) {
+      setRootResourceType(initial);
+    }
   }, [rootResourceType, resourceTypeOptions, setRootResourceType]);
 
   const { expandedIds, handleExpandChange } = useExpandedIds(
@@ -162,7 +168,9 @@ export function useResourceTimelinesTreeModel({
   const renderLabel = useCallback(
     (item: TimelineTreeItem) => {
       const subRow = subRows.find(candidate => candidate.matches(item));
-      if (subRow) return subRow.renderLabel(item);
+      if (subRow) {
+        return subRow.renderLabel(item);
+      }
 
       const selectedType = selectedTypes.get(item.id) || item.availableResourceTypes?.[0] || '';
       const availableFsmTypes = selectedType
@@ -201,7 +209,9 @@ export function useResourceTimelinesTreeModel({
   const renderTimeline = useCallback(
     (item: TimelineTreeItem) => {
       const subRow = subRows.find(candidate => candidate.matches(item));
-      if (subRow) return subRow.renderTimeline(item);
+      if (subRow) {
+        return subRow.renderTimeline(item);
+      }
 
       return (
         <UsageColumn

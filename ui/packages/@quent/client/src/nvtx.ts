@@ -16,8 +16,12 @@ export { canonicalizeNvtxRequest, canonicalizeNvtxSelections } from './nvtxCanon
 function compareDecimalIds(left: string, right: string): number {
   const a = BigInt(left);
   const b = BigInt(right);
-  if (a < b) return -1;
-  if (a > b) return 1;
+  if (a < b) {
+    return -1;
+  }
+  if (a > b) {
+    return 1;
+  }
   return 0;
 }
 
@@ -26,7 +30,9 @@ export function selectAllNvtxDomains(catalog: Pick<NvtxCatalog, 'domains'>): Nvt
   return catalog.domains
     .flatMap(domain => {
       const category_ids = domain.categories.map(category => category.category_id);
-      if (category_ids.length === 0 && !domain.has_uncategorized) return [];
+      if (category_ids.length === 0 && !domain.has_uncategorized) {
+        return [];
+      }
       return [
         {
           domain_id: domain.domain_id,
