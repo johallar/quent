@@ -47,7 +47,9 @@ export function OptionMultiSelect({
   const selectedOptions = useMemo(() => options.filter(isSelected), [options, selectedOptionIds]);
 
   const filteredOptions = useMemo(() => {
-    if (!search) return options;
+    if (!search) {
+      return options;
+    }
     const needle = search.toLowerCase();
     return options.filter(option => option.toLowerCase().includes(needle));
   }, [options, search]);
@@ -57,7 +59,9 @@ export function OptionMultiSelect({
       <span className="text-xs text-muted-foreground shrink-0 mr-1">{label}:</span>
       <Popover
         onOpenChange={open => {
-          if (!open) setSearch('');
+          if (!open) {
+            setSearch('');
+          }
         }}
       >
         <PopoverTrigger asChild>

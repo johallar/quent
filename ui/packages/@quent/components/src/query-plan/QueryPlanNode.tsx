@@ -95,8 +95,12 @@ export const QueryPlanNode = memo(({ data }: { data: QueryPlanNodeData }) => {
   const [isHoveredLocal, setIsHoveredLocal] = useState(false);
 
   const resolvedLabel = useMemo(() => {
-    if (nodeLabelField === NODE_LABEL_FIELD.ID) return data.metadata?.rawNode?.id ?? data.nodeId;
-    if (nodeLabelField === NODE_LABEL_FIELD.TYPE) return data.operationType;
+    if (nodeLabelField === NODE_LABEL_FIELD.ID) {
+      return data.metadata?.rawNode?.id ?? data.nodeId;
+    }
+    if (nodeLabelField === NODE_LABEL_FIELD.TYPE) {
+      return data.operationType;
+    }
     return data.label;
   }, [nodeLabelField, data]);
 
@@ -121,9 +125,13 @@ export const QueryPlanNode = memo(({ data }: { data: QueryPlanNodeData }) => {
     fieldColor ?? withOpacity(baseColor, isSelected ? 0.3 : isHoveredLocal ? 0.22 : 0.15);
 
   const heatmapColor = useMemo(() => {
-    if (!hoveredStat) return undefined;
+    if (!hoveredStat) {
+      return undefined;
+    }
     const v = hoveredStat.values.get(operatorId);
-    if (v === undefined) return undefined;
+    if (v === undefined) {
+      return undefined;
+    }
     const range = hoveredStat.max - hoveredStat.min;
     const t = range > 0 ? (v - hoveredStat.min) / range : 0.5;
     return continuousColor(t, nodePalette, isDark);
