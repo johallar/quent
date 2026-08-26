@@ -52,7 +52,8 @@ function ProfileLayout() {
     shouldThrow: false,
   });
   const activeTab = timelineMatch ? 'timeline' : operatorsMatch ? 'operators' : undefined;
-  const isQueryReady = queryId == null || queryMatch?.status === 'success';
+  const hasQuery = queryId !== undefined;
+  const isQueryReady = !hasQuery || queryMatch?.status === 'success';
   // Stripping a consumed `s` keeps the store; a different payload resets it.
   const [providerPayload, setProviderPayload] = useState(encodedState);
   if (encodedState !== undefined && encodedState !== providerPayload) {
