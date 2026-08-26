@@ -2,7 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { useAtomValue, useSetAtom } from 'jotai';
-import { operatorSelectionAtom } from '../atoms/dag';
+import { operatorSelectionActionAtom, operatorSelectionAtom } from '../atoms/dag';
+
+export type { OperatorSelectionAction } from '../atoms/dag';
 
 export const useOperatorSelection = () => useAtomValue(operatorSelectionAtom);
-export const useSetOperatorSelection = () => useSetAtom(operatorSelectionAtom);
+export const useOperatorSelectionActions = () => useSetAtom(operatorSelectionActionAtom);

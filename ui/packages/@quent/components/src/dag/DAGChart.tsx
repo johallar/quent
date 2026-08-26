@@ -30,27 +30,17 @@ import '@xyflow/react/dist/style.css';
 import {
   useSelectedNodeIds,
   useOperatorSelection,
-  useSetOperatorSelection,
-  addOperatorSelection,
-  createEmptyOperatorSelectionState,
-  createOperatorSelectionState,
-  getSelectedOperatorIds,
-  removeOperatorSelection,
-  upsertInspectedNodeData,
-  removeInspectedNodeData,
+  useOperatorSelectionActions,
   useEdgeWidthConfig,
   useEdgeColoring,
   useEdgeColorPalette,
   useSelectedEdgeWidthField,
   useSelectedEdgeColorField,
   useEffectiveHighlightedNodeIds,
-  useSelectedNodesDataMap,
-  useSetSelectedNodesData,
   useSetDagDisplayedNodeIds,
   useSelectedDagLayoutDirection,
   useDataFlowEnabled,
   useDataFlowMeta,
-  type InspectedNodeData,
 } from '@quent/hooks';
 import { calculateLayout, NODE_LAYOUT_WIDTH, NODE_LAYOUT_HEIGHT, FLOW_BAR_HEIGHT } from './layout';
 import type { DAGData } from '../services/query-plan/types';
@@ -62,6 +52,7 @@ import {
   getOperationTypeColor,
   buildOperatorColorMap,
   inferFieldFormatter,
+  type InspectedNodeData,
   type QuantitySpec,
 } from '@quent/utils';
 
@@ -304,10 +295,8 @@ const FlowLayout = ({
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
   const { fitView } = useReactFlow();
   const operatorSelection = useOperatorSelection();
-  const setOperatorSelection = useSetOperatorSelection();
+  const updateOperatorSelection = useOperatorSelectionActions();
   const setDagDisplayedNodeIds = useSetDagDisplayedNodeIds();
-  const selectedNodesData = useSelectedNodesDataMap();
-  const setSelectedNodesData = useSetSelectedNodesData();
   const [layoutDirection] = useSelectedDagLayoutDirection();
   const dataFlowEnabled = useDataFlowEnabled();
   const dataFlowMeta = useDataFlowMeta();
@@ -319,9 +308,12 @@ const FlowLayout = ({
   // Sync controlled selectedNodeIds into the atom when provided
   useEffect(() => {
     if (controlledSelectedNodeIds !== undefined) {
-      setOperatorSelection(createOperatorSelectionState(controlledSelectedNodeIds));
+      updateOperatorSelection({
+        type: 'replace',
+        operatorIds: controlledSelectedNodeIds,
+      });
     }
-  }, [controlledSelectedNodeIds, setOperatorSelection]);
+  }, [controlledSelectedNodeIds, updateOperatorSelection]);
 
   // Publish the set of operator IDs visible in this DAG so other consumers
   // (effective highlight/heatmap atoms) can decide whether a hover-driven
@@ -411,43 +403,30 @@ const FlowLayout = ({
 
   const handleNodeClick = useCallback(
     (_event: MouseEvent, node: Node<QueryPlanNodeData>): void => {
+      let nextSelectedIds: Set<string>;
       if (operatorSelection.selections.has(node.id)) {
-        const nextSelection = removeOperatorSelection(operatorSelection, node.id);
-
-        setOperatorSelection(nextSelection);
-        setSelectedNodesData(removeInspectedNodeData(selectedNodesData, node.id));
-        onSelectionChange?.([...getSelectedOperatorIds(nextSelection)]);
+        nextSelectedIds = updateOperatorSelection({
+          type: 'remove',
+          selectionId: node.id,
+        });
       } else {
-        const selectionIds = getSelectionIds(node);
-        const nextSelection = addOperatorSelection(
-          operatorSelection,
-          node.id,
-          node.data.label,
-          selectionIds
-        );
-
-        setOperatorSelection(nextSelection);
-        setSelectedNodesData(
-          upsertInspectedNodeData(selectedNodesData, inspectedNodeFromFlowNode(node))
-        );
-        onSelectionChange?.([...getSelectedOperatorIds(nextSelection)]);
+        nextSelectedIds = updateOperatorSelection({
+          type: 'add',
+          selectionId: node.id,
+          label: node.data.label,
+          operatorIds: getSelectionIds(node),
+          inspectedData: inspectedNodeFromFlowNode(node),
+        });
       }
+      onSelectionChange?.([...nextSelectedIds]);
     },
-    [
-      getSelectionIds,
-      operatorSelection,
-      selectedNodesData,
-      setOperatorSelection,
-      setSelectedNodesData,
-      onSelectionChange,
-    ]
+    [getSelectionIds, operatorSelection, updateOperatorSelection, onSelectionChange]
   );
 
   const handlePaneClick = useCallback(() => {
-    setOperatorSelection(createEmptyOperatorSelectionState());
-    setSelectedNodesData(new Map());
+    updateOperatorSelection({ type: 'clear' });
     onSelectionChange?.([]);
-  }, [onSelectionChange, setOperatorSelection, setSelectedNodesData]);
+  }, [onSelectionChange, updateOperatorSelection]);
 
   // Re-fit view when the react-flow container is resized, but only if the user
   // hasn't interacted with the chart (to maintain any focus states applied)

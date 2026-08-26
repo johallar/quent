@@ -9,12 +9,17 @@ import {
   useDataFlowIsPlaying,
   useDataFlowMeta,
   useDataFlowFrame,
-  type InspectedNodeData,
-  type InspectedOperatorData,
 } from '@quent/hooks';
 import { DataText } from '../ui/data-text';
 import { thinScrollbarClass } from '../ui/thin-scroll';
-import { cn, formatStatWithQuantity, getOperationTypeColor, type QuantitySpec } from '@quent/utils';
+import {
+  cn,
+  formatStatWithQuantity,
+  getOperationTypeColor,
+  type InspectedNodeData,
+  type InspectedOperatorData,
+  type QuantitySpec,
+} from '@quent/utils';
 import { DataFlowMatrix } from './DataFlowMatrix';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '../ui/tabs';
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from '../ui/collapsible';

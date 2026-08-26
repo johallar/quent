@@ -3,15 +3,7 @@
 
 import { useMemo, type ReactNode } from 'react';
 import { X, Filter } from 'lucide-react';
-import {
-  useOperatorSelection,
-  useSetOperatorSelection,
-  useSelectedNodesDataMap,
-  useSetSelectedNodesData,
-  createEmptyOperatorSelectionState,
-  removeOperatorSelection,
-  removeInspectedNodeData,
-} from '@quent/hooks';
+import { useOperatorSelection, useOperatorSelectionActions } from '@quent/hooks';
 import { Badge } from '../ui/badge';
 import { TruncatedBadgeList } from '../ui/truncated-badge-list';
 
@@ -23,9 +15,7 @@ interface QueryToolbarProps {
 
 export function QueryToolbar({ children }: QueryToolbarProps) {
   const operatorSelection = useOperatorSelection();
-  const selectedNodesData = useSelectedNodesDataMap();
-  const setOperatorSelection = useSetOperatorSelection();
-  const setSelectedNodesData = useSetSelectedNodesData();
+  const updateOperatorSelection = useOperatorSelectionActions();
 
   const selectedOperators = useMemo(
     () =>
@@ -37,13 +27,11 @@ export function QueryToolbar({ children }: QueryToolbarProps) {
   );
 
   const clearOperators = () => {
-    setOperatorSelection(createEmptyOperatorSelectionState());
-    setSelectedNodesData(new Map());
+    updateOperatorSelection({ type: 'clear' });
   };
 
   const removeOperator = (operatorId: string) => {
-    setOperatorSelection(removeOperatorSelection(operatorSelection, operatorId));
-    setSelectedNodesData(removeInspectedNodeData(selectedNodesData, operatorId));
+    updateOperatorSelection({ type: 'remove', selectionId: operatorId });
   };
 
   return (

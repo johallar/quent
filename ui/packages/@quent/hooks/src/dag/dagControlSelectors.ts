@@ -82,14 +82,6 @@ export function useSelectedNodesData() {
   return useMemo(() => [...map.values()], [map]);
 }
 
-export function useSelectedNodesDataMap() {
-  return useAtomValue(selectedNodesDataAtom);
-}
-
-export function useSetSelectedNodesData() {
-  return useSetAtom(selectedNodesDataAtom);
-}
-
 export function useHighlightedNodeIds() {
   return useAtom(highlightedNodeIdsAtom);
 }

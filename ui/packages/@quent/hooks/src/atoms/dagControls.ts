@@ -11,7 +11,7 @@ import type {
   EdgeColoring,
   NodeLabelField,
   DagLayoutDirection,
-  StatValue,
+  InspectedNodeData,
 } from '@quent/utils';
 import { NODE_LABEL_FIELD, DAG_LAYOUT_DIRECTION } from '@quent/utils';
 import type { ContinuousPaletteName } from '@quent/utils';
@@ -34,17 +34,6 @@ export interface HighlightedNodeIdsState {
   ids: Set<string> | null;
   source: 'dag' | 'table' | null;
   primaryOperatorId: string | null;
-}
-
-export interface InspectedOperatorData {
-  nodeId: string;
-  label: string;
-  operationType: string;
-  statistics: Array<{ key: string; value: StatValue; quantity?: string }>;
-}
-
-export interface InspectedNodeData extends InspectedOperatorData {
-  relatedOperators?: InspectedOperatorData[];
 }
 
 /** Inspected details for every selected operator, keyed by selection id. */

@@ -8,38 +8,29 @@ import {
   useSelectedNodeData,
   useSelectedNodeIds,
   useSelectedNodesData,
-  useSetOperatorSelection,
-  useSetSelectedNodeData,
-  useSetSelectedNodesData,
+  useOperatorSelectionActions,
 } from '@quent/hooks';
 import { QueryToolbar } from './QueryToolbar';
 
 function ToolbarHarness() {
   const selectedNodeIds = useSelectedNodeIds();
   const selectedNodeData = useSelectedNodeData();
-  const setOperatorSelection = useSetOperatorSelection();
-  const setSelectedNodeData = useSetSelectedNodeData();
+  const updateOperatorSelection = useOperatorSelectionActions();
 
   useEffect(() => {
-    setOperatorSelection({
-      selections: new Map([
-        [
-          'parent',
-          {
-            label: 'Parent operator',
-            operatorIds: new Set(['parent', 'child']),
-          },
-        ],
-      ]),
-      activeId: 'parent',
-    });
-    setSelectedNodeData({
-      nodeId: 'parent',
+    updateOperatorSelection({
+      type: 'add',
+      selectionId: 'parent',
       label: 'Parent operator',
-      operationType: 'logical',
-      statistics: [],
+      operatorIds: ['parent', 'child'],
+      inspectedData: {
+        nodeId: 'parent',
+        label: 'Parent operator',
+        operationType: 'logical',
+        statistics: [],
+      },
     });
-  }, [setOperatorSelection, setSelectedNodeData]);
+  }, [updateOperatorSelection]);
 
   return (
     <>
@@ -53,32 +44,26 @@ function ToolbarHarness() {
 function MultiOperatorToolbarHarness() {
   const selectedNodeIds = useSelectedNodeIds();
   const selectedNodes = useSelectedNodesData();
-  const setOperatorSelection = useSetOperatorSelection();
-  const setSelectedNodesData = useSetSelectedNodesData();
+  const updateOperatorSelection = useOperatorSelectionActions();
 
   useEffect(() => {
-    const selections = new Map(
-      Array.from({ length: 5 }, (_, index) => {
-        const number = index + 1;
-        const id = `operator-${number}`;
-        return [id, { label: `Operator ${number}`, operatorIds: new Set([id]) }] as const;
-      })
-    );
-    setOperatorSelection({ selections, activeId: 'operator-5' });
-    setSelectedNodesData(
-      new Map(
-        [...selections].map(([id, selection]) => [
-          id,
-          {
-            nodeId: id,
-            label: selection.label,
-            operationType: 'physical',
-            statistics: [],
-          },
-        ])
-      )
-    );
-  }, [setOperatorSelection, setSelectedNodesData]);
+    for (let index = 0; index < 5; index += 1) {
+      const number = index + 1;
+      const id = `operator-${number}`;
+      updateOperatorSelection({
+        type: 'add',
+        selectionId: id,
+        label: `Operator ${number}`,
+        operatorIds: [id],
+        inspectedData: {
+          nodeId: id,
+          label: `Operator ${number}`,
+          operationType: 'physical',
+          statistics: [],
+        },
+      });
+    }
+  }, [updateOperatorSelection]);
 
   return (
     <>
@@ -91,24 +76,34 @@ function MultiOperatorToolbarHarness() {
 
 function TwoOperatorToolbarHarness() {
   const selectedNodes = useSelectedNodesData();
-  const setOperatorSelection = useSetOperatorSelection();
-  const setSelectedNodesData = useSetSelectedNodesData();
+  const updateOperatorSelection = useOperatorSelectionActions();
 
   useEffect(() => {
-    setOperatorSelection({
-      selections: new Map([
-        ['scan', { label: 'Scan', operatorIds: new Set(['scan']) }],
-        ['join', { label: 'Join', operatorIds: new Set(['join']) }],
-      ]),
-      activeId: 'join',
+    updateOperatorSelection({
+      type: 'add',
+      selectionId: 'scan',
+      label: 'Scan',
+      operatorIds: ['scan'],
+      inspectedData: {
+        nodeId: 'scan',
+        label: 'Scan',
+        operationType: 'scan',
+        statistics: [],
+      },
     });
-    setSelectedNodesData(
-      new Map([
-        ['scan', { nodeId: 'scan', label: 'Scan', operationType: 'scan', statistics: [] }],
-        ['join', { nodeId: 'join', label: 'Join', operationType: 'join', statistics: [] }],
-      ])
-    );
-  }, [setOperatorSelection, setSelectedNodesData]);
+    updateOperatorSelection({
+      type: 'add',
+      selectionId: 'join',
+      label: 'Join',
+      operatorIds: ['join'],
+      inspectedData: {
+        nodeId: 'join',
+        label: 'Join',
+        operationType: 'join',
+        statistics: [],
+      },
+    });
+  }, [updateOperatorSelection]);
 
   return (
     <>

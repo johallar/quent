@@ -2,26 +2,82 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { atom } from 'jotai';
+import type { InspectedNodeData, OperatorSelectionState } from '@quent/utils';
 import {
-  createEmptyOperatorSelectionState,
+  addOperatorSelection as addSelection,
   createOperatorSelectionState,
+  createEmptyOperatorSelectionState,
   getActiveOperatorLabel,
   getLastOperatorSelectionId,
   getSelectedOperatorIds,
-  getSelectedOperatorLabels,
-  type OperatorSelectionState,
+  removeOperatorSelection as removeSelection,
 } from '../dag/operatorSelection';
+import { removeInspectedNodeData, upsertInspectedNodeData } from '../dag/inspectedNodeData';
+import { selectedNodesDataAtom } from './dagControls';
+
+export type OperatorSelectionAction =
+  | {
+      type: 'add';
+      selectionId: string;
+      label: string;
+      operatorIds: Iterable<string>;
+      inspectedData: InspectedNodeData;
+    }
+  | { type: 'remove'; selectionId: string }
+  | { type: 'replace'; operatorIds: Iterable<string> }
+  | { type: 'clear' };
 
 /** Canonical operator filter selection state */
 export const operatorSelectionAtom = atom<OperatorSelectionState>(
   createEmptyOperatorSelectionState()
 );
 
+/** Updates operator filters and their inspected details as one transaction. */
+export const operatorSelectionActionAtom = atom(
+  null,
+  (get, set, action: OperatorSelectionAction): Set<string> => {
+    const currentSelection = get(operatorSelectionAtom);
+    const currentData = get(selectedNodesDataAtom);
+    let nextSelection: OperatorSelectionState;
+    let nextData: ReadonlyMap<string, InspectedNodeData>;
+
+    switch (action.type) {
+      case 'add':
+        nextSelection = addSelection(
+          currentSelection,
+          action.selectionId,
+          action.label,
+          action.operatorIds
+        );
+        nextData = upsertInspectedNodeData(currentData, action.inspectedData);
+        break;
+      case 'remove':
+        nextSelection = removeSelection(currentSelection, action.selectionId);
+        nextData = removeInspectedNodeData(currentData, action.selectionId);
+        break;
+      case 'replace': {
+        const operatorIds = [...action.operatorIds];
+        nextSelection = createOperatorSelectionState(operatorIds);
+        nextData = new Map([...currentData].filter(([id]) => nextSelection.selections.has(id)));
+        break;
+      }
+      case 'clear':
+        nextSelection = createEmptyOperatorSelectionState();
+        nextData = new Map();
+        break;
+    }
+
+    set(operatorSelectionAtom, nextSelection);
+    set(selectedNodesDataAtom, nextData);
+    return getSelectedOperatorIds(nextSelection);
+  }
+);
+
 /** The operator IDs represented by the current selections */
 export const selectedNodeIdsAtom = atom(
   get => getSelectedOperatorIds(get(operatorSelectionAtom)),
   (_get, set, operatorIds: Set<string>) =>
-    set(operatorSelectionAtom, createOperatorSelectionState(operatorIds))
+    set(operatorSelectionActionAtom, { type: 'replace', operatorIds })
 );
 
 /** Display label of the active operator selection */
@@ -42,26 +98,6 @@ export const selectedOperatorLabelAtom = atom(
     const selections = new Map(state.selections);
     selections.set(activeId, { ...activeSelection, label });
     set(operatorSelectionAtom, { selections, activeId });
-  }
-);
-
-/** Display labels for all operator selections */
-export const selectedOperatorLabelsAtom = atom(
-  get => getSelectedOperatorLabels(get(operatorSelectionAtom)),
-  (get, set, labels: Map<string, string>) => {
-    const state = get(operatorSelectionAtom);
-    const selections = new Map(state.selections);
-    for (const [id, label] of labels) {
-      const selection = selections.get(id);
-      selections.set(id, {
-        label,
-        operatorIds: selection?.operatorIds ?? new Set([id]),
-      });
-    }
-    set(operatorSelectionAtom, {
-      selections,
-      activeId: state.activeId ?? getLastOperatorSelectionId(selections),
-    });
   }
 );
 

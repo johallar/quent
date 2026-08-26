@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { describe, expect, it } from 'vitest';
-import type { InspectedNodeData } from '../atoms/dagControls';
+import type { InspectedNodeData } from '@quent/utils';
 import { removeInspectedNodeData, upsertInspectedNodeData } from './inspectedNodeData';
 
 const scan: InspectedNodeData = {

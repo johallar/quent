@@ -7,13 +7,7 @@ import { useTimelineEchartsTheme } from '../timeline/timelineEchartsTheme';
 import {
   useSelectedNodeIds,
   useOperatorSelection,
-  useSetOperatorSelection,
-  addOperatorSelection,
-  removeOperatorSelection,
-  upsertInspectedNodeData,
-  removeInspectedNodeData,
-  useSelectedNodesDataMap,
-  useSetSelectedNodesData,
+  useOperatorSelectionActions,
   useSetSelectedPlanId,
   useNodeColoringValue,
   useNodeColorPalette,
@@ -53,10 +47,8 @@ export function OperatorGanttChart({
   isDark,
 }: OperatorGanttChartProps) {
   const operatorSelection = useOperatorSelection();
-  const setOperatorSelection = useSetOperatorSelection();
+  const updateOperatorSelection = useOperatorSelectionActions();
   const setSelectedPlanId = useSetSelectedPlanId();
-  const selectedNodesData = useSelectedNodesDataMap();
-  const setSelectedNodesData = useSetSelectedNodesData();
   const { textColor } = useTimelineEchartsTheme(isDark);
   const nodeColoring = useNodeColoringValue();
   const [nodePalette] = useNodeColorPalette();
@@ -199,35 +191,27 @@ export function OperatorGanttChart({
         const op = operators[params.dataIndex];
         if (!op) return;
         if (operatorSelection.selections.has(op.operatorId)) {
-          setOperatorSelection(removeOperatorSelection(operatorSelection, op.operatorId));
-          setSelectedNodesData(removeInspectedNodeData(selectedNodesData, op.operatorId));
+          updateOperatorSelection({ type: 'remove', selectionId: op.operatorId });
         } else {
-          const nextSelection = addOperatorSelection(operatorSelection, op.operatorId, op.label, [
-            op.operatorId,
-          ]);
-          setOperatorSelection(nextSelection);
-          setSelectedNodesData(
-            upsertInspectedNodeData(selectedNodesData, {
+          updateOperatorSelection({
+            type: 'add',
+            selectionId: op.operatorId,
+            label: op.label,
+            operatorIds: [op.operatorId],
+            inspectedData: {
               nodeId: op.operatorId,
               label: op.label,
               operationType: op.typeName,
               statistics: op.statistics,
-            })
-          );
+            },
+          });
           if (op.planId) {
             setSelectedPlanId(op.planId);
           }
         }
       },
     }),
-    [
-      operators,
-      operatorSelection,
-      selectedNodesData,
-      setOperatorSelection,
-      setSelectedPlanId,
-      setSelectedNodesData,
-    ]
+    [operators, operatorSelection, setSelectedPlanId, updateOperatorSelection]
   );
 
   return (

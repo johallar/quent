@@ -4,7 +4,7 @@
 import { useEffect } from 'react';
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import { Provider } from 'jotai';
-import { useSetSelectedNodeData, useSetSelectedNodesData } from '@quent/hooks';
+import { useOperatorSelectionActions, useSetSelectedNodeData } from '@quent/hooks';
 import { getOperationTypeColor } from '@quent/utils';
 import { DAGNodeInfoPanel } from './DAGNodeInfoPanel';
 
@@ -38,40 +38,42 @@ function SelectedNode() {
 }
 
 function TwoSelectedNodes() {
-  const setSelectedNodesData = useSetSelectedNodesData();
+  const updateOperatorSelection = useOperatorSelectionActions();
 
   useEffect(() => {
-    setSelectedNodesData(
-      new Map([
-        [
-          'scan',
+    updateOperatorSelection({
+      type: 'add',
+      selectionId: 'scan',
+      label: 'Table scan',
+      operatorIds: ['scan'],
+      inspectedData: {
+        nodeId: 'scan',
+        label: 'Table scan',
+        operationType: 'scan',
+        statistics: [{ key: 'output_rows', value: 10 }],
+      },
+    });
+    updateOperatorSelection({
+      type: 'add',
+      selectionId: 'join',
+      label: 'Hash join',
+      operatorIds: ['join'],
+      inspectedData: {
+        nodeId: 'join',
+        label: 'Hash join',
+        operationType: 'hashjoin',
+        statistics: [{ key: 'build_rows', value: 20 }],
+        relatedOperators: [
           {
-            nodeId: 'scan',
-            label: 'Table scan',
-            operationType: 'scan',
-            statistics: [{ key: 'output_rows', value: 10 }],
+            nodeId: 'probe',
+            label: 'Probe hash table',
+            operationType: 'hashprobe',
+            statistics: [{ key: 'probe_rows', value: 30 }],
           },
         ],
-        [
-          'join',
-          {
-            nodeId: 'join',
-            label: 'Hash join',
-            operationType: 'hashjoin',
-            statistics: [{ key: 'build_rows', value: 20 }],
-            relatedOperators: [
-              {
-                nodeId: 'probe',
-                label: 'Probe hash table',
-                operationType: 'hashprobe',
-                statistics: [{ key: 'probe_rows', value: 30 }],
-              },
-            ],
-          },
-        ],
-      ])
-    );
-  }, [setSelectedNodesData]);
+      },
+    });
+  }, [updateOperatorSelection]);
 
   return <DAGNodeInfoPanel />;
 }

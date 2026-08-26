@@ -12,22 +12,10 @@ export {
   useSetSelectedOperatorLabel,
 } from './dag/useSelectedOperatorLabel';
 export {
-  useSelectedOperatorLabels,
-  useSetSelectedOperatorLabels,
-} from './dag/useSelectedOperatorLabels';
-export { useOperatorSelection, useSetOperatorSelection } from './dag/useOperatorSelection';
-export {
-  addOperatorSelection,
-  createEmptyOperatorSelectionState,
-  createOperatorSelectionState,
-  getActiveOperatorLabel,
-  getSelectedOperatorIds,
-  getSelectedOperatorLabels,
-  removeOperatorSelection,
-  type OperatorSelection,
-  type OperatorSelectionState,
-} from './dag/operatorSelection';
-export { upsertInspectedNodeData, removeInspectedNodeData } from './dag/inspectedNodeData';
+  useOperatorSelection,
+  useOperatorSelectionActions,
+  type OperatorSelectionAction,
+} from './dag/useOperatorSelection';
 export { useSelectedPlanId, useSetSelectedPlanId } from './dag/useSelectedPlanId';
 export { useHoveredWorkerId, useSetHoveredWorkerId } from './dag/useHoveredWorkerId';
 
@@ -100,8 +88,6 @@ export {
   useSelectedNodeData,
   useSetSelectedNodeData,
   useSelectedNodesData,
-  useSelectedNodesDataMap,
-  useSetSelectedNodesData,
   useHighlightedNodeIds,
   useSetHighlightedNodeIds,
   useEffectiveHighlightedNodeIds,
@@ -110,12 +96,7 @@ export {
   useSetHoveredStat,
   useSetDagDisplayedNodeIds,
 } from './dag/dagControlSelectors';
-export type {
-  HoveredStatInfo,
-  HighlightedNodeIdsState,
-  InspectedOperatorData,
-  InspectedNodeData,
-} from './atoms/dagControls';
+export type { HoveredStatInfo, HighlightedNodeIdsState } from './atoms/dagControls';
 
 // Data-flow overlay hooks (HOOKS-02: selector hooks over private atoms)
 export {

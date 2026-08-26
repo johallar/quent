@@ -1,15 +1,7 @@
 // SPDX-FileCopyrightText: Copyright (c) 2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-export interface OperatorSelection {
-  readonly label: string;
-  readonly operatorIds: ReadonlySet<string>;
-}
-
-export interface OperatorSelectionState {
-  readonly selections: ReadonlyMap<string, OperatorSelection>;
-  readonly activeId: string | null;
-}
+import type { OperatorSelection, OperatorSelectionState } from '@quent/utils';
 
 export function createEmptyOperatorSelectionState(): OperatorSelectionState {
   return {
@@ -22,10 +14,6 @@ export function getSelectedOperatorIds(state: OperatorSelectionState): Set<strin
   return new Set(
     Array.from(state.selections.values()).flatMap(selection => [...selection.operatorIds])
   );
-}
-
-export function getSelectedOperatorLabels(state: OperatorSelectionState): Map<string, string> {
-  return new Map(Array.from(state.selections, ([id, selection]) => [id, selection.label] as const));
 }
 
 export function getActiveOperatorLabel(state: OperatorSelectionState): string | null {
