@@ -9,6 +9,7 @@ import {
   DataText,
   HoverCard,
   HoverCardTrigger,
+  OverflowHoverCardContent,
   Select,
   SelectContent,
   SelectItem,
@@ -16,7 +17,6 @@ import {
   SelectValue,
 } from '@quent/components';
 import { cn } from '@quent/utils';
-import { OverflowHoverCardContent } from '@/components/OverflowHoverCard';
 
 const HOVER_CARD_OPEN_DELAY_MS = 300;
 

@@ -2,8 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { useRef, useState } from 'react';
-import { DataText, HoverCard, HoverCardContent, HoverCardTrigger } from '@quent/components';
 import { cn } from '@quent/utils';
+import { DataText } from './data-text';
+import { HoverCard, HoverCardContent, HoverCardTrigger } from './hover-card';
 
 export function OverflowHoverCardContent({
   label,

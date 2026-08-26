@@ -13,6 +13,8 @@ import {
   DropdownMenuTrigger,
   HoverCard,
   HoverCardTrigger,
+  OverflowHoverCardContent,
+  OverflowingItemLabel,
 } from '@quent/components';
 import { cn } from '@quent/utils';
 import {
@@ -21,7 +23,6 @@ import {
   fetchListCoordinators,
   fetchListQueries,
 } from '@quent/client';
-import { OverflowHoverCardContent, OverflowingItemLabel } from './OverflowHoverCard';
 
 function BreadcrumbDropdown({
   label,
