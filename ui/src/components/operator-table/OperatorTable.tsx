@@ -104,22 +104,33 @@ export function OperatorTable({ queryBundle }: OperatorTableProps) {
   // Plans included in the table: the selected plan plus every descendant plan
   // (children, grandchildren, ...). Selecting a leaf plan yields a singleton.
   const includedPlanIds = useMemo(() => {
-    if (!selectedPlanId || !entities.plans[selectedPlanId]) return new Set<string>();
+    if (!selectedPlanId || !entities.plans[selectedPlanId]) {
+      return new Set<string>();
+    }
     const childrenByParent = new Map<string | null, string[]>();
     for (const p of Object.values(entities.plans)) {
-      if (!p) continue;
+      if (!p) {
+        continue;
+      }
       const list = childrenByParent.get(p.parent);
-      if (list) list.push(p.id);
-      else childrenByParent.set(p.parent, [p.id]);
+      if (list) {
+        list.push(p.id);
+      } else {
+        childrenByParent.set(p.parent, [p.id]);
+      }
     }
     const result = new Set<string>();
     const stack: string[] = [selectedPlanId];
     while (stack.length > 0) {
       const id = stack.pop()!;
-      if (result.has(id)) continue;
+      if (result.has(id)) {
+        continue;
+      }
       result.add(id);
       const children = childrenByParent.get(id);
-      if (children) stack.push(...children);
+      if (children) {
+        stack.push(...children);
+      }
     }
     return result;
   }, [entities.plans, selectedPlanId]);
@@ -133,7 +144,9 @@ export function OperatorTable({ queryBundle }: OperatorTableProps) {
     const result: Record<string, string> = {};
     for (const row of allRows) {
       for (const [statKey, quantityName] of Object.entries(row.statQuantities)) {
-        if (!(statKey in result)) result[statKey] = quantityName;
+        if (!(statKey in result)) {
+          result[statKey] = quantityName;
+        }
       }
     }
     return result;
@@ -153,7 +166,9 @@ export function OperatorTable({ queryBundle }: OperatorTableProps) {
   // current sibling-plan scope (e.g. a stage node was selected), fall back to
   // the unfiltered rows so the table doesn't appear inexplicably empty.
   const rows = useMemo(() => {
-    if (selectedNodeIds.size === 0) return allRows;
+    if (selectedNodeIds.size === 0) {
+      return allRows;
+    }
     const filtered = allRows.filter(r => selectedNodeIds.has(r.itemId));
     return filtered.length > 0 ? filtered : allRows;
   }, [allRows, selectedNodeIds]);
@@ -212,14 +227,18 @@ export function OperatorTable({ queryBundle }: OperatorTableProps) {
 
   const parentScopeLabelValue = useMemo(() => {
     for (const row of rows) {
-      if (row.parentScopeLabel !== '-') return row.parentScopeLabel;
+      if (row.parentScopeLabel !== '-') {
+        return row.parentScopeLabel;
+      }
     }
     return 'Parent';
   }, [rows]);
 
   const scopeLabelValue = useMemo(() => {
     for (const row of rows) {
-      if (row.scopeLabel !== '-' && row.scopeLabel !== parentScopeLabelValue) return row.scopeLabel;
+      if (row.scopeLabel !== '-' && row.scopeLabel !== parentScopeLabelValue) {
+        return row.scopeLabel;
+      }
     }
     return 'Current';
   }, [rows, parentScopeLabelValue]);

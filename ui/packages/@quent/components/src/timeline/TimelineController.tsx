@@ -127,11 +127,15 @@ export function TimelineController({
   const [containerWidth, setContainerWidth] = useState(0);
   useEffect(() => {
     const el = containerRef.current;
-    if (!el || typeof ResizeObserver === 'undefined') return;
+    if (!el || typeof ResizeObserver === 'undefined') {
+      return;
+    }
     setContainerWidth(el.clientWidth);
     const observer = new ResizeObserver(entries => {
       const entry = entries[0];
-      if (entry) setContainerWidth(entry.contentRect.width);
+      if (entry) {
+        setContainerWidth(entry.contentRect.width);
+      }
     });
     observer.observe(el);
     return () => observer.disconnect();
@@ -295,7 +299,9 @@ export function TimelineController({
   ]);
 
   const handleDataZoom = useMemo(() => {
-    if (!onZoomChange) return undefined;
+    if (!onZoomChange) {
+      return undefined;
+    }
     return {
       dataZoom: (params: {
         start?: number;
@@ -344,7 +350,9 @@ export function TimelineController({
       selfTriggeredRef.current = false;
       return;
     }
-    if (!chartInstance || durationSeconds === 0) return;
+    if (!chartInstance || durationSeconds === 0) {
+      return;
+    }
 
     const startPct = (zoomRange.start / durationSeconds) * 100;
     const endPct = (zoomRange.end / durationSeconds) * 100;
@@ -361,7 +369,9 @@ export function TimelineController({
 
   useEffect(() => {
     return () => {
-      if (chartInstance) unregisterAxisPointerSync(chartInstance);
+      if (chartInstance) {
+        unregisterAxisPointerSync(chartInstance);
+      }
     };
   }, [chartInstance]);
 

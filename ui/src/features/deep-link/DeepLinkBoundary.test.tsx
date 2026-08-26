@@ -79,7 +79,9 @@ describe('DeepLinkBoundary', () => {
       expandedResourceIds: [RESOURCE_B_ID, RESOURCE_A_ID],
     });
     expect(encoded.ok).toBe(true);
-    if (!encoded.ok) return;
+    if (!encoded.ok) {
+      return;
+    }
 
     render(
       <JotaiProvider>
@@ -106,7 +108,9 @@ describe('DeepLinkBoundary', () => {
       zoomRange: { start: 10, end: 40 },
     });
     expect(encoded.ok).toBe(true);
-    if (!encoded.ok) return;
+    if (!encoded.ok) {
+      return;
+    }
 
     const { rerender } = render(
       <JotaiProvider>

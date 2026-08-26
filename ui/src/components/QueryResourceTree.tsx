@@ -81,7 +81,9 @@ import type { FiniteStateMachine } from '@quent/utils';
 import { createFsmTypeColorFn } from '@quent/utils';
 
 function getRootResourceGroupId(resourceTree: ResourceTree<EntityRef>): string | null {
-  if (!('ResourceGroup' in resourceTree)) return null;
+  if (!('ResourceGroup' in resourceTree)) {
+    return null;
+  }
   const [, entityId] = Object.entries(resourceTree.ResourceGroup.id)[0] as [EntityRefKey, string];
   return entityId;
 }
@@ -185,7 +187,9 @@ function NvtxDomainLabel({ name, color }: { name: string; color: string }) {
  * so they stay non-expandable. Groups (which aggregate resources) are untouched.
  */
 function injectLongEntitiesRows(item: TreeTableItem): TreeTableItem {
-  if (!item.children?.length) return { ...item };
+  if (!item.children?.length) {
+    return { ...item };
+  }
   const children: TreeTableItem[] = [];
   for (const child of item.children) {
     children.push(injectLongEntitiesRows(child));
@@ -272,9 +276,13 @@ function QueryResourceTreeContent({
 
   // Seed once per query when the atom is unset and options are available.
   useEffect(() => {
-    if (rootResourceType != null) return;
+    if (rootResourceType != null) {
+      return;
+    }
     const initial = resourceTypeOptions[0];
-    if (initial) setRootResourceType(initial);
+    if (initial) {
+      setRootResourceType(initial);
+    }
   }, [rootResourceType, resourceTypeOptions, setRootResourceType]);
 
   const rootResourceGroupId = useMemo(() => getRootResourceGroupId(resourceTree), [resourceTree]);
@@ -299,12 +307,16 @@ function QueryResourceTreeContent({
   );
 
   useEffect(() => {
-    if (!nvtxCatalog || seededNvtxExpansion.current) return;
+    if (!nvtxCatalog || seededNvtxExpansion.current) {
+      return;
+    }
     seededNvtxExpansion.current = true;
     const ids = nvtxDefaultExpandedIds(nvtxCatalog);
     setExpandedIds(prev => {
       const next = new Set(prev);
-      for (const id of ids) next.add(id);
+      for (const id of ids) {
+        next.add(id);
+      }
       return next;
     });
   }, [nvtxCatalog, setExpandedIds]);
@@ -508,7 +520,9 @@ function QueryResourceTreeContent({
             }
             case LONG_ENTITIES_ROW_TYPE: {
               const resourceId = resourceIdFromLongEntitiesRowId(item.id);
-              if (resourceId == null) return null;
+              if (resourceId == null) {
+                return null;
+              }
               return (
                 <LongEntitiesRow
                   engineId={engineId}

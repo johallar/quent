@@ -91,11 +91,15 @@ export function DeepLinkBoundary({
   const [isHydrated, setIsHydrated] = useState(!encodedState);
 
   useEffect(() => {
-    if (intake.status.kind !== 'error' && intake.status.kind !== 'warning') return;
+    if (intake.status.kind !== 'error' && intake.status.kind !== 'warning') {
+      return;
+    }
 
     let cancelled = false;
     queueMicrotask(() => {
-      if (cancelled) return;
+      if (cancelled) {
+        return;
+      }
       if (intake.status.kind === 'error') {
         toast.add({
           id: 'deep-link-intake',
@@ -120,7 +124,9 @@ export function DeepLinkBoundary({
   }, [intake.status]);
 
   useLayoutEffect(() => {
-    if (!intake.isResolved) return;
+    if (!intake.isResolved) {
+      return;
+    }
     if (intake.initialZoomRange) {
       setZoomRange(intake.initialZoomRange);
       setDebouncedZoomRange(intake.initialZoomRange);
@@ -149,7 +155,9 @@ export function DeepLinkBoundary({
       zoomRange: capturedRange,
       expandedResourceIds: [...expandedResourceIds].sort(),
     });
-    if (!result.ok) return { ok: false, message: result.message };
+    if (!result.ok) {
+      return { ok: false, message: result.message };
+    }
     if (!navigator.clipboard?.writeText) {
       return { ok: false, message: 'Clipboard access is unavailable.' };
     }

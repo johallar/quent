@@ -13,7 +13,9 @@ type PlayheadLineProps = {
 export function PlayheadLine({ instance, xAxisIndex = 0 }: PlayheadLineProps) {
   const pixelX = usePlayheadLinePixel(instance, xAxisIndex);
 
-  if (pixelX == null) return null;
+  if (pixelX == null) {
+    return null;
+  }
 
   return (
     <div

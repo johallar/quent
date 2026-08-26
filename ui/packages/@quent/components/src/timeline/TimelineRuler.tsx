@@ -65,7 +65,9 @@ export function TimelineRuler({ isDark, mode = 'relative' }: TimelineRulerProps)
         text = formatDurationForAxisInterval(absoluteMs, interval);
       }
 
-      if (!isMinMax) return text;
+      if (!isMinMax) {
+        return text;
+      }
       const chip = `{chip|${text}}`;
       return isMin ? `{chipInset|}${chip}` : `${chip}{chipInset|}`;
     };

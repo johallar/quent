@@ -35,7 +35,9 @@ async function readState(values: Record<string, string | boolean | undefined>) {
   }
 
   const parsed = DeepLinkStateV1Schema.safeParse(input);
-  if (!parsed.success) fail(`Invalid state: ${parsed.error.message}`);
+  if (!parsed.success) {
+    fail(`Invalid state: ${parsed.error.message}`);
+  }
   return parsed.data;
 }
 
@@ -47,9 +49,15 @@ function buildRoute(engineId: string, queryId: string, tab: string): string {
 }
 
 async function createLink(values: Record<string, string | boolean | undefined>) {
-  if (typeof values.engine !== 'string') fail('Missing --engine.');
-  if (typeof values.query !== 'string') fail('Missing --query.');
-  if (typeof values.tab !== 'string') fail('Missing --tab.');
+  if (typeof values.engine !== 'string') {
+    fail('Missing --engine.');
+  }
+  if (typeof values.query !== 'string') {
+    fail('Missing --query.');
+  }
+  if (typeof values.tab !== 'string') {
+    fail('Missing --tab.');
+  }
   if (
     typeof values.state !== 'string' &&
     (values.start === undefined || values.end === undefined)
@@ -62,18 +70,26 @@ async function createLink(values: Record<string, string | boolean | undefined>) 
   const currentUrl =
     typeof values.base === 'string' ? new URL(route, values.base).toString() : route;
   const result = buildDeepLinkUrl(currentUrl, state);
-  if (!result.ok) fail(result.message);
+  if (!result.ok) {
+    fail(result.message);
+  }
   process.stdout.write(`${result.value}\n`);
 }
 
 function decodeLink(input: string | undefined) {
-  if (!input) fail('Missing URL to decode.');
+  if (!input) {
+    fail('Missing URL to decode.');
+  }
   const url = new URL(input, 'http://deep-link.invalid');
   const encoded = url.searchParams.get(DEEP_LINK_SEARCH_KEY);
-  if (!encoded) fail(`The URL has no "${DEEP_LINK_SEARCH_KEY}" parameter.`);
+  if (!encoded) {
+    fail(`The URL has no "${DEEP_LINK_SEARCH_KEY}" parameter.`);
+  }
 
   const result = decodeDeepLinkState(encoded);
-  if (!result.ok) fail(result.message);
+  if (!result.ok) {
+    fail(result.message);
+  }
   process.stdout.write(`${JSON.stringify(result.value, null, 2)}\n`);
 }
 

@@ -36,14 +36,18 @@ function useReturnedTimelineState(resourceId: string): {
   const visibleEntries = useAtomValue(visibleEntriesAtom);
   const activeSpan = useAtomValue(debouncedZoomRangeAtom);
   const request = visibleEntries[resourceId];
-  if (!request) return { data: undefined, isStale: false };
+  if (!request) {
+    return { data: undefined, isStale: false };
+  }
   const key = timelineCacheKey({
     resourceId,
     resourceTypeName: getResourceTypeName(request),
     fsmTypeName: getFsmTypeName(request),
   });
   const data = timelineDataMap[key];
-  if (!data) return { data: undefined, isStale: false };
+  if (!data) {
+    return { data: undefined, isStale: false };
+  }
   const tolerance = data.config.bin_duration;
   const matchesActiveSpan =
     Math.abs(data.config.span.start - activeSpan.start) <= tolerance &&
