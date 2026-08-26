@@ -79,7 +79,9 @@ describe('deep-link codec', () => {
 
     expect(first).toEqual(second);
     expect(first.ok).toBe(true);
-    if (!first.ok) return;
+    if (!first.ok) {
+      return;
+    }
     expect(decodeDeepLinkState(first.value)).toEqual({
       ok: true,
       value: { version: 'v2', data: state },
@@ -118,7 +120,9 @@ describe('deep-link codec', () => {
     );
 
     expect(result.ok).toBe(true);
-    if (!result.ok) return;
+    if (!result.ok) {
+      return;
+    }
     expect(result.value.length).toBeLessThanOrEqual(MAX_DEEP_LINK_URL_LENGTH);
     expect(new URL(result.value).searchParams.get('s')).toMatch(
       new RegExp(`^${CURRENT_DEEP_LINK_VERSION}\\.`)

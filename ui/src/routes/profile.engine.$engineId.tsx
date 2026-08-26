@@ -18,16 +18,22 @@ function entityRefId(ref: EntityRef): string {
 }
 
 function firstResourceId(tree: ResourceTree<EntityRef>): string | null {
-  if ('Resource' in tree) return entityRefId(tree.Resource);
+  if ('Resource' in tree) {
+    return entityRefId(tree.Resource);
+  }
   for (const child of tree.ResourceGroup.children) {
     const resourceId = firstResourceId(child);
-    if (resourceId) return resourceId;
+    if (resourceId) {
+      return resourceId;
+    }
   }
   return null;
 }
 
 function defaultRootResourceType(queryBundle: QueryBundle<EntityRef> | undefined): string | null {
-  if (!queryBundle) return null;
+  if (!queryBundle) {
+    return null;
+  }
   const resourceId = firstResourceId(queryBundle.resource_tree);
   return resourceId ? (queryBundle.entities.resources[resourceId]?.type_name ?? null) : null;
 }

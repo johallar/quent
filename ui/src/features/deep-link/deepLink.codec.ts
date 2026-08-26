@@ -36,12 +36,16 @@ function failure(code: DeepLinkErrorCode, message: string): DeepLinkResult<never
 
 function bytesToBase64Url(bytes: Uint8Array): string {
   let binary = '';
-  for (const byte of bytes) binary += String.fromCharCode(byte);
+  for (const byte of bytes) {
+    binary += String.fromCharCode(byte);
+  }
   return btoa(binary).replace(/\+/gu, '-').replace(/\//gu, '_').replace(/=+$/u, '');
 }
 
 function base64UrlToBytes(value: string): Uint8Array | null {
-  if (!/^[A-Za-z0-9_-]+$/u.test(value)) return null;
+  if (!/^[A-Za-z0-9_-]+$/u.test(value)) {
+    return null;
+  }
   const padding = '='.repeat((4 - (value.length % 4)) % 4);
   try {
     const binary = atob(value.replace(/-/gu, '+').replace(/_/gu, '/') + padding);
@@ -111,7 +115,9 @@ export function buildDeepLinkUrl(
   state: DeepLinkStateV2
 ): DeepLinkResult<string> {
   const encoded = encodeDeepLinkState(state);
-  if (!encoded.ok) return encoded;
+  if (!encoded.ok) {
+    return encoded;
+  }
 
   const isAbsolute = /^[A-Za-z][A-Za-z\d+.-]*:/u.test(currentUrl);
   let url: URL;

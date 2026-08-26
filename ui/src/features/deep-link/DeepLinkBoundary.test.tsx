@@ -133,7 +133,9 @@ describe('DeepLinkBoundary', () => {
       resources: { expandedRowIds: [RESOURCE_B_ID, RESOURCE_A_ID] },
     });
     expect(encoded.ok).toBe(true);
-    if (!encoded.ok) return;
+    if (!encoded.ok) {
+      return;
+    }
 
     render(
       <JotaiProvider>
@@ -161,7 +163,9 @@ describe('DeepLinkBoundary', () => {
       timeline: { zoomRange: { start: 10, end: 40 } },
     });
     expect(encoded.ok).toBe(true);
-    if (!encoded.ok) return;
+    if (!encoded.ok) {
+      return;
+    }
     window.history.replaceState(
       null,
       '',
@@ -236,7 +240,9 @@ describe('DeepLinkBoundary', () => {
       },
     });
     expect(encoded.ok).toBe(true);
-    if (!encoded.ok) return;
+    if (!encoded.ok) {
+      return;
+    }
 
     render(
       <JotaiProvider>

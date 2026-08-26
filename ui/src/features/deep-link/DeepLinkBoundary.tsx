@@ -172,11 +172,15 @@ export function DeepLinkBoundary({
   }, [durationSeconds, encodedState, intakeRoute, isQueryReady]);
 
   useEffect(() => {
-    if (intake.status.kind !== 'error' && intake.status.kind !== 'warning') return;
+    if (intake.status.kind !== 'error' && intake.status.kind !== 'warning') {
+      return;
+    }
 
     let cancelled = false;
     queueMicrotask(() => {
-      if (cancelled) return;
+      if (cancelled) {
+        return;
+      }
       if (intake.status.kind === 'error') {
         toast.add({
           id: 'deep-link-intake',
@@ -201,7 +205,9 @@ export function DeepLinkBoundary({
   }, [intake.status]);
 
   useLayoutEffect(() => {
-    if (!intake.isResolved) return;
+    if (!intake.isResolved) {
+      return;
+    }
     if (intake.initialZoomRange) {
       setZoomRange(intake.initialZoomRange);
       setDebouncedZoomRange(intake.initialZoomRange);
@@ -281,15 +287,21 @@ export function DeepLinkBoundary({
     };
 
     const selection: NonNullable<DeepLinkStateV2['selection']> = {};
-    if (sharedView.selection.planId) selection.planId = sharedView.selection.planId;
+    if (sharedView.selection.planId) {
+      selection.planId = sharedView.selection.planId;
+    }
     if (sharedView.selection.operatorNodeIds.length > 0) {
       selection.operatorNodeIds = sharedView.selection.operatorNodeIds;
     }
-    if (hasKeys(selection)) state.selection = selection;
+    if (hasKeys(selection)) {
+      state.selection = selection;
+    }
 
     const resources: NonNullable<DeepLinkStateV2['resources']> = {};
     const expandedRowIds = [...store.get(expandedIdsAtom)].sort();
-    if (expandedRowIds.length > 0) resources.expandedRowIds = expandedRowIds;
+    if (expandedRowIds.length > 0) {
+      resources.expandedRowIds = expandedRowIds;
+    }
     const rootResourceType = store.get(rootResourceTypeAtom);
     if (rootResourceType && rootResourceType !== defaultRootResourceType) {
       resources.rootResourceType = rootResourceType;
@@ -303,16 +315,26 @@ export function DeepLinkBoundary({
     const fsmSelections = [...store.get(selectedFsmTypesAtom)]
       .map(([rowId, fsmType]) => ({ rowId, fsmType }))
       .sort((a, b) => a.rowId.localeCompare(b.rowId));
-    if (fsmSelections.length > 0) resources.fsmSelections = fsmSelections;
-    if (hasKeys(resources)) state.resources = resources;
+    if (fsmSelections.length > 0) {
+      resources.fsmSelections = fsmSelections;
+    }
+    if (hasKeys(resources)) {
+      state.resources = resources;
+    }
 
     const dag: NonNullable<DeepLinkStateV2['dag']> = {};
-    if (sharedView.dag.nodeColorField) dag.nodeColorField = sharedView.dag.nodeColorField;
+    if (sharedView.dag.nodeColorField) {
+      dag.nodeColorField = sharedView.dag.nodeColorField;
+    }
     if (sharedView.dag.nodeColorPalette !== 'blue') {
       dag.nodeColorPalette = sharedView.dag.nodeColorPalette;
     }
-    if (sharedView.dag.edgeWidthField) dag.edgeWidthField = sharedView.dag.edgeWidthField;
-    if (sharedView.dag.edgeColorField) dag.edgeColorField = sharedView.dag.edgeColorField;
+    if (sharedView.dag.edgeWidthField) {
+      dag.edgeWidthField = sharedView.dag.edgeWidthField;
+    }
+    if (sharedView.dag.edgeColorField) {
+      dag.edgeColorField = sharedView.dag.edgeColorField;
+    }
     if (sharedView.dag.edgeColorPalette !== 'teal') {
       dag.edgeColorPalette = sharedView.dag.edgeColorPalette;
     }
@@ -322,11 +344,17 @@ export function DeepLinkBoundary({
     if (sharedView.dag.layoutDirection !== DAG_LAYOUT_DIRECTION.BOTTOM_TO_TOP) {
       dag.layoutDirection = sharedView.dag.layoutDirection;
     }
-    if (hasKeys(dag)) state.dag = dag;
+    if (hasKeys(dag)) {
+      state.dag = dag;
+    }
 
     const dataFlow: NonNullable<DeepLinkStateV2['dataFlow']> = {};
-    if (!sharedView.dataFlow.enabled) dataFlow.enabled = false;
-    if (sharedView.dataFlow.measure) dataFlow.measure = sharedView.dataFlow.measure;
+    if (!sharedView.dataFlow.enabled) {
+      dataFlow.enabled = false;
+    }
+    if (sharedView.dataFlow.measure) {
+      dataFlow.measure = sharedView.dataFlow.measure;
+    }
     if (sharedView.dataFlow.labelMeasure) {
       dataFlow.labelMeasure = sharedView.dataFlow.labelMeasure;
     }
@@ -339,11 +367,15 @@ export function DeepLinkBoundary({
     ) {
       dataFlow.playheadS = sharedView.dataFlow.playheadS;
     }
-    if (hasKeys(dataFlow)) state.dataFlow = dataFlow;
+    if (hasKeys(dataFlow)) {
+      state.dataFlow = dataFlow;
+    }
 
     const table: NonNullable<DeepLinkStateV2['operatorTable']> = {};
     const groupingOrder = sharedView.operatorTable.groupingOrder?.filter(isOperatorGroup);
-    if (groupingOrder) table.groupingOrder = groupingOrder;
+    if (groupingOrder) {
+      table.groupingOrder = groupingOrder;
+    }
     const enabledGroups = sharedView.operatorTable.enabledGroups?.filter(isOperatorGroup);
     if (
       enabledGroups &&
@@ -362,11 +394,15 @@ export function DeepLinkBoundary({
     if (sharedView.operatorTable.sort !== undefined) {
       table.sort = sharedView.operatorTable.sort;
     }
-    if (hasKeys(table)) state.operatorTable = table;
+    if (hasKeys(table)) {
+      state.operatorTable = table;
+    }
 
     const canonicalPageUrl = `${window.location.origin}${window.location.pathname}`;
     const result = buildDeepLinkUrl(canonicalPageUrl, state);
-    if (!result.ok) return { ok: false, message: result.message };
+    if (!result.ok) {
+      return { ok: false, message: result.message };
+    }
     if (!navigator.clipboard?.writeText) {
       return { ok: false, message: 'Clipboard access is unavailable.' };
     }

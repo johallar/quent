@@ -43,11 +43,15 @@ export function PivotTableToolbar({
 }: PivotTableToolbarProps) {
   const commitDrop = useCallback(
     (fromKey: string, toKey: string, position: 'before' | 'after') => {
-      if (fromKey === toKey) return;
+      if (fromKey === toKey) {
+        return;
+      }
       const keys = indexConfig.map(entry => entry.key);
       const fromIndex = keys.indexOf(fromKey);
       const targetIndex = keys.indexOf(toKey);
-      if (fromIndex < 0 || targetIndex < 0) return;
+      if (fromIndex < 0 || targetIndex < 0) {
+        return;
+      }
 
       let anchorKey = toKey;
       if (position === 'before' && fromIndex < targetIndex) {
@@ -55,7 +59,9 @@ export function PivotTableToolbar({
       } else if (position === 'after' && fromIndex > targetIndex) {
         anchorKey = keys[targetIndex + 1] ?? toKey;
       }
-      if (anchorKey === fromKey) return;
+      if (anchorKey === fromKey) {
+        return;
+      }
       onReorderIndex(fromKey, anchorKey);
     },
     [indexConfig, onReorderIndex]

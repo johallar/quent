@@ -17,7 +17,9 @@ export function resolveInspectedNodeData(
       ids.size === selectedNodeIds.size && [...ids].every(nodeId => selectedNodeIds.has(nodeId))
     );
   });
-  if (!selected) return null;
+  if (!selected) {
+    return null;
+  }
 
   const metadata = selected.metadata as QueryPlanNodeData['metadata'];
   return {

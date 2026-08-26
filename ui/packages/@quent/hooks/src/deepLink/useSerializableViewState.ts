@@ -151,7 +151,9 @@ export function useSerializableViewState({
       }
 
       const dag = state.dag;
-      if (dag?.nodeColorField !== undefined) store.set(selectedColorField, dag.nodeColorField);
+      if (dag?.nodeColorField !== undefined) {
+        store.set(selectedColorField, dag.nodeColorField);
+      }
       if (dag?.nodeColorPalette !== undefined) {
         store.set(nodeColorPaletteAtom, dag.nodeColorPalette);
       }
@@ -172,7 +174,9 @@ export function useSerializableViewState({
       }
 
       const dataFlow = state.dataFlow;
-      if (dataFlow?.enabled !== undefined) store.set(dataFlowEnabledAtom, dataFlow.enabled);
+      if (dataFlow?.enabled !== undefined) {
+        store.set(dataFlowEnabledAtom, dataFlow.enabled);
+      }
       if (dataFlow?.measure !== undefined) {
         store.set(selectedDataFlowMeasureAtom, dataFlow.measure);
       }
@@ -185,7 +189,9 @@ export function useSerializableViewState({
           dataFlow.dimensions === null ? null : new Set(dataFlow.dimensions)
         );
       }
-      if (dataFlow?.playheadS !== undefined) store.set(playheadTimeSAtom, dataFlow.playheadS);
+      if (dataFlow?.playheadS !== undefined) {
+        store.set(playheadTimeSAtom, dataFlow.playheadS);
+      }
       store.set(dataFlowIsPlayingAtom, false);
       store.set(playheadLineTimeMsAtom, null);
 

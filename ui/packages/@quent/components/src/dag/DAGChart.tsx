@@ -128,8 +128,11 @@ const VariableWidthEdge = ({
       }
     } else {
       const color = edgeColoring.colorMap.get(id);
-      if (!color) edgeDimmed = true;
-      else edgeColor = color;
+      if (!color) {
+        edgeDimmed = true;
+      } else {
+        edgeColor = color;
+      }
     }
   }
 
@@ -154,7 +157,9 @@ const VariableWidthEdge = ({
       }
     } else {
       const v = edgeColoring.labelMap.get(id);
-      if (v !== undefined) edgeLabelValue = v;
+      if (v !== undefined) {
+        edgeLabelValue = v;
+      }
     }
   } else if (edgeWidthConfig) {
     const v = edgeWidthConfig.values.get(id);
@@ -335,13 +340,17 @@ const FlowLayout = ({
   }, []);
 
   const statQuantitySpecs = useMemo((): Record<string, QuantitySpec> => {
-    if (!data.quantitySpecs) return {};
+    if (!data.quantitySpecs) {
+      return {};
+    }
     const result: Record<string, QuantitySpec> = {};
     for (const node of data.nodes) {
       for (const stat of parseCustomStatistics(node.metadata?.rawNode)) {
         if (stat.quantity && !(stat.key in result)) {
           const spec = data.quantitySpecs[stat.quantity];
-          if (spec) result[stat.key] = spec;
+          if (spec) {
+            result[stat.key] = spec;
+          }
         }
       }
     }
@@ -441,7 +450,9 @@ const FlowLayout = ({
   // hasn't interacted with the chart (to maintain any focus states applied)
   useEffect(() => {
     const container = containerRef.current;
-    if (!container) return;
+    if (!container) {
+      return;
+    }
     const observer = new ResizeObserver(() => {
       if (nodes.length > 0 && !hasUserInteracted.current) {
         fitView({ padding: FIT_VIEW_PADDING, minZoom: FLOW_MIN_ZOOM });
@@ -467,7 +478,9 @@ const FlowLayout = ({
         layoutDirection,
         NODE_LAYOUT_HEIGHT + (flowBarVisible ? FLOW_BAR_HEIGHT : 0)
       );
-      if (cancelled) return;
+      if (cancelled) {
+        return;
+      }
 
       setNodes(layoutResult.nodes);
       setEdges(layoutResult.edges);
