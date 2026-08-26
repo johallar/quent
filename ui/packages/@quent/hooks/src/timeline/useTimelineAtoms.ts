@@ -95,7 +95,9 @@ export function useTimelinePointerPublisher() {
   );
   const clear = useCallback(() => {
     const ownedPointer = store.get(timelinePointerAtom);
-    if (ownedPointer?.ownerId !== ownerId) return;
+    if (ownedPointer?.ownerId !== ownerId) {
+      return;
+    }
     const clearIfUnchanged = () => {
       if (store.get(timelinePointerAtom) === ownedPointer) {
         setPointer(null);
@@ -110,7 +112,9 @@ export function useTimelinePointerPublisher() {
 
   useEffect(
     () => () => {
-      if (store.get(timelinePointerAtom)?.ownerId === ownerId) setPointer(null);
+      if (store.get(timelinePointerAtom)?.ownerId === ownerId) {
+        setPointer(null);
+      }
     },
     [ownerId, setPointer, store]
   );
