@@ -37,7 +37,9 @@ function useDelayedOverflowHover<T extends HTMLElement>(
   const handlePointerEnter = () => {
     clearOpenTimer();
     const element = elementRef.current;
-    if (!enabled || !element || element.scrollWidth <= element.clientWidth) return;
+    if (!enabled || !element || element.scrollWidth <= element.clientWidth) {
+      return;
+    }
     openTimerRef.current = setTimeout(() => setOpen(true), HOVER_CARD_OPEN_DELAY_MS);
   };
 
@@ -48,7 +50,9 @@ function useDelayedOverflowHover<T extends HTMLElement>(
 
   useEffect(
     () => () => {
-      if (openTimerRef.current) clearTimeout(openTimerRef.current);
+      if (openTimerRef.current) {
+        clearTimeout(openTimerRef.current);
+      }
     },
     []
   );
