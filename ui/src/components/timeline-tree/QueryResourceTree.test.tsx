@@ -16,6 +16,12 @@ import type {
   FiniteStateMachine,
   NvtxCatalog,
 } from '@quent/utils';
+import {
+  LONG_ENTITIES_ROW_TYPE,
+  OPERATOR_TIMELINE_ROW_TYPE,
+  type TreeTableItem,
+} from '@quent/components';
+import type { ResourceTimelineSubRow } from './sub-rows';
 
 // ---------------------------------------------------------------------------
 // Mock heavy/visual dependencies so tests run without a real browser/canvas
@@ -42,13 +48,7 @@ vi.mock('@/contexts/ThemeContext', () => ({
 
 // Capture the timelineData prop passed to TimelineController on every render
 let capturedTimelineData: SingleTimelineResponse | null | undefined = undefined;
-interface TestTreeItem {
-  id: string;
-  type?: string;
-  entity?: unknown;
-  children?: TestTreeItem[];
-}
-
+let capturedTreeData: TreeTableItem[] = [];
 let capturedInlineSelectors: Array<{
   id: string;
   value: string;
@@ -75,22 +75,23 @@ vi.mock('@quent/components', async importOriginal => {
       columns: Array<{
         headerContent?: React.ReactNode;
         subHeaderContent?: React.ReactNode;
-        render?: (props: { item: TestTreeItem; level?: number }) => React.ReactNode;
+        render?: (props: { item: TreeTableItem; level?: number }) => React.ReactNode;
       }>;
-      data: TestTreeItem[];
+      data: TreeTableItem[];
     }) => {
+      capturedTreeData = props.data;
       const longEntityElement = props.columns[1]?.render?.({
         item: {
           id: actual.longEntitiesRowId(RESOURCE_ID),
           type: actual.LONG_ENTITIES_ROW_TYPE,
-          entity: {},
+          entity: {} as TreeTableItem['entity'],
         },
       });
       if (React.isValidElement(longEntityElement)) {
         capturedLongEntityProps = longEntityElement.props as typeof capturedLongEntityProps;
       }
 
-      const renderItems = (items: TestTreeItem[], level = 0): React.ReactNode =>
+      const renderItems = (items: TreeTableItem[], level = 0): React.ReactNode =>
         items.map(item => (
           <React.Fragment key={item.id}>
             {props.columns[0]?.render?.({ item, level })}
@@ -140,7 +141,7 @@ const RESOURCE_ID = 'res-1';
 const RESOURCE_TYPE = 'GPU';
 
 /** Minimal QueryBundle that causes the root timeline query to be enabled. */
-const makeBundle = (): QueryBundle<EntityRef> =>
+const makeBundle = (workerId: string | null = null): QueryBundle<EntityRef> =>
   ({
     query_id: 'test-query',
     entities: {
@@ -163,7 +164,7 @@ const makeBundle = (): QueryBundle<EntityRef> =>
         children: [{ Resource: { Resource: RESOURCE_ID } }],
       },
     },
-    plan_tree: { id: 'plan-1', worker: null, children: [] },
+    plan_tree: { id: 'plan-1', worker: workerId, children: [] },
     unique_operator_names: [],
     quantity_specs: {},
     start_time_unix_ns: 0n,
@@ -181,9 +182,33 @@ function ViewportProbe() {
   return <output data-testid="viewport">{JSON.stringify(range)}</output>;
 }
 
+function collectRowTypes(items: TreeTableItem[]): string[] {
+  return items.flatMap(item => [item.type, ...collectRowTypes(item.children ?? [])]);
+}
+
+const CUSTOM_SUB_ROW_TYPE = 'custom-sub-row';
+const customSubRow: ResourceTimelineSubRow = {
+  id: 'custom',
+  injectRows: rootItem => ({
+    ...rootItem,
+    children: [
+      ...(rootItem.children ?? []),
+      {
+        id: 'custom-sub-row',
+        type: CUSTOM_SUB_ROW_TYPE,
+        entity: {} as TreeTableItem['entity'],
+      },
+    ],
+  }),
+  matches: item => item.type === CUSTOM_SUB_ROW_TYPE,
+  renderLabel: () => null,
+  renderTimeline: () => null,
+};
+
 beforeEach(() => {
   capturedInlineSelectors = [];
   capturedTimelineData = undefined;
+  capturedTreeData = [];
   capturedLongEntityProps = undefined;
   vi.mocked(clientApi.useNvtxStream).mockReturnValue({
     contextId: undefined,
@@ -369,5 +394,58 @@ describe('QueryResourceTree — NVTX filters', () => {
         capturedInlineSelectors.find(selector => selector.id === 'nvtx-category-1')?.value
       ).toBe('7')
     );
+  });
+});
+
+describe('QueryResourceTree — configurable resource subrows', () => {
+  beforeEach(() => {
+    capturedTreeData = [];
+    vi.mocked(clientApi.fetchSingleTimeline).mockResolvedValue(makeTimeline(0, DURATION_S));
+    vi.mocked(clientApi.fetchBulkTimelines).mockResolvedValue({ entries: {} } as never);
+  });
+
+  it('renders the default subrow descriptors', () => {
+    renderWithQuery(
+      <JotaiProvider store={createStore()}>
+        <QueryResourceTree engineId="engine-1" queryBundle={makeBundle(RESOURCE_ID)} />
+      </JotaiProvider>
+    );
+
+    const rowTypes = collectRowTypes(capturedTreeData);
+    expect(rowTypes).toContain(OPERATOR_TIMELINE_ROW_TYPE);
+    expect(rowTypes).toContain(LONG_ENTITIES_ROW_TYPE);
+  });
+
+  it('can render without any subrows', () => {
+    renderWithQuery(
+      <JotaiProvider store={createStore()}>
+        <QueryResourceTree
+          engineId="engine-1"
+          queryBundle={makeBundle(RESOURCE_ID)}
+          resourceSubRows={[]}
+        />
+      </JotaiProvider>
+    );
+
+    const rowTypes = collectRowTypes(capturedTreeData);
+    expect(rowTypes).not.toContain(OPERATOR_TIMELINE_ROW_TYPE);
+    expect(rowTypes).not.toContain(LONG_ENTITIES_ROW_TYPE);
+  });
+
+  it('renders arbitrary supplied subrow descriptors', () => {
+    renderWithQuery(
+      <JotaiProvider store={createStore()}>
+        <QueryResourceTree
+          engineId="engine-1"
+          queryBundle={makeBundle(RESOURCE_ID)}
+          resourceSubRows={[customSubRow]}
+        />
+      </JotaiProvider>
+    );
+
+    const rowTypes = collectRowTypes(capturedTreeData);
+    expect(rowTypes).toContain(CUSTOM_SUB_ROW_TYPE);
+    expect(rowTypes).not.toContain(OPERATOR_TIMELINE_ROW_TYPE);
+    expect(rowTypes).not.toContain(LONG_ENTITIES_ROW_TYPE);
   });
 });
