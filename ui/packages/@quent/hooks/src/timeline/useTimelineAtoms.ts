@@ -93,10 +93,15 @@ export function useTimelinePointerPublisher() {
     const ownedPointer = store.get(timelinePointerAtom);
     if (ownedPointer?.ownerId !== ownerId) return;
     const clearIfUnchanged = () => {
-      if (store.get(timelinePointerAtom) === ownedPointer) setPointer(null);
+      if (store.get(timelinePointerAtom) === ownedPointer) {
+        setPointer(null);
+      }
     };
-    if (typeof requestAnimationFrame === 'function') requestAnimationFrame(clearIfUnchanged);
-    else setTimeout(clearIfUnchanged, 0);
+    if (typeof requestAnimationFrame === 'function') {
+      requestAnimationFrame(clearIfUnchanged);
+    } else {
+      setTimeout(clearIfUnchanged, 0);
+    }
   }, [ownerId, setPointer, store]);
 
   useEffect(
