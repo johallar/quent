@@ -3,6 +3,7 @@
 
 import { createFileRoute, Outlet, useMatch } from '@tanstack/react-router';
 import { Provider } from 'jotai';
+import { useState } from 'react';
 import { QueryPlan } from '@/components/QueryPlan';
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@quent/components';
 import { DeepLinkBoundary } from '@/features/deep-link';
@@ -51,9 +52,19 @@ function ProfileLayout() {
     shouldThrow: false,
   });
   const activeTab = timelineMatch ? 'timeline' : operatorsMatch ? 'operators' : undefined;
+  const isQueryReady = queryId == null || queryMatch?.status === 'success';
+  // Stripping a consumed `s` keeps the store; a different payload resets it.
+  const [providerPayload, setProviderPayload] = useState(encodedState);
+  if (encodedState !== undefined && encodedState !== providerPayload) {
+    setProviderPayload(encodedState);
+  }
+
+  if (encodedState && !isQueryReady) {
+    return <Outlet />;
+  }
 
   return (
-    <Provider key={`${engineId}:${queryId ?? ''}`}>
+    <Provider key={`${engineId}:${queryId ?? ''}:${providerPayload ?? ''}`}>
       <DeepLinkBoundary
         engineId={engineId}
         queryId={queryId}
@@ -61,7 +72,7 @@ function ProfileLayout() {
         durationSeconds={queryBundle?.duration_s ?? 0}
         defaultRootResourceType={defaultRootResourceType(queryBundle)}
         encodedState={encodedState}
-        isQueryReady={queryId == null || queryBundle != null}
+        isQueryReady={isQueryReady}
       >
         <ResizablePanelGroup orientation="horizontal" className="h-full min-w-0">
           <ResizablePanel defaultSize="33%" minSize="15%" collapsible collapsedSize="0%">
