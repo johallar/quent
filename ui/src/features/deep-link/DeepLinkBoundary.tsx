@@ -330,7 +330,7 @@ export function DeepLinkBoundary({
     if (sharedView.dataFlow.labelMeasure) {
       dataFlow.labelMeasure = sharedView.dataFlow.labelMeasure;
     }
-    if (sharedView.dataFlow.dimensions) {
+    if (sharedView.dataFlow.dimensions && sharedView.dataFlow.dimensions.length > 0) {
       dataFlow.dimensions = sharedView.dataFlow.dimensions;
     }
     if (

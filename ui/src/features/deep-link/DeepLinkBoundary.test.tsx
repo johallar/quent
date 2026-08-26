@@ -100,6 +100,18 @@ function SeedExpandedRows({ ids }: { ids: string[] }) {
   return null;
 }
 
+function SeedEmptyDataFlowDimensions() {
+  const { hydrate } = useSerializableViewState({
+    operatorTablePersistKey: OPERATOR_TABLE_PERSIST_KEY,
+    operatorTableGroupKeys: OPERATOR_TABLE_INDEX_ORDER,
+  });
+
+  useLayoutEffect(() => {
+    hydrate({ dataFlow: { dimensions: [] } });
+  }, [hydrate]);
+  return null;
+}
+
 function HydrateTimelineDuringRender() {
   useHydrateTimelineAtoms({
     zoomRange: { start: 0, end: 100 },
@@ -339,6 +351,7 @@ describe('DeepLinkBoundary', () => {
           <DeepLinkBoundary {...BOUNDARY_PROPS}>
             <SeedViewport start={20} end={60} />
             <SeedExpandedRows ids={[RESOURCE_B_ID, NVTX_SECTION_ID, RESOURCE_A_ID]} />
+            <SeedEmptyDataFlowDimensions />
             <ViewportProbe />
             <CopyLinkButton />
           </DeepLinkBoundary>
