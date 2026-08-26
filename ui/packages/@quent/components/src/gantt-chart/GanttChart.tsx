@@ -15,12 +15,12 @@ import EChartsReactCore from 'echarts-for-react/lib/core';
 
 import type { EChartsInstance } from 'echarts-for-react';
 import { echarts } from '../lib/echarts';
-import { registerAxisPointerSync, unregisterAxisPointerSync } from '../lib/timeline.utils';
 import { useChartConnect } from '../lib/useChartConnect';
 import { useMinZoomSpanPct } from '../lib/useMinZoomSpanPct';
 import { useTimelineWheelNavigation } from '../lib/useTimelineWheelNavigation';
 import { PlayheadLine } from '../timeline/PlayheadLine';
-import { CHART_GROUP } from '../timeline/types';
+import { TimelinePointerArea } from '../timeline/TimelinePointerArea';
+import { CHART_GROUP, TIMELINE_SPACING } from '../timeline/types';
 import { useTimelineEchartsTheme } from '../timeline/timelineEchartsTheme';
 import { Button } from '../ui/button';
 import { HiddenScroll } from '../ui/thin-scroll';
@@ -114,6 +114,14 @@ export function GanttChart<T extends GanttDatum>({
   const resolvedMaxHeight = expansion?.maxHeight ?? maxHeight;
   const resolvedPadding = expansion?.contentPaddingBottom ?? contentPaddingBottom;
   const resolvedGridSpacing = expansion?.gridSpacing ?? gridSpacing;
+  const pointerLeft =
+    typeof resolvedGridSpacing?.left === 'number'
+      ? resolvedGridSpacing.left
+      : TIMELINE_SPACING.left;
+  const pointerRight =
+    typeof resolvedGridSpacing?.right === 'number'
+      ? resolvedGridSpacing.right
+      : TIMELINE_SPACING.right;
   const chartHeight =
     expansion?.contentHeight ?? Math.max(height, rowCount * rowHeight + resolvedPadding);
   const wrapperHeight = Math.min(chartHeight, resolvedMaxHeight);
@@ -147,7 +155,6 @@ export function GanttChart<T extends GanttDatum>({
     (instance: EChartsInstance) => {
       setChartInstance(instance);
       chartCleanupRef.current?.();
-      registerAxisPointerSync(instance, 0, { receiveShowTip: false });
       const detachWheelNavigation = attachWheelNavigation(
         instance,
         wrapperRef.current ?? undefined
@@ -172,7 +179,6 @@ export function GanttChart<T extends GanttDatum>({
       zr?.on('click', handleZrClick);
 
       const cleanup = () => {
-        unregisterAxisPointerSync(instance);
         detachWheelNavigation();
         detachHover?.();
         zr?.off('click', handleZrClick);
@@ -199,7 +205,7 @@ export function GanttChart<T extends GanttDatum>({
   }, [instanceRef]);
 
   return (
-    <div className="relative">
+    <TimelinePointerArea left={pointerLeft} right={pointerRight}>
       <HiddenScroll
         ref={wrapperRef}
         className={
@@ -246,6 +252,6 @@ export function GanttChart<T extends GanttDatum>({
         </Button>
       )}
       {data.length > 0 && renderTooltip?.(hover)}
-    </div>
+    </TimelinePointerArea>
   );
 }

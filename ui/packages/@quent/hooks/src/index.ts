@@ -29,6 +29,8 @@ export {
   useSetLongEntityDensity,
   useTimelineHover,
   useSetTimelineHover,
+  useTimelinePointerRatio,
+  useTimelinePointerPublisher,
   useStartTimeMs,
   useSetStartTimeMs,
   useBulkInitialized,

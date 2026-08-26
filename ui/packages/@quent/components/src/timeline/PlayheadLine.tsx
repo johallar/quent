@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import type { EChartsInstance } from 'echarts-for-react';
+import { useDataFlowIsPlaying } from '@quent/hooks';
+import { cn } from '@quent/utils';
 import { usePlayheadLinePixel } from '../lib/usePlayheadLinePixel';
 
 type PlayheadLineProps = {
@@ -12,6 +14,7 @@ type PlayheadLineProps = {
 /** Playhead overlay aligned to an ECharts x-axis. */
 export function PlayheadLine({ instance, xAxisIndex = 0 }: PlayheadLineProps) {
   const pixelX = usePlayheadLinePixel(instance, xAxisIndex);
+  const isPlaying = useDataFlowIsPlaying();
 
   if (pixelX == null) {
     return null;
@@ -19,7 +22,10 @@ export function PlayheadLine({ instance, xAxisIndex = 0 }: PlayheadLineProps) {
 
   return (
     <div
-      className="absolute top-0 bottom-0 w-px pointer-events-none z-[10] bg-primary/70"
+      className={cn(
+        'pointer-events-none absolute bottom-0 top-0 z-[10] w-px bg-primary/70',
+        isPlaying && 'transition-[left] duration-100 ease-linear motion-reduce:transition-none'
+      )}
       style={{ left: pixelX }}
     />
   );

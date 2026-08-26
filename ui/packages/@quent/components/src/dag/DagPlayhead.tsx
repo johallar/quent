@@ -174,7 +174,7 @@ export function DagPlayhead({ className }: DagPlayheadProps) {
       }
       return !playing;
     });
-  }, [bin, setPlayheadTimeS]);
+  }, [bin, setIsPlaying, setPlayheadTimeS]);
 
   // Stop playback when the overlay is disabled or the bin metadata goes away:
   // the component stays mounted while rendering null, so a live play interval
@@ -185,7 +185,7 @@ export function DagPlayhead({ className }: DagPlayheadProps) {
     }
     setIsPlaying(false);
     setPlayheadLineTimeMs(null);
-  }, [enabled, bin, setPlayheadLineTimeMs]);
+  }, [enabled, bin, setIsPlaying, setPlayheadLineTimeMs]);
 
   // Advance one bin per tick while playing; stop at the window end.
   useEffect(() => {
@@ -203,7 +203,7 @@ export function DagPlayhead({ className }: DagPlayheadProps) {
       }
     }, PLAY_INTERVAL_MS);
     return () => window.clearInterval(id);
-  }, [isPlaying, bin, setPlayheadTimeS, setPlayheadLineTimeMs]);
+  }, [isPlaying, bin, setIsPlaying, setPlayheadTimeS, setPlayheadLineTimeMs]);
 
   useEffect(() => {
     if (!isPlaying) {
@@ -262,7 +262,10 @@ export function DagPlayhead({ className }: DagPlayheadProps) {
       >
         <div className="absolute top-1/2 -translate-y-1/2 h-1 w-full rounded-full bg-muted" />
         <div
-          className="absolute top-1/2 -translate-y-1/2 h-1 rounded-full bg-primary/40"
+          className={cn(
+            'absolute top-1/2 h-1 -translate-y-1/2 rounded-full bg-primary/40',
+            isPlaying && 'transition-[width] duration-100 ease-linear motion-reduce:transition-none'
+          )}
           style={{ width: `${positionPct}%` }}
         />
         <div
@@ -274,7 +277,10 @@ export function DagPlayhead({ className }: DagPlayheadProps) {
           aria-valuenow={timeS}
           aria-valuetext={currentLabel}
           onKeyDown={handleKeyDown}
-          className="absolute top-1/2 h-3 w-3 -translate-x-1/2 -translate-y-1/2 rounded-full border border-primary bg-background shadow focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          className={cn(
+            'absolute top-1/2 h-3 w-3 -translate-x-1/2 -translate-y-1/2 rounded-full border border-primary bg-background shadow focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+            isPlaying && 'transition-[left] duration-100 ease-linear motion-reduce:transition-none'
+          )}
           style={{ left: `${positionPct}%` }}
         />
       </div>

@@ -30,6 +30,7 @@ import { useChartConnect } from '../lib/useChartConnect';
 import { useMinZoomSpanPct } from '../lib/useMinZoomSpanPct';
 import { useTimelineWheelNavigation } from '../lib/useTimelineWheelNavigation';
 import { Opts } from 'echarts-for-react/lib/types';
+import { TimelinePointerArea } from './TimelinePointerArea';
 
 const DIMMED_OPACITY = 0.25;
 
@@ -220,12 +221,7 @@ export function Timeline({
       max: durationSeconds * 1_000,
       axisLine: { onZero: true },
       axisLabel: { show: false },
-      axisPointer: {
-        show: true,
-        type: 'line',
-        animation: false,
-        label: { show: false },
-      },
+      axisPointer: { show: false },
     }),
     [durationSeconds]
   );
@@ -235,22 +231,10 @@ export function Timeline({
   const minZoomSpanPct = useMinZoomSpanPct(durationSeconds);
   const attachWheelNavigation = useTimelineWheelNavigation(minZoomSpanPct);
 
-  // ECharts' built-in tooltip is reduced to crosshair only (`showContent: false`).
-  // Tooltip content is rendered by the parent via `onHoverChange` — keeping
-  // `connect()` mirroring `showTip` harmless (only the crosshair paints,
-  // never tooltip DOM.
   const eChartOptions: EChartsOption = useMemo(() => {
     return {
       animation: false,
-      tooltip: {
-        show: true,
-        showContent: false,
-        trigger: 'axis',
-        transitionDuration: 0,
-      },
-      axisPointer: {
-        link: [{ xAxisIndex: 'all' }],
-      },
+      tooltip: { show: false },
       grid: gridOptions,
       xAxis: xAxisOptions,
       yAxis: yAxisOptions,
@@ -394,7 +378,7 @@ export function Timeline({
   });
 
   return (
-    <div className="relative w-full h-full">
+    <TimelinePointerArea className="h-full w-full">
       {(yAxisLabel != null || maxValue != null) && (
         <div
           className="absolute z-[8] pointer-events-none flex flex-col items-start gap-px text-[10px] leading-none"
@@ -433,7 +417,7 @@ export function Timeline({
         replaceMerge={['series']}
         autoResize={false}
       />
-    </div>
+    </TimelinePointerArea>
   );
 }
 
