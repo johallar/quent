@@ -3,12 +3,16 @@
 
 import { useMatch, useNavigate } from '@tanstack/react-router';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useRef, useState } from 'react';
 import { ChevronDown, ChevronRight } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
+  HoverCard,
+  HoverCardContent,
+  HoverCardTrigger,
 } from '@quent/components';
 import { cn } from '@quent/utils';
 import {
@@ -18,6 +22,39 @@ import {
   fetchListQueries,
 } from '@quent/client';
 import { DataText } from '@quent/components';
+
+function OverflowHoverCardContent({ label }: { label: string }) {
+  return (
+    <HoverCardContent
+      side="right"
+      align="start"
+      className="w-auto max-w-sm bg-background p-2 text-foreground"
+    >
+      <DataText className="break-all text-xs">{label}</DataText>
+    </HoverCardContent>
+  );
+}
+
+function OverflowingItemLabel({ label }: { label: string }) {
+  const triggerRef = useRef<HTMLSpanElement>(null);
+  const [open, setOpen] = useState(false);
+
+  const handleOpenChange = (nextOpen: boolean) => {
+    const trigger = triggerRef.current;
+    setOpen(nextOpen && !!trigger && trigger.scrollWidth > trigger.clientWidth);
+  };
+
+  return (
+    <HoverCard open={open} onOpenChange={handleOpenChange}>
+      <HoverCardTrigger asChild>
+        <span ref={triggerRef} className="min-w-0 flex-1 truncate">
+          <DataText>{label}</DataText>
+        </span>
+      </HoverCardTrigger>
+      <OverflowHoverCardContent label={label} />
+    </HoverCard>
+  );
+}
 
 function BreadcrumbDropdown({
   label,
@@ -30,27 +67,47 @@ function BreadcrumbDropdown({
   items: { id: string; label: string }[] | undefined;
   onSelect: (id: string) => void;
 }) {
+  const labelRef = useRef<HTMLSpanElement>(null);
+  const [labelCardOpen, setLabelCardOpen] = useState(false);
+
+  const handleLabelCardOpenChange = (nextOpen: boolean) => {
+    const labelElement = labelRef.current;
+    setLabelCardOpen(
+      nextOpen && !!labelElement && labelElement.scrollWidth > labelElement.clientWidth
+    );
+  };
+
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <button className="flex items-center gap-0.5 px-1.5 py-0.5 -mx-1.5 rounded-sm hover:text-foreground hover:bg-accent transition-colors cursor-pointer">
-          <DataText>{label}</DataText>
-          <ChevronDown className="h-3 w-3 opacity-50" />
-        </button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="start" className="max-h-64 overflow-y-auto">
-        {items?.map(item => (
-          <DropdownMenuItem
-            key={item.id}
-            onSelect={() => onSelect(item.id)}
-            className={cn(item.id === activeId && 'font-semibold bg-accent')}
-          >
-            <DataText>{item.label}</DataText>
-          </DropdownMenuItem>
-        ))}
-        {(!items || items.length === 0) && <DropdownMenuItem disabled>No items</DropdownMenuItem>}
-      </DropdownMenuContent>
-    </DropdownMenu>
+    <HoverCard open={labelCardOpen} onOpenChange={handleLabelCardOpenChange}>
+      <DropdownMenu>
+        <HoverCardTrigger asChild>
+          <DropdownMenuTrigger asChild>
+            <button className="-mx-1.5 flex min-w-0 max-w-40 cursor-pointer items-center gap-0.5 rounded-sm px-1.5 py-0.5 transition-colors hover:bg-accent hover:text-foreground md:max-w-48 xl:max-w-64">
+              <span ref={labelRef} className="min-w-0 truncate">
+                <DataText>{label}</DataText>
+              </span>
+              <ChevronDown className="h-3 w-3 shrink-0 opacity-50" />
+            </button>
+          </DropdownMenuTrigger>
+        </HoverCardTrigger>
+        <DropdownMenuContent
+          align="start"
+          className="max-h-64 w-64 max-w-[calc(100vw-2rem)] overflow-y-auto"
+        >
+          {items?.map(item => (
+            <DropdownMenuItem
+              key={item.id}
+              onSelect={() => onSelect(item.id)}
+              className={cn('min-w-0', item.id === activeId && 'bg-accent font-semibold')}
+            >
+              <OverflowingItemLabel label={item.label} />
+            </DropdownMenuItem>
+          ))}
+          {(!items || items.length === 0) && <DropdownMenuItem disabled>No items</DropdownMenuItem>}
+        </DropdownMenuContent>
+      </DropdownMenu>
+      <OverflowHoverCardContent label={label} />
+    </HoverCard>
   );
 }
 
@@ -97,7 +154,6 @@ export function NavBarNavigator() {
 
   const engine = queryBundle.entities.engine.instance_name ?? queryBundle.entities.engine.id;
   const queryGroupName = queryBundle.entities.query_group.instance_name;
-  const queryName = queryBundle.entities.query.instance_name;
 
   const handleEngineChange = async (newEngineId: string) => {
     if (newEngineId === engineId) return;
@@ -155,7 +211,7 @@ export function NavBarNavigator() {
   };
 
   return (
-    <nav className="flex items-center gap-1.5 text-sm text-muted-foreground">
+    <nav className="flex min-w-0 max-w-full items-center gap-1.5 text-sm text-muted-foreground">
       <BreadcrumbDropdown
         label={engine}
         activeId={engineId}
@@ -171,9 +227,15 @@ export function NavBarNavigator() {
       />
       <ChevronRight className="h-3.5 w-3.5 shrink-0" />
       <BreadcrumbDropdown
-        label={queryName ?? queryId ?? ''}
+        label={
+          'SELECT * FROM THINGS WHERE FIELD1 < 100 AND FIELD2 > 100 GROUP BY OTHER_THING ORDER BY FIELD3 DESC LIMIT 100;'
+        }
         activeId={queryId ?? ''}
-        items={queries?.map(q => ({ id: q.id, label: q.instance_name ?? q.id }))}
+        items={queries?.map(q => ({
+          id: q.id,
+          label:
+            'SELECT * FROM THINGS WHERE FIELD1 < 100 AND FIELD2 > 100 GROUP BY OTHER_THING ORDER BY FIELD3 DESC LIMIT 100;',
+        }))}
         onSelect={handleQueryChange}
       />
     </nav>
