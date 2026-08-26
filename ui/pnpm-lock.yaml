@@ -244,7 +244,7 @@ importers:
         specifier: ^1.0.7
         version: 1.0.7(tailwindcss@4.3.3)
       tsdown:
-        specifier: 0.22.14
+        specifier: 'catalog:'
         version: 0.22.14(tsx@4.23.12)(typescript@6.0.3)
       tsx:
         specifier: ^4.23.12
@@ -6677,7 +6677,7 @@ snapshots:
   unplugin@3.3.0(esbuild@0.28.1)(rolldown@1.2.5)(rollup@4.59.0)(vite@7.3.6(@types/node@26.2.0)(jiti@2.7.0)(lightningcss@1.32.0)(tsx@4.23.12)):
     dependencies:
       '@jridgewell/remapping': 2.3.5
-      picomatch: 4.0.5
+      picomatch: 4.0.7
       webpack-virtual-modules: 0.6.2
     optionalDependencies:
       esbuild: 0.28.1
