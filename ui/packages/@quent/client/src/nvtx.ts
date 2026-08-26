@@ -60,7 +60,9 @@ export function selectNvtxDomains(
     .filter(selection => domainId == null || selection.domain_id === domainId)
     .flatMap(selection => {
       const filter = categoryFilters.get(selection.domain_id);
-      if (!filter) return [selection];
+      if (!filter) {
+        return [selection];
+      }
       if (filter.categoryId != null) {
         return selection.category_ids.includes(filter.categoryId)
           ? [{ ...selection, category_ids: [filter.categoryId], include_uncategorized: false }]
