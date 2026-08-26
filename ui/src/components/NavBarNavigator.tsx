@@ -6,12 +6,12 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRef, useState } from 'react';
 import { ChevronDown, ChevronRight } from 'lucide-react';
 import {
+  DataText,
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
   HoverCard,
-  HoverCardContent,
   HoverCardTrigger,
 } from '@quent/components';
 import { cn } from '@quent/utils';
@@ -21,40 +21,7 @@ import {
   fetchListCoordinators,
   fetchListQueries,
 } from '@quent/client';
-import { DataText } from '@quent/components';
-
-function OverflowHoverCardContent({ label }: { label: string }) {
-  return (
-    <HoverCardContent
-      side="right"
-      align="start"
-      className="w-auto max-w-sm bg-background p-2 text-foreground"
-    >
-      <DataText className="break-all text-xs">{label}</DataText>
-    </HoverCardContent>
-  );
-}
-
-function OverflowingItemLabel({ label }: { label: string }) {
-  const triggerRef = useRef<HTMLSpanElement>(null);
-  const [open, setOpen] = useState(false);
-
-  const handleOpenChange = (nextOpen: boolean) => {
-    const trigger = triggerRef.current;
-    setOpen(nextOpen && !!trigger && trigger.scrollWidth > trigger.clientWidth);
-  };
-
-  return (
-    <HoverCard open={open} onOpenChange={handleOpenChange}>
-      <HoverCardTrigger asChild>
-        <span ref={triggerRef} className="min-w-0 flex-1 truncate">
-          <DataText>{label}</DataText>
-        </span>
-      </HoverCardTrigger>
-      <OverflowHoverCardContent label={label} />
-    </HoverCard>
-  );
-}
+import { OverflowHoverCardContent, OverflowingItemLabel } from './OverflowHoverCard';
 
 function BreadcrumbDropdown({
   label,
@@ -67,14 +34,16 @@ function BreadcrumbDropdown({
   items: { id: string; label: string }[] | undefined;
   onSelect: (id: string) => void;
 }) {
+  const triggerRef = useRef<HTMLButtonElement>(null);
   const labelRef = useRef<HTMLSpanElement>(null);
   const [labelCardOpen, setLabelCardOpen] = useState(false);
 
   const handleLabelCardOpenChange = (nextOpen: boolean) => {
+    const trigger = triggerRef.current;
     const labelElement = labelRef.current;
-    setLabelCardOpen(
-      nextOpen && !!labelElement && labelElement.scrollWidth > labelElement.clientWidth
-    );
+    const elementIsHovered = !!trigger && trigger.matches(':hover');
+    const elementOverflows = !!labelElement && labelElement.scrollWidth > labelElement.clientWidth;
+    setLabelCardOpen(nextOpen && elementIsHovered && elementOverflows);
   };
 
   return (
@@ -82,7 +51,12 @@ function BreadcrumbDropdown({
       <DropdownMenu>
         <HoverCardTrigger asChild>
           <DropdownMenuTrigger asChild>
-            <button className="-mx-1.5 flex min-w-0 max-w-40 cursor-pointer items-center gap-0.5 rounded-sm px-1.5 py-0.5 transition-colors hover:bg-accent hover:text-foreground md:max-w-48 xl:max-w-64">
+            <button
+              ref={triggerRef}
+              className="-mx-1.5 flex min-w-0 max-w-40 cursor-pointer items-center gap-0.5 rounded-sm px-1.5 py-0.5 transition-colors hover:bg-accent hover:text-foreground md:max-w-48 xl:max-w-64"
+              onPointerLeave={() => setLabelCardOpen(false)}
+              onBlur={() => setLabelCardOpen(false)}
+            >
               <span ref={labelRef} className="min-w-0 truncate">
                 <DataText>{label}</DataText>
               </span>
@@ -90,10 +64,7 @@ function BreadcrumbDropdown({
             </button>
           </DropdownMenuTrigger>
         </HoverCardTrigger>
-        <DropdownMenuContent
-          align="start"
-          className="max-h-64 w-64 max-w-[calc(100vw-2rem)] overflow-y-auto"
-        >
+        <DropdownMenuContent align="start" className="max-h-64 w-max max-w-64 overflow-y-auto">
           {items?.map(item => (
             <DropdownMenuItem
               key={item.id}
@@ -106,7 +77,7 @@ function BreadcrumbDropdown({
           {(!items || items.length === 0) && <DropdownMenuItem disabled>No items</DropdownMenuItem>}
         </DropdownMenuContent>
       </DropdownMenu>
-      <OverflowHoverCardContent label={label} />
+      <OverflowHoverCardContent label={label} side="bottom" />
     </HoverCard>
   );
 }
@@ -152,8 +123,25 @@ export function NavBarNavigator() {
 
   if (!queryBundle || !engineId) return null;
 
+  const engineItems =
+    engines?.map(engine => ({
+      id: engine.id,
+      label: engine.instance_name ?? engine.id,
+    })) ?? [];
+  const queryGroupItems =
+    queryGroups?.map(queryGroup => ({
+      id: queryGroup.id,
+      label: queryGroup.instance_name ?? queryGroup.id,
+    })) ?? [];
+  const queryItems =
+    queries?.map(query => ({
+      id: query.id,
+      label: query.instance_name ?? query.id,
+    })) ?? [];
   const engine = queryBundle.entities.engine.instance_name ?? queryBundle.entities.engine.id;
-  const queryGroupName = queryBundle.entities.query_group.instance_name;
+  const queryGroupName =
+    queryBundle.entities.query_group.instance_name ?? queryBundle.entities.query_group.id;
+  const queryName = queryBundle.entities.query.instance_name ?? queryBundle.entities.query.id;
 
   const handleEngineChange = async (newEngineId: string) => {
     if (newEngineId === engineId) return;
@@ -215,27 +203,21 @@ export function NavBarNavigator() {
       <BreadcrumbDropdown
         label={engine}
         activeId={engineId}
-        items={engines?.map(e => ({ id: e.id, label: e.instance_name ?? e.id }))}
+        items={engineItems}
         onSelect={handleEngineChange}
       />
       <ChevronRight className="h-3.5 w-3.5 shrink-0" />
       <BreadcrumbDropdown
         label={queryGroupName ?? queryGroupId ?? ''}
         activeId={queryGroupId ?? ''}
-        items={queryGroups?.map(g => ({ id: g.id, label: g.instance_name ?? g.id }))}
+        items={queryGroupItems}
         onSelect={handleQueryGroupChange}
       />
       <ChevronRight className="h-3.5 w-3.5 shrink-0" />
       <BreadcrumbDropdown
-        label={
-          'SELECT * FROM THINGS WHERE FIELD1 < 100 AND FIELD2 > 100 GROUP BY OTHER_THING ORDER BY FIELD3 DESC LIMIT 100;'
-        }
+        label={queryName}
         activeId={queryId ?? ''}
-        items={queries?.map(q => ({
-          id: q.id,
-          label:
-            'SELECT * FROM THINGS WHERE FIELD1 < 100 AND FIELD2 > 100 GROUP BY OTHER_THING ORDER BY FIELD3 DESC LIMIT 100;',
-        }))}
+        items={queryItems}
         onSelect={handleQueryChange}
       />
     </nav>
