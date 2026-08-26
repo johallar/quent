@@ -49,10 +49,10 @@ export default tseslint.config(
       ],
     },
   },
-  prettier,
   {
-    files: ['**/*.{ts,tsx}'],
+    ...prettier,
     rules: {
+      ...prettier.rules,
       curly: ['error', 'all'],
     },
   }
