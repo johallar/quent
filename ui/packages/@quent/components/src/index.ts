@@ -43,7 +43,11 @@ export {
   DrawerDescription,
 } from './ui/drawer';
 export { HoverCard, HoverCardTrigger, HoverCardContent } from './ui/hover-card';
-export { OverflowHoverCardContent, OverflowingItemLabel } from './ui/overflow-hover-card';
+export {
+  OverflowHoverCardContent,
+  OverflowingItemLabel,
+  useOverflowHoverCard,
+} from './ui/overflow-hover-card';
 export { Input } from './ui/input';
 export {
   navigationMenuTriggerStyle,

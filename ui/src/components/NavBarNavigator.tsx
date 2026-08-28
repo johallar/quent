@@ -3,7 +3,7 @@
 
 import { useMatch, useNavigate } from '@tanstack/react-router';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { useRef, useState } from 'react';
+import { useRef } from 'react';
 import { ChevronDown, ChevronRight } from 'lucide-react';
 import {
   DataText,
@@ -15,6 +15,7 @@ import {
   HoverCardTrigger,
   OverflowHoverCardContent,
   OverflowingItemLabel,
+  useOverflowHoverCard,
 } from '@quent/components';
 import { cn } from '@quent/utils';
 import {
@@ -35,28 +36,19 @@ function BreadcrumbDropdown({
   items: { id: string; label: string }[] | undefined;
   onSelect: (id: string) => void;
 }) {
-  const triggerRef = useRef<HTMLButtonElement>(null);
   const labelRef = useRef<HTMLSpanElement>(null);
-  const [labelCardOpen, setLabelCardOpen] = useState(false);
-
-  const handleLabelCardOpenChange = (nextOpen: boolean) => {
-    const trigger = triggerRef.current;
-    const labelElement = labelRef.current;
-    const elementIsHovered = !!trigger && trigger.matches(':hover');
-    const elementOverflows = !!labelElement && labelElement.scrollWidth > labelElement.clientWidth;
-    setLabelCardOpen(nextOpen && elementIsHovered && elementOverflows);
-  };
+  const { open, handlePointerEnter, handlePointerLeave } = useOverflowHoverCard(labelRef);
 
   return (
-    <HoverCard open={labelCardOpen} onOpenChange={handleLabelCardOpenChange}>
+    <HoverCard open={open}>
       <DropdownMenu>
         <HoverCardTrigger asChild>
           <DropdownMenuTrigger asChild>
             <button
-              ref={triggerRef}
               className="-mx-1.5 flex min-w-0 max-w-40 cursor-pointer items-center gap-0.5 rounded-sm px-1.5 py-0.5 transition-colors hover:bg-accent hover:text-foreground md:max-w-48 xl:max-w-64"
-              onPointerLeave={() => setLabelCardOpen(false)}
-              onBlur={() => setLabelCardOpen(false)}
+              onPointerEnter={handlePointerEnter}
+              onPointerLeave={handlePointerLeave}
+              onBlur={handlePointerLeave}
             >
               <span ref={labelRef} className="min-w-0 truncate">
                 <DataText>{label}</DataText>

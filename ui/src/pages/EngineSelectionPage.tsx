@@ -3,7 +3,7 @@
 
 import { useNavigate } from '@tanstack/react-router';
 import { useQuery } from '@tanstack/react-query';
-import { useEffect, useRef, useState } from 'react';
+import { useRef, useState } from 'react';
 import { fetchListEngines, fetchListCoordinators, fetchListQueries } from '@quent/client';
 import {
   DataText,
@@ -15,50 +15,9 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
+  useOverflowHoverCard,
 } from '@quent/components';
 import { cn } from '@quent/utils';
-
-const HOVER_CARD_OPEN_DELAY_MS = 300;
-
-function useDelayedOverflowHover<T extends HTMLElement>(
-  elementRef: { current: T | null },
-  enabled = true
-) {
-  const [open, setOpen] = useState(false);
-  const openTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  const clearOpenTimer = () => {
-    if (openTimerRef.current) {
-      clearTimeout(openTimerRef.current);
-      openTimerRef.current = null;
-    }
-  };
-
-  const handlePointerEnter = () => {
-    clearOpenTimer();
-    const element = elementRef.current;
-    if (!enabled || !element || element.scrollWidth <= element.clientWidth) {
-      return;
-    }
-    openTimerRef.current = setTimeout(() => setOpen(true), HOVER_CARD_OPEN_DELAY_MS);
-  };
-
-  const handlePointerLeave = () => {
-    clearOpenTimer();
-    setOpen(false);
-  };
-
-  useEffect(
-    () => () => {
-      if (openTimerRef.current) {
-        clearTimeout(openTimerRef.current);
-      }
-    },
-    []
-  );
-
-  return { open, handlePointerEnter, handlePointerLeave };
-}
 
 function OverflowingSelectTrigger({
   label,
@@ -68,15 +27,16 @@ function OverflowingSelectTrigger({
   placeholder: string;
 }) {
   const valueRef = useRef<HTMLSpanElement>(null);
-  const { open, handlePointerEnter, handlePointerLeave } = useDelayedOverflowHover(
-    valueRef,
-    !!label
-  );
+  const { open, handlePointerEnter, handlePointerLeave } = useOverflowHoverCard(valueRef, !!label);
 
   return (
     <HoverCard open={open}>
       <HoverCardTrigger asChild>
-        <SelectTrigger onPointerEnter={handlePointerEnter} onPointerLeave={handlePointerLeave}>
+        <SelectTrigger
+          onPointerEnter={handlePointerEnter}
+          onPointerLeave={handlePointerLeave}
+          onBlur={handlePointerLeave}
+        >
           <span ref={valueRef} className="min-w-0 flex-1 truncate text-left">
             <SelectValue placeholder={placeholder}>{label}</SelectValue>
           </span>
@@ -89,7 +49,7 @@ function OverflowingSelectTrigger({
 
 function OverflowingSelectItem({ value, label }: { value: string; label: string }) {
   const labelRef = useRef<HTMLSpanElement>(null);
-  const { open, handlePointerEnter, handlePointerLeave } = useDelayedOverflowHover(labelRef);
+  const { open, handlePointerEnter, handlePointerLeave } = useOverflowHoverCard(labelRef);
 
   return (
     <HoverCard open={open}>
