@@ -28,6 +28,8 @@ export interface ResourceFilterResult {
   matchCount: number;
 }
 
+type ResourceTypeEntities = Pick<QueryEntities, 'resource_types'>;
+
 export function isResourceFilterActive(filter: ResourceFilter): boolean {
   return (
     filter.search.trim().length > 0 || filter.resourceTypes.length > 0 || filter.fsmTypes.length > 0
@@ -37,7 +39,7 @@ export function isResourceFilterActive(filter: ResourceFilter): boolean {
 function itemMatches(
   item: TreeTableItem,
   filter: ResourceFilter,
-  entities: QueryEntities
+  entities: ResourceTypeEntities
 ): boolean {
   const entity = item.entity;
   const name = 'instance_name' in entity ? (entity.instance_name ?? '') : '';
@@ -81,7 +83,7 @@ function itemMatches(
 
 export function filterResourceTree(
   root: TreeTableItem,
-  entities: QueryEntities,
+  entities: ResourceTypeEntities,
   filter: ResourceFilter
 ): ResourceFilterResult {
   const autoExpandedIds = new Set<string>();

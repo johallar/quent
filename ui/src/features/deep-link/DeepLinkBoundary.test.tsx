@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { useLayoutEffect } from 'react';
-import { Provider as JotaiProvider, useAtomValue, useSetAtom } from 'jotai';
+import { Provider as JotaiProvider, createStore, useAtomValue, useSetAtom } from 'jotai';
 import {
   useDebouncedZoomRange,
   useHydrateTimelineAtoms,
@@ -20,7 +20,10 @@ import {
   selectedFsmTypesAtom,
   selectedTypesAtom,
 } from '@/atoms/resourceTree';
-import type { ResourceFilter } from '@/features/resource-filter/resourceFilter';
+import {
+  EMPTY_RESOURCE_FILTER,
+  type ResourceFilter,
+} from '@/features/resource-filter/resourceFilter';
 import {
   OPERATOR_TABLE_INDEX_ORDER,
   OPERATOR_TABLE_PERSIST_KEY,
@@ -314,6 +317,35 @@ describe('DeepLinkBoundary', () => {
     });
   });
 
+  it('clears an existing resource filter when shared state omits resources', () => {
+    const encoded = encodeDeepLinkState({
+      route: { engineId: 'e', queryId: 'q', tab: 'timeline' },
+      timeline: { zoomRange: { start: 10, end: 40 } },
+    });
+    expect(encoded.ok).toBe(true);
+    if (!encoded.ok) {
+      return;
+    }
+    const store = createStore();
+    store.set(resourceFilterAtom, {
+      search: 'stale',
+      resourceTypes: ['gpu'],
+      fsmTypes: ['task'],
+      showOthers: true,
+    });
+
+    render(
+      <JotaiProvider store={store}>
+        <DeepLinkBoundary {...BOUNDARY_PROPS} encodedState={encoded.value}>
+          <SerializableStateProbe />
+        </DeepLinkBoundary>
+      </JotaiProvider>
+    );
+
+    const value = JSON.parse(screen.getByTestId('serializable-state').textContent ?? '{}');
+    expect(value.resources.resourceFilter).toEqual(EMPTY_RESOURCE_FILTER);
+  });
+
   it('does not subscribe to render-time timeline hydration', () => {
     const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined);
 
@@ -426,6 +458,52 @@ describe('DeepLinkBoundary', () => {
       },
     });
     expect(window.location.href).toBe(originalUrl);
+  });
+
+  it('includes Show All when copying an active resource filter', async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, 'clipboard', {
+      configurable: true,
+      value: { writeText },
+    });
+
+    render(
+      <>
+        <div id={DEEP_LINK_NAV_SLOT_ID} />
+        <JotaiProvider>
+          <DeepLinkBoundary {...BOUNDARY_PROPS}>
+            <SeedViewport start={20} end={60} />
+            <SeedResourceFilter
+              filter={{
+                search: 'resource',
+                resourceTypes: [],
+                fsmTypes: [],
+                showOthers: true,
+              }}
+            />
+            <CopyLinkButton />
+          </DeepLinkBoundary>
+        </JotaiProvider>
+      </>
+    );
+
+    await userEvent.click(await screen.findByRole('button', { name: 'Copy Link' }));
+    await waitFor(() => expect(writeText).toHaveBeenCalledOnce());
+
+    const copiedUrl = new URL(writeText.mock.calls[0][0] as string);
+    const encoded = copiedUrl.searchParams.get('s');
+    expect(encoded).not.toBeNull();
+    expect(decodeDeepLinkState(encoded!)).toMatchObject({
+      ok: true,
+      value: {
+        version: 'v2',
+        data: {
+          resources: {
+            resourceFilter: { search: 'resource', showOthers: true },
+          },
+        },
+      },
+    });
   });
 
   it('shows an error toast when copying fails', async () => {

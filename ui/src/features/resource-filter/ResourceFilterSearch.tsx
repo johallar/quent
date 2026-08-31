@@ -11,6 +11,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@quent/components';
+import { cn } from '@quent/utils';
 import { MAX_RESOURCE_FILTER_QUERY_LENGTH } from './resourceFilter';
 
 interface ResourceFilterSearchProps {
@@ -135,9 +136,10 @@ export function ResourceFilterSearch({
             triggerText="FSM type"
           />
           <label
-            className={`flex shrink-0 items-center gap-1 text-xs ${
+            className={cn(
+              'flex shrink-0 items-center gap-1 text-xs',
               isActive ? 'cursor-pointer' : 'cursor-not-allowed opacity-50'
-            }`}
+            )}
           >
             <input
               checked={showOthers}

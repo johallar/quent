@@ -36,10 +36,10 @@ const worker = group('worker-a', 'Worker A', [gpu0, gpu1]);
 const root = group('query', 'Query resources', [worker, cpu0]);
 const entities = {
   resource_types: {
-    gpu: { used_by: ['task', 'transfer'], capacities: [] },
-    cpu: { used_by: ['task'], capacities: [] },
+    gpu: { name: 'gpu', used_by: ['task', 'transfer'], capacities: [] },
+    cpu: { name: 'cpu', used_by: ['task'], capacities: [] },
   },
-} as unknown as QueryEntities;
+} satisfies Pick<QueryEntities, 'resource_types'>;
 
 function filter(overrides: Partial<ResourceFilter>) {
   return filterResourceTree(root, entities, { ...EMPTY_RESOURCE_FILTER, ...overrides });

@@ -220,20 +220,24 @@ export function DeepLinkBoundary({
     if (intake.initialExpandedResourceIds !== null) {
       store.set(expandedIdsAtom, new Set(intake.initialExpandedResourceIds));
     }
+    if (intake.fields) {
+      const resourceFilter = intake.fields.resources?.resourceFilter;
+      store.set(
+        resourceFilterAtom,
+        resourceFilter
+          ? {
+              fsmTypes: resourceFilter.fsmTypes ?? [],
+              resourceTypes: resourceFilter.resourceTypes ?? [],
+              search: resourceFilter.search ?? '',
+              showOthers: resourceFilter.showOthers ?? false,
+            }
+          : EMPTY_RESOURCE_FILTER
+      );
+    }
     if (intake.fields?.resources) {
       const resources = intake.fields.resources;
       if (resources.rootResourceType !== undefined) {
         store.set(rootResourceTypeAtom, resources.rootResourceType);
-      }
-      if (resources.resourceFilter !== undefined) {
-        store.set(resourceFilterAtom, {
-          fsmTypes: resources.resourceFilter.fsmTypes ?? [],
-          resourceTypes: resources.resourceFilter.resourceTypes ?? [],
-          search: resources.resourceFilter.search ?? '',
-          showOthers: resources.resourceFilter.showOthers ?? false,
-        });
-      } else {
-        store.set(resourceFilterAtom, EMPTY_RESOURCE_FILTER);
       }
       if (resources.resourceTypeSelections !== undefined) {
         store.set(

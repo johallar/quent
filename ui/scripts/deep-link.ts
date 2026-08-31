@@ -13,6 +13,7 @@ import {
   type DeepLinkStateV2,
   type DeepLinkTab,
 } from '../src/features/deep-link/deepLink.schema';
+import { mergeResourceFilter } from '../src/features/deep-link/deepLink.cli';
 
 const usage = `Usage:
   pnpm deep-link create --engine ID --query ID --tab timeline --start S --end S [--resource-search TEXT] [--resource-types TYPES] [--fsm-types TYPES] [--show-others] [--base URL]
@@ -71,21 +72,7 @@ async function readState(
     ...(parseList(values['fsm-types']) ? { fsmTypes: parseList(values['fsm-types']) } : {}),
     ...(values['show-others'] === true ? { showOthers: true } : {}),
   };
-  const candidateWithFilter =
-    Object.keys(resourceFilter).length > 0
-      ? {
-          ...candidate,
-          resources: {
-            ...('resources' in candidate &&
-            candidate.resources &&
-            typeof candidate.resources === 'object' &&
-            !Array.isArray(candidate.resources)
-              ? candidate.resources
-              : {}),
-            resourceFilter,
-          },
-        }
-      : candidate;
+  const candidateWithFilter = mergeResourceFilter(candidate, resourceFilter);
   const parsed = DeepLinkStateV2Schema.safeParse(candidateWithFilter);
   if (!parsed.success) {
     fail(`Invalid state: ${parsed.error.message}`);
