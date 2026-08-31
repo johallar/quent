@@ -34,7 +34,7 @@ test('smoke tests the query profiler routes', async ({ page }) => {
   await page.getByRole('option', { name: 'test-query' }).click();
 
   await expect(page).toHaveURL(new RegExp(`${QUERY_PATH}/timeline$`));
-  await expect(page.getByText('Resource', { exact: true }).first()).toBeVisible();
+  await expect(page.getByRole('tree').getByText('test-engine', { exact: true })).toBeVisible();
   await page.waitForLoadState('networkidle');
   await expectNoErrors(page, errors, allowedMissingNvtxCatalogErrors);
 
@@ -42,7 +42,7 @@ test('smoke tests the query profiler routes', async ({ page }) => {
     {
       name: 'timeline',
       path: `${QUERY_PATH}/timeline`,
-      ready: () => page.getByText('Resource', { exact: true }).first(),
+      ready: () => page.getByRole('tree').getByText('test-engine', { exact: true }),
     },
     {
       name: 'operators',
