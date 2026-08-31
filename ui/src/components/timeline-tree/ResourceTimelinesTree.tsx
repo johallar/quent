@@ -139,12 +139,45 @@ export function useResourceTimelinesTreeModel({
     }
   }, [rootResourceType, resourceTypeOptions, setRootResourceType]);
 
+  const trees = useMemo(() => {
+    const injectSubRows = (item: TreeTableItem) =>
+      subRows.reduce((current, subRow) => subRow.injectRows(current), item);
+
+    if (!resourceFilterResult.isActive || resourceFilter.showOthers) {
+      return [injectSubRows(rootItem)];
+    }
+    if (resourceFilterResult.filteredItems.length === 0) {
+      return [];
+    }
+
+    const filteredRoot = { ...rootItem, children: resourceFilterResult.filteredItems };
+    return injectSubRows(filteredRoot).children ?? [];
+  }, [
+    resourceFilter.showOthers,
+    resourceFilterResult.filteredItems,
+    resourceFilterResult.isActive,
+    rootItem,
+    subRows,
+  ]);
+
+  const expandableMatchIds = useMemo(() => {
+    const ids = new Set<string>();
+    const visit = (item: TreeTableItem) => {
+      if (resourceFilterResult.directMatchIds.has(item.id) && item.children?.length) {
+        ids.add(item.id);
+      }
+      item.children?.forEach(visit);
+    };
+    trees.forEach(visit);
+    return ids;
+  }, [resourceFilterResult.directMatchIds, trees]);
+
   const { expandedIds, handleExpandChange } = useExpandedIds(
     seedRootExpanded ? rootItem.id : undefined
   );
   const controlledExpandedIds = useMemo(
-    () => new Set([...expandedIds, ...resourceFilterResult.autoExpandedIds]),
-    [expandedIds, resourceFilterResult.autoExpandedIds]
+    () => new Set([...expandedIds, ...resourceFilterResult.autoExpandedIds, ...expandableMatchIds]),
+    [expandableMatchIds, expandedIds, resourceFilterResult.autoExpandedIds]
   );
   const bulkRootItem = useMemo(
     () =>
@@ -216,20 +249,6 @@ export function useResourceTimelinesTreeModel({
     enabled: rootResourceGroupId != null && !!rootResourceType,
     placeholderData: keepPreviousData,
   });
-
-  const trees = useMemo(
-    () =>
-      resourceFilterResult.isActive && !resourceFilter.showOthers
-        ? resourceFilterResult.filteredItems
-        : [subRows.reduce((item, subRow) => subRow.injectRows(item), rootItem)],
-    [
-      resourceFilter.showOthers,
-      resourceFilterResult.filteredItems,
-      resourceFilterResult.isActive,
-      rootItem,
-      subRows,
-    ]
-  );
 
   const renderLabel = useCallback(
     (item: TimelineTreeItem) => {

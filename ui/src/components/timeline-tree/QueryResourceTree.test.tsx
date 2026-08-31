@@ -490,10 +490,34 @@ describe('QueryResourceTree — resource filtering', () => {
     expect(getByRole('textbox', { name: 'Search resource names, labels, and IDs' })).toHaveValue(
       'GPU 0'
     );
-    await waitFor(() => expect(capturedTreeData).toHaveLength(1));
+    await waitFor(() => expect(capturedTreeData[0]?.id).toBe(RESOURCE_ID));
     expect(capturedTreeData[0]?.id).toBe(RESOURCE_ID);
     expect(capturedTreeData[0]?.children).toEqual([]);
+    expect(collectRowTypes(capturedTreeData)).toContain(LONG_ENTITIES_ROW_TYPE);
     expect(capturedHighlightedIds).not.toContain(RESOURCE_ID);
+  });
+
+  it('expands matching resources to show their child subrows', async () => {
+    const store = createStore();
+    store.set(resourceFilterAtom, {
+      search: 'GPU 0',
+      resourceTypes: [],
+      fsmTypes: [],
+      showOthers: false,
+    });
+
+    renderWithQuery(
+      <JotaiProvider store={store}>
+        <QueryResourceTree engineId="engine-1" queryBundle={makeBundle(RESOURCE_ID)} />
+      </JotaiProvider>
+    );
+
+    await waitFor(() =>
+      expect(collectRowTypes(capturedTreeData)).toEqual(
+        expect.arrayContaining([OPERATOR_TIMELINE_ROW_TYPE, LONG_ENTITIES_ROW_TYPE])
+      )
+    );
+    expect(capturedExpandedIds).toContain(RESOURCE_ID);
   });
 
   it('shows the whole tree and highlights matches when Show All is selected', async () => {
