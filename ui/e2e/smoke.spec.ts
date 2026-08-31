@@ -1,57 +1,16 @@
 // SPDX-FileCopyrightText: Copyright (c) 2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test } from '@playwright/test';
+import { allowedMissingNvtxCatalogErrors } from './utils/allowed-errors';
+import { captureErrors, expectNoErrors } from './utils/error-capture';
 
 const ENGINE_ID = '00000000-0000-0000-0000-000000000001';
 const QUERY_ID = '00000000-0000-0000-0000-000000000004';
 const QUERY_PATH = `/profile/engine/${ENGINE_ID}/query/${QUERY_ID}`;
 
-interface CapturedErrors {
-  ui: string[];
-  backend: string[];
-}
-
-function isBackendRequest(url: string): boolean {
-  const pathname = new URL(url).pathname;
-  return pathname === '/api' || pathname.startsWith('/api/');
-}
-
-function captureErrors(page: Page): CapturedErrors {
-  const errors: CapturedErrors = { ui: [], backend: [] };
-
-  page.on('pageerror', error => errors.ui.push(`Uncaught exception: ${error.message}`));
-  page.on('console', message => {
-    if (message.type() === 'error') {
-      errors.ui.push(`Console error: ${message.text()}`);
-    }
-  });
-  page.on('response', response => {
-    if (isBackendRequest(response.url()) && !response.ok()) {
-      errors.backend.push(
-        `${response.request().method()} ${response.url()} returned ${response.status()}`
-      );
-    }
-  });
-  page.on('requestfailed', request => {
-    if (isBackendRequest(request.url())) {
-      errors.backend.push(
-        `${request.method()} ${request.url()} failed: ${request.failure()?.errorText ?? 'unknown error'}`
-      );
-    }
-  });
-
-  return errors;
-}
-
-async function expectNoErrors(page: Page, errors: CapturedErrors) {
-  await expect(page.getByRole('heading', { name: 'Something went wrong' })).toHaveCount(0);
-  expect(errors.ui, 'Expected no UI errors').toEqual([]);
-  expect(errors.backend, 'Expected no backend HTTP errors').toEqual([]);
-}
-
 test('smoke tests the query profiler routes', async ({ page }) => {
-  const errors = captureErrors(page);
+  const errors = await captureErrors(page);
   const response = await page.goto('/');
 
   expect(response?.ok()).toBe(true);
@@ -60,7 +19,7 @@ test('smoke tests the query profiler routes', async ({ page }) => {
   await expect(page.getByRole('heading', { name: 'Query Profiler' })).toBeVisible();
   await expect(page.getByText('Select an engine, coordinator, and query')).toBeVisible();
   await page.waitForLoadState('networkidle');
-  await expectNoErrors(page, errors);
+  await expectNoErrors(page, errors, allowedMissingNvtxCatalogErrors);
 
   await page.getByRole('combobox').first().click();
   await expect(page.getByRole('option', { name: 'test-engine' })).toBeVisible();
@@ -77,7 +36,7 @@ test('smoke tests the query profiler routes', async ({ page }) => {
   await expect(page).toHaveURL(new RegExp(`${QUERY_PATH}/timeline$`));
   await expect(page.getByText('Resource', { exact: true }).first()).toBeVisible();
   await page.waitForLoadState('networkidle');
-  await expectNoErrors(page, errors);
+  await expectNoErrors(page, errors, allowedMissingNvtxCatalogErrors);
 
   const routes = [
     {
@@ -106,7 +65,7 @@ test('smoke tests the query profiler routes', async ({ page }) => {
       await expect(page).toHaveURL(new RegExp(`${route.path}$`));
       await expect(route.ready()).toBeVisible();
       await page.waitForLoadState('networkidle');
-      await expectNoErrors(page, errors);
+      await expectNoErrors(page, errors, allowedMissingNvtxCatalogErrors);
     });
   }
 });
