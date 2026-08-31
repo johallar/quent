@@ -1,11 +1,13 @@
 // SPDX-FileCopyrightText: Copyright (c) 2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, type SetStateAction } from 'react';
+import { useAtom } from 'jotai';
 import { useEntities, useEntityList } from '@quent/client';
 import { useSelectedNodeIds } from '@quent/hooks';
 import type { SelectFieldOption } from '@quent/components';
 import type { EntityRef, FiniteStateMachine, QueryBundle, SortDir } from '@quent/utils';
+import { entitiesTableStateAtom } from '@/atoms/entitiesTable';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 import type { EntityFilters } from './types';
 import {
@@ -27,16 +29,14 @@ interface UseEntityTableParams {
   queryBundle: QueryBundle<EntityRef>;
 }
 
-interface ManualOperatorOverride {
-  dagOperatorId: string | null;
-  value: string | null;
-}
-
 export function useEntityTable({ engineId, queryId, queryBundle }: UseEntityTableParams) {
   const { entities, duration_s: durationS } = queryBundle;
   const selectedNodeIds = useSelectedNodeIds();
   const dagOperatorId = selectedNodeIds.values().next().value ?? null;
   const defaults = useMemo(() => defaultEntityFilters(durationS), [durationS]);
+  const [tableState, setTableState] = useAtom(entitiesTableStateAtom);
+  const filters = tableState.filters ?? defaults;
+  const { manualOperatorOverride, page, selected } = tableState;
   // The "Window (s)" slider is bounded by the query duration, which is often far longer than
   // when entities actually occur. Use the longest-running entity's end time as a tighter,
   // more useful max so the slider isn't mostly dead space.
@@ -55,53 +55,89 @@ export function useEntityTable({ engineId, queryId, queryBundle }: UseEntityTabl
     }
     return Math.min(durationS, Math.max(0, fsmSpan(longestEntity).end));
   }, [longestEntityQuery.data, durationS]);
-  const [filters, setFilters] = useState<EntityFilters>(() => defaultEntityFilters(durationS));
-  const [manualOperatorOverride, setManualOperatorOverride] =
-    useState<ManualOperatorOverride | null>(null);
-  const [page, setPage] = useState(0);
-  const [selected, setSelected] = useState<FiniteStateMachine | null>(null);
+  const didMountDagOperator = useRef(false);
   const operatorId =
     manualOperatorOverride?.dagOperatorId === dagOperatorId
       ? manualOperatorOverride.value
       : dagOperatorId;
 
   useEffect(() => {
-    setManualOperatorOverride(null);
-    setPage(0);
-    setSelected(null);
-  }, [dagOperatorId]);
+    if (!didMountDagOperator.current) {
+      didMountDagOperator.current = true;
+      return;
+    }
+    setTableState(previous => ({
+      ...previous,
+      manualOperatorOverride: null,
+      page: 0,
+      selected: null,
+    }));
+  }, [dagOperatorId, setTableState]);
 
   const updateFilters = useCallback(
     (patch: Partial<EntityFilters>, options?: { preserveSelection?: boolean }) => {
-      setFilters(previous => ({ ...previous, ...patch }));
-      setPage(0);
-      if (!options?.preserveSelection) {
-        setSelected(null);
-      }
+      setTableState(previous => ({
+        ...previous,
+        filters: { ...(previous.filters ?? defaults), ...patch },
+        page: 0,
+        selected: options?.preserveSelection ? previous.selected : null,
+      }));
     },
-    []
+    [defaults, setTableState]
   );
 
-  const updateSortDir = useCallback((sortDir: SortDir) => {
-    setFilters(previous => ({ ...previous, sortDir }));
-    setPage(0);
-  }, []);
+  const updateSortDir = useCallback(
+    (sortDir: SortDir) => {
+      setTableState(previous => ({
+        ...previous,
+        filters: { ...(previous.filters ?? defaults), sortDir },
+        page: 0,
+      }));
+    },
+    [defaults, setTableState]
+  );
 
   const updateOperator = useCallback(
     (value: string | null) => {
-      setManualOperatorOverride({ dagOperatorId, value });
-      setPage(0);
-      setSelected(null);
+      setTableState(previous => ({
+        ...previous,
+        manualOperatorOverride: { dagOperatorId, value },
+        page: 0,
+        selected: null,
+      }));
     },
-    [dagOperatorId]
+    [dagOperatorId, setTableState]
   );
 
   const resetFilters = useCallback(() => {
-    setFilters(defaults);
-    setManualOperatorOverride({ dagOperatorId, value: null });
-    setPage(0);
-    setSelected(null);
-  }, [dagOperatorId, defaults]);
+    setTableState(previous => ({
+      ...previous,
+      filters: defaults,
+      manualOperatorOverride: { dagOperatorId, value: null },
+      page: 0,
+      selected: null,
+    }));
+  }, [dagOperatorId, defaults, setTableState]);
+
+  const setPage = useCallback(
+    (value: SetStateAction<number>) => {
+      setTableState(previous => ({
+        ...previous,
+        page: typeof value === 'function' ? value(previous.page) : value,
+      }));
+    },
+    [setTableState]
+  );
+
+  const setSelected = useCallback(
+    (value: SetStateAction<FiniteStateMachine | null>) => {
+      setTableState(previous => ({
+        ...previous,
+        selected: typeof value === 'function' ? value(previous.selected) : value,
+      }));
+    },
+    [setTableState]
+  );
 
   const operatorOptions = useMemo<SelectFieldOption[]>(
     () =>
