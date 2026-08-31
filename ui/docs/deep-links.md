@@ -72,9 +72,9 @@ may also contain synthetic row IDs.
 Default DAG, resource, data-flow, and table controls are omitted. Hover,
 playback, open popovers, and other transient state are not shared.
 
-Resource filters store the name/label search and the selected resource and FSM types. Active
-fields are combined with AND. `showOthers` restores the complete tree and highlights matching
-rows; otherwise only matching rows are shown.
+Resource filters store the name/label search and the selected resource and FSM
+types. Active fields are combined with AND. `showOthers` restores the complete
+tree and highlights matching rows; otherwise only matching rows are shown.
 
 ## Agent commands
 
