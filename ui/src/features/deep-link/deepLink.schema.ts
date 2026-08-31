@@ -203,6 +203,8 @@ const EntitiesSchema = z
     window: EntityWindowSchema.optional(),
     sortDir: z.enum(['Asc', 'Desc']).optional(),
     pageSize: z.number().int().min(1).max(MAX_PAGE_SIZE).optional(),
+    page: z.number().int().nonnegative().max(1_000_000).optional(),
+    selectedEntityId: IdSchema.optional(),
   })
   .strip();
 

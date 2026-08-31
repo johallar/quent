@@ -49,7 +49,9 @@ shared view. Expanded row IDs may include stable synthetic IDs such as
       "end": 48.75
     },
     "sortDir": "Asc",
-    "pageSize": 100
+    "pageSize": 100,
+    "page": 2,
+    "selectedEntityId": "entity-a"
   }
 }
 ```
@@ -75,9 +77,9 @@ playback, open popovers, and other transient state are not shared.
 
 Entity snapshots preserve the controls that define and order the result set:
 the effective operator override, entity and resource filters, minimum usage,
-time window, sort direction, and non-default page size. The current results
-page and open entity detail are omitted because they can become stale as query
-results change. Entity links do not require or store a timeline viewport.
+time window, sort direction, non-default page size, current results page, and
+selected entity ID. Selection is restored after the matching page loads.
+Entity links do not require or store a timeline viewport.
 
 ## Agent commands
 

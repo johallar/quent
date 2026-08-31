@@ -24,6 +24,7 @@ export interface EntitiesTableState {
   manualOperatorOverride: ManualOperatorOverride | null;
   page: number;
   selected: FiniteStateMachine | null;
+  selectedEntityId: string | null;
 }
 
 export const entitiesTableStateAtom = atom<EntitiesTableState>({
@@ -31,4 +32,5 @@ export const entitiesTableStateAtom = atom<EntitiesTableState>({
   manualOperatorOverride: null,
   page: 0,
   selected: null,
+  selectedEntityId: null,
 });

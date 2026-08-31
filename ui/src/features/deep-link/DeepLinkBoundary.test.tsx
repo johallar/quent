@@ -313,6 +313,8 @@ describe('DeepLinkBoundary', () => {
       window: { start: 10, end: 40 },
       sortDir: 'Asc' as const,
       pageSize: 100,
+      page: 2,
+      selectedEntityId: 'entity-a',
     };
     const encoded = encodeDeepLinkState({
       route: { engineId: 'e', queryId: 'q', tab: 'entities' },
@@ -344,8 +346,9 @@ describe('DeepLinkBoundary', () => {
           pageSize: 100,
         },
         manualOperatorOverride: { dagOperatorId: 'operator-a', value: null },
-        page: 0,
+        page: 2,
         selected: null,
+        selectedEntityId: 'entity-a',
       })
     );
   });
@@ -465,6 +468,8 @@ describe('DeepLinkBoundary', () => {
       minUsageS: 0.5,
       window: { start: 10, end: 40 },
       sortDir: 'Asc' as const,
+      page: 3,
+      selectedEntityId: 'entity-a',
     };
     const tableState: EntitiesTableState = {
       filters: {
@@ -479,6 +484,7 @@ describe('DeepLinkBoundary', () => {
       manualOperatorOverride: null,
       page: 3,
       selected: null,
+      selectedEntityId: 'entity-a',
     };
 
     render(

@@ -4,6 +4,7 @@
 import { act, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createStore, Provider } from 'jotai';
+import { StrictMode } from 'react';
 import { useSetSelectedNodeIds } from '@quent/hooks';
 import type { EntityRef, QueryBundle } from '@quent/utils';
 import { entitiesTableStateAtom } from '@/atoms/entitiesTable';
@@ -263,10 +264,14 @@ describe('EntitiesTable', () => {
       manualOperatorOverride: { dagOperatorId: null, value: 'operator-1' },
       page: 0,
       selected: null,
+      selectedEntityId: 'entity-1',
     });
-    renderTable(<EntitiesTable engineId="engine-1" queryId="query-1" queryBundle={queryBundle} />, {
-      store,
-    });
+    renderTable(
+      <StrictMode>
+        <EntitiesTable engineId="engine-1" queryId="query-1" queryBundle={queryBundle} />
+      </StrictMode>,
+      { store }
+    );
 
     const params = useEntities.mock.lastCall?.[0];
     expect(params.request.entry).toMatchObject({
@@ -280,6 +285,7 @@ describe('EntitiesTable', () => {
       page: { max: 100, page: 0 },
       application: { operator_ids: ['operator-1'] },
     });
+    expect(screen.getByText('running')).toBeInTheDocument();
   });
 
   it('writes entity control changes to the Jotai table state', () => {

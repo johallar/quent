@@ -36,7 +36,7 @@ export function useEntityTable({ engineId, queryId, queryBundle }: UseEntityTabl
   const defaults = useMemo(() => defaultEntityFilters(durationS), [durationS]);
   const [tableState, setTableState] = useAtom(entitiesTableStateAtom);
   const filters = tableState.filters ?? defaults;
-  const { manualOperatorOverride, page, selected } = tableState;
+  const { manualOperatorOverride, page, selected, selectedEntityId } = tableState;
   // The "Window (s)" slider is bounded by the query duration, which is often far longer than
   // when entities actually occur. Use the longest-running entity's end time as a tighter,
   // more useful max so the slider isn't mostly dead space.
@@ -55,22 +55,23 @@ export function useEntityTable({ engineId, queryId, queryBundle }: UseEntityTabl
     }
     return Math.min(durationS, Math.max(0, fsmSpan(longestEntity).end));
   }, [longestEntityQuery.data, durationS]);
-  const didMountDagOperator = useRef(false);
+  const previousDagOperatorId = useRef(dagOperatorId);
   const operatorId =
     manualOperatorOverride?.dagOperatorId === dagOperatorId
       ? manualOperatorOverride.value
       : dagOperatorId;
 
   useEffect(() => {
-    if (!didMountDagOperator.current) {
-      didMountDagOperator.current = true;
+    if (previousDagOperatorId.current === dagOperatorId) {
       return;
     }
+    previousDagOperatorId.current = dagOperatorId;
     setTableState(previous => ({
       ...previous,
       manualOperatorOverride: null,
       page: 0,
       selected: null,
+      selectedEntityId: null,
     }));
   }, [dagOperatorId, setTableState]);
 
@@ -81,6 +82,7 @@ export function useEntityTable({ engineId, queryId, queryBundle }: UseEntityTabl
         filters: { ...(previous.filters ?? defaults), ...patch },
         page: 0,
         selected: options?.preserveSelection ? previous.selected : null,
+        selectedEntityId: options?.preserveSelection ? previous.selectedEntityId : null,
       }));
     },
     [defaults, setTableState]
@@ -104,6 +106,7 @@ export function useEntityTable({ engineId, queryId, queryBundle }: UseEntityTabl
         manualOperatorOverride: { dagOperatorId, value },
         page: 0,
         selected: null,
+        selectedEntityId: null,
       }));
     },
     [dagOperatorId, setTableState]
@@ -116,6 +119,7 @@ export function useEntityTable({ engineId, queryId, queryBundle }: UseEntityTabl
       manualOperatorOverride: { dagOperatorId, value: null },
       page: 0,
       selected: null,
+      selectedEntityId: null,
     }));
   }, [dagOperatorId, defaults, setTableState]);
 
@@ -131,10 +135,14 @@ export function useEntityTable({ engineId, queryId, queryBundle }: UseEntityTabl
 
   const setSelected = useCallback(
     (value: SetStateAction<FiniteStateMachine | null>) => {
-      setTableState(previous => ({
-        ...previous,
-        selected: typeof value === 'function' ? value(previous.selected) : value,
-      }));
+      setTableState(previous => {
+        const selected = typeof value === 'function' ? value(previous.selected) : value;
+        return {
+          ...previous,
+          selected,
+          selectedEntityId: selected?.id ?? null,
+        };
+      });
     },
     [setTableState]
   );
@@ -206,6 +214,20 @@ export function useEntityTable({ engineId, queryId, queryBundle }: UseEntityTabl
   const query = useEntities({ engineId, request }, { enabled: validationErrors.length === 0 });
   const requestPending = query.isFetching;
   const rows = useMemo(() => entityRows(query.data), [query.data]);
+  useEffect(() => {
+    if (!selectedEntityId || selected?.id === selectedEntityId) {
+      return;
+    }
+    const matchingEntity = rows.find(row => row.fsm.id === selectedEntityId)?.fsm;
+    if (!matchingEntity) {
+      return;
+    }
+    setTableState(previous =>
+      previous.selectedEntityId === selectedEntityId
+        ? { ...previous, selected: matchingEntity }
+        : previous
+    );
+  }, [rows, selected?.id, selectedEntityId, setTableState]);
   const pageSize = normalizePageSize(filters.pageSize);
   const total = query.data?.total ?? 0;
   const pageCount = Math.max(1, Math.ceil(total / pageSize));
