@@ -22,7 +22,7 @@ function AppNav({ highlightProfile }: { highlightProfile?: boolean }) {
       <div className="w-full flex h-16 items-center justify-between px-4 sm:px-6 lg:px-8">
         <Link
           to="/"
-          className="flex items-center gap-3 rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          className="flex shrink-0 items-center gap-3 rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
           <span
             aria-hidden="true"
@@ -36,10 +36,10 @@ function AppNav({ highlightProfile }: { highlightProfile?: boolean }) {
             QUENT <span className="font-light text-muted-foreground">UI</span>
           </h1>
         </Link>
-        <div className="flex-1 flex items-center justify-center">
+        <div className="flex min-w-0 flex-1 items-center justify-center overflow-hidden px-4 sm:px-6">
           <NavBarNavigator />
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex shrink-0 items-center gap-2">
           <NavigationMenu>
             <NavigationMenuList>
               <NavigationMenuItem>
