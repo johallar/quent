@@ -46,7 +46,6 @@ shared view. Expanded row IDs may include stable synthetic IDs such as
     "sort": [{ "id": "spill_bytes", "desc": true }]
   },
   "entities": {
-    "operatorId": "operator-a",
     "entityType": "task",
     "resourceId": "resource-a",
     "minUsageS": 0.25,
@@ -55,7 +54,9 @@ shared view. Expanded row IDs may include stable synthetic IDs such as
       "end": 48.75
     },
     "sortDir": "Asc",
-    "pageSize": 100
+    "pageSize": 100,
+    "page": 2,
+    "selectedEntityId": "entity-a"
   }
 }
 ```
@@ -85,8 +86,8 @@ tree and highlights matching rows; otherwise only matching rows are shown.
 
 Entity snapshots preserve the controls that define and order the result set:
 the selected operators, entity and resource filters, minimum usage, time window,
-sort direction, and non-default page size. The current results page and open
-entity detail are omitted because they can become stale as query results change.
+sort direction, non-default page size, current results page, and selected entity
+ID. Selection is restored after the matching page loads.
 Entity links do not require or store a timeline viewport.
 
 ## Agent commands

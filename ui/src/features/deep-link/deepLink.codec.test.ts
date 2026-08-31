@@ -86,6 +86,8 @@ const state: DeepLinkStateV3 = {
     window: { start: 10, end: 45 },
     sortDir: 'Asc',
     pageSize: 100,
+    page: 2,
+    selectedEntityId: 'entity-a',
   },
 };
 

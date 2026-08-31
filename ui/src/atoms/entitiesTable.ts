@@ -18,10 +18,12 @@ export interface EntitiesTableState {
   filters: EntityFilters | null;
   page: number;
   selected: FiniteStateMachine | null;
+  selectedEntityId: string | null;
 }
 
 export const entitiesTableStateAtom = atom<EntitiesTableState>({
   filters: null,
   page: 0,
   selected: null,
+  selectedEntityId: null,
 });

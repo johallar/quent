@@ -51,10 +51,8 @@ export function useEntityTable({ engineId, queryId, queryBundle }: UseEntityTabl
   const defaults = useMemo(() => defaultEntityFilters(durationS), [durationS]);
   const [tableState, setTableState] = useAtom(entitiesTableStateAtom);
   const filters = tableState.filters ?? defaults;
-  const { page, selected } = tableState;
-  // The "Min usage (s)" slider is bounded by the query duration, which is often far longer than
-  // when entities actually occur. Use the longest-running entity's usage duration as a tighter,
-  // more useful max so the slider isn't mostly dead space.
+  const { page, selected, selectedEntityId } = tableState;
+  // Bound minimum usage by the longest entity, not the often much longer query.
   const longestEntityQuery = useEntityList({
     engineId,
     queryId,
@@ -75,10 +73,10 @@ export function useEntityTable({ engineId, queryId, queryBundle }: UseEntityTabl
   );
   const setSelected = useCallback(
     (value: SetStateAction<FiniteStateMachine | null>) => {
-      setTableState(previous => ({
-        ...previous,
-        selected: typeof value === 'function' ? value(previous.selected) : value,
-      }));
+      setTableState(previous => {
+        const selected = typeof value === 'function' ? value(previous.selected) : value;
+        return { ...previous, selected, selectedEntityId: selected?.id ?? null };
+      });
     },
     [setTableState]
   );
@@ -95,6 +93,7 @@ export function useEntityTable({ engineId, queryId, queryBundle }: UseEntityTabl
       filters: { ...(previous.filters ?? defaults), minUsageS: String(maxUsageS) },
       page: 0,
       selected: null,
+      selectedEntityId: null,
     }));
   }, [defaults, maxUsageS, setTableState]);
   const operatorLabel = useCallback(
@@ -104,12 +103,18 @@ export function useEntityTable({ engineId, queryId, queryBundle }: UseEntityTabl
     },
     [entities.operators]
   );
+  const operatorIdsKey = [...operatorIds].sort().join('\0');
+  const previousOperatorIdsKey = useRef(operatorIdsKey);
   // Reset pagination/selection whenever the operator filter changes, regardless of whether
   // it came from this toolbar or another crossfiltered view (DAG, operator swimlanes, etc).
   useEffect(() => {
+    if (previousOperatorIdsKey.current === operatorIdsKey) {
+      return;
+    }
+    previousOperatorIdsKey.current = operatorIdsKey;
     setPage(0);
     setSelected(null);
-  }, [operatorIds, setPage, setSelected]);
+  }, [operatorIdsKey, setPage, setSelected]);
 
   const updateFilters = useCallback(
     (patch: Partial<EntityFilters>, options?: { preserveSelection?: boolean }) => {
@@ -118,6 +123,7 @@ export function useEntityTable({ engineId, queryId, queryBundle }: UseEntityTabl
         filters: { ...(previous.filters ?? defaults), ...patch },
         page: 0,
         selected: options?.preserveSelection ? previous.selected : null,
+        selectedEntityId: options?.preserveSelection ? previous.selectedEntityId : null,
       }));
     },
     [defaults, setTableState]
@@ -143,7 +149,7 @@ export function useEntityTable({ engineId, queryId, queryBundle }: UseEntityTabl
       setPage(0);
       setSelected(null);
     },
-    [operators, updateOperatorSelection]
+    [operators, setPage, setSelected, updateOperatorSelection]
   );
 
   const toggleOperator = useCallback(
@@ -164,7 +170,14 @@ export function useEntityTable({ engineId, queryId, queryBundle }: UseEntityTabl
       setPage(0);
       setSelected(null);
     },
-    [operatorIds, operatorSelection.selections, operators, updateOperatorSelection]
+    [
+      operatorIds,
+      operatorSelection.selections,
+      operators,
+      setPage,
+      setSelected,
+      updateOperatorSelection,
+    ]
   );
 
   const selectAllOperators = useCallback(
@@ -184,6 +197,7 @@ export function useEntityTable({ engineId, queryId, queryBundle }: UseEntityTabl
       filters: defaults,
       page: 0,
       selected: null,
+      selectedEntityId: null,
     }));
   }, [defaults, setTableState, updateOperatorSelection]);
 
@@ -252,6 +266,20 @@ export function useEntityTable({ engineId, queryId, queryBundle }: UseEntityTabl
   const query = useEntities({ engineId, request }, { enabled: validationErrors.length === 0 });
   const requestPending = query.isFetching;
   const rows = useMemo(() => entityRows(query.data), [query.data]);
+  useEffect(() => {
+    if (!selectedEntityId || selected?.id === selectedEntityId) {
+      return;
+    }
+    const matchingEntity = rows.find(row => row.fsm.id === selectedEntityId)?.fsm;
+    if (!matchingEntity) {
+      return;
+    }
+    setTableState(previous =>
+      previous.selectedEntityId === selectedEntityId
+        ? { ...previous, selected: matchingEntity }
+        : previous
+    );
+  }, [rows, selected?.id, selectedEntityId, setTableState]);
   const pageSize = normalizePageSize(filters.pageSize);
   const total = query.data?.total ?? 0;
   const pageCount = Math.max(1, Math.ceil(total / pageSize));

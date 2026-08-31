@@ -109,8 +109,9 @@ function hydrateEntitiesState(
 
   return {
     filters,
-    page: 0,
+    page: state.page ?? 0,
     selected: null,
+    selectedEntityId: state.selectedEntityId ?? null,
   };
 }
 
@@ -145,6 +146,13 @@ function captureEntitiesState(
   const pageSize = normalizePageSize(filters.pageSize);
   if (pageSize !== DEFAULT_PAGE_SIZE) {
     state.pageSize = pageSize;
+  }
+  if (tableState.page > 0) {
+    state.page = tableState.page;
+  }
+  const selectedEntityId = tableState.selectedEntityId ?? tableState.selected?.id;
+  if (selectedEntityId) {
+    state.selectedEntityId = selectedEntityId;
   }
   return state;
 }

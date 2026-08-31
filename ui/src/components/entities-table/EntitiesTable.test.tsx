@@ -4,6 +4,7 @@
 import { act, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createStore, Provider } from 'jotai';
+import { StrictMode } from 'react';
 import {
   useOperatorSelection,
   useOperatorSelectionActions,
@@ -494,7 +495,7 @@ describe('EntitiesTable', () => {
       filters: {
         entityType: 'Task',
         resourceId: 'resource-1',
-        minUsageS: '0.5',
+        minUsageS: '0.2',
         windowStart: '1',
         windowEnd: '8',
         sortDir: 'Asc',
@@ -502,10 +503,14 @@ describe('EntitiesTable', () => {
       },
       page: 0,
       selected: null,
+      selectedEntityId: 'entity-1',
     });
-    renderTable(<EntitiesTable engineId="engine-1" queryId="query-1" queryBundle={queryBundle} />, {
-      store,
-    });
+    renderTable(
+      <StrictMode>
+        <EntitiesTable engineId="engine-1" queryId="query-1" queryBundle={queryBundle} />
+      </StrictMode>,
+      { store }
+    );
 
     const params = useEntities.mock.lastCall?.[0];
     expect(params.request.entry).toMatchObject({
@@ -513,12 +518,13 @@ describe('EntitiesTable', () => {
       filter: {
         scope: { Resource: { resource_id: 'resource-1' } },
         entity_type_name: 'Task',
-        min_usage_s: 0.5,
+        min_usage_s: 0.2,
       },
       sort: { key: 'UsageDuration', dir: 'Asc' },
       page: { max: 100, page: 0 },
       application: { operator_ids: [] },
     });
+    expect(screen.getByText('running')).toBeInTheDocument();
   });
 
   it('writes entity control changes to the Jotai table state', () => {
