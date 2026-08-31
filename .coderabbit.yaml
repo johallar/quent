@@ -91,6 +91,14 @@ reviews:
         - `cursor-pointer` and other interactive affordances must match the actual clickable/keyboard-operable target.
         - Keep comments terse and contract-focused; remove narration and verbose explanations of implementation mechanics.
         - New source files need SPDX Apache-2.0 headers.
+    - path: "ui/src/features/deep-link/**/*.{ts,tsx}"
+      instructions: |
+        ## Deep-link schema compatibility
+        - Keep the current schema version only for additive, optional fields whose absence preserves the previous behavior. Continue omitting default-valued fields from generated links.
+        - Require a new schema version for renamed, moved, removed, required, or retyped fields; changed defaults or interpretation; tighter validation that rejects old links; or changes to an existing field's accepted values.
+        - Adding an enum value to an existing field is not forward-compatible with older clients. Use a new version or model the capability as a new optional field.
+        - Preserve unknown-field stripping so older clients can ignore additive fields without rejecting the entire payload.
+        - Require frozen prior-version fixtures proving old links decode with current code. If old clients must accept new links, also test representative new payloads against a frozen previous schema.
     - path: "ui/packages/@quent/**/*.{ts,tsx}"
       instructions: |
         ## Package modularity
