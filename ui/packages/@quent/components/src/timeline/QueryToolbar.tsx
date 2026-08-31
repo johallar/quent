@@ -32,6 +32,7 @@ export function QueryToolbar({ children, filters }: QueryToolbarProps) {
   return (
     <div className="flex min-h-8 items-center gap-4 border-b border-border px-3 py-1 text-xs text-muted-foreground shrink-0">
       <div className="flex min-w-0 flex-1 items-center gap-1.5">
+        {filters}
         <Filter className="h-3 w-3 shrink-0" />
         {operatorLabel ? (
           <span className="inline-flex shrink-0 items-center gap-1 rounded-sm bg-primary/15 text-primary px-1.5 py-0.5 font-medium">
@@ -48,7 +49,6 @@ export function QueryToolbar({ children, filters }: QueryToolbarProps) {
         ) : !filters ? (
           <span>No filters</span>
         ) : null}
-        {filters}
       </div>
 
       {children && <div className="flex shrink-0 items-center gap-2">{children}</div>}

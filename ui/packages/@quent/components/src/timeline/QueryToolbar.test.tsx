@@ -50,7 +50,7 @@ function OperatorSelectionProbe() {
 }
 
 describe('QueryToolbar', () => {
-  it('shows custom resource filters beside the active operator filter', async () => {
+  it('shows custom resource filters before the active operator filter', async () => {
     render(
       <Provider>
         <SeedOperatorFilter />
@@ -58,8 +58,11 @@ describe('QueryToolbar', () => {
       </Provider>
     );
 
-    expect(await screen.findByText('Scan')).toBeInTheDocument();
-    expect(screen.getByRole('textbox', { name: 'Filter resources' })).toBeInTheDocument();
+    const operatorFilter = await screen.findByText('Scan');
+    const resourceFilters = screen.getByRole('textbox', { name: 'Filter resources' });
+    expect(resourceFilters.compareDocumentPosition(operatorFilter)).toBe(
+      Node.DOCUMENT_POSITION_FOLLOWING
+    );
     expect(screen.queryByText('No filters')).not.toBeInTheDocument();
   });
 
