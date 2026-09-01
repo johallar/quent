@@ -6,6 +6,7 @@ import { Provider as JotaiProvider, useAtomValue, useSetAtom } from 'jotai';
 import {
   useDebouncedZoomRange,
   useHydrateTimelineAtoms,
+  useOperatorSelection,
   useSerializableViewState,
   useSetDebouncedZoomRange,
   useSetZoomRange,
@@ -76,6 +77,21 @@ function SerializableStateProbe() {
           rootResourceType,
         },
       })}
+    </output>
+  );
+}
+
+function OperatorSelectionProbe() {
+  const selection = useOperatorSelection();
+  return (
+    <output data-testid="operator-selection">
+      {JSON.stringify(
+        [...selection.selections].map(([id, value]) => ({
+          id,
+          label: value.label,
+          operatorIds: [...value.operatorIds],
+        }))
+      )}
     </output>
   );
 }
@@ -208,7 +224,7 @@ describe('DeepLinkBoundary', () => {
     const encoded = encodeDeepLinkState({
       route: { engineId: 'e', queryId: 'q', tab: 'timeline' },
       timeline: { zoomRange: { start: 10, end: 40 } },
-      selection: { planId: 'plan-a', operatorNodeIds: ['operator-a'] },
+      selection: { planId: 'plan-a', operatorNodeIds: ['operator-a', 'operator-unknown'] },
       resources: {
         expandedRowIds: ['worker-a'],
         rootResourceType: 'channel',
@@ -248,6 +264,7 @@ describe('DeepLinkBoundary', () => {
       <JotaiProvider>
         <DeepLinkBoundary {...BOUNDARY_PROPS} encodedState={encoded.value}>
           <SerializableStateProbe />
+          <OperatorSelectionProbe />
         </DeepLinkBoundary>
       </JotaiProvider>
     );
@@ -255,7 +272,10 @@ describe('DeepLinkBoundary', () => {
     const value = JSON.parse(screen.getByTestId('serializable-state').textContent ?? '{}');
     expect(value).toMatchObject({
       view: {
-        selection: { planId: 'plan-a', operatorNodeIds: ['operator-a'] },
+        selection: {
+          planId: 'plan-a',
+          operatorNodeIds: ['operator-a', 'operator-unknown'],
+        },
         dag: {
           nodeColorField: 'duration_s',
           nodeColorPalette: 'viridis',
@@ -287,6 +307,16 @@ describe('DeepLinkBoundary', () => {
         rootResourceType: 'channel',
       },
     });
+    expect(screen.getByTestId('operator-selection')).toHaveTextContent(
+      JSON.stringify([
+        { id: 'operator-a', label: 'operator-a', operatorIds: ['operator-a'] },
+        {
+          id: 'operator-unknown',
+          label: 'operator-unknown',
+          operatorIds: ['operator-unknown'],
+        },
+      ])
+    );
   });
 
   it('does not subscribe to render-time timeline hydration', () => {
