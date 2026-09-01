@@ -78,7 +78,7 @@ export function QueryToolbar({ children }: QueryToolbarProps) {
             aria-label="Clear all operator filters"
             className="shrink-0 cursor-pointer rounded-sm px-1 py-0.5 font-medium text-primary hover:bg-primary/10 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
           >
-            Clear all
+            Clear
           </button>
         )}
       </div>

@@ -104,7 +104,7 @@ const OperatorAccordion = ({
     <OperatorColorBar operationType={operator.operationType} className="w-1 self-stretch" />
     <div className="min-w-0 flex-1">
       <CollapsibleTrigger
-        className="group flex w-full min-w-0 cursor-pointer items-center gap-2 rounded-sm py-0.5 text-left hover:bg-muted/50"
+        className="group flex w-full min-w-0 cursor-pointer items-center gap-2 rounded-sm px-1.5 py-1 my-1 text-left hover:bg-muted/50"
         aria-label={`Toggle ${operator.label} details`}
       >
         <DataText className="min-w-0 truncate text-xs font-medium" title={operator.label}>
