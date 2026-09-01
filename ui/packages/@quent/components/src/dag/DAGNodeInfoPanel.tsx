@@ -9,6 +9,8 @@ import {
   useDataFlowIsPlaying,
   useDataFlowMeta,
   useDataFlowFrame,
+  type DataFlowMeta,
+  type DataFlowFrame,
 } from '@quent/hooks';
 import { DataText } from '../ui/data-text';
 import { thinScrollbarClass } from '../ui/thin-scroll';
@@ -151,6 +153,51 @@ const OperatorDetailsBlock = ({
   </OperatorAccordion>
 );
 
+const OperatorDataFlowBlock = ({
+  operator,
+  meta,
+  frame,
+  isDark,
+  isOpen,
+  onOpenChange,
+}: {
+  operator: InspectedNodeData;
+  meta: DataFlowMeta;
+  frame: DataFlowFrame;
+  isDark: boolean;
+  isOpen: (id: string) => boolean;
+  onOpenChange: (id: string, open: boolean) => void;
+}) => (
+  <OperatorAccordion
+    operator={operator}
+    open={isOpen(operator.nodeId)}
+    onOpenChange={open => onOpenChange(operator.nodeId, open)}
+  >
+    <DataFlowMatrix
+      meta={meta}
+      frame={frame}
+      operatorFrame={frame.perOperator.get(operator.nodeId)}
+      isDark={isDark}
+    />
+    {operator.relatedOperators?.map(related => (
+      <div key={related.nodeId} className="mt-1.5 border-t pt-1.5">
+        <OperatorAccordion
+          operator={related}
+          open={isOpen(related.nodeId)}
+          onOpenChange={open => onOpenChange(related.nodeId, open)}
+        >
+          <DataFlowMatrix
+            meta={meta}
+            frame={frame}
+            operatorFrame={frame.perOperator.get(related.nodeId)}
+            isDark={isDark}
+          />
+        </OperatorAccordion>
+      </div>
+    ))}
+  </OperatorAccordion>
+);
+
 export const DAGNodeInfoPanel = ({
   isDark = false,
   quantitySpecs,
@@ -221,25 +268,18 @@ export const DAGNodeInfoPanel = ({
   const dataFlowContent =
     dataFlowMeta && dataFlowFrame ? (
       <div className="flex flex-col">
-        {selectedNodes.map((operator, index) => {
-          const operatorFrame = dataFlowFrame.perOperator.get(operator.nodeId);
-          return (
-            <div key={operator.nodeId} className={index > 0 ? 'border-t pt-1.5 mt-1.5' : ''}>
-              <OperatorAccordion
-                operator={operator}
-                open={isOperatorOpen(operator.nodeId)}
-                onOpenChange={open => setOperatorOpen(operator.nodeId, open)}
-              >
-                <DataFlowMatrix
-                  meta={dataFlowMeta}
-                  frame={dataFlowFrame}
-                  operatorFrame={operatorFrame}
-                  isDark={isDark}
-                />
-              </OperatorAccordion>
-            </div>
-          );
-        })}
+        {selectedNodes.map((operator, index) => (
+          <div key={operator.nodeId} className={index > 0 ? 'border-t pt-1.5 mt-1.5' : ''}>
+            <OperatorDataFlowBlock
+              operator={operator}
+              meta={dataFlowMeta}
+              frame={dataFlowFrame}
+              isDark={isDark}
+              isOpen={isOperatorOpen}
+              onOpenChange={setOperatorOpen}
+            />
+          </div>
+        ))}
       </div>
     ) : (
       <p className="pt-6 text-xs text-muted-foreground text-center">No tasks at this bin</p>
