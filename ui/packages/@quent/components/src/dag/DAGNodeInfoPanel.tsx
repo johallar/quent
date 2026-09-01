@@ -175,17 +175,24 @@ export const DAGNodeInfoPanel = ({
   const setOperatorOpen = (id: string, open: boolean) => {
     setClosedOperatorIds(prev => {
       const isClosed = prev.has(id);
-      if (open ? !isClosed : isClosed) return prev;
+      if (open ? !isClosed : isClosed) {
+        return prev;
+      }
       const next = new Set(prev);
-      if (open) next.delete(id);
-      else next.add(id);
+      if (open) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
       return next;
     });
   };
 
   useEffect(() => {
     setIsExpanded(hasSelection);
-    if (!hasSelection) setActiveTab('stats');
+    if (!hasSelection) {
+      setActiveTab('stats');
+    }
   }, [hasSelection]);
 
   useEffect(() => {

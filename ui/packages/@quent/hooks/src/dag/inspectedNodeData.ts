@@ -16,7 +16,9 @@ export function removeInspectedNodeData(
   current: ReadonlyMap<string, InspectedNodeData>,
   nodeId: string
 ): ReadonlyMap<string, InspectedNodeData> {
-  if (!current.has(nodeId)) return current;
+  if (!current.has(nodeId)) {
+    return current;
+  }
   const next = new Map(current);
   next.delete(nodeId);
   return next;

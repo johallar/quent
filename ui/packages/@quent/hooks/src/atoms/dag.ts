@@ -24,7 +24,11 @@ export type OperatorSelectionAction =
       inspectedData: InspectedNodeData;
     }
   | { type: 'remove'; selectionId: string }
-  | { type: 'replace'; operatorIds: Iterable<string> }
+  | {
+      type: 'replace';
+      operatorIds: Iterable<string>;
+      inspectedData?: InspectedNodeData;
+    }
   | { type: 'clear' };
 
 /** Canonical operator filter selection state */
@@ -57,8 +61,18 @@ export const operatorSelectionActionAtom = atom(
         break;
       case 'replace': {
         const operatorIds = [...action.operatorIds];
-        nextSelection = createOperatorSelectionState(operatorIds);
-        nextData = new Map([...currentData].filter(([id]) => nextSelection.selections.has(id)));
+        if (action.inspectedData) {
+          nextSelection = addSelection(
+            createEmptyOperatorSelectionState(),
+            action.inspectedData.nodeId,
+            action.inspectedData.label,
+            operatorIds
+          );
+          nextData = new Map([[action.inspectedData.nodeId, action.inspectedData]]);
+        } else {
+          nextSelection = createOperatorSelectionState(operatorIds);
+          nextData = new Map([...currentData].filter(([id]) => nextSelection.selections.has(id)));
+        }
         break;
       }
       case 'clear':
@@ -91,9 +105,13 @@ export const selectedOperatorLabelAtom = atom(
     }
 
     const activeId = state.activeId ?? getLastOperatorSelectionId(state.selections);
-    if (!activeId) return;
+    if (!activeId) {
+      return;
+    }
     const activeSelection = state.selections.get(activeId);
-    if (!activeSelection) return;
+    if (!activeSelection) {
+      return;
+    }
 
     const selections = new Map(state.selections);
     selections.set(activeId, { ...activeSelection, label });

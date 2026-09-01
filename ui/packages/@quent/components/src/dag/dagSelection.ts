@@ -1,8 +1,7 @@
 // SPDX-FileCopyrightText: Copyright (c) 2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-import type { InspectedNodeData } from '@quent/hooks';
-import type { DAGNode } from '@quent/utils';
+import type { DAGNode, InspectedNodeData } from '@quent/utils';
 import { parseCustomStatistics } from '../lib/queryBundle.utils';
 import type { QueryPlanNodeData } from '../query-plan/QueryPlanNode';
 

@@ -314,12 +314,17 @@ const FlowLayout = ({
   // Sync controlled selectedNodeIds into the atom when provided
   useEffect(() => {
     if (controlledSelectedNodeIds !== undefined) {
+      const inspectedData = resolveInspectedNodeData(
+        data.nodes,
+        new Set(controlledSelectedNodeIds)
+      );
       updateOperatorSelection({
         type: 'replace',
         operatorIds: controlledSelectedNodeIds,
+        inspectedData: inspectedData ?? undefined,
       });
     }
-  }, [controlledSelectedNodeIds, updateOperatorSelection]);
+  }, [controlledSelectedNodeIds, data.nodes, updateOperatorSelection]);
 
   // Publish the set of operator IDs visible in this DAG so other consumers
   // (effective highlight/heatmap atoms) can decide whether a hover-driven
@@ -330,12 +335,6 @@ const FlowLayout = ({
       setDagDisplayedNodeIds(new Set());
     };
   }, [data.nodes, setDagDisplayedNodeIds]);
-
-  useEffect(() => {
-    const selected = resolveInspectedNodeData(data.nodes, selectedNodeIds);
-    setSelectedOperatorLabel(selected?.label ?? null);
-    setSelectedNodeData(selected);
-  }, [data.nodes, selectedNodeIds, setSelectedNodeData, setSelectedOperatorLabel]);
 
   const handleMoveStart = useCallback<OnMoveStart>(event => {
     if (event !== null) {

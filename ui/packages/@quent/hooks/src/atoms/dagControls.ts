@@ -44,7 +44,9 @@ export const selectedNodeDataAtom = atom(
   get => {
     const map = get(selectedNodesDataAtom);
     let last: InspectedNodeData | null = null;
-    for (const value of map.values()) last = value;
+    for (const value of map.values()) {
+      last = value;
+    }
     return last;
   },
   (_get, set, value: InspectedNodeData | null) => {

@@ -24,7 +24,9 @@ export function getLastOperatorSelectionId(
   selections: ReadonlyMap<string, OperatorSelection>
 ): string | null {
   let lastId: string | null = null;
-  for (const id of selections.keys()) lastId = id;
+  for (const id of selections.keys()) {
+    lastId = id;
+  }
   return lastId;
 }
 

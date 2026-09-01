@@ -20,6 +20,8 @@ export function getNodeOpacityClass({
   if (highlightedNodeIds !== null && highlightedNodeIds.size > 0) {
     return highlightedNodeIds.has(operatorId) || isSelected ? 'opacity-100' : 'opacity-35';
   }
-  if (isDimmed) return 'opacity-35';
+  if (isDimmed) {
+    return 'opacity-35';
+  }
   return 'opacity-100';
 }

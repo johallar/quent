@@ -68,4 +68,27 @@ describe('operator selection actions', () => {
     expect(store.get(operatorSelectionAtom).selections.size).toBe(0);
     expect(store.get(selectedNodesDataAtom).size).toBe(0);
   });
+
+  it('hydrates a grouped replacement as one inspected selection', () => {
+    const store = createStore();
+
+    store.set(operatorSelectionActionAtom, {
+      type: 'replace',
+      operatorIds: ['join', 'physical-join'],
+      inspectedData: joinData,
+    });
+
+    expect(store.get(operatorSelectionAtom).selections).toEqual(
+      new Map([
+        [
+          'join',
+          {
+            label: 'Join',
+            operatorIds: new Set(['join', 'physical-join']),
+          },
+        ],
+      ])
+    );
+    expect(store.get(selectedNodesDataAtom)).toEqual(new Map([['join', joinData]]));
+  });
 });
