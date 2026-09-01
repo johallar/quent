@@ -70,7 +70,7 @@ function treeItem(
   return { id, type, entity, ...(children?.length ? { children } : {}) };
 }
 
-/** NVTX lanes for one domain, or domain sub-trees when all domains are selected. */
+/** Domain sub-trees for the visible domains; headers stay so category filters have a row. */
 export function buildNvtxTree(
   catalog: Pick<NvtxCatalog, 'domains'>,
   laneRowIds: ReadonlySet<string>,
@@ -109,22 +109,14 @@ export function buildNvtxTree(
     }
     return [...threadRows, ...extraRows];
   });
-  const children =
-    selectedDomainId == null
-      ? visibleDomains.flatMap((domain, index) => {
-          const lanes = domainLanes[index] ?? [];
-          return lanes.length > 0
-            ? [
-                treeItem(
-                  nvtxDomainRowId(domain.domain_id),
-                  NVTX_DOMAIN_ROW_TYPE,
-                  { nvtxKind: 'domain', domain },
-                  lanes
-                ),
-              ]
-            : [];
-        })
-      : (domainLanes[0] ?? []);
+  const children = visibleDomains.map((domain, index) =>
+    treeItem(
+      nvtxDomainRowId(domain.domain_id),
+      NVTX_DOMAIN_ROW_TYPE,
+      { nvtxKind: 'domain', domain },
+      domainLanes[index]
+    )
+  );
   return treeItem(NVTX_SECTION_ID, NVTX_SECTION_ROW_TYPE, { nvtxKind: 'section' }, children);
 }
 
@@ -205,11 +197,11 @@ export interface NvtxPixelBudget {
 
 export const NVTX_MIN_BAR_WIDTH_PX = 2;
 
-/** Flatten viewport lanes into Gantt datums. Thread depth is the row index. */
+/** Flatten populated viewport lanes into contiguous Gantt rows. */
 export function nvtxLanesToGanttData(lanes: NvtxLane[]): NvtxGanttDatum[] {
   const data: NvtxGanttDatum[] = [];
-  for (const lane of lanes) {
-    const rowIndex = isThreadIdentity(lane.identity) ? lane.identity.depth : 0;
+  const populatedLanes = lanes.filter(lane => lane.ranges.length > 0 || lane.marks.length > 0);
+  for (const [rowIndex, lane] of populatedLanes.entries()) {
     for (const range of lane.ranges) {
       data.push({
         value: [range.display_start * 1_000, range.display_end * 1_000, rowIndex],

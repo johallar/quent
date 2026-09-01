@@ -14,6 +14,7 @@ import type {
   QueryBundle,
   EntityRef,
   FiniteStateMachine,
+  NvtxCatalog,
 } from '@quent/utils';
 import {
   LONG_ENTITIES_ROW_TYPE,
@@ -48,6 +49,12 @@ vi.mock('@/contexts/ThemeContext', () => ({
 // Capture the timelineData prop passed to TimelineController on every render
 let capturedTimelineData: SingleTimelineResponse | null | undefined = undefined;
 let capturedTreeData: TreeTableItem[] = [];
+let capturedInlineSelectors: Array<{
+  id: string;
+  value: string;
+  options: Array<string | { value: string; label: string }>;
+  onChange: (id: string, value: string) => void;
+}> = [];
 let capturedLongEntityProps:
   | {
       onEntitySelect?: (fsm: FiniteStateMachine) => void;
@@ -64,38 +71,48 @@ vi.mock('@quent/components', async importOriginal => {
       capturedTimelineData = props.timelineData;
       return null;
     },
-    TreeTable: ({
-      columns,
-      data,
-    }: {
+    TreeTable: (props: {
       columns: Array<{
         headerContent?: React.ReactNode;
         subHeaderContent?: React.ReactNode;
-        render?: (args: { item: unknown }) => React.ReactNode;
+        render?: (props: { item: TreeTableItem; level?: number }) => React.ReactNode;
       }>;
       data: TreeTableItem[];
     }) => {
-      capturedTreeData = data;
-      const longEntityElement = columns[1]?.render?.({
+      capturedTreeData = props.data;
+      const longEntityElement = props.columns[1]?.render?.({
         item: {
           id: actual.longEntitiesRowId(RESOURCE_ID),
           type: actual.LONG_ENTITIES_ROW_TYPE,
-          entity: {},
+          entity: {} as TreeTableItem['entity'],
         },
       });
       if (React.isValidElement(longEntityElement)) {
         capturedLongEntityProps = longEntityElement.props as typeof capturedLongEntityProps;
       }
+
+      const renderItems = (items: TreeTableItem[], level = 0): React.ReactNode =>
+        items.map(item => (
+          <React.Fragment key={item.id}>
+            {props.columns[0]?.render?.({ item, level })}
+            {item.children && renderItems(item.children, level + 1)}
+          </React.Fragment>
+        ));
       return (
         <>
-          {columns.map((col, i) => (
-            <React.Fragment key={i}>
-              {col.headerContent}
-              {col.subHeaderContent}
+          {props.columns.map((column, index) => (
+            <React.Fragment key={index}>
+              {column.headerContent}
+              {column.subHeaderContent}
             </React.Fragment>
           ))}
+          {renderItems(props.data)}
         </>
       );
+    },
+    InlineSelector: (props: (typeof capturedInlineSelectors)[number]) => {
+      capturedInlineSelectors.push(props);
+      return <div data-testid={props.id} />;
     },
     ResourceColumn: () => null,
     UsageColumn: () => null,
@@ -106,7 +123,12 @@ vi.mock('@quent/components', async importOriginal => {
 import * as clientApi from '@quent/client';
 vi.mock('@quent/client', async importOriginal => {
   const actual = await importOriginal<typeof clientApi>();
-  return { ...actual, fetchSingleTimeline: vi.fn(), fetchBulkTimelines: vi.fn() };
+  return {
+    ...actual,
+    fetchSingleTimeline: vi.fn(),
+    fetchBulkTimelines: vi.fn(),
+    useNvtxStream: vi.fn(),
+  };
 });
 
 // ---------------------------------------------------------------------------
@@ -183,11 +205,21 @@ const customSubRow: ResourceTimelineSubRow = {
   renderTimeline: () => null,
 };
 
+beforeEach(() => {
+  capturedInlineSelectors = [];
+  capturedTimelineData = undefined;
+  capturedTreeData = [];
+  capturedLongEntityProps = undefined;
+  vi.mocked(clientApi.useNvtxStream).mockReturnValue({
+    contextId: undefined,
+    catalog: null,
+    viewport: null,
+    isLoading: false,
+  });
+});
+
 describe('QueryResourceTree — TimelineController always shows full-range data', () => {
   beforeEach(() => {
-    capturedTimelineData = undefined;
-    capturedTreeData = [];
-    capturedLongEntityProps = undefined;
     vi.mocked(clientApi.fetchBulkTimelines).mockResolvedValue({ entries: {} } as never);
   });
 
@@ -304,6 +336,64 @@ describe('QueryResourceTree — TimelineController always shows full-range data'
     // TimelineController must still show the full-range data — not the atom value.
     expect(capturedTimelineData?.config.span.start).toBe(0);
     expect(capturedTimelineData?.config.span.end).toBe(DURATION_S);
+  });
+});
+
+describe('QueryResourceTree — NVTX filters', () => {
+  it('renders category selectors on domain rows and keeps the selected domain header', async () => {
+    const catalog = {
+      domains: [
+        {
+          domain_id: '1',
+          name: 'Domain 1',
+          color: '#76b900ff',
+          threads: [],
+          categories: [{ category_id: 7, name: 'Compute' }],
+          has_uncategorized: true,
+        },
+      ],
+    } as unknown as NvtxCatalog;
+    vi.mocked(clientApi.fetchSingleTimeline).mockResolvedValue(makeTimeline(0, DURATION_S));
+    vi.mocked(clientApi.useNvtxStream).mockReturnValue({
+      contextId: 'context-1',
+      catalog,
+      viewport: null,
+      isLoading: false,
+    });
+
+    renderWithQuery(
+      <JotaiProvider store={createStore()}>
+        <QueryResourceTree engineId="engine-1" queryBundle={makeBundle()} />
+      </JotaiProvider>
+    );
+
+    const categorySelector = capturedInlineSelectors.find(
+      selector => selector.id === 'nvtx-category-1'
+    );
+    expect(categorySelector?.options).toEqual([
+      { value: '__all__', label: 'All' },
+      { value: '7', label: 'Compute' },
+      { value: '__uncategorized__', label: 'Uncategorized' },
+    ]);
+    act(() => categorySelector?.onChange('nvtx-category-1', '7'));
+
+    await waitFor(() => {
+      const calls = vi.mocked(clientApi.useNvtxStream).mock.calls;
+      expect(calls[calls.length - 1]?.[3]?.categoryFilters?.get('1')).toEqual({
+        categoryId: 7,
+        includeUncategorized: false,
+      });
+    });
+
+    const domainSelector = capturedInlineSelectors.find(selector => selector.id === 'nvtx-domain');
+    capturedInlineSelectors = [];
+    act(() => domainSelector?.onChange('nvtx-domain', '1'));
+
+    await waitFor(() =>
+      expect(
+        capturedInlineSelectors.find(selector => selector.id === 'nvtx-category-1')?.value
+      ).toBe('7')
+    );
   });
 });
 

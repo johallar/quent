@@ -4,7 +4,7 @@
 import { useAtom, useSetAtom } from 'jotai';
 import { ChartGantt } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef } from 'react';
-import { useNvtxStream } from '@quent/client';
+import { useNvtxStream, type NvtxCategoryFilter } from '@quent/client';
 import {
   DEFAULT_TIMELINE_HEIGHT,
   InlineSelector,
@@ -22,7 +22,11 @@ import {
 } from '@quent/components';
 import { useDebouncedZoomRange, useSetDebouncedZoomRange, useSetZoomRange } from '@quent/hooks';
 import type { EntityRef, NvtxCatalog, QueryBundle } from '@quent/utils';
-import { expandedIdsAtom, selectedNvtxDomainAtom } from '@/atoms/resourceTree';
+import {
+  expandedIdsAtom,
+  selectedNvtxCategoriesAtom,
+  selectedNvtxDomainAtom,
+} from '@/atoms/resourceTree';
 import { useExpandedIds } from '@/hooks/useExpandedIds';
 import {
   TimelineTreeTable,
@@ -33,6 +37,8 @@ import {
 } from './TimelineTreeTable';
 
 const NVTX_ALL_DOMAINS = '__all__';
+const NVTX_ALL_CATEGORIES = '__all__';
+const NVTX_UNCATEGORIZED = '__uncategorized__';
 
 function NvtxSectionLabel({
   catalog,
@@ -64,16 +70,43 @@ function NvtxSectionLabel({
   );
 }
 
-function NvtxDomainLabel({ name, color }: { name: string; color: string }) {
+function NvtxDomainLabel({
+  domain,
+  color,
+  selectedCategoryId,
+  onCategoryChange,
+}: {
+  domain: NvtxCatalog['domains'][number];
+  color: string;
+  selectedCategoryId: string | null;
+  onCategoryChange: (categoryId: string | null) => void;
+}) {
+  const categoryOptions = [
+    { value: NVTX_ALL_CATEGORIES, label: 'All' },
+    ...domain.categories.map(category => ({
+      value: String(category.category_id),
+      label: category.name,
+    })),
+    ...(domain.has_uncategorized ? [{ value: NVTX_UNCATEGORIZED, label: 'Uncategorized' }] : []),
+  ];
   return (
-    <span className="flex min-w-0 items-center gap-1.5 text-xs leading-none">
-      <span
-        aria-hidden
-        className="inline-block h-2 w-2 shrink-0 rounded-full"
-        style={{ backgroundColor: color }}
+    <div className="flex min-w-0 flex-col gap-y-1 pb-1">
+      <span className="flex min-w-0 items-center gap-1.5 text-xs leading-none">
+        <span
+          aria-hidden
+          className="inline-block h-2 w-2 shrink-0 rounded-full"
+          style={{ backgroundColor: color }}
+        />
+        <span className="truncate">{domain.name}</span>
+      </span>
+      <InlineSelector
+        id={`nvtx-category-${domain.domain_id}`}
+        label="Category"
+        value={selectedCategoryId ?? NVTX_ALL_CATEGORIES}
+        options={categoryOptions}
+        onChange={(_, value) => onCategoryChange(value === NVTX_ALL_CATEGORIES ? null : value)}
       />
-      <span className="truncate">{name}</span>
-    </span>
+    </div>
   );
 }
 
@@ -97,6 +130,7 @@ export function useNvtxTreeModel({
 }: UseNvtxTreeModelProps): NvtxTreeModel {
   const durationSeconds = queryBundle.duration_s;
   const [selectedNvtxDomain, setSelectedNvtxDomain] = useAtom(selectedNvtxDomainAtom);
+  const [selectedNvtxCategories, setSelectedNvtxCategories] = useAtom(selectedNvtxCategoriesAtom);
   const setExpandedIds = useSetAtom(expandedIdsAtom);
   const { expandedIds, handleExpandChange } = useExpandedIds();
   const setZoomRange = useSetZoomRange();
@@ -107,11 +141,26 @@ export function useNvtxTreeModel({
     const { start, end } = debouncedZoomRange;
     return end > start ? { start, end } : { start: 0, end: durationSeconds };
   }, [debouncedZoomRange, durationSeconds]);
+  const nvtxCategoryFilters = useMemo(() => {
+    const filters = new Map<string, NvtxCategoryFilter>();
+    for (const [domainId, categoryId] of selectedNvtxCategories) {
+      filters.set(
+        domainId,
+        categoryId === NVTX_UNCATEGORIZED
+          ? { categoryId: null, includeUncategorized: true }
+          : { categoryId: Number(categoryId), includeUncategorized: false }
+      );
+    }
+    return filters;
+  }, [selectedNvtxCategories]);
   const { catalog, viewport } = useNvtxStream(
     engineId,
     queryBundle.start_time_unix_ns,
     nvtxWindow,
-    { domainId: selectedNvtxDomain }
+    {
+      domainId: selectedNvtxDomain,
+      categoryFilters: nvtxCategoryFilters,
+    }
   );
 
   useEffect(() => {
@@ -130,14 +179,39 @@ export function useNvtxTreeModel({
   }, [catalog, setExpandedIds]);
 
   useEffect(() => {
+    if (!catalog) {
+      return;
+    }
     if (
       selectedNvtxDomain != null &&
-      catalog &&
       !catalog.domains.some(domain => domain.domain_id === selectedNvtxDomain)
     ) {
       setSelectedNvtxDomain(null);
     }
-  }, [catalog, selectedNvtxDomain, setSelectedNvtxDomain]);
+    const nextCategories = new Map(selectedNvtxCategories);
+    let changed = false;
+    for (const [domainId, categoryId] of nextCategories) {
+      const domain = catalog.domains.find(item => item.domain_id === domainId);
+      const isValid =
+        domain != null &&
+        (categoryId === NVTX_UNCATEGORIZED
+          ? domain.has_uncategorized
+          : domain.categories.some(category => String(category.category_id) === categoryId));
+      if (!isValid) {
+        nextCategories.delete(domainId);
+        changed = true;
+      }
+    }
+    if (changed) {
+      setSelectedNvtxCategories(nextCategories);
+    }
+  }, [
+    catalog,
+    selectedNvtxCategories,
+    selectedNvtxDomain,
+    setSelectedNvtxCategories,
+    setSelectedNvtxDomain,
+  ]);
 
   const lanesByRowId = useMemo(() => indexNvtxLanes(viewport), [viewport]);
   const laneRowIdsKey = useMemo(() => [...lanesByRowId.keys()].sort().join('\0'), [lanesByRowId]);
@@ -169,8 +243,29 @@ export function useNvtxTreeModel({
         ) : null;
       }
       if (item.type === NVTX_DOMAIN_ROW_TYPE) {
-        const domain = isNvtxTreeEntity(item.entity) ? nvtxDomainMeta(item.entity) : null;
-        return domain ? <NvtxDomainLabel name={domain.name} color={domain.color} /> : null;
+        const entity = isNvtxTreeEntity(item.entity) ? item.entity : null;
+        if (entity?.nvtxKind !== 'domain') {
+          return null;
+        }
+        const meta = nvtxDomainMeta(entity);
+        return meta ? (
+          <NvtxDomainLabel
+            domain={entity.domain}
+            color={meta.color}
+            selectedCategoryId={selectedNvtxCategories.get(entity.domain.domain_id) ?? null}
+            onCategoryChange={categoryId => {
+              setSelectedNvtxCategories(previous => {
+                const next = new Map(previous);
+                if (categoryId == null) {
+                  next.delete(entity.domain.domain_id);
+                } else {
+                  next.set(entity.domain.domain_id, categoryId);
+                }
+                return next;
+              });
+            }}
+          />
+        ) : null;
       }
       if (item.type === NVTX_LANE_ROW_TYPE) {
         const label = isNvtxTreeEntity(item.entity) ? nvtxLaneLabel(item.entity) : '';
@@ -178,7 +273,13 @@ export function useNvtxTreeModel({
       }
       return null;
     },
-    [catalog, selectedNvtxDomain, setSelectedNvtxDomain]
+    [
+      catalog,
+      selectedNvtxCategories,
+      selectedNvtxDomain,
+      setSelectedNvtxCategories,
+      setSelectedNvtxDomain,
+    ]
   );
 
   const renderTimeline = useCallback(

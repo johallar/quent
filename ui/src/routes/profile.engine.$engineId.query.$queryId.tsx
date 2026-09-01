@@ -53,6 +53,14 @@ function QueryLayout() {
           >
             Operators
           </Link>
+          <Link
+            to="/profile/engine/$engineId/query/$queryId/entities"
+            params={{ engineId, queryId }}
+            className={tabClass}
+            activeProps={{ className: activeTabClass }}
+          >
+            Entities
+          </Link>
           <CopyLinkButton />
         </div>
       </div>
