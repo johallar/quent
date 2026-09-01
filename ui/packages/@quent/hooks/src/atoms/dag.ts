@@ -91,7 +91,26 @@ export const operatorSelectionActionAtom = atom(
       case 'hydrate': {
         nextSelection = createEmptyOperatorSelectionState();
         nextData = new Map();
-        for (const id of action.unresolvedOperatorIds) {
+        const unresolvedOperatorIds = new Set(action.unresolvedOperatorIds);
+        for (const [selectionId, selection] of currentSelection.selections) {
+          if (![...selection.operatorIds].every(id => unresolvedOperatorIds.has(id))) {
+            continue;
+          }
+          nextSelection = addSelection(
+            nextSelection,
+            selectionId,
+            selection.label,
+            selection.operatorIds
+          );
+          for (const id of selection.operatorIds) {
+            unresolvedOperatorIds.delete(id);
+          }
+          const inspectedData = currentData.get(selectionId);
+          if (inspectedData) {
+            nextData = upsertInspectedNodeData(nextData, inspectedData);
+          }
+        }
+        for (const id of unresolvedOperatorIds) {
           nextSelection = addSelection(nextSelection, id, id, [id]);
         }
         for (const selection of action.selections) {
