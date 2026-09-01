@@ -43,15 +43,36 @@ export function createOperatorSelectionState(
   };
 }
 
+function containsAll(container: ReadonlySet<string>, contained: ReadonlySet<string>): boolean {
+  for (const id of contained) {
+    if (!container.has(id)) {
+      return false;
+    }
+  }
+  return true;
+}
+
 export function addOperatorSelection(
   state: OperatorSelectionState,
   selectionId: string,
   label: string,
   operatorIds: Iterable<string>
 ): OperatorSelectionState {
-  const selections = new Map(state.selections);
   const selectedIds = new Set(operatorIds);
   selectedIds.add(selectionId);
+
+  for (const [existingId, existing] of state.selections) {
+    if (existingId !== selectionId && containsAll(existing.operatorIds, selectedIds)) {
+      return state;
+    }
+  }
+
+  const selections = new Map(state.selections);
+  for (const [existingId, existing] of selections) {
+    if (existingId !== selectionId && containsAll(selectedIds, existing.operatorIds)) {
+      selections.delete(existingId);
+    }
+  }
   selections.set(selectionId, { label, operatorIds: selectedIds });
 
   return {

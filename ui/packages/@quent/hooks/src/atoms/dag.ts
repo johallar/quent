@@ -53,7 +53,10 @@ export const operatorSelectionActionAtom = atom(
           action.label,
           action.operatorIds
         );
-        nextData = upsertInspectedNodeData(currentData, action.inspectedData);
+        nextData = new Map([...currentData].filter(([id]) => nextSelection.selections.has(id)));
+        if (nextSelection.selections.has(action.selectionId)) {
+          nextData = upsertInspectedNodeData(nextData, action.inspectedData);
+        }
         break;
       case 'remove':
         nextSelection = removeSelection(currentSelection, action.selectionId);

@@ -20,6 +20,11 @@ const joinData = {
   statistics: [],
 };
 
+const groupedJoinData = {
+  ...joinData,
+  relatedOperators: [scanData],
+};
+
 describe('operator selection actions', () => {
   it('updates filter and inspection state together', () => {
     const store = createStore();
@@ -40,6 +45,39 @@ describe('operator selection actions', () => {
 
     expect(store.get(operatorSelectionAtom).selections.size).toBe(0);
     expect(store.get(selectedNodesDataAtom).size).toBe(0);
+  });
+
+  it('keeps only the parent inspection when parent and child selections overlap', () => {
+    const store = createStore();
+    store.set(operatorSelectionActionAtom, {
+      type: 'add',
+      selectionId: 'scan',
+      label: 'Scan',
+      operatorIds: ['scan'],
+      inspectedData: scanData,
+    });
+
+    store.set(operatorSelectionActionAtom, {
+      type: 'add',
+      selectionId: 'join',
+      label: 'Join',
+      operatorIds: ['join', 'scan'],
+      inspectedData: groupedJoinData,
+    });
+
+    expect([...store.get(operatorSelectionAtom).selections.keys()]).toEqual(['join']);
+    expect(store.get(selectedNodesDataAtom)).toEqual(new Map([['join', groupedJoinData]]));
+
+    store.set(operatorSelectionActionAtom, {
+      type: 'add',
+      selectionId: 'scan',
+      label: 'Scan',
+      operatorIds: ['scan'],
+      inspectedData: scanData,
+    });
+
+    expect([...store.get(operatorSelectionAtom).selections.keys()]).toEqual(['join']);
+    expect(store.get(selectedNodesDataAtom)).toEqual(new Map([['join', groupedJoinData]]));
   });
 
   it('prunes stale inspection data when replacing or clearing selections', () => {

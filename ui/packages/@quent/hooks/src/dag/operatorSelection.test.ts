@@ -37,6 +37,37 @@ describe('operator selection', () => {
     expect(getActiveOperatorLabel(second)).toBe('Logical 2');
   });
 
+  it('replaces a selected child with its containing parent selection', () => {
+    const child = addOperatorSelection(
+      createEmptyOperatorSelectionState(),
+      'physical-1',
+      'Physical 1',
+      ['physical-1']
+    );
+
+    const result = addOperatorSelection(child, 'logical-1', 'Logical 1', [
+      'logical-1',
+      'physical-1',
+    ]);
+
+    expect([...result.selections.keys()]).toEqual(['logical-1']);
+    expect(getSelectedOperatorIds(result)).toEqual(new Set(['logical-1', 'physical-1']));
+  });
+
+  it('ignores a child selection already covered by a selected parent', () => {
+    const parent = addOperatorSelection(
+      createEmptyOperatorSelectionState(),
+      'logical-1',
+      'Logical 1',
+      ['logical-1', 'physical-1']
+    );
+
+    const result = addOperatorSelection(parent, 'physical-1', 'Physical 1', ['physical-1']);
+
+    expect(result).toBe(parent);
+    expect([...result.selections.keys()]).toEqual(['logical-1']);
+  });
+
   it('removes only the clicked selection and preserves overlapping operators', () => {
     const first = addOperatorSelection(createEmptyOperatorSelectionState(), 'logical-1', 'First', [
       'logical-1',
