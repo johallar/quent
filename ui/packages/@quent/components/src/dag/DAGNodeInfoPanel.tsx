@@ -230,16 +230,12 @@ export const DAGNodeInfoPanel = ({
                 open={isOperatorOpen(operator.nodeId)}
                 onOpenChange={open => setOperatorOpen(operator.nodeId, open)}
               >
-                {operatorFrame ? (
-                  <DataFlowMatrix
-                    meta={dataFlowMeta}
-                    frame={dataFlowFrame}
-                    operatorFrame={operatorFrame}
-                    isDark={isDark}
-                  />
-                ) : (
-                  <p className="text-xs text-muted-foreground">No tasks at this bin</p>
-                )}
+                <DataFlowMatrix
+                  meta={dataFlowMeta}
+                  frame={dataFlowFrame}
+                  operatorFrame={operatorFrame}
+                  isDark={isDark}
+                />
               </OperatorAccordion>
             </div>
           );

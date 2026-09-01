@@ -5,7 +5,7 @@ import { describe, it, expect, vi, afterEach } from 'vitest';
 import { useEffect } from 'react';
 import { Provider } from 'jotai';
 import { ReactFlowProvider } from '@xyflow/react';
-import { render, screen, fireEvent, act } from '@testing-library/react';
+import { render, screen, fireEvent, act, within } from '@testing-library/react';
 import {
   useDataFlowSync,
   useSetDataFlowEnabled,
@@ -403,7 +403,10 @@ describe('DAGNodeInfoPanel matrix under tier selection', () => {
     return render(
       <Provider>
         <Harness response={RESPONSE} selectedDimensions={selectedDimensions}>
-          <SelectNode />
+          <>
+            <DagPlayhead />
+            <SelectNode />
+          </>
         </Harness>
       </Provider>
     );
@@ -421,6 +424,15 @@ describe('DAGNodeInfoPanel matrix under tier selection', () => {
     fireEvent.mouseDown(screen.getByRole('tab', { name: 'Data Flow' }), { button: 0 });
     expect(screen.getByText('Memory')).toBeInTheDocument();
     expect(screen.queryByText('Filesystem')).not.toBeInTheDocument();
+  });
+
+  it('keeps a zero-filled matrix visible at an all-zero bin', () => {
+    renderPanel(null);
+    fireEvent.keyDown(screen.getByRole('slider'), { key: 'End' });
+    fireEvent.mouseDown(screen.getByRole('tab', { name: 'Data Flow' }), { button: 0 });
+
+    expect(screen.queryByText('No tasks at this bin')).not.toBeInTheDocument();
+    expect(within(screen.getByRole('table')).getAllByText('0')).toHaveLength(9);
   });
 });
 
