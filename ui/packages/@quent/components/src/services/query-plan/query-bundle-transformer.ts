@@ -3,14 +3,7 @@
 
 import type { DAGNode, DAGEdge, QueryPlanDataItem } from './types';
 import type { QueryBundle, EntityRef } from '@quent/utils';
-import {
-  buildRelatedOperatorIdsById,
-  Operator,
-  Port,
-  Plan,
-  PlanTree,
-  Worker,
-} from '@quent/utils';
+import { buildRelatedOperatorIdsById, Operator, Port, Plan, PlanTree, Worker } from '@quent/utils';
 
 interface PlanTreeNode extends PlanTree {
   query?: string | null;

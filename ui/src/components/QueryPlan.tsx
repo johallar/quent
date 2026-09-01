@@ -9,7 +9,7 @@ import { Badge, getSelectedOperatorCountsByPlan, TreeView } from '@quent/compone
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@quent/components';
 import { thinScrollbarClass, type QueryPlanDataItem } from '@quent/components';
 import {
-  useSelectedNodeIds,
+  useSelectedOperatorIds,
   useSelectedPlanId,
   useSetSelectedPlanId,
   useSetHoveredWorkerId,
@@ -52,7 +52,7 @@ export function QueryPlan({ queryId, engineId }: { queryId: string; engineId: st
   const planId = useSelectedPlanId();
   const setPlanId = useSetSelectedPlanId();
   const setHoveredWorkerId = useSetHoveredWorkerId();
-  const selectedOperatorIds = useSelectedNodeIds();
+  const selectedOperatorIds = useSelectedOperatorIds();
   const {
     data: queryBundle,
     isLoading: queryBundleLoading,
