@@ -9,11 +9,11 @@ import {
   useTimelineEchartsTheme,
 } from '../timeline/timelineEchartsTheme';
 import { useZoomRange } from '@quent/hooks';
-import { withOpacity } from '@quent/utils';
+import { formatDuration, withOpacity } from '@quent/utils';
 import type { LongEntityEntry } from './types';
 import { GanttChart, type GanttRenderItem } from '../gantt-chart/GanttChart';
 import type { GanttHover } from '../gantt-chart/hover';
-import { clipRectByRect } from '../gantt-chart/utils';
+import { layoutGanttBar } from '../gantt-chart/utils';
 import { getLongEntitySegmentsAtTimestamp } from './utils';
 import { PointerTooltipPortal } from '../ui/pointer-tooltip-portal';
 import { EntityTooltipContent, type ActiveMark } from '../timeline/TimelineTooltip';
@@ -38,16 +38,26 @@ type SegmentDatum = {
 export interface LongEntitiesGanttProps {
   entries: LongEntityEntry[];
   durationSeconds: number;
+  minUsageSeconds: number;
   height?: number;
   /** Whether dark mode is active. Passed explicitly to decouple from ThemeContext. */
   isDark: boolean;
+  onEntityClick?: (entry: LongEntityEntry) => void;
+  /** When set, dims all entity bars except the one with this entity ID. */
+  selectedEntityId?: string;
+  /** Called when the user clicks the chart background (not an entity bar). */
+  onBackgroundClick?: () => void;
 }
 
 export function LongEntitiesGantt({
   entries,
   durationSeconds,
+  minUsageSeconds,
   height = LONG_ENTITIES_TIMELINE_HEIGHT,
   isDark,
+  onEntityClick,
+  selectedEntityId,
+  onBackgroundClick,
 }: LongEntitiesGanttProps) {
   const { textColor } = useTimelineEchartsTheme(isDark);
   const zoomRange = useZoomRange();
@@ -96,30 +106,22 @@ export function LongEntitiesGantt({
 
   const renderItem: GanttRenderItem = useCallback(
     (params, api) => {
-      const startMs = api.value(0) as number;
-      const endMs = api.value(1) as number;
-      const rowIndex = api.value(2) as number;
-      if (endMs <= startMs) return null;
-
       const datum = customSeriesData[params.dataIndex];
       const entry = datum ? entries[datum.entryIndex] : undefined;
       const segment = entry?.segments[datum!.segmentIndex];
-      if (!entry || !segment) return null;
+      if (!entry || !segment) {
+        return null;
+      }
 
-      const startPoint = api.coord([startMs, rowIndex]);
-      const endPoint = api.coord([endMs, rowIndex]);
+      const layout = layoutGanttBar(params, api, { barHeight: BAR_HEIGHT });
+      if (!layout) {
+        return null;
+      }
+      const { clippedShape } = layout;
 
-      const barTop = startPoint[1] - BAR_HEIGHT / 2;
-      const width = Math.max(1, endPoint[0] - startPoint[0]);
-
-      const coord = params.coordSys as { x?: number; y?: number; width?: number; height?: number };
-      const clipBound =
-        typeof coord.width === 'number' && typeof coord.height === 'number'
-          ? { x: coord.x ?? 0, y: coord.y ?? 0, width: coord.width, height: coord.height }
-          : null;
-      const rectShape = { x: startPoint[0], y: barTop, width, height: BAR_HEIGHT };
-      const clippedShape = clipBound ? clipRectByRect(rectShape, clipBound) : rectShape;
-      if (!clippedShape) return null;
+      const hasSelection = selectedEntityId != null;
+      const isSelected = hasSelection && entry.entityId === selectedEntityId;
+      const opacity = hasSelection && !isSelected ? 0.3 : 1;
 
       const color = segment.color;
       const isFirst = datum!.segmentIndex === 0;
@@ -140,6 +142,7 @@ export function LongEntitiesGantt({
           fill: withOpacity(color, MARK_AREA_FILL_OPACITY),
           stroke: withOpacity(color, MARK_AREA_BORDER_OPACITY),
           lineWidth: 1,
+          opacity,
         },
       };
 
@@ -158,6 +161,7 @@ export function LongEntitiesGantt({
                   fill: textColor,
                   overflow: 'truncate' as const,
                   width: Math.max(0, clippedShape.width - 6),
+                  opacity,
                 },
               },
             ]
@@ -165,8 +169,29 @@ export function LongEntitiesGantt({
 
       return { type: 'group' as const, children: [rect, ...labelChildren] };
     },
-    [entries, customSeriesData, textColor]
+    [entries, customSeriesData, textColor, selectedEntityId]
   );
+
+  const onEvents = useMemo(() => {
+    if (!onEntityClick) {
+      return undefined;
+    }
+    return {
+      click: (params: { dataIndex: number; seriesName?: string }) => {
+        if (params.seriesName !== SERIES_NAME) {
+          return;
+        }
+        const datum = customSeriesData[params.dataIndex];
+        if (!datum) {
+          return;
+        }
+        const entry = entries[datum.entryIndex];
+        if (entry) {
+          onEntityClick(entry);
+        }
+      },
+    };
+  }, [onEntityClick, customSeriesData, entries]);
 
   return (
     <GanttChart
@@ -178,8 +203,22 @@ export function LongEntitiesGantt({
       isDark={isDark}
       seriesName={SERIES_NAME}
       renderItem={renderItem}
-      emptyMessage="No entities"
+      expandable
+      expandLabel="Expand entities chart"
+      collapseLabel="Collapse entities chart"
+      emptyMessage={
+        <div className="flex flex-col items-center gap-0.5 text-center text-muted-foreground opacity-50">
+          <div className="font-medium">No Matching Entities</div>
+          <div className="text-xs">
+            Showing entities longer than {formatDuration(minUsageSeconds * 1_000, 1)}. Zoom to see
+            more.
+          </div>
+        </div>
+      }
       renderTooltip={renderTooltip}
+      cursor={onEntityClick ? 'pointer' : undefined}
+      onEvents={onEvents}
+      onBackgroundClick={onBackgroundClick}
     />
   );
 }

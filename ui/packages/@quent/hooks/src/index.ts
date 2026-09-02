@@ -17,12 +17,20 @@ export { useHoveredWorkerId, useSetHoveredWorkerId } from './dag/useHoveredWorke
 // Timeline hooks
 export {
   useTimelineData,
+  useReturnedTimelineNumBins,
+  useReturnedTimelineIsStale,
   useZoomRange,
+  useGetZoomRange,
+  useReadZoomRange,
   useSetZoomRange,
   useDebouncedZoomRange,
   useSetDebouncedZoomRange,
+  useLongEntityDensity,
+  useSetLongEntityDensity,
   useTimelineHover,
   useSetTimelineHover,
+  useTimelinePointerRatio,
+  useTimelinePointerPublisher,
   useStartTimeMs,
   useSetStartTimeMs,
   useBulkInitialized,
@@ -33,8 +41,8 @@ export {
 } from './timeline/useTimelineAtoms';
 
 // Timeline cache key helpers (consumers need these to address per-item data)
-export { timelineCacheKey } from './atoms/timeline';
-export type { TimelineCacheParams, TimelineHoverState } from './atoms/timeline';
+export { LONG_ENTITY_DENSITIES, timelineCacheKey } from './atoms/timeline';
+export type { LongEntityDensity, TimelineCacheParams, TimelineHoverState } from './atoms/timeline';
 export { bulkEntryId } from './timeline/timeline.utils';
 
 // Complex timeline hooks
@@ -88,6 +96,7 @@ export {
 export type {
   HoveredStatInfo,
   HighlightedNodeIdsState,
+  InspectedOperatorData,
   InspectedNodeData,
 } from './atoms/dagControls';
 
@@ -131,6 +140,15 @@ export type {
 
 // Utility hooks
 export { useDeferredReady } from './dag/useDeferredReady';
+
+export { useSerializableViewState } from './deepLink/useSerializableViewState';
+export type {
+  HydratableViewState,
+  SerializableDagControls,
+  SerializableDataFlowState,
+  SerializableOperatorTableState,
+  SerializableViewState,
+} from './deepLink/useSerializableViewState';
 
 // Pivot-table hooks
 export { useColumnDragDrop } from './pivot-table/useColumnDragDrop';

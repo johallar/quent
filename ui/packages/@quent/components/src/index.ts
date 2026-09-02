@@ -30,7 +30,24 @@ export {
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
 } from './ui/dropdown-menu';
+export {
+  Drawer,
+  DrawerPortal,
+  DrawerOverlay,
+  DrawerTrigger,
+  DrawerClose,
+  DrawerContent,
+  DrawerHeader,
+  DrawerFooter,
+  DrawerTitle,
+  DrawerDescription,
+} from './ui/drawer';
 export { HoverCard, HoverCardTrigger, HoverCardContent } from './ui/hover-card';
+export {
+  OverflowHoverCardContent,
+  OverflowingItemLabel,
+  useOverflowHoverCard,
+} from './ui/overflow-hover-card';
 export { Input } from './ui/input';
 export {
   navigationMenuTriggerStyle,
@@ -43,9 +60,19 @@ export {
   NavigationMenuIndicator,
   NavigationMenuViewport,
 } from './ui/navigation-menu';
+export {
+  Pagination,
+  PaginationContent,
+  PaginationEllipsis,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from './ui/pagination';
 export { Popover, PopoverTrigger, PopoverContent } from './ui/popover';
 export { PointerTooltipPortal } from './ui/pointer-tooltip-portal';
 export type { PointerPosition } from './ui/pointer-tooltip-portal';
+export { PositionedTooltip } from './ui/positioned-tooltip';
 export { ResizablePanelGroup, ResizablePanel, ResizableHandle } from './ui/resizable';
 export { ScrollArea, ScrollBar } from './ui/scroll-area';
 export {
@@ -69,12 +96,19 @@ export {
 } from './ui/select';
 export { SelectField } from './ui/select-field';
 export type { SelectFieldProps, SelectFieldOption } from './ui/select-field';
+export { SearchableSelect } from './ui/searchable-select';
+export type { SearchableSelectProps } from './ui/searchable-select';
 export { RequiredMultiSelectField } from './ui/required-multi-select-field';
 export type {
   RequiredMultiSelectFieldProps,
   RequiredMultiSelectOption,
 } from './ui/required-multi-select-field';
 export { Skeleton } from './ui/skeleton';
+export { Slider } from './ui/slider';
+export { SliderField } from './ui/slider-field';
+export type { SliderFieldProps } from './ui/slider-field';
+export { RangeSliderField } from './ui/range-slider-field';
+export type { RangeSliderFieldProps } from './ui/range-slider-field';
 export { TreeView } from './ui/tree-view';
 export type { TreeDataItem } from './ui/tree-view';
 export { TreeTable } from './ui/tree-table';
@@ -92,6 +126,21 @@ export {
   TableCaption,
 } from './ui/table';
 export { Tabs, TabsList, TabsTrigger, TabsContent } from './ui/tabs';
+export {
+  Toaster,
+  Toast,
+  ToastAction,
+  ToastClose,
+  ToastContent,
+  ToastDescription,
+  ToastPortal,
+  ToastProvider,
+  ToastTitle,
+  ToastViewport,
+  createToastManager,
+  toast,
+  useToastManager,
+} from './ui/toast';
 
 // ─── ECharts ──────────────────────────────────────────────────────────────────
 export { echarts } from './lib/echarts';
@@ -108,19 +157,13 @@ export { getIconForType, collectResourceTypesFromTree } from './lib/resource.uti
 export {
   nanosToMs,
   connectChart,
-  registerAxisPointerSync,
-  unregisterAxisPointerSync,
-  broadcastSyncedPointer,
-  hideSyncedPointer,
   buildBinnedTimelineSeries,
   buildBulkParamsForItem,
   buildTimelineMarks,
   collectVisibleEntries,
   getAdaptiveNumBins,
-  getFsmTypeName,
   getLongEntitiesThreshold,
   getLongFsms,
-  getResourceTypeName,
   getTimelineConfig,
   getTimelineXAxisIntervalMs,
   mergeOverlaySeries,
@@ -129,7 +172,7 @@ export {
   findItemById,
   transformResourceTree,
 } from './lib/timeline.utils';
-export type { AxisPointerSyncOptions } from './lib/timeline.utils';
+export { getFsmTypeName, getResourceTypeName } from '@quent/utils';
 
 // ─── Services – query-plan ────────────────────────────────────────────────────
 export {
@@ -147,12 +190,18 @@ export type { DAGData, QueryPlanDataItem, QueryPlanNodeData } from './services/q
 
 // ─── Timeline components ──────────────────────────────────────────────────────
 export { TimelineController } from './timeline/TimelineController';
+export { TimelinePointerArea } from './timeline/TimelinePointerArea';
+export type {
+  TimelinePointerAreaProps,
+  TimelinePointerRange,
+} from './timeline/TimelinePointerArea';
 export { TimelineRuler } from './timeline/TimelineRuler';
 export { TimelineSettingsPopover } from './timeline/TimelineSettingsPopover';
 export { TimelineSkeleton } from './timeline/TimelineSkeleton';
 export { TimelineToolbar } from './timeline/TimelineToolbar';
 export { QueryToolbar } from './timeline/QueryToolbar';
 export { TooltipContent } from './timeline/TimelineTooltip';
+export type { TooltipItemNoun } from './timeline/TimelineTooltip';
 export { TimelineTooltipPortal } from './timeline/TimelineTooltipPortal';
 export {
   useTimelineEchartsTheme,
@@ -185,8 +234,13 @@ export { DagPlayhead } from './dag/DagPlayhead';
 export { QueryPlanNode } from './query-plan/QueryPlanNode';
 export { NodeFlowBar } from './query-plan/NodeFlowBar';
 
+// ─── Segmented-bar components ─────────────────────────────────────────────────
+export { SegmentedBar } from './segmented-bar/SegmentedBar';
+export type { SegmentedBarProps, SegmentedBarSegment } from './segmented-bar/SegmentedBar';
+
 // ─── Resource-tree components ─────────────────────────────────────────────────
 export { InlineSelector } from './resource-tree/InlineSelector';
+export type { InlineSelectorOption } from './resource-tree/InlineSelector';
 export { ResourceColumn } from './resource-tree/ResourceColumn';
 export { ResourceGroupRow } from './resource-tree/ResourceGroupRow';
 export { ResourceRow } from './resource-tree/ResourceRow';
@@ -242,6 +296,10 @@ export {
 } from './pivot-table/utils';
 export type { GroupIndexDef, RowWithGroupKeys } from './pivot-table/utils';
 
+// ─── FSM chart components ─────────────────────────────────────────────────────
+export { FsmCapacityChart } from './fsm-chart/FsmCapacityChart';
+export type { FsmCapacityChartProps } from './fsm-chart/FsmCapacityChart';
+
 // ─── Long-entities components ─────────────────────────────────────────────────
 export {
   LongEntitiesGantt,
@@ -274,4 +332,27 @@ export {
   clipRectByRect,
   stackIntervalsIntoRows,
   stackIntervalsIntoRows as stackOperatorsIntoRows,
+  layoutGanttBar,
+  ganttExpansionLayout,
 } from './gantt-chart/utils';
+
+// ─── NVTX timeline ────────────────────────────────────────────────────────────
+export { NvtxGantt, NVTX_GANTT_HEIGHT } from './nvtx-timeline/NvtxGantt';
+export type { NvtxGanttProps } from './nvtx-timeline/NvtxGantt';
+export {
+  NVTX_SECTION_ROW_TYPE,
+  NVTX_DOMAIN_ROW_TYPE,
+  NVTX_LANE_ROW_TYPE,
+  NVTX_SECTION_ID,
+  nvtxDomainRowId,
+  nvtxThreadRowId,
+  nvtxProcessRowId,
+  nvtxMarksRowId,
+  buildNvtxTree,
+  indexNvtxLanes,
+  isNvtxTreeEntity,
+  nvtxDomainMeta,
+  nvtxLaneLabel,
+  nvtxDefaultExpandedIds,
+} from './nvtx-timeline/utils';
+export type { NvtxTreeEntity, NvtxTreeItem } from './nvtx-timeline/utils';

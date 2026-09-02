@@ -1,13 +1,7 @@
 // SPDX-FileCopyrightText: Copyright (c) 2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-import {
-  infiniteQueryOptions,
-  keepPreviousData,
-  queryOptions,
-  useInfiniteQuery,
-  useQuery,
-} from '@tanstack/react-query';
+import { keepPreviousData, queryOptions, useQuery } from '@tanstack/react-query';
 import type {
   EntityListRequest,
   EntityScope,
@@ -83,29 +77,29 @@ export const useEntityList = (
   options?: { staleTime?: number; enabled?: boolean }
 ) => useQuery(entityListQueryOptions(params, options));
 
-type PaginatedEntityListParams = EntityListParams & { maxItems: number };
+// Raw-request variant: accepts a pre-built EntityListRequest directly.
+// Used when the caller constructs the full request object itself.
+interface EntitiesParams {
+  engineId: string;
+  request: EntityListRequest<QueryFilter, OperatorFilter>;
+}
 
-export const entityListInfiniteQueryOptions = (
-  params: PaginatedEntityListParams,
-  options?: { staleTime?: number; enabled?: boolean }
-) => {
-  const initialRequest = buildRequest({ ...params, page: 0 });
-  return infiniteQueryOptions({
-    queryKey: ['entityList', 'infinite', params.engineId, initialRequest],
-    queryFn: ({ pageParam }) =>
-      fetchEntityList(params.engineId, buildRequest({ ...params, page: pageParam })),
-    initialPageParam: 0,
-    getNextPageParam: (lastPage, pages) => {
-      const loadedCount = pages.reduce((count, page) => count + page.items.length, 0);
-      return lastPage.items.length > 0 && loadedCount < lastPage.total ? pages.length : undefined;
-    },
+interface EntitiesOptions {
+  staleTime?: number;
+  enabled?: boolean;
+}
+
+export const entitiesQueryOptions = (
+  { engineId, request }: EntitiesParams,
+  options?: EntitiesOptions
+) =>
+  queryOptions({
+    queryKey: ['entities', engineId, request],
+    queryFn: () => fetchEntityList(engineId, request),
     staleTime: options?.staleTime ?? DEFAULT_STALE_TIME,
-    enabled: options?.enabled ?? true,
+    enabled: options?.enabled,
     placeholderData: keepPreviousData,
   });
-};
 
-export const useInfiniteEntityList = (
-  params: PaginatedEntityListParams,
-  options?: { staleTime?: number; enabled?: boolean }
-) => useInfiniteQuery(entityListInfiniteQueryOptions(params, options));
+export const useEntities = (params: EntitiesParams, options?: EntitiesOptions) =>
+  useQuery(entitiesQueryOptions(params, options));
