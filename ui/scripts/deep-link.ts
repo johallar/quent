@@ -64,12 +64,12 @@ async function readState(
             : {}),
         }
       : { ...raw, route };
+  const resourceTypes = parseList(values['resource-types']);
+  const fsmTypes = parseList(values['fsm-types']);
   const resourceFilter = {
     ...(typeof values['resource-search'] === 'string' ? { search: values['resource-search'] } : {}),
-    ...(parseList(values['resource-types'])
-      ? { resourceTypes: parseList(values['resource-types']) }
-      : {}),
-    ...(parseList(values['fsm-types']) ? { fsmTypes: parseList(values['fsm-types']) } : {}),
+    ...(resourceTypes ? { resourceTypes } : {}),
+    ...(fsmTypes ? { fsmTypes } : {}),
     ...(values['show-others'] === true ? { showOthers: true } : {}),
   };
   const candidateWithFilter = mergeResourceFilter(candidate, resourceFilter);
