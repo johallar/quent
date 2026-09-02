@@ -144,6 +144,16 @@ describe('NVTX resource tree', () => {
     ]);
   });
 
+  it('preserves the original tree for whitespace-only searches', () => {
+    const tree = buildNvtxTree(catalog, new Set(), null)!;
+    const result = filterNvtxTree(tree, ' \t ');
+
+    expect(result.filteredTree).toBe(tree);
+    expect(result.isActive).toBe(false);
+    expect(result.directMatchIds).toEqual(new Set());
+    expect(result.matchCount).toBe(0);
+  });
+
   it('supports comma-separated OR groups and space-separated AND terms', () => {
     const tree = buildNvtxTree(catalog, new Set(), null)!;
     const result = filterNvtxTree(tree, 'libcudf missing, CCCL worker');

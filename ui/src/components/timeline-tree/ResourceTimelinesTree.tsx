@@ -102,7 +102,7 @@ export function useResourceTimelinesTreeModel({
   useAutoExpandMatchingAncestors(
     rootItem,
     resourceFilterResult.directMatchIds,
-    deferredResourceFilter.search.trim().length > 0 && resourceFilter.showOthers
+    resourceFilterResult.isActive && resourceFilter.showOthers
   );
   const highlightedItemIds = useMemo(
     () =>

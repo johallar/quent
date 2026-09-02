@@ -203,12 +203,12 @@ function nvtxItemSearchLabel(item: NvtxTreeItem): string {
 function matchesNvtxSearch(item: NvtxTreeItem, search: string): boolean {
   const termGroups = search
     .split(',')
-    .map(group => group.trim().toLocaleLowerCase().split(/\s+/).filter(Boolean))
+    .map(group => group.trim().toLowerCase().split(/\s+/).filter(Boolean))
     .filter(group => group.length > 0);
   if (termGroups.length === 0) {
     return true;
   }
-  const label = nvtxItemSearchLabel(item).toLocaleLowerCase();
+  const label = nvtxItemSearchLabel(item).toLowerCase();
   return termGroups.some(group => group.every(term => label.includes(term)));
 }
 

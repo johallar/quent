@@ -185,32 +185,36 @@ const makeBundle = (workerId: string | null = null): QueryBundle<EntityRef> =>
 
 const makeNestedBundle = (): QueryBundle<EntityRef> => {
   const bundle = makeBundle();
+  const nestedResourceGroup = {
+    id: NESTED_GROUP_ID,
+    instance_name: 'Worker 0',
+    type_name: 'WorkerGroup',
+    parent_group_id: ROOT_GROUP_ID,
+  } satisfies QueryBundle<EntityRef>['entities']['resource_groups'][string];
+  const nestedResourceTree = {
+    ResourceGroup: {
+      id: { QueryGroup: ROOT_GROUP_ID },
+      children: [
+        {
+          ResourceGroup: {
+            id: { ResourceGroup: NESTED_GROUP_ID },
+            children: [{ Resource: { Resource: RESOURCE_ID } }],
+          },
+        },
+      ],
+    },
+  } satisfies QueryBundle<EntityRef>['resource_tree'];
+
   return {
     ...bundle,
     entities: {
       ...bundle.entities,
       resource_groups: {
-        [NESTED_GROUP_ID]: {
-          id: NESTED_GROUP_ID,
-          instance_name: 'Worker 0',
-          type_name: 'WorkerGroup',
-        },
+        [NESTED_GROUP_ID]: nestedResourceGroup,
       },
     },
-    resource_tree: {
-      ResourceGroup: {
-        id: { QueryGroup: ROOT_GROUP_ID },
-        children: [
-          {
-            ResourceGroup: {
-              id: { ResourceGroup: NESTED_GROUP_ID },
-              children: [{ Resource: { Resource: RESOURCE_ID } }],
-            },
-          },
-        ],
-      },
-    },
-  } as unknown as QueryBundle<EntityRef>;
+    resource_tree: nestedResourceTree,
+  };
 };
 
 const makeTimeline = (start: number, end: number): SingleTimelineResponse =>
@@ -624,6 +628,31 @@ describe('QueryResourceTree — resource filtering', () => {
     store.set(resourceFilterAtom, {
       search: 'GPU 0',
       resourceTypes: [],
+      fsmTypes: [],
+      showOthers: true,
+    });
+
+    renderWithQuery(
+      <JotaiProvider store={store}>
+        <QueryResourceTree
+          engineId="engine-1"
+          queryBundle={makeNestedBundle()}
+          seedRootExpanded={false}
+        />
+      </JotaiProvider>
+    );
+
+    await waitFor(() => {
+      expect(capturedExpandedIds).toContain(ROOT_GROUP_ID);
+      expect(capturedExpandedIds).toContain(NESTED_GROUP_ID);
+    });
+  });
+
+  it('auto-expands matching ancestors for a type-only filter with Show All selected', async () => {
+    const store = createStore();
+    store.set(resourceFilterAtom, {
+      search: '',
+      resourceTypes: [RESOURCE_TYPE],
       fsmTypes: [],
       showOthers: true,
     });
