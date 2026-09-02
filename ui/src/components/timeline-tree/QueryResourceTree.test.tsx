@@ -662,4 +662,40 @@ describe('QueryResourceTree — resource filtering', () => {
     expect(await findByText('No resources match this filter.')).toBeInTheDocument();
     expect(capturedTreeData).toEqual([]);
   });
+
+  it('shows an empty state with Show All selected when neither tree has matches', async () => {
+    vi.mocked(clientApi.useNvtxStream).mockReturnValue({
+      contextId: 'context-1',
+      catalog: {
+        domains: [
+          {
+            domain_id: '1',
+            name: 'Domain 1',
+            color: '#76b900ff',
+            threads: [{ thread_id: 7, name: 'worker 7' }],
+            categories: [],
+            has_uncategorized: false,
+          },
+        ],
+      } as unknown as NvtxCatalog,
+      viewport: null,
+      isLoading: false,
+    });
+    const store = createStore();
+    store.set(resourceFilterAtom, {
+      search: 'missing',
+      resourceTypes: [],
+      fsmTypes: [],
+      showOthers: true,
+    });
+
+    const { findByText } = renderWithQuery(
+      <JotaiProvider store={store}>
+        <QueryResourceTree engineId="engine-1" queryBundle={makeBundle()} />
+      </JotaiProvider>
+    );
+
+    expect(await findByText('No resources match this filter.')).toBeInTheDocument();
+    expect(capturedTreeData).toEqual([]);
+  });
 });

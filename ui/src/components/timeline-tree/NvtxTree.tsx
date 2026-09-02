@@ -112,7 +112,10 @@ function NvtxDomainLabel({
   );
 }
 
-export interface NvtxTreeModel extends TimelineTreeModel, TimelineTreeControls {}
+export interface NvtxTreeModel extends TimelineTreeModel, TimelineTreeControls {
+  filterMatchCount: number;
+  isFilterActive: boolean;
+}
 
 interface NvtxTreeProps {
   engineId: string;
@@ -326,6 +329,8 @@ export function useNvtxTreeModel({
   );
 
   return {
+    filterMatchCount: filterResult?.matchCount ?? 0,
+    isFilterActive: filterResult?.isActive ?? false,
     trees: tree ? [tree as TimelineTreeItem] : [],
     initialSelectedItemId: tree?.id,
     expandedIds,

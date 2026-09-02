@@ -52,7 +52,10 @@ function getRootResourceGroupId(resourceTree: ResourceTree<EntityRef>): string |
 }
 
 export interface ResourceTimelinesTreeModel extends TimelineTreeModel, TimelineTreeControls {
+  filterMatchCount: number;
+  isFilterActive: boolean;
   rootItem: TreeTableItem;
+  showOthers: boolean;
 }
 
 export type { ResourceTimelineSubRow };
@@ -303,7 +306,10 @@ export function useResourceTimelinesTreeModel({
   );
 
   return {
+    filterMatchCount: resourceFilterResult.matchCount,
+    isFilterActive: resourceFilterResult.isActive,
     rootItem,
+    showOthers: resourceFilter.showOthers,
     trees: trees as TimelineTreeItem[],
     emptyMessage: 'No resources match this filter.',
     filters: (
@@ -350,12 +356,16 @@ export function ResourceTimelinesTree({
     subRows,
     seedRootExpanded,
   });
+  const trees =
+    resourceTree.isFilterActive && resourceTree.showOthers && resourceTree.filterMatchCount === 0
+      ? []
+      : [resourceTree];
 
   return (
     <TimelineTreeTable
       durationSeconds={durationSeconds}
       isDark={isDark}
-      trees={[resourceTree]}
+      trees={trees}
       controls={resourceTree}
     />
   );

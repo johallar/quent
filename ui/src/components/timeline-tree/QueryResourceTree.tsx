@@ -91,12 +91,17 @@ export function QueryResourceTree({
     ...(resourceTree.highlightedItemIds ?? []),
     ...(nvtxTree.highlightedItemIds ?? []),
   ]);
+  const hasFilterMatches = resourceTree.filterMatchCount + nvtxTree.filterMatchCount > 0;
+  const trees =
+    resourceTree.isFilterActive && resourceTree.showOthers && !hasFilterMatches
+      ? []
+      : [resourceTree, nvtxTree];
 
   return (
     <TimelineTreeTable
       durationSeconds={durationSeconds}
       isDark={isDark}
-      trees={[resourceTree, nvtxTree]}
+      trees={trees}
       controls={{ ...resourceTree, highlightedItemIds }}
     >
       <EntityDetailDrawer
