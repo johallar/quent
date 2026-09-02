@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: Copyright (c) 2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-import { useCallback, useEffect, useLayoutEffect, useMemo, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useAtom } from 'jotai';
 import { Loader2 } from 'lucide-react';
 import { useReadZoomRange, useSetDebouncedZoomRange, useSetZoomRange } from '@quent/hooks';
@@ -119,24 +119,28 @@ export function DeepLinkBoundary({
     };
   }, [intake.status]);
 
-  useLayoutEffect(() => {
-    if (!intake.isResolved) return;
-    if (intake.initialZoomRange) {
-      setZoomRange(intake.initialZoomRange);
-      setDebouncedZoomRange(intake.initialZoomRange);
-    }
-    if (intake.initialExpandedResourceIds) {
-      setExpandedResourceIds(new Set(intake.initialExpandedResourceIds));
-    }
-    setIsHydrated(true);
-  }, [
-    intake.initialExpandedResourceIds,
-    intake.initialZoomRange,
-    intake.isResolved,
-    setDebouncedZoomRange,
-    setExpandedResourceIds,
-    setZoomRange,
-  ]);
+  const hydrateSharedView = useCallback(
+    (node: HTMLDivElement | null) => {
+      if (!node || !intake.isResolved || isHydrated) return;
+      if (intake.initialZoomRange) {
+        setZoomRange(intake.initialZoomRange);
+        setDebouncedZoomRange(intake.initialZoomRange);
+      }
+      if (intake.initialExpandedResourceIds) {
+        setExpandedResourceIds(new Set(intake.initialExpandedResourceIds));
+      }
+      setIsHydrated(true);
+    },
+    [
+      intake.initialExpandedResourceIds,
+      intake.initialZoomRange,
+      intake.isResolved,
+      isHydrated,
+      setDebouncedZoomRange,
+      setExpandedResourceIds,
+      setZoomRange,
+    ]
+  );
 
   const copyLink = useCallback(async (): Promise<CopyLinkResult> => {
     const capturedRange = resolveCapturedZoomRange(readZoomRange(), durationSeconds);
@@ -178,6 +182,7 @@ export function DeepLinkBoundary({
         children
       ) : (
         <div
+          ref={hydrateSharedView}
           role="status"
           aria-label="Loading shared query"
           className="flex min-h-[calc(100vh-4rem)] w-full items-center justify-center gap-2 text-muted-foreground"

@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: Copyright (c) 2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { ChevronUp, ChevronDown } from 'lucide-react';
 import {
   useSelectedNodeData,
@@ -83,9 +83,7 @@ export const DAGNodeInfoPanel = ({
   const isPlaying = useDataFlowIsPlaying();
   const dataFlowMeta = useDataFlowMeta();
   const dataFlowFrame = useDataFlowFrame();
-  const [isExpanded, setIsExpanded] = useState(false);
   const selectedNodeId = selectedNodeData?.nodeId;
-  const [activeTab, setActiveTab] = useState('stats');
 
   const operatorFrame =
     dataFlowEnabled && selectedNodeData && dataFlowMeta && dataFlowFrame
@@ -94,16 +92,49 @@ export const DAGNodeInfoPanel = ({
 
   const showDataFlowTab = dataFlowEnabled && dataFlowMeta != null;
 
-  useEffect(() => {
-    setIsExpanded(selectedNodeId !== undefined);
-    setActiveTab('stats');
-  }, [selectedNodeId]);
+  const [panelState, setPanelState] = useState<{
+    selectedNodeId: string | undefined;
+    isExpanded: boolean;
+    activeTab: string;
+    effectIsPlaying: boolean;
+    effectIsExpanded: boolean;
+    effectShowDataFlowTab: boolean;
+  }>(() => {
+    const isExpanded = selectedNodeId !== undefined;
+    return {
+      selectedNodeId,
+      isExpanded,
+      activeTab: isPlaying && isExpanded && showDataFlowTab ? 'data-flow' : 'stats',
+      effectIsPlaying: isPlaying,
+      effectIsExpanded: isExpanded,
+      effectShowDataFlowTab: showDataFlowTab,
+    };
+  });
 
-  useEffect(() => {
-    if (isPlaying && isExpanded && showDataFlowTab) {
-      setActiveTab('data-flow');
-    }
-  }, [isPlaying, isExpanded, showDataFlowTab]);
+  const selectionChanged = panelState.selectedNodeId !== selectedNodeId;
+  const nextIsExpanded = selectionChanged ? selectedNodeId !== undefined : panelState.isExpanded;
+  const effectInputsChanged =
+    panelState.effectIsPlaying !== isPlaying ||
+    panelState.effectIsExpanded !== nextIsExpanded ||
+    panelState.effectShowDataFlowTab !== showDataFlowTab;
+
+  if (selectionChanged || effectInputsChanged) {
+    const shouldShowDataFlow = isPlaying && nextIsExpanded && showDataFlowTab;
+    setPanelState({
+      selectedNodeId,
+      isExpanded: nextIsExpanded,
+      activeTab: shouldShowDataFlow
+        ? 'data-flow'
+        : selectionChanged
+          ? 'stats'
+          : panelState.activeTab,
+      effectIsPlaying: isPlaying,
+      effectIsExpanded: nextIsExpanded,
+      effectShowDataFlowTab: showDataFlowTab,
+    });
+  }
+
+  const { activeTab, isExpanded } = panelState;
 
   const scrollClass = cn('px-4 pb-2 h-48 overflow-auto', thinScrollbarClass);
 
@@ -139,7 +170,7 @@ export const DAGNodeInfoPanel = ({
           )}
         </div>
         <button
-          onClick={() => setIsExpanded(!isExpanded)}
+          onClick={() => setPanelState(state => ({ ...state, isExpanded: !state.isExpanded }))}
           disabled={!selectedNodeData}
           className="ml-2 rounded p-1 hover:bg-muted transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-auto disabled:hover:bg-transparent flex-shrink-0"
           aria-label="Toggle operator details"
@@ -157,7 +188,7 @@ export const DAGNodeInfoPanel = ({
         (showDataFlowTab ? (
           <Tabs
             value={activeTab}
-            onValueChange={setActiveTab}
+            onValueChange={value => setPanelState(state => ({ ...state, activeTab: value }))}
             className="border-t overflow-visible"
           >
             <TabsList className="h-7 py-0 px-1 rounded-none">

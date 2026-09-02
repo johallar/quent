@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: Copyright (c) 2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import EChartsReactCore from 'echarts-for-react/lib/core';
 import type { CapacityDecl, FsmTransition, QuantitySpec } from '@quent/utils';
 import { bigintToChartNumber, formatBytes, formatQuantity } from '@quent/utils';
@@ -58,8 +58,11 @@ export function FsmCapacityChart({
   const { handleChartReady } = useChartResize();
   const [pointer, setPointer] = useState<PointerPosition | null>(null);
   const [dataIndex, setDataIndex] = useState<number | null>(null);
-  const [selectedResourceId, setSelectedResourceId] = useState<string | null>(null);
-  const [selectedCapacityName, setSelectedCapacityName] = useState<string | null>(null);
+  const [selection, setSelection] = useState<{
+    transitions: FsmTransition[];
+    resourceId: string | null;
+    capacityName: string | null;
+  }>({ transitions, resourceId: null, capacityName: null });
 
   const { resources, stateLabels } = useMemo(() => {
     const n = transitions.length;
@@ -134,11 +137,9 @@ export function FsmCapacityChart({
     return { resources, stateLabels };
   }, [transitions, resourceLabel, quantitySpecs, getCapacityDecl, defaultCapacityPredicate]);
 
-  // Reset selections when the entity changes
-  useEffect(() => {
-    setSelectedResourceId(null);
-    setSelectedCapacityName(null);
-  }, [transitions]);
+  const selectedResourceId = selection.transitions === transitions ? selection.resourceId : null;
+  const selectedCapacityName =
+    selection.transitions === transitions ? selection.capacityName : null;
 
   // Resolve active resource
   const activeResource =
@@ -249,8 +250,7 @@ export function FsmCapacityChart({
               value={activeResource?.resourceId ?? ''}
               onValueChange={value => {
                 if (!value) return;
-                setSelectedResourceId(value);
-                setSelectedCapacityName(null);
+                setSelection({ transitions, resourceId: value, capacityName: null });
               }}
               clearable={false}
               triggerClassName={SELECT_TRIGGER_CLASS}
@@ -261,7 +261,14 @@ export function FsmCapacityChart({
               ariaLabel="Select capacity"
               options={activeResource.capacities.map(c => ({ value: c.name, label: c.name }))}
               value={activeCapacity?.name ?? ''}
-              onValueChange={value => value && setSelectedCapacityName(value)}
+              onValueChange={value => {
+                if (!value) return;
+                setSelection({
+                  transitions,
+                  resourceId: activeResource.resourceId,
+                  capacityName: value,
+                });
+              }}
               clearable={false}
               triggerClassName={SELECT_TRIGGER_CLASS}
             />

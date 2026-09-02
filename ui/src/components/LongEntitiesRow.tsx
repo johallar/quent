@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: Copyright (c) 2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { useEntityList } from '@quent/client';
 import {
   useBulkInitialized,
@@ -62,8 +62,8 @@ export function LongEntitiesRow({
   const longEntityDensity = useLongEntityDensity();
   const returnedNumBins = useReturnedTimelineNumBins(resourceId);
   const returnedTimelineIsStale = useReturnedTimelineIsStale(resourceId);
-  const previousMinUsageSeconds = useRef<number | null>(null);
   const [maxEntities, setMaxEntities] = useState(ENTITIES_PER_PAGE);
+  const [retainedMinUsageSeconds, setRetainedMinUsageSeconds] = useState<number | null>(null);
   const operatorIds = useMemo(() => [...selectedNodeIds], [selectedNodeIds]);
   const zoomWindow =
     debouncedZoomRange.end > debouncedZoomRange.start
@@ -79,8 +79,10 @@ export function LongEntitiesRow({
     numBins == null
       ? null
       : getLongEntitiesThreshold(zoomWindow.end - zoomWindow.start, numBins, longEntityDensity);
-  if (minUsageSeconds != null) previousMinUsageSeconds.current = minUsageSeconds;
-  const displayedMinUsageSeconds = minUsageSeconds ?? previousMinUsageSeconds.current;
+  const displayedMinUsageSeconds = minUsageSeconds ?? retainedMinUsageSeconds;
+  if (minUsageSeconds !== null && minUsageSeconds !== retainedMinUsageSeconds) {
+    setRetainedMinUsageSeconds(minUsageSeconds);
+  }
 
   const { data, isFetching, isPlaceholderData } = useEntityList(
     {

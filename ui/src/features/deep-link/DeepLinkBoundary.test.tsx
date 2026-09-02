@@ -15,8 +15,9 @@ import { render, screen, waitFor, userEvent } from '@/test/test-utils';
 import { expandedIdsAtom } from '@/atoms/resourceTree';
 import { CopyLinkButton } from './CopyLinkButton';
 import { DeepLinkBoundary } from './DeepLinkBoundary';
+import { DeepLinkNavSlot } from './DeepLinkNavSlot';
+import { DeepLinkNavTargetProvider } from './DeepLinkNavTargetProvider';
 import { decodeDeepLinkState, encodeDeepLinkState } from './deepLink.codec';
-import { DEEP_LINK_NAV_SLOT_ID } from './deepLink.constants';
 import { useDeepLink } from './deepLink.context';
 
 const RESOURCE_A_ID = '01a025ff-ea8b-7881-9d31-72a275872c9d';
@@ -194,8 +195,8 @@ describe('DeepLinkBoundary', () => {
     window.history.replaceState(null, '', '/profile/engine/e/query/q/timeline?unrelated=kept');
 
     render(
-      <>
-        <div id={DEEP_LINK_NAV_SLOT_ID} />
+      <DeepLinkNavTargetProvider>
+        <DeepLinkNavSlot />
         <JotaiProvider>
           <DeepLinkBoundary durationSeconds={100} isQueryReady>
             <SeedViewport start={20} end={60} />
@@ -204,7 +205,7 @@ describe('DeepLinkBoundary', () => {
             <CopyLinkButton />
           </DeepLinkBoundary>
         </JotaiProvider>
-      </>
+      </DeepLinkNavTargetProvider>
     );
 
     await waitFor(() => expect(screen.getByTestId('viewport')).toHaveTextContent('"start":20'));
@@ -238,15 +239,15 @@ describe('DeepLinkBoundary', () => {
     const toastSpy = vi.spyOn(toast, 'add');
 
     render(
-      <>
-        <div id={DEEP_LINK_NAV_SLOT_ID} />
+      <DeepLinkNavTargetProvider>
+        <DeepLinkNavSlot />
         <JotaiProvider>
           <DeepLinkBoundary durationSeconds={100} isQueryReady>
             <SeedViewport start={20} end={60} />
             <CopyLinkButton />
           </DeepLinkBoundary>
         </JotaiProvider>
-      </>
+      </DeepLinkNavTargetProvider>
     );
 
     await userEvent.click(await screen.findByRole('button', { name: 'Copy Link' }));
