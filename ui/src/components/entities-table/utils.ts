@@ -5,9 +5,14 @@ import type {
   EntityListRequest,
   EntityListResponse,
   FiniteStateMachine,
+  Operator,
   OperatorFilter,
+  Plan,
   QueryFilter,
+  Resource,
+  ResourceGroup,
   SortDir,
+  Worker,
 } from '@quent/utils';
 import type { EntityFilters, EntityTableRow } from './types';
 
@@ -85,13 +90,13 @@ export function validateEntityFilters(filters: EntityFilters): EntityFilterValid
 
 export function buildEntityRequest({
   filters,
-  operatorId,
+  operatorIds,
   page,
   queryId,
   durationS,
 }: {
   filters: EntityFilters;
-  operatorId: string | null;
+  operatorIds: ReadonlySet<string>;
   page: number;
   queryId: string;
   durationS: number;
@@ -109,7 +114,7 @@ export function buildEntityRequest({
       },
       sort: { key: 'UsageDuration', dir: filters.sortDir },
       page: { max: normalizePageSize(filters.pageSize), page },
-      application: { operator_ids: operatorId != null ? [operatorId] : [] },
+      application: { operator_ids: [...operatorIds] },
     },
     app_params: { query_id: queryId },
   };
@@ -130,10 +135,10 @@ function numericFilterValueChanged(value: string, defaultValue: string): boolean
 export function activeEntityFilterCount(
   filters: EntityFilters,
   defaults: EntityFilters,
-  operatorId: string | null
+  operatorIds: ReadonlySet<string>
 ): number {
   return [
-    operatorId !== null,
+    operatorIds.size > 0,
     filters.entityType !== null,
     filters.resourceId !== null,
     filters.minUsageS !== '',
@@ -160,6 +165,55 @@ export function parseOptionalNumber(value: string): number | null {
   }
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : null;
+}
+
+/** Builds the crossfilter chip label (e.g. shown in QueryToolbar) for a set of selected operators. */
+export function selectedOperatorsLabel(
+  operatorIds: ReadonlySet<string>,
+  operatorLabel: (id: string) => string
+): string | null {
+  if (operatorIds.size === 0) {
+    return null;
+  }
+  if (operatorIds.size === 1) {
+    return operatorLabel([...operatorIds][0]);
+  }
+  return `${operatorIds.size} operators`;
+}
+
+/** Builds a "Plan / Worker" subtitle so operators sharing the same name can be told apart. */
+export function operatorLocationDescription(
+  operator: Operator,
+  plans: Record<string, Plan>,
+  workers: Record<string, Worker>
+): string | undefined {
+  const plan = operator.plan_id ? plans[operator.plan_id] : undefined;
+  if (!plan) {
+    return undefined;
+  }
+  const planLabel = plan.instance_name ?? plan.id;
+  const worker = plan.worker_id ? workers[plan.worker_id] : undefined;
+  const workerLabel = worker ? (worker.instance_name ?? worker.id) : null;
+  return workerLabel ? `Plan: ${planLabel} · Worker: ${workerLabel}` : `Plan: ${planLabel}`;
+}
+
+/** Builds a "Worker" subtitle so resources sharing the same name across workers can be told apart. */
+export function resourceLocationDescription(
+  resource: Resource,
+  resourceGroups: Record<string, ResourceGroup>,
+  workers: Record<string, Worker>
+): string | undefined {
+  const visited = new Set<string>();
+  let groupId: string | null = resource.parent_group_id;
+  while (groupId && !visited.has(groupId)) {
+    visited.add(groupId);
+    const worker = workers[groupId];
+    if (worker) {
+      return `Worker: ${worker.instance_name ?? worker.id}`;
+    }
+    groupId = resourceGroups[groupId]?.parent_group_id ?? null;
+  }
+  return undefined;
 }
 
 export function fsmSpan(fsm: FiniteStateMachine): { start: number; end: number } {

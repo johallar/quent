@@ -173,7 +173,9 @@ describe('EntitiesTable', () => {
     renderTable(<EntitiesTable engineId="engine-1" queryId="query-1" queryBundle={queryBundle} />);
 
     fireEvent.click(screen.getByRole('combobox', { name: 'Operator' }));
-    fireEvent.change(screen.getByLabelText('Search operator'), { target: { value: 'one' } });
+    fireEvent.change(screen.getByPlaceholderText('Search operators…'), {
+      target: { value: 'one' },
+    });
     fireEvent.click(screen.getByRole('option', { name: 'Operator One' }));
 
     expect(screen.getByText('1 active filter')).toBeInTheDocument();
@@ -182,6 +184,39 @@ describe('EntitiesTable', () => {
 
     const params = useEntities.mock.lastCall?.[0];
     expect(params.request.entry.application.operator_ids).toEqual([]);
+  });
+
+  it('supports selecting multiple operators from the dropdown', () => {
+    const multiOperatorQueryBundle = {
+      ...queryBundle,
+      entities: {
+        ...queryBundle.entities,
+        operators: {
+          ...queryBundle.entities.operators,
+          'operator-2': {
+            id: 'operator-2',
+            instance_name: 'Operator Two',
+            operator_type_name: 'Filter',
+          },
+        },
+      },
+    } as unknown as QueryBundle<EntityRef>;
+
+    renderTable(
+      <EntitiesTable engineId="engine-1" queryId="query-1" queryBundle={multiOperatorQueryBundle} />
+    );
+
+    fireEvent.click(screen.getByRole('combobox', { name: 'Operator' }));
+    fireEvent.click(screen.getByRole('option', { name: 'Operator One' }));
+    fireEvent.click(screen.getByRole('option', { name: 'Operator Two' }));
+    act(() => vi.advanceTimersByTime(300));
+
+    const params = useEntities.mock.lastCall?.[0];
+    expect(params.request.entry.application.operator_ids).toEqual(
+      expect.arrayContaining(['operator-1', 'operator-2'])
+    );
+    expect(params.request.entry.application.operator_ids).toHaveLength(2);
+    expect(screen.getByRole('combobox', { name: 'Operator' })).toHaveTextContent('2 selected');
   });
 
   it('shows empty state when the response contains no entities', () => {

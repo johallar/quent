@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { Search, X } from 'lucide-react';
+import { useMemo } from 'react';
 import {
   Badge,
   Button,
@@ -45,6 +46,11 @@ export function ResourceFilterSearch({
     search.trim().length > 0 || selectedResourceTypes.length > 0 || selectedFsmTypes.length > 0;
   const selectedFilterCount =
     Number(search.trim().length > 0) + selectedResourceTypes.length + selectedFsmTypes.length;
+  const resourceTypeOptions = useMemo(
+    () => resourceTypes.map(value => ({ value })),
+    [resourceTypes]
+  );
+  const fsmTypeOptions = useMemo(() => fsmTypes.map(value => ({ value })), [fsmTypes]);
   const toggleValue = (values: string[], value: string): string[] =>
     values.includes(value) ? values.filter(current => current !== value) : [...values, value];
 
@@ -115,7 +121,7 @@ export function ResourceFilterSearch({
             onToggleOption={resourceType =>
               onResourceTypesChange(toggleValue(selectedResourceTypes, resourceType))
             }
-            options={resourceTypes}
+            options={resourceTypeOptions}
             searchPlaceholder="Search resource types…"
             selectedOptionIds={new Set(selectedResourceTypes)}
             showSelectedBadges={false}
@@ -128,7 +134,7 @@ export function ResourceFilterSearch({
             onSelectAllOptions={() => onFsmTypesChange(fsmTypes)}
             onSelectNoOptions={() => onFsmTypesChange([])}
             onToggleOption={fsmType => onFsmTypesChange(toggleValue(selectedFsmTypes, fsmType))}
-            options={fsmTypes}
+            options={fsmTypeOptions}
             searchPlaceholder="Search FSM types…"
             selectedOptionIds={new Set(selectedFsmTypes)}
             showSelectedBadges={false}
