@@ -84,7 +84,11 @@ export function ResourceFilterSearch({
           )}
         </Button>
       </PopoverTrigger>
-      <PopoverContent align="start" className="w-auto max-w-[calc(100vw-2rem)]" side="bottom">
+      <PopoverContent
+        align="start"
+        className="w-auto max-w-[calc(100vw-2rem)] border-border/80 bg-popover py-3 text-popover-foreground shadow-lg"
+        side="bottom"
+      >
         <div className="flex w-max max-w-full items-center gap-1.5">
           <div className="relative w-80 shrink-0">
             <Search
