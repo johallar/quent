@@ -38,10 +38,6 @@ vi.mock('@quent/hooks', async importOriginal => {
   };
 });
 
-vi.mock('@/hooks/useExpandedIds', () => ({
-  useExpandedIds: () => ({ expandedIds: new Set<string>(), handleExpandChange: vi.fn() }),
-}));
-
 vi.mock('@/contexts/ThemeContext', () => ({
   useTheme: () => ({ theme: 'light', setTheme: vi.fn() }),
   THEME_DARK: 'dark',
@@ -53,6 +49,7 @@ let capturedTimelineData: SingleTimelineResponse | null | undefined = undefined;
 let capturedTreeData: TreeTableItem[] = [];
 let capturedHighlightedIds = new Set<string>();
 let capturedExpandedIds = new Set<string>();
+let capturedOnExpandChange: ((itemId: string, isExpanded: boolean) => void) | undefined;
 let capturedInlineSelectors: Array<{
   id: string;
   value: string;
@@ -84,10 +81,12 @@ vi.mock('@quent/components', async importOriginal => {
       controlledExpandedIds?: Set<string>;
       data: TreeTableItem[];
       highlightedItemIds?: Set<string>;
+      onExpandChange?: (itemId: string, isExpanded: boolean) => void;
     }) => {
       capturedTreeData = props.data;
       capturedHighlightedIds = props.highlightedItemIds ?? new Set();
       capturedExpandedIds = props.controlledExpandedIds ?? new Set();
+      capturedOnExpandChange = props.onExpandChange;
       const longEntityElement = props.columns[1]?.render?.({
         item: {
           id: actual.longEntitiesRowId(RESOURCE_ID),
@@ -145,6 +144,7 @@ vi.mock('@quent/client', async importOriginal => {
 
 const DURATION_S = 100;
 const ROOT_GROUP_ID = 'qg-1';
+const NESTED_GROUP_ID = 'rg-1';
 const RESOURCE_ID = 'res-1';
 const RESOURCE_TYPE = 'GPU';
 
@@ -180,6 +180,36 @@ const makeBundle = (workerId: string | null = null): QueryBundle<EntityRef> =>
     start_time_unix_ns: 0n,
     duration_s: DURATION_S,
   }) as unknown as QueryBundle<EntityRef>;
+
+const makeNestedBundle = (): QueryBundle<EntityRef> => {
+  const bundle = makeBundle();
+  return {
+    ...bundle,
+    entities: {
+      ...bundle.entities,
+      resource_groups: {
+        [NESTED_GROUP_ID]: {
+          id: NESTED_GROUP_ID,
+          instance_name: 'Worker 0',
+          type_name: 'WorkerGroup',
+        },
+      },
+    },
+    resource_tree: {
+      ResourceGroup: {
+        id: { QueryGroup: ROOT_GROUP_ID },
+        children: [
+          {
+            ResourceGroup: {
+              id: { ResourceGroup: NESTED_GROUP_ID },
+              children: [{ Resource: { Resource: RESOURCE_ID } }],
+            },
+          },
+        ],
+      },
+    },
+  } as unknown as QueryBundle<EntityRef>;
+};
 
 const makeTimeline = (start: number, end: number): SingleTimelineResponse =>
   ({
@@ -221,6 +251,7 @@ beforeEach(() => {
   capturedTreeData = [];
   capturedHighlightedIds = new Set();
   capturedExpandedIds = new Set();
+  capturedOnExpandChange = undefined;
   capturedLongEntityProps = undefined;
   vi.mocked(clientApi.useNvtxStream).mockReturnValue({
     contextId: undefined,
@@ -497,13 +528,13 @@ describe('QueryResourceTree — resource filtering', () => {
     expect(capturedHighlightedIds).not.toContain(RESOURCE_ID);
   });
 
-  it('expands matching resources to show their child subrows', async () => {
+  it('allows matching resource rows to be expanded while Show All is selected', async () => {
     const store = createStore();
     store.set(resourceFilterAtom, {
       search: 'GPU 0',
       resourceTypes: [],
       fsmTypes: [],
-      showOthers: false,
+      showOthers: true,
     });
 
     renderWithQuery(
@@ -512,12 +543,14 @@ describe('QueryResourceTree — resource filtering', () => {
       </JotaiProvider>
     );
 
-    await waitFor(() =>
-      expect(collectRowTypes(capturedTreeData)).toEqual(
-        expect.arrayContaining([OPERATOR_TIMELINE_ROW_TYPE, LONG_ENTITIES_ROW_TYPE])
-      )
-    );
-    expect(capturedExpandedIds).toContain(RESOURCE_ID);
+    await waitFor(() => expect(capturedTreeData[0]?.id).toBe(ROOT_GROUP_ID));
+    expect(capturedExpandedIds).not.toContain(RESOURCE_ID);
+
+    act(() => capturedOnExpandChange?.(RESOURCE_ID, true));
+    await waitFor(() => expect(capturedExpandedIds).toContain(RESOURCE_ID));
+
+    act(() => capturedOnExpandChange?.(RESOURCE_ID, false));
+    await waitFor(() => expect(capturedExpandedIds).not.toContain(RESOURCE_ID));
   });
 
   it('shows the whole tree and highlights matches when Show All is selected', async () => {
@@ -541,6 +574,31 @@ describe('QueryResourceTree — resource filtering', () => {
     expect(capturedTreeData[0]?.children?.[0]?.id).toBe(RESOURCE_ID);
     expect(capturedHighlightedIds).toContain(RESOURCE_ID);
     expect(capturedExpandedIds).toContain(ROOT_GROUP_ID);
+  });
+
+  it('auto-expands every ancestor of found resources while Show All is selected', async () => {
+    const store = createStore();
+    store.set(resourceFilterAtom, {
+      search: 'GPU 0',
+      resourceTypes: [],
+      fsmTypes: [],
+      showOthers: true,
+    });
+
+    renderWithQuery(
+      <JotaiProvider store={store}>
+        <QueryResourceTree
+          engineId="engine-1"
+          queryBundle={makeNestedBundle()}
+          seedRootExpanded={false}
+        />
+      </JotaiProvider>
+    );
+
+    await waitFor(() => {
+      expect(capturedExpandedIds).toContain(ROOT_GROUP_ID);
+      expect(capturedExpandedIds).toContain(NESTED_GROUP_ID);
+    });
   });
 
   it('shows an empty state when no resources match', async () => {

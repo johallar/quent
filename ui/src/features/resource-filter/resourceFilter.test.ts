@@ -51,7 +51,6 @@ describe('filterResourceTree', () => {
 
     expect(result.filteredItems.map(item => item.id)).toEqual(['gpu-1']);
     expect(result.directMatchIds).toEqual(new Set(['gpu-1']));
-    expect(result.autoExpandedIds).toEqual(new Set(['query', 'worker-a']));
   });
 
   it('matches resource IDs', () => {
@@ -74,7 +73,6 @@ describe('filterResourceTree', () => {
     expect(result.filteredItems.map(item => item.id)).toEqual(['query']);
     expect(result.filteredItems[0]?.children?.map(item => item.id)).toEqual(['worker-a']);
     expect(result.matchCount).toBe(2);
-    expect(result.autoExpandedIds).toEqual(new Set(['query']));
   });
 
   it('matches selected resource types as alternatives', () => {
@@ -101,7 +99,6 @@ describe('filterResourceTree', () => {
     const result = filter({ search: 'Worker A' });
 
     expect(result.filteredItems).toEqual([{ ...worker, children: [] }]);
-    expect(result.autoExpandedIds).toEqual(new Set(['query']));
   });
 
   it('returns no tree when nothing matches', () => {

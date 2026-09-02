@@ -21,7 +21,6 @@ export const EMPTY_RESOURCE_FILTER: ResourceFilter = {
 };
 
 export interface ResourceFilterResult {
-  autoExpandedIds: Set<string>;
   directMatchIds: Set<string>;
   filteredItems: TreeTableItem[];
   isActive: boolean;
@@ -86,14 +85,12 @@ export function filterResourceTree(
   entities: ResourceTypeEntities,
   filter: ResourceFilter
 ): ResourceFilterResult {
-  const autoExpandedIds = new Set<string>();
   const directMatchIds = new Set<string>();
   let matchCount = 0;
   const isActive = isResourceFilterActive(filter);
 
   if (!isActive) {
     return {
-      autoExpandedIds,
       directMatchIds,
       filteredItems: [root],
       isActive,
@@ -101,30 +98,20 @@ export function filterResourceTree(
     };
   }
 
-  const visit = (item: TreeTableItem, ancestorIds: string[]): TreeTableItem[] => {
+  const visit = (item: TreeTableItem): TreeTableItem[] => {
     const isDirectMatch = itemMatches(item, filter, entities);
-    if (isDirectMatch) {
-      for (const ancestorId of ancestorIds) {
-        autoExpandedIds.add(ancestorId);
-      }
-    }
-    const matchedChildren =
-      item.children?.flatMap(child => visit(child, [...ancestorIds, item.id])) ?? [];
+    const matchedChildren = item.children?.flatMap(visit) ?? [];
     if (isDirectMatch) {
       directMatchIds.add(item.id);
       matchCount += 1;
-      if (matchedChildren.length > 0) {
-        autoExpandedIds.add(item.id);
-      }
       return [{ ...item, children: matchedChildren }];
     }
     return matchedChildren;
   };
 
   return {
-    autoExpandedIds,
     directMatchIds,
-    filteredItems: visit(root, []),
+    filteredItems: visit(root),
     isActive,
     matchCount,
   };

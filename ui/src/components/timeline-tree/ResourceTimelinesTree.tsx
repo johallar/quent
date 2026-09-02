@@ -33,7 +33,7 @@ import {
 } from '@/atoms/resourceTree';
 import { ResourceFilterSearch } from '@/features/resource-filter/ResourceFilterSearch';
 import { filterResourceTree } from '@/features/resource-filter/resourceFilter';
-import { useExpandedIds } from '@/hooks/useExpandedIds';
+import { useAutoExpandMatchingAncestors, useExpandedIds } from '@/hooks/useExpandedIds';
 import type { ResourceTimelineSubRow } from './sub-rows';
 import {
   TimelineTreeTable,
@@ -95,6 +95,11 @@ export function useResourceTimelinesTreeModel({
   const resourceFilterResult = useMemo(
     () => filterResourceTree(rootItem, entities, deferredResourceFilter),
     [deferredResourceFilter, entities, rootItem]
+  );
+  useAutoExpandMatchingAncestors(
+    rootItem,
+    resourceFilterResult.directMatchIds,
+    deferredResourceFilter.search.trim().length > 0 && resourceFilter.showOthers
   );
   const highlightedItemIds = useMemo(
     () =>
@@ -160,24 +165,8 @@ export function useResourceTimelinesTreeModel({
     subRows,
   ]);
 
-  const expandableMatchIds = useMemo(() => {
-    const ids = new Set<string>();
-    const visit = (item: TreeTableItem) => {
-      if (resourceFilterResult.directMatchIds.has(item.id) && item.children?.length) {
-        ids.add(item.id);
-      }
-      item.children?.forEach(visit);
-    };
-    trees.forEach(visit);
-    return ids;
-  }, [resourceFilterResult.directMatchIds, trees]);
-
   const { expandedIds, handleExpandChange } = useExpandedIds(
     seedRootExpanded ? rootItem.id : undefined
-  );
-  const controlledExpandedIds = useMemo(
-    () => new Set([...expandedIds, ...resourceFilterResult.autoExpandedIds, ...expandableMatchIds]),
-    [expandableMatchIds, expandedIds, resourceFilterResult.autoExpandedIds]
   );
   const bulkRootItem = useMemo(
     () =>
@@ -197,7 +186,7 @@ export function useResourceTimelinesTreeModel({
     engineId,
     queryId: queryBundle.query_id,
     rootItem: bulkRootItem,
-    expandedIds: controlledExpandedIds,
+    expandedIds,
     selectedTypes,
     groupFsmFilters: selectedFsmTypes,
     entities,
@@ -337,7 +326,7 @@ export function useResourceTimelinesTreeModel({
       />
     ),
     initialSelectedItemId: rootItem.id,
-    expandedIds: controlledExpandedIds,
+    expandedIds,
     highlightedItemIds,
     timelineData: fetchedRootTimeline,
     onExpandChange,
