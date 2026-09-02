@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: Copyright (c) 2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-import { useAtom, useSetAtom } from 'jotai';
+import { useAtom, useAtomValue, useSetAtom } from 'jotai';
 import { ChartGantt } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { useNvtxStream, type NvtxCategoryFilter } from '@quent/client';
@@ -14,6 +14,7 @@ import {
   NVTX_SECTION_ROW_TYPE,
   NvtxGantt,
   buildNvtxTree,
+  filterNvtxTree,
   indexNvtxLanes,
   isNvtxTreeEntity,
   nvtxDefaultExpandedIds,
@@ -24,10 +25,11 @@ import { useDebouncedZoomRange, useSetDebouncedZoomRange, useSetZoomRange } from
 import type { EntityRef, NvtxCatalog, QueryBundle } from '@quent/utils';
 import {
   expandedIdsAtom,
+  resourceFilterAtom,
   selectedNvtxCategoriesAtom,
   selectedNvtxDomainAtom,
 } from '@/atoms/resourceTree';
-import { useExpandedIds } from '@/hooks/useExpandedIds';
+import { useAutoExpandMatchingAncestors, useExpandedIds } from '@/hooks/useExpandedIds';
 import {
   TimelineTreeTable,
   useTimelineTreeSetup,
@@ -131,6 +133,7 @@ export function useNvtxTreeModel({
   const durationSeconds = queryBundle.duration_s;
   const [selectedNvtxDomain, setSelectedNvtxDomain] = useAtom(selectedNvtxDomainAtom);
   const [selectedNvtxCategories, setSelectedNvtxCategories] = useAtom(selectedNvtxCategoriesAtom);
+  const resourceFilter = useAtomValue(resourceFilterAtom);
   const setExpandedIds = useSetAtom(expandedIdsAtom);
   const { expandedIds, handleExpandChange } = useExpandedIds();
   const setZoomRange = useSetZoomRange();
@@ -219,9 +222,29 @@ export function useNvtxTreeModel({
     () => new Set(laneRowIdsKey ? laneRowIdsKey.split('\0') : []),
     [laneRowIdsKey]
   );
-  const tree = useMemo(
+  const unfilteredTree = useMemo(
     () => (catalog ? buildNvtxTree(catalog, laneRowIds, selectedNvtxDomain) : null),
     [catalog, laneRowIds, selectedNvtxDomain]
+  );
+  const filterResult = useMemo(
+    () => (unfilteredTree ? filterNvtxTree(unfilteredTree, resourceFilter.search) : null),
+    [resourceFilter.search, unfilteredTree]
+  );
+  useAutoExpandMatchingAncestors(
+    unfilteredTree,
+    filterResult?.directMatchIds ?? new Set(),
+    filterResult?.isActive ?? false
+  );
+  const tree =
+    !filterResult?.isActive || resourceFilter.showOthers
+      ? unfilteredTree
+      : filterResult.filteredTree;
+  const highlightedItemIds = useMemo(
+    () =>
+      filterResult?.isActive && resourceFilter.showOthers
+        ? filterResult.directMatchIds
+        : new Set<string>(),
+    [filterResult, resourceFilter.showOthers]
   );
   const onZoomChange = useCallback(
     (range: { start: number; end: number }) => {
@@ -306,6 +329,7 @@ export function useNvtxTreeModel({
     trees: tree ? [tree as TimelineTreeItem] : [],
     initialSelectedItemId: tree?.id,
     expandedIds,
+    highlightedItemIds,
     onExpandChange: handleExpandChange,
     onZoomChange,
     renderLabel,

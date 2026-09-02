@@ -87,13 +87,17 @@ export function QueryResourceTree({
     seedRootExpanded,
   });
   const nvtxTree = useNvtxTreeModel({ engineId, queryBundle, isDark });
+  const highlightedItemIds = new Set([
+    ...(resourceTree.highlightedItemIds ?? []),
+    ...(nvtxTree.highlightedItemIds ?? []),
+  ]);
 
   return (
     <TimelineTreeTable
       durationSeconds={durationSeconds}
       isDark={isDark}
       trees={[resourceTree, nvtxTree]}
-      controls={resourceTree}
+      controls={{ ...resourceTree, highlightedItemIds }}
     >
       <EntityDetailDrawer
         fsm={drawerFsm}

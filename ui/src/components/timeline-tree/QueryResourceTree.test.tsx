@@ -19,6 +19,8 @@ import type {
 } from '@quent/utils';
 import {
   LONG_ENTITIES_ROW_TYPE,
+  NVTX_LANE_ROW_TYPE,
+  NVTX_SECTION_ROW_TYPE,
   OPERATOR_TIMELINE_ROW_TYPE,
   type TreeTableItem,
 } from '@quent/components';
@@ -438,6 +440,47 @@ describe('QueryResourceTree — NVTX filters', () => {
       ).toBe('7')
     );
   });
+
+  it('applies the shared text search to NVTX rows', async () => {
+    const catalog = {
+      domains: [
+        {
+          domain_id: '1',
+          name: 'Domain 1',
+          color: '#76b900ff',
+          threads: [{ thread_id: 7, name: 'worker 7' }],
+          categories: [],
+          has_uncategorized: false,
+        },
+      ],
+    } as unknown as NvtxCatalog;
+    vi.mocked(clientApi.fetchSingleTimeline).mockResolvedValue(makeTimeline(0, DURATION_S));
+    vi.mocked(clientApi.useNvtxStream).mockReturnValue({
+      contextId: 'context-1',
+      catalog,
+      viewport: null,
+      isLoading: false,
+    });
+    const store = createStore();
+    store.set(resourceFilterAtom, {
+      search: 'worker 7',
+      resourceTypes: [],
+      fsmTypes: [],
+      showOthers: false,
+    });
+
+    renderWithQuery(
+      <JotaiProvider store={store}>
+        <QueryResourceTree engineId="engine-1" queryBundle={makeBundle()} />
+      </JotaiProvider>
+    );
+
+    await waitFor(() => expect(collectRowTypes(capturedTreeData)).toContain(NVTX_LANE_ROW_TYPE));
+    expect(capturedTreeData).toHaveLength(1);
+    expect(collectRowTypes(capturedTreeData)).toEqual(
+      expect.arrayContaining([NVTX_SECTION_ROW_TYPE, NVTX_LANE_ROW_TYPE])
+    );
+  });
 });
 
 describe('QueryResourceTree — configurable resource subrows', () => {
@@ -518,7 +561,7 @@ describe('QueryResourceTree — resource filtering', () => {
     );
 
     await userEvent.click(getByRole('button', { name: 'Resource filters, 1 selected filter' }));
-    expect(getByRole('textbox', { name: 'Search resource names, labels, and IDs' })).toHaveValue(
+    expect(getByRole('textbox', { name: 'Search resource and NVTX tree labels' })).toHaveValue(
       'GPU 0'
     );
     await waitFor(() => expect(capturedTreeData[0]?.id).toBe(RESOURCE_ID));

@@ -5,6 +5,7 @@ import { describe, expect, it } from 'vitest';
 import type { NvtxCatalog, NvtxViewportResponse } from '@quent/utils';
 import {
   buildNvtxTree,
+  filterNvtxTree,
   indexNvtxLanes,
   NVTX_DOMAIN_ROW_TYPE,
   NVTX_LANE_ROW_TYPE,
@@ -127,5 +128,27 @@ describe('NVTX resource tree', () => {
       'Process ranges',
       'Marks',
     ]);
+  });
+
+  it('filters labels while retaining the path to direct matches', () => {
+    const tree = buildNvtxTree(catalog, new Set(), null)!;
+    const result = filterNvtxTree(tree, 'worker 3');
+
+    expect(result.matchCount).toBe(1);
+    expect(result.directMatchIds).toEqual(new Set([nvtxThreadRowId('3', 303)]));
+    expect(result.filteredTree?.children).toEqual([
+      expect.objectContaining({
+        id: nvtxDomainRowId('3'),
+        children: [expect.objectContaining({ id: nvtxThreadRowId('3', 303) })],
+      }),
+    ]);
+  });
+
+  it('supports comma-separated OR groups and space-separated AND terms', () => {
+    const tree = buildNvtxTree(catalog, new Set(), null)!;
+    const result = filterNvtxTree(tree, 'libcudf missing, CCCL worker');
+
+    expect(result.directMatchIds).toEqual(new Set([nvtxThreadRowId('3', 303)]));
+    expect(result.matchCount).toBe(1);
   });
 });

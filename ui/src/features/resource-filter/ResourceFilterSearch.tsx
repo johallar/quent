@@ -86,17 +86,17 @@ export function ResourceFilterSearch({
               className="pointer-events-none absolute left-2 top-1/2 h-3 w-3 -translate-y-1/2"
             />
             <Input
-              aria-label="Search resource names, labels, and IDs"
+              aria-label="Search resource and NVTX tree labels"
               className="h-6 rounded-sm py-0 pl-6 pr-6 text-xs"
               maxLength={MAX_RESOURCE_FILTER_QUERY_LENGTH}
               onChange={event => onSearchChange(event.target.value)}
-              placeholder="Search names, or comma-separated IDs..."
+              placeholder="Search resource or NVTX labels..."
               title="Separate search terms with commas to match any term."
               value={search}
             />
             {search.length > 0 && (
               <Button
-                aria-label="Clear resource search"
+                aria-label="Clear search"
                 className="absolute right-1 top-1/2 h-4 w-4 -translate-y-1/2 p-0"
                 onClick={() => onSearchChange('')}
                 size="xs"

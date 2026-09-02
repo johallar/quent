@@ -179,6 +179,77 @@ export function nvtxLaneLabel(entity: NvtxTreeEntity, includeDomain = false): st
   return `${prefix}${entity.thread.name}`;
 }
 
+export interface NvtxTreeFilterResult {
+  directMatchIds: Set<string>;
+  filteredTree: NvtxTreeItem | null;
+  isActive: boolean;
+  matchCount: number;
+}
+
+function nvtxItemSearchLabel(item: NvtxTreeItem): string {
+  const { entity } = item;
+  if (entity.nvtxKind === 'section') {
+    return `${item.id} NVTX`;
+  }
+  if (entity.nvtxKind === 'domain') {
+    return `${item.id} ${entity.domain.domain_id} ${entity.domain.name}`;
+  }
+  if (entity.nvtxKind === 'thread') {
+    return `${item.id} ${entity.domain.name} ${entity.thread.thread_id} ${entity.thread.name}`;
+  }
+  return `${item.id} ${nvtxLaneLabel(entity, true)}`;
+}
+
+function matchesNvtxSearch(item: NvtxTreeItem, search: string): boolean {
+  const termGroups = search
+    .split(',')
+    .map(group => group.trim().toLocaleLowerCase().split(/\s+/).filter(Boolean))
+    .filter(group => group.length > 0);
+  if (termGroups.length === 0) {
+    return true;
+  }
+  const label = nvtxItemSearchLabel(item).toLocaleLowerCase();
+  return termGroups.some(group => group.every(term => label.includes(term)));
+}
+
+/** Filters NVTX labels while preserving each matching row's ancestor path. */
+export function filterNvtxTree(root: NvtxTreeItem, search: string): NvtxTreeFilterResult {
+  const directMatchIds = new Set<string>();
+  const isActive = search.trim().length > 0;
+  let matchCount = 0;
+
+  if (!isActive) {
+    return {
+      directMatchIds,
+      filteredTree: root,
+      isActive,
+      matchCount,
+    };
+  }
+
+  const visit = (item: NvtxTreeItem): NvtxTreeItem | null => {
+    const isDirectMatch = matchesNvtxSearch(item, search);
+    const matchedChildren =
+      item.children?.map(visit).filter((child): child is NvtxTreeItem => child != null) ?? [];
+
+    if (!isDirectMatch && matchedChildren.length === 0) {
+      return null;
+    }
+    if (isDirectMatch) {
+      directMatchIds.add(item.id);
+      matchCount += 1;
+    }
+    return { ...item, children: matchedChildren };
+  };
+
+  return {
+    directMatchIds,
+    filteredTree: visit(root),
+    isActive,
+    matchCount,
+  };
+}
+
 export type NvtxGanttDatum = {
   value: [number, number, number];
   range?: NvtxRangeItem;

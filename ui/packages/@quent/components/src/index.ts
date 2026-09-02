@@ -349,10 +349,11 @@ export {
   nvtxProcessRowId,
   nvtxMarksRowId,
   buildNvtxTree,
+  filterNvtxTree,
   indexNvtxLanes,
   isNvtxTreeEntity,
   nvtxDomainMeta,
   nvtxLaneLabel,
   nvtxDefaultExpandedIds,
 } from './nvtx-timeline/utils';
-export type { NvtxTreeEntity, NvtxTreeItem } from './nvtx-timeline/utils';
+export type { NvtxTreeEntity, NvtxTreeFilterResult, NvtxTreeItem } from './nvtx-timeline/utils';

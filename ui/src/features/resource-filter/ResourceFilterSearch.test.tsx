@@ -30,7 +30,7 @@ describe('ResourceFilterSearch', () => {
     expect(screen.queryByLabelText('1 selected filter')).not.toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Resource filters' }));
     await user.type(
-      screen.getByRole('textbox', { name: 'Search resource names, labels, and IDs' }),
+      screen.getByRole('textbox', { name: 'Search resource and NVTX tree labels' }),
       'GPU'
     );
     expect(onSearchChange).toHaveBeenCalled();
@@ -56,7 +56,7 @@ describe('ResourceFilterSearch', () => {
     expect(screen.getByLabelText('1 selected filter')).toHaveTextContent('1');
     expect(screen.getByText('1 match')).toBeInTheDocument();
 
-    await user.click(screen.getByRole('button', { name: 'Clear resource search' }));
+    await user.click(screen.getByRole('button', { name: 'Clear search' }));
     expect(onSearchChange).toHaveBeenLastCalledWith('');
   });
 
