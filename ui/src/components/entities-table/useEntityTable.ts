@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: Copyright (c) 2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useEntities, useEntityList } from '@quent/client';
 import {
   useSelectedNodeIds,
@@ -17,10 +17,10 @@ import {
   buildEntityRequest,
   defaultEntityFilters,
   entityRows,
-  fsmSpan,
   hasNonDefaultEntitySettings,
   normalizePageSize,
   operatorLocationDescription,
+  parseOptionalNumber,
   resourceLocationDescription,
   selectedOperatorsLabel,
   validateEntityFilters,
@@ -40,8 +40,8 @@ export function useEntityTable({ engineId, queryId, queryBundle }: UseEntityTabl
   const setSelectedNodeIds = useSetSelectedNodeIds();
   const setSelectedOperatorLabel = useSetSelectedOperatorLabel();
   const defaults = useMemo(() => defaultEntityFilters(durationS), [durationS]);
-  // The "Window (s)" slider is bounded by the query duration, which is often far longer than
-  // when entities actually occur. Use the longest-running entity's end time as a tighter,
+  // The "Min usage (s)" slider is bounded by the query duration, which is often far longer than
+  // when entities actually occur. Use the longest-running entity's usage duration as a tighter,
   // more useful max so the slider isn't mostly dead space.
   const longestEntityQuery = useEntityList({
     engineId,
@@ -51,16 +51,26 @@ export function useEntityTable({ engineId, queryId, queryBundle }: UseEntityTabl
     sortDir: 'Desc',
     maxItems: 1,
   });
-  const windowMaxS = useMemo(() => {
-    const longestEntity = longestEntityQuery.data?.items[0]?.entity;
-    if (!longestEntity) {
-      return durationS;
-    }
-    return Math.min(durationS, Math.max(0, fsmSpan(longestEntity).end));
-  }, [longestEntityQuery.data, durationS]);
+  const maxUsageS = longestEntityQuery.data?.items[0]?.usage_duration_s ?? durationS;
   const [filters, setFilters] = useState<EntityFilters>(() => defaultEntityFilters(durationS));
   const [page, setPage] = useState(0);
   const [selected, setSelected] = useState<FiniteStateMachine | null>(null);
+  const filtersRef = useRef(filters);
+  filtersRef.current = filters;
+  // maxUsageS starts at durationS (a loose upper bound) and narrows once longestEntityQuery
+  // resolves. If a previously entered minUsageS now exceeds the narrower bound, clamp it so
+  // effectiveFilters/buildEntityRequest stay consistent with what SliderField displays. Reads
+  // filters via a ref (rather than a dependency) so this only reacts to maxUsageS narrowing,
+  // not every filter change.
+  useEffect(() => {
+    const currentMinUsageS = parseOptionalNumber(filtersRef.current.minUsageS);
+    if (currentMinUsageS === null || currentMinUsageS <= maxUsageS) {
+      return;
+    }
+    setFilters(previous => ({ ...previous, minUsageS: String(maxUsageS) }));
+    setPage(0);
+    setSelected(null);
+  }, [maxUsageS]);
   const operatorLabel = useCallback(
     (id: string) => {
       const operator = entities.operators[id];
@@ -209,7 +219,7 @@ export function useEntityTable({ engineId, queryId, queryBundle }: UseEntityTabl
     filters: {
       values: filters,
       durationS,
-      windowMaxS,
+      maxUsageS,
       validationErrors,
       invalidFilterFields,
       hasNonDefaultSettings: hasNonDefaultEntitySettings(filters, defaults, activeFilterCount),

@@ -264,6 +264,43 @@ describe('EntitiesTable', () => {
     expect(screen.getByText('Entity 1')).toBeInTheDocument();
   });
 
+  it('clamps min usage filter when the longest-entity bound narrows after loading', () => {
+    useEntityList.mockReturnValue({
+      data: undefined,
+      isLoading: true,
+      isFetching: true,
+      isError: false,
+      error: null,
+    });
+
+    const { rerender } = renderTable(
+      <EntitiesTable engineId="engine-1" queryId="query-1" queryBundle={queryBundle} />
+    );
+
+    fireEvent.change(screen.getByLabelText('Min usage (s)'), { target: { value: '8' } });
+    act(() => vi.advanceTimersByTime(300));
+
+    expect(useEntities.mock.lastCall?.[0].request.entry.filter.min_usage_s).toBe(8);
+
+    useEntityList.mockReturnValue({
+      data: { items: [{ entity: fsm, usage_duration_s: 3 }], total: 1 },
+      isLoading: false,
+      isFetching: false,
+      isError: false,
+      error: null,
+    });
+
+    rerender(
+      <ThemeProvider>
+        <EntitiesTable engineId="engine-1" queryId="query-1" queryBundle={queryBundle} />
+      </ThemeProvider>
+    );
+    act(() => vi.advanceTimersByTime(300));
+
+    expect(screen.getByLabelText('Min usage (s)')).toHaveValue(3);
+    expect(useEntities.mock.lastCall?.[0].request.entry.filter.min_usage_s).toBe(3);
+  });
+
   it('uses the selected DAG operator as the entity filter', () => {
     const store = createStore();
     renderTable(

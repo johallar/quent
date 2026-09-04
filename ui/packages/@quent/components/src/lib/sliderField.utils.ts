@@ -29,3 +29,20 @@ export function formatStep(value: number, step: number): string {
   const decimals = step > 0 && step < 1 ? Math.min(6, Math.ceil(-Math.log10(step))) : 0;
   return value.toFixed(decimals);
 }
+
+/**
+ * Resolves a raw slider position to a value string. `step` is a "nice" round number picked for
+ * a good number of visual stops, so it rarely divides `max - min` evenly — the highest/lowest
+ * reachable step-grid point is then strictly inside `[min, max]`, making the true bound
+ * undraggable. Snap to the exact bound whenever the raw position is within one step of it, so
+ * dragging a thumb all the way to either end always resolves to the real min/max.
+ */
+export function resolveSliderValue(raw: number, step: number, min: number, max: number): string {
+  if (max - raw < step) {
+    return String(max);
+  }
+  if (raw - min < step) {
+    return String(min);
+  }
+  return String(clamp(Number(formatStep(raw, step)), min, max));
+}

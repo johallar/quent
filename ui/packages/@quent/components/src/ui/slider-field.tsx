@@ -4,7 +4,12 @@
 import { cn } from '@quent/utils';
 import { Input } from './input';
 import { Slider } from './slider';
-import { clamp, formatStep, niceSliderStep, parseOptionalNumber } from '../lib/sliderField.utils';
+import {
+  clamp,
+  niceSliderStep,
+  parseOptionalNumber,
+  resolveSliderValue,
+} from '../lib/sliderField.utils';
 
 export interface SliderFieldProps {
   label: string;
@@ -41,7 +46,7 @@ export function SliderField({
         max={max}
         step={step}
         value={sliderValue}
-        onValueChange={next => onChange(formatStep(next as number, step))}
+        onValueChange={next => onChange(resolveSliderValue(next as number, step, min, max))}
         className="px-0.5"
       />
       <Input
