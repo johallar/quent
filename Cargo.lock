@@ -2765,6 +2765,7 @@ dependencies = [
  "pprof",
  "quent-build-info",
  "quent-collector",
+ "quent-collector-client",
  "quent-collector-proto",
  "quent-dynamic-attributes",
  "quent-events",
