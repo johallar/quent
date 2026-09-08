@@ -1,7 +1,7 @@
 # Simulator
 
-The simulator (`examples/simulator/`) is a simulated distributed query engine
-used for rapid development and prototyping, especially the UI, without
+The simulator (`experimental/vibe/simulator/`) is a simulated distributed query
+engine used for rapid development and prototyping, especially the UI, without
 requiring integration with a real engine. The source code also serves as a
 reference for how to apply the modeling concepts.
 
