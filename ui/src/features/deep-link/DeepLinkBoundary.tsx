@@ -53,7 +53,7 @@ interface DeepLinkBoundaryProps {
   activeTab?: DeepLinkTab;
   durationSeconds: number;
   defaultRootResourceType?: string | null;
-  operators?: readonly Operator[];
+  operators: readonly Operator[];
   encodedState?: string;
   isQueryReady: boolean;
 }

@@ -42,6 +42,7 @@ const BOUNDARY_PROPS = {
   activeTab: 'timeline' as const,
   durationSeconds: 100,
   isQueryReady: true,
+  operators: [],
 };
 
 const RESOURCE_A_ID = '01a025ff-ea8b-7881-9d31-72a275872c9d';
@@ -89,6 +90,7 @@ function SerializableStateProbe() {
   const { read } = useSerializableViewState({
     operatorTablePersistKey: OPERATOR_TABLE_PERSIST_KEY,
     operatorTableGroupKeys: OPERATOR_TABLE_INDEX_ORDER,
+    operators: [],
   });
   const expandedIds = useAtomValue(expandedIdsAtom);
   const selectedTypes = useAtomValue(selectedTypesAtom);
@@ -150,6 +152,7 @@ function SeedEmptyDataFlowDimensions() {
   const { hydrate } = useSerializableViewState({
     operatorTablePersistKey: OPERATOR_TABLE_PERSIST_KEY,
     operatorTableGroupKeys: OPERATOR_TABLE_INDEX_ORDER,
+    operators: [],
   });
 
   useLayoutEffect(() => {

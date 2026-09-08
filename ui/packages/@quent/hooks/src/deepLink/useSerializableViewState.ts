@@ -89,7 +89,7 @@ export interface HydratableViewState {
 interface SerializableViewStateOptions {
   operatorTablePersistKey: string;
   operatorTableGroupKeys: readonly string[];
-  operators?: readonly Operator[];
+  operators: readonly Operator[];
 }
 
 export function useSerializableViewState({
@@ -155,14 +155,10 @@ export function useSerializableViewState({
         store.set(selectedPlanIdAtom, state.selection.planId);
       }
       if (state.selection?.operatorNodeIds !== undefined) {
-        if (operators) {
-          store.set(operatorSelectionActionAtom, {
-            type: 'replace',
-            selections: resolveOperatorSelections(operators, state.selection.operatorNodeIds),
-          });
-        } else {
-          store.set(selectedNodeIdsAtom, new Set(state.selection.operatorNodeIds));
-        }
+        store.set(operatorSelectionActionAtom, {
+          type: 'replace',
+          selections: resolveOperatorSelections(operators, state.selection.operatorNodeIds),
+        });
       }
 
       const dag = state.dag;

@@ -50,7 +50,7 @@ function ProfileLayout() {
   const encodedState = queryMatch?.search?.s;
   const queryBundle = queryMatch?.loaderData;
   const operators = useMemo(
-    () => (queryBundle ? Object.values(queryBundle.entities.operators) : undefined),
+    () => (queryBundle ? Object.values(queryBundle.entities.operators) : []),
     [queryBundle]
   );
   const timelineMatch = useMatch({
