@@ -4,6 +4,13 @@
 import type { Operator } from './types';
 import type { OperatorSelectionInput } from './operatorTypes';
 
+export interface ResolvedOperatorSelectionCandidates<
+  Selection extends OperatorSelectionInput = OperatorSelectionInput,
+> {
+  selections: Selection[];
+  unresolvedOperatorIds: ReadonlySet<string>;
+}
+
 export function getOperatorDisplayLabel(operator: Operator): string {
   return operator.instance_name ?? operator.operator_type_name ?? operator.id;
 }
@@ -39,48 +46,62 @@ export function buildRelatedOperatorIdsById(
   return relatedById;
 }
 
+export function resolveOperatorSelectionCandidates<Selection extends OperatorSelectionInput>(
+  candidates: readonly Selection[],
+  selectedOperatorIds: Iterable<string>
+): ResolvedOperatorSelectionCandidates<Selection> {
+  const unresolvedOperatorIds = new Set(selectedOperatorIds);
+  const orderedCandidates = candidates
+    .map((selection, index) => ({ selection, index }))
+    .sort(
+      (left, right) =>
+        right.selection.operatorIds.size - left.selection.operatorIds.size ||
+        left.index - right.index
+    );
+  const selections: Selection[] = [];
+
+  for (const { selection } of orderedCandidates) {
+    if (![...selection.operatorIds].every(id => unresolvedOperatorIds.has(id))) {
+      continue;
+    }
+    selections.push(selection);
+    for (const id of selection.operatorIds) {
+      unresolvedOperatorIds.delete(id);
+    }
+  }
+
+  return { selections, unresolvedOperatorIds };
+}
+
 export function resolveOperatorSelections(
   operators: readonly Operator[],
   selectedOperatorIds: Iterable<string>
 ): OperatorSelectionInput[] {
   const selectedIds = [...new Set(selectedOperatorIds)];
-  const remainingIds = new Set(selectedIds);
   const operatorsById = new Map(operators.map(operator => [operator.id, operator]));
   const relatedById = buildRelatedOperatorIdsById(operators, selectedIds);
-  const orderById = new Map(selectedIds.map((id, index) => [id, index]));
-  const candidates = selectedIds
-    .flatMap(id => {
-      const operator = operatorsById.get(id);
-      if (!operator) {
-        return [];
-      }
-      return [
-        {
-          operator,
-          operatorIds: new Set([id, ...(relatedById.get(id) ?? [])]),
-        },
-      ];
-    })
-    .sort(
-      (left, right) =>
-        right.operatorIds.size - left.operatorIds.size ||
-        (orderById.get(left.operator.id) ?? 0) - (orderById.get(right.operator.id) ?? 0)
-    );
-
-  const selections: OperatorSelectionInput[] = [];
-  for (const candidate of candidates) {
-    if (![...candidate.operatorIds].every(id => remainingIds.has(id))) {
-      continue;
+  const candidates = selectedIds.flatMap(id => {
+    const operator = operatorsById.get(id);
+    if (!operator) {
+      return [];
     }
-    selections.push({
+    return [
+      {
+        operator,
+        operatorIds: new Set([id, ...(relatedById.get(id) ?? [])]),
+      },
+    ];
+  });
+  const resolved = resolveOperatorSelectionCandidates(
+    candidates.map(candidate => ({
       selectionId: candidate.operator.id,
       label: getOperatorDisplayLabel(candidate.operator),
       operatorIds: candidate.operatorIds,
-    });
-    for (const id of candidate.operatorIds) {
-      remainingIds.delete(id);
-    }
-  }
+    })),
+    selectedIds
+  );
+  const selections: OperatorSelectionInput[] = [...resolved.selections];
+  const remainingIds = new Set(resolved.unresolvedOperatorIds);
 
   for (const id of selectedIds) {
     if (!remainingIds.delete(id)) {

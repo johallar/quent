@@ -1,7 +1,11 @@
 // SPDX-FileCopyrightText: Copyright (c) 2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-import type { DAGNode, InspectedNodeData } from '@quent/utils';
+import {
+  resolveOperatorSelectionCandidates,
+  type DAGNode,
+  type InspectedNodeData,
+} from '@quent/utils';
 import { parseCustomStatistics } from '../lib/queryBundle.utils';
 import type { QueryPlanNodeData } from '../query-plan/QueryPlanNode';
 
@@ -42,28 +46,14 @@ export function resolveInspectedNodeSelections(
   nodes: readonly DAGNode[],
   selectedNodeIds: ReadonlySet<string>
 ): ResolvedOperatorSelections {
-  const unresolvedOperatorIds = new Set(selectedNodeIds);
-  const candidates = nodes
-    .map(node => ({ node, operatorIds: getOperatorIds(node) }))
-    .sort((a, b) => b.operatorIds.size - a.operatorIds.size);
-  const selections: ResolvedOperatorSelection[] = [];
+  const candidates = nodes.map(node => ({
+    selectionId: node.id,
+    label: node.label,
+    operatorIds: getOperatorIds(node),
+    inspectedData: inspectNode(node),
+  }));
 
-  for (const { node, operatorIds } of candidates) {
-    if (![...operatorIds].every(id => unresolvedOperatorIds.has(id))) {
-      continue;
-    }
-    for (const id of operatorIds) {
-      unresolvedOperatorIds.delete(id);
-    }
-    selections.push({
-      selectionId: node.id,
-      label: node.label,
-      operatorIds,
-      inspectedData: inspectNode(node),
-    });
-  }
-
-  return { selections, unresolvedOperatorIds };
+  return resolveOperatorSelectionCandidates(candidates, selectedNodeIds);
 }
 
 export function resolveInspectedNodeData(
