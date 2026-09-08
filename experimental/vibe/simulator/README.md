@@ -1,4 +1,4 @@
-# NVTX-enabled query-engine simulator
+# Intricate query-engine simulator
 
 This experimental simulator uses Quent's query-engine analyzer,
 instrumentation model, server, UI bindings, and UI. Its workload models

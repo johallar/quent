@@ -87,6 +87,7 @@ struct Args {
 }
 
 const QUERY_LEVEL_NVTX_RANGES: usize = 3;
+const TARGET_NVTX_RANGES_PER_CLUSTER: usize = 32;
 
 #[derive(Clone, Copy)]
 struct NvtxWorkload {
@@ -120,6 +121,35 @@ impl NvtxWorkload {
             .saturating_sub(query_ranges.saturating_add(envelope_ranges))
             / query_thread_count
     }
+}
+
+fn nvtx_range_clusters(
+    nvtx: &NvtxCapture,
+    slot_count: usize,
+    range_budget: usize,
+) -> Vec<(usize, usize)> {
+    let requested_clusters = if range_budget == 0 {
+        0
+    } else {
+        range_budget
+            .div_ceil(TARGET_NVTX_RANGES_PER_CLUSTER)
+            .max(2)
+            .min(range_budget)
+    };
+    let offsets = nvtx.sampled_task_offsets(slot_count, requested_clusters);
+    let cluster_count = offsets.len();
+    if cluster_count == 0 {
+        return Vec::new();
+    }
+    offsets
+        .into_iter()
+        .enumerate()
+        .map(|(index, offset)| {
+            let budget =
+                range_budget / cluster_count + usize::from(index < range_budget % cluster_count);
+            (offset, budget)
+        })
+        .collect()
 }
 
 fn nvtx_push_budgeted<'a>(
@@ -1019,10 +1049,7 @@ impl Worker {
     ) -> Vec<Batch> {
         let operator = work.operator;
         let nvtx_thread_id = self.nvtx_thread_id(thread);
-        let task_every = nvtx.layout().task_every;
-        let emit_nvtx = task_every != 0
-            && (work.task_index as usize).is_multiple_of(task_every)
-            && *range_budget != 0;
+        let emit_nvtx = *range_budget != 0;
         let category = nvtx.category_id(nvtx_category_for_operator(operator.kind));
         let _pipeline = emit_nvtx.then(|| {
             nvtx_push_budgeted(
@@ -1419,16 +1446,28 @@ impl Worker {
                             )
                         })
                         .collect();
-                    let mut range_budget = nvtx
-                        .workload
-                        .detailed_ranges_per_thread(nvtx.capture.layout());
                     let mut partitions: Vec<_> = (thread_index..num_tasks)
                         .step_by(self.threads.len())
                         .map(|task_index| (task_index, HashMap::new()))
                         .collect();
+                    let range_clusters = nvtx_range_clusters(
+                        nvtx.capture,
+                        phases.len().saturating_mul(partitions.len()),
+                        nvtx.workload
+                            .detailed_ranges_per_thread(nvtx.capture.layout()),
+                    );
+                    let mut next_cluster = 0;
+                    let mut slot_offset = 0;
+                    let mut range_budget = 0usize;
 
                     for phase in phases {
                         for (task_index, outputs) in &mut partitions {
+                            if let Some(&(offset, budget)) = range_clusters.get(next_cluster)
+                                && offset == slot_offset
+                            {
+                                range_budget = range_budget.saturating_add(budget);
+                                next_cluster += 1;
+                            }
                             for &node in phase {
                                 let operator = &physical_plan.dag[node];
                                 let input_batches = physical_plan
@@ -1456,6 +1495,7 @@ impl Worker {
                                 );
                                 outputs.insert(node, node_outputs);
                             }
+                            slot_offset += 1;
                         }
                         phase_barrier.wait();
                     }
@@ -1989,5 +2029,14 @@ mod tests {
             workload.detailed_ranges_per_thread(NvtxLayout::default()),
             75
         );
+    }
+
+    #[test]
+    fn nvtx_range_clusters_span_the_execution() {
+        let nvtx = NvtxCapture::noop(Uuid::nil(), NvtxLayout::default());
+        let clusters = nvtx_range_clusters(&nvtx, 100, 96);
+
+        assert_eq!(clusters, vec![(0, 32), (49, 32), (99, 32)]);
+        assert_eq!(clusters.iter().map(|(_, budget)| budget).sum::<usize>(), 96);
     }
 }
