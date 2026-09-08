@@ -115,6 +115,7 @@ export { TreeTable } from './ui/tree-table';
 export type { Column, ColumnComponent, IconComponent } from './ui/tree-table';
 export { Badge, badgeVariants } from './ui/badge';
 export { OptionMultiSelect } from './ui/option-multi-select';
+export type { OptionMultiSelectOption } from './ui/option-multi-select';
 export {
   Table,
   TableHeader,
@@ -349,10 +350,11 @@ export {
   nvtxProcessRowId,
   nvtxMarksRowId,
   buildNvtxTree,
+  filterNvtxTree,
   indexNvtxLanes,
   isNvtxTreeEntity,
   nvtxDomainMeta,
   nvtxLaneLabel,
   nvtxDefaultExpandedIds,
 } from './nvtx-timeline/utils';
-export type { NvtxTreeEntity, NvtxTreeItem } from './nvtx-timeline/utils';
+export type { NvtxTreeEntity, NvtxTreeFilterResult, NvtxTreeItem } from './nvtx-timeline/utils';

@@ -21,10 +21,15 @@ import { DAG_LAYOUT_DIRECTION, NODE_LABEL_FIELD } from '@quent/utils';
 import { toast } from '@quent/components';
 import {
   expandedIdsAtom,
+  resourceFilterAtom,
   rootResourceTypeAtom,
   selectedFsmTypesAtom,
   selectedTypesAtom,
 } from '@/atoms/resourceTree';
+import {
+  EMPTY_RESOURCE_FILTER,
+  isResourceFilterActive,
+} from '@/features/resource-filter/resourceFilter';
 import {
   DEFAULT_OPERATOR_TABLE_ENABLED,
   OPERATOR_TABLE_INDEX_ORDER,
@@ -215,6 +220,20 @@ export function DeepLinkBoundary({
     if (intake.initialExpandedResourceIds !== null) {
       store.set(expandedIdsAtom, new Set(intake.initialExpandedResourceIds));
     }
+    if (intake.fields) {
+      const resourceFilter = intake.fields.resources?.resourceFilter;
+      store.set(
+        resourceFilterAtom,
+        resourceFilter
+          ? {
+              fsmTypes: resourceFilter.fsmTypes ?? [],
+              resourceTypes: resourceFilter.resourceTypes ?? [],
+              search: resourceFilter.search ?? '',
+              showOthers: resourceFilter.showOthers ?? false,
+            }
+          : EMPTY_RESOURCE_FILTER
+      );
+    }
     if (intake.fields?.resources) {
       const resources = intake.fields.resources;
       if (resources.rootResourceType !== undefined) {
@@ -301,6 +320,19 @@ export function DeepLinkBoundary({
     const expandedRowIds = [...store.get(expandedIdsAtom)].sort();
     if (expandedRowIds.length > 0) {
       resources.expandedRowIds = expandedRowIds;
+    }
+    const resourceFilter = store.get(resourceFilterAtom);
+    if (isResourceFilterActive(resourceFilter)) {
+      resources.resourceFilter = {
+        ...(resourceFilter.search.trim() ? { search: resourceFilter.search.trim() } : {}),
+        ...(resourceFilter.resourceTypes.length > 0
+          ? { resourceTypes: [...resourceFilter.resourceTypes].sort() }
+          : {}),
+        ...(resourceFilter.fsmTypes.length > 0
+          ? { fsmTypes: [...resourceFilter.fsmTypes].sort() }
+          : {}),
+        ...(resourceFilter.showOthers ? { showOthers: true } : {}),
+      };
     }
     const rootResourceType = store.get(rootResourceTypeAtom);
     if (rootResourceType && rootResourceType !== defaultRootResourceType) {

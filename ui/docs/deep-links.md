@@ -30,7 +30,13 @@ shared view. Expanded row IDs may include stable synthetic IDs such as
   },
   "resources": {
     "expandedRowIds": ["__nvtx__", "01a025ff-ea8b-7881-9d31-72a275872c9d", "resource-a"],
-    "rootResourceType": "channel"
+    "rootResourceType": "channel",
+    "resourceFilter": {
+      "search": "worker",
+      "resourceTypes": ["channel", "memory"],
+      "fsmTypes": ["task", "transfer"],
+      "showOthers": true
+    }
   },
   "dag": {
     "nodeColorField": "duration_s"
@@ -66,6 +72,10 @@ may also contain synthetic row IDs.
 Default DAG, resource, data-flow, and table controls are omitted. Hover,
 playback, open popovers, and other transient state are not shared.
 
+Resource filters store the name/label search and the selected resource and FSM
+types. Active fields are combined with AND. `showOthers` restores the complete
+tree and highlights matching rows; otherwise only matching rows are shown.
+
 ## Agent commands
 
 Create a relative timeline link:
@@ -76,7 +86,11 @@ pixi run pnpm --dir ui deep-link create \
   --query QUERY \
   --tab timeline \
   --start 12.5 \
-  --end 48.75
+  --end 48.75 \
+  --resource-search worker \
+  --resource-types channel,memory \
+  --fsm-types task,transfer \
+  --show-others
 ```
 
 Add `--base http://localhost:5173` to emit an absolute URL. A JSON state file

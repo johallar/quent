@@ -13,16 +13,28 @@ import {
   type DeepLinkStateV2,
   type DeepLinkTab,
 } from '../src/features/deep-link/deepLink.schema';
+import { mergeResourceFilter } from '../src/features/deep-link/deepLink.cli';
 
 const usage = `Usage:
-  pnpm deep-link create --engine ID --query ID --tab timeline --start S --end S [--base URL]
-  pnpm deep-link create --engine ID --query ID --tab timeline --state FILE [--base URL]
+  pnpm deep-link create --engine ID --query ID --tab timeline --start S --end S [--resource-search TEXT] [--resource-types TYPES] [--fsm-types TYPES] [--show-others] [--base URL]
+  pnpm deep-link create --engine ID --query ID --tab timeline --state FILE [--resource-search TEXT] [--resource-types TYPES] [--fsm-types TYPES] [--show-others] [--base URL]
   pnpm deep-link decode URL`;
 
 function fail(message: string): never {
   console.error(message);
   console.error(usage);
   process.exit(1);
+}
+
+function parseList(value: string | boolean | undefined): string[] | undefined {
+  if (typeof value !== 'string') {
+    return undefined;
+  }
+  const values = value
+    .split(',')
+    .map(item => item.trim())
+    .filter(Boolean);
+  return values.length > 0 ? values : undefined;
 }
 
 async function readState(
@@ -52,7 +64,16 @@ async function readState(
             : {}),
         }
       : { ...raw, route };
-  const parsed = DeepLinkStateV2Schema.safeParse(candidate);
+  const resourceTypes = parseList(values['resource-types']);
+  const fsmTypes = parseList(values['fsm-types']);
+  const resourceFilter = {
+    ...(typeof values['resource-search'] === 'string' ? { search: values['resource-search'] } : {}),
+    ...(resourceTypes ? { resourceTypes } : {}),
+    ...(fsmTypes ? { fsmTypes } : {}),
+    ...(values['show-others'] === true ? { showOthers: true } : {}),
+  };
+  const candidateWithFilter = mergeResourceFilter(candidate, resourceFilter);
+  const parsed = DeepLinkStateV2Schema.safeParse(candidateWithFilter);
   if (!parsed.success) {
     fail(`Invalid state: ${parsed.error.message}`);
   }
@@ -124,7 +145,11 @@ async function main() {
       base: { type: 'string' },
       end: { type: 'string' },
       engine: { type: 'string' },
+      'fsm-types': { type: 'string' },
       query: { type: 'string' },
+      'resource-search': { type: 'string' },
+      'resource-types': { type: 'string' },
+      'show-others': { type: 'boolean' },
       start: { type: 'string' },
       state: { type: 'string' },
       tab: { type: 'string' },

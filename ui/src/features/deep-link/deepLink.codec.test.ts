@@ -20,6 +20,7 @@ import {
 } from './deepLink.schema';
 import { CONTINUOUS_PALETTES, DAG_LAYOUT_DIRECTION, NODE_LABEL_FIELD } from '@quent/utils';
 import { OPERATOR_TABLE_INDEX_ORDER } from '@/components/operator-table/types';
+import { MAX_RESOURCE_FILTER_QUERY_LENGTH } from '@/features/resource-filter/resourceFilter';
 
 const RESOURCE_A_ID = '01a025ff-ea8b-7881-9d31-72a275872c9d';
 const RESOURCE_B_ID = '01a025ff-ea8b-7881-9d31-72a275872c9e';
@@ -43,6 +44,12 @@ const state: DeepLinkStateV2 = {
   },
   resources: {
     expandedRowIds: ['resource-a', 'resource-b'],
+    resourceFilter: {
+      search: 'resource',
+      resourceTypes: ['channel', 'memory'],
+      fsmTypes: ['task', 'transfer'],
+      showOthers: true,
+    },
     rootResourceType: 'memory',
     resourceTypeSelections: [{ rowId: 'resource-a', resourceType: 'channel' }],
     fsmSelections: [{ rowId: 'resource-a', fsmType: 'task' }],
@@ -173,6 +180,15 @@ describe('deep-link state validation', () => {
             { length: MAX_EXPANDED_RESOURCE_IDS + 1 },
             (_, index) => `resource-${index}`
           ),
+        },
+      }).success
+    ).toBe(false);
+    expect(
+      DeepLinkStateV2Schema.safeParse({
+        route: state.route,
+        timeline: state.timeline,
+        resources: {
+          resourceFilter: { search: 'x'.repeat(MAX_RESOURCE_FILTER_QUERY_LENGTH + 1) },
         },
       }).success
     ).toBe(false);

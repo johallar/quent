@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { useCallback, useEffect, useRef } from 'react';
-import { Pause, Play } from 'lucide-react';
+import { Pause, Play, Square } from 'lucide-react';
 import { cn, formatDurationForWindow } from '@quent/utils';
 import {
   useDataFlowEnabled,
@@ -11,6 +11,7 @@ import {
   useSetDataFlowIsPlaying,
   usePlayheadTimeS,
   useSetPlayheadTimeS,
+  usePlayheadLineTimeMs,
   useSetPlayheadLineTimeMs,
 } from '@quent/hooks';
 
@@ -44,6 +45,7 @@ export function DagPlayhead({ className }: DagPlayheadProps) {
   const setPlayheadTimeS = useSetPlayheadTimeS();
   const isPlaying = useDataFlowIsPlaying();
   const setIsPlaying = useSetDataFlowIsPlaying();
+  const playheadLineTimeMs = usePlayheadLineTimeMs();
   const setPlayheadLineTimeMs = useSetPlayheadLineTimeMs();
 
   const trackRef = useRef<HTMLDivElement>(null);
@@ -110,15 +112,11 @@ export function DagPlayhead({ className }: DagPlayheadProps) {
     [applyClientX]
   );
 
-  const handlePointerEnd = useCallback(
-    (event: React.PointerEvent<HTMLDivElement>) => {
-      if (event.currentTarget.hasPointerCapture(event.pointerId)) {
-        event.currentTarget.releasePointerCapture(event.pointerId);
-      }
-      setPlayheadLineTimeMs(null);
-    },
-    [setPlayheadLineTimeMs]
-  );
+  const handlePointerEnd = useCallback((event: React.PointerEvent<HTMLDivElement>) => {
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    }
+  }, []);
 
   const stepBy = useCallback(
     (bins: number) => {
@@ -170,11 +168,19 @@ export function DagPlayhead({ className }: DagPlayheadProps) {
         const current = playheadRef.current ?? bin.startS;
         if (current >= bin.endS) {
           setPlayheadTimeS(bin.startS);
+          setPlayheadLineTimeMs(bin.startS * 1000);
+        } else {
+          setPlayheadLineTimeMs(current * 1000);
         }
       }
       return !playing;
     });
-  }, [bin, setIsPlaying, setPlayheadTimeS]);
+  }, [bin, setIsPlaying, setPlayheadTimeS, setPlayheadLineTimeMs]);
+
+  const stopLine = useCallback(() => {
+    setIsPlaying(false);
+    setPlayheadLineTimeMs(null);
+  }, [setIsPlaying, setPlayheadLineTimeMs]);
 
   // Stop playback when the overlay is disabled or the bin metadata goes away:
   // the component stays mounted while rendering null, so a live play interval
@@ -187,7 +193,9 @@ export function DagPlayhead({ className }: DagPlayheadProps) {
     setPlayheadLineTimeMs(null);
   }, [enabled, bin, setIsPlaying, setPlayheadLineTimeMs]);
 
-  // Advance one bin per tick while playing; stop at the window end.
+  // Advance one bin per tick while playing; stop at the window end. The line
+  // is only cleared here (playback finished), not on manual pause, so the
+  // last position stays visible until the user resumes, scrubs, or restarts.
   useEffect(() => {
     if (!isPlaying || !bin) {
       return;
@@ -197,19 +205,15 @@ export function DagPlayhead({ className }: DagPlayheadProps) {
       const current = playheadRef.current ?? startS;
       const next = Math.min(current + binDurationS, endS);
       setPlayheadTimeS(next);
-      setPlayheadLineTimeMs(next * 1000);
       if (next >= endS) {
+        setPlayheadLineTimeMs(null);
         setIsPlaying(false);
+      } else {
+        setPlayheadLineTimeMs(next * 1000);
       }
     }, PLAY_INTERVAL_MS);
     return () => window.clearInterval(id);
   }, [isPlaying, bin, setIsPlaying, setPlayheadTimeS, setPlayheadLineTimeMs]);
-
-  useEffect(() => {
-    if (!isPlaying) {
-      setPlayheadLineTimeMs(null);
-    }
-  }, [isPlaying, setPlayheadLineTimeMs]);
 
   useEffect(() => {
     return () => {
@@ -238,6 +242,7 @@ export function DagPlayhead({ className }: DagPlayheadProps) {
       data-testid="dag-playhead"
     >
       <button
+        type="button"
         onClick={togglePlay}
         aria-label={isPlaying ? 'Pause data flow' : 'Play data flow'}
         title={isPlaying ? 'Pause' : 'Play'}
@@ -248,6 +253,16 @@ export function DagPlayhead({ className }: DagPlayheadProps) {
         ) : (
           <Play className="h-3 w-3 text-muted-foreground" />
         )}
+      </button>
+      <button
+        type="button"
+        onClick={stopLine}
+        disabled={!isPlaying && playheadLineTimeMs == null}
+        aria-label="Stop and clear playhead line"
+        title="Stop"
+        className="rounded p-1 hover:bg-muted transition-colors cursor-pointer flex-shrink-0 disabled:opacity-30 disabled:pointer-events-none"
+      >
+        <Square className="h-3 w-3 text-muted-foreground" />
       </button>
       <span className="text-[10px] text-muted-foreground tabular-nums flex-shrink-0">
         {formatTimeLabel(bin.startS, windowS)}

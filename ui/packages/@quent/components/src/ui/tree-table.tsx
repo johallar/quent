@@ -218,7 +218,7 @@ const TreeNode = ({
           className={cn(
             treeVariants(),
             isSelected && selectedTreeVariants(),
-            isHighlighted && 'bg-primary/10'
+            isHighlighted && 'bg-primary/10 hover:bg-primary/10'
           )}
           onClick={() => {
             handleSelectChange(item);
@@ -305,7 +305,7 @@ const TreeLeaf = React.forwardRef<
           treeVariants(),
           className,
           isSelected && selectedTreeVariants(),
-          isHighlighted && 'bg-primary/10',
+          isHighlighted && 'bg-primary/10 hover:bg-primary/10',
           item.disabled && 'opacity-50 cursor-not-allowed pointer-events-none'
         )}
         onClick={() => {
@@ -617,7 +617,7 @@ const VirtualizedTreeView = React.forwardRef<HTMLDivElement, TreeViewProps>(
                   `flex text-left items-center text-foreground w-full min-w-0 px-0 outline-none ${rowSurfaceClasses}`,
                   treeVariants(),
                   isSelected && selectedTreeVariants(),
-                  isHighlighted && 'bg-primary/10',
+                  isHighlighted && 'bg-primary/10 hover:bg-primary/10',
                   item.disabled && 'opacity-50 cursor-not-allowed pointer-events-none'
                 )}
                 style={{

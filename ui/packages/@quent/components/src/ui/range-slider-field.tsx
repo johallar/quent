@@ -4,7 +4,12 @@
 import { cn } from '@quent/utils';
 import { Input } from './input';
 import { Slider } from './slider';
-import { clamp, formatStep, niceSliderStep, parseOptionalNumber } from '../lib/sliderField.utils';
+import {
+  clamp,
+  niceSliderStep,
+  parseOptionalNumber,
+  resolveSliderValue,
+} from '../lib/sliderField.utils';
 
 export interface RangeSliderFieldProps {
   label: string;
@@ -61,10 +66,10 @@ export function RangeSliderField({
           // Only the dragged thumb's value is reformatted from the slider — leave the other
           // field's string untouched so a precisely-typed value isn't rounded to the slider step.
           if (start !== sliderValue[0]) {
-            onStartChange(formatStep(start!, step));
+            onStartChange(resolveSliderValue(start!, step, min, max));
           }
           if (end !== sliderValue[1]) {
-            onEndChange(formatStep(end!, step));
+            onEndChange(resolveSliderValue(end!, step, min, max));
           }
         }}
         className="px-0.5"

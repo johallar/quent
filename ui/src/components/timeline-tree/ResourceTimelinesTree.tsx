@@ -3,13 +3,12 @@
 
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { useAtom } from 'jotai';
-import { useCallback, useEffect, useMemo } from 'react';
+import { useCallback, useDeferredValue, useEffect, useMemo } from 'react';
 import { fetchSingleTimeline, DEFAULT_STALE_TIME } from '@quent/client';
 import {
   ResourceColumn,
   UsageColumn,
   buildBulkParamsForItem,
-  collectResourceTypesFromTree,
   collectVisibleEntries,
   findItemById,
   getAdaptiveNumBins,
@@ -27,11 +26,14 @@ import {
   type SingleTimelineRequest,
 } from '@quent/utils';
 import {
+  resourceFilterAtom,
   rootResourceTypeAtom,
   selectedFsmTypesAtom,
   selectedTypesAtom,
 } from '@/atoms/resourceTree';
-import { useExpandedIds } from '@/hooks/useExpandedIds';
+import { ResourceFilterSearch } from '@/features/resource-filter/ResourceFilterSearch';
+import { filterResourceTree } from '@/features/resource-filter/resourceFilter';
+import { useAutoExpandMatchingAncestors, useExpandedIds } from '@/hooks/useExpandedIds';
 import type { ResourceTimelineSubRow } from './sub-rows';
 import {
   TimelineTreeTable,
@@ -50,7 +52,10 @@ function getRootResourceGroupId(resourceTree: ResourceTree<EntityRef>): string |
 }
 
 export interface ResourceTimelinesTreeModel extends TimelineTreeModel, TimelineTreeControls {
+  filterMatchCount: number;
+  isFilterActive: boolean;
   rootItem: TreeTableItem;
+  showOthers: boolean;
 }
 
 export type { ResourceTimelineSubRow };
@@ -82,13 +87,55 @@ export function useResourceTimelinesTreeModel({
   const [selectedTypes, setSelectedTypes] = useAtom(selectedTypesAtom);
   const [selectedFsmTypes, setSelectedFsmTypes] = useAtom(selectedFsmTypesAtom);
   const [rootResourceType, setRootResourceType] = useAtom(rootResourceTypeAtom);
+  const [resourceFilter, setResourceFilter] = useAtom(resourceFilterAtom);
+  const deferredResourceFilter = useDeferredValue(resourceFilter);
 
   const rootItem = useMemo(
     () => transformResourceTree(entities, resourceTree),
     [resourceTree, entities]
   );
-  const highlightedItemIds = useHighlightedItemIds(rootItem);
-  const resourceTypeOptions = useMemo(() => collectResourceTypesFromTree([rootItem]), [rootItem]);
+  const operatorHighlightedItemIds = useHighlightedItemIds(rootItem);
+  const resourceFilterResult = useMemo(
+    () => filterResourceTree(rootItem, entities, deferredResourceFilter),
+    [deferredResourceFilter, entities, rootItem]
+  );
+  useAutoExpandMatchingAncestors(
+    rootItem,
+    resourceFilterResult.directMatchIds,
+    resourceFilterResult.isActive && resourceFilter.showOthers
+  );
+  const highlightedItemIds = useMemo(
+    () =>
+      new Set([
+        ...(operatorHighlightedItemIds ?? []),
+        ...(resourceFilterResult.isActive && resourceFilter.showOthers
+          ? resourceFilterResult.directMatchIds
+          : []),
+      ]),
+    [
+      operatorHighlightedItemIds,
+      resourceFilter.showOthers,
+      resourceFilterResult.directMatchIds,
+      resourceFilterResult.isActive,
+    ]
+  );
+  const resourceTypeOptions = useMemo(
+    () => Object.keys(entities.resource_types).sort(),
+    [entities.resource_types]
+  );
+  const fsmTypeOptions = useMemo(
+    () =>
+      [
+        ...new Set(
+          Object.keys(entities.fsm_types).concat(
+            Object.values(entities.resource_types).flatMap(
+              resourceType => resourceType?.used_by ?? []
+            )
+          )
+        ),
+      ].sort(),
+    [entities.fsm_types, entities.resource_types]
+  );
 
   useEffect(() => {
     if (rootResourceType != null) {
@@ -100,13 +147,48 @@ export function useResourceTimelinesTreeModel({
     }
   }, [rootResourceType, resourceTypeOptions, setRootResourceType]);
 
+  const trees = useMemo(() => {
+    const injectSubRows = (item: TreeTableItem) =>
+      subRows.reduce((current, subRow) => subRow.injectRows(current), item);
+
+    if (!resourceFilterResult.isActive || resourceFilter.showOthers) {
+      return [injectSubRows(rootItem)];
+    }
+    if (resourceFilterResult.filteredItems.length === 0) {
+      return [];
+    }
+
+    const filteredRoot = { ...rootItem, children: resourceFilterResult.filteredItems };
+    return injectSubRows(filteredRoot).children ?? [];
+  }, [
+    resourceFilter.showOthers,
+    resourceFilterResult.filteredItems,
+    resourceFilterResult.isActive,
+    rootItem,
+    subRows,
+  ]);
+
   const { expandedIds, handleExpandChange } = useExpandedIds(
     seedRootExpanded ? rootItem.id : undefined
+  );
+  const bulkRootItem = useMemo(
+    () =>
+      !resourceFilterResult.isActive || resourceFilter.showOthers
+        ? rootItem
+        : resourceFilterResult.filteredItems.length === 1
+          ? resourceFilterResult.filteredItems[0]!
+          : { ...rootItem, children: resourceFilterResult.filteredItems },
+    [
+      resourceFilter.showOthers,
+      resourceFilterResult.filteredItems,
+      resourceFilterResult.isActive,
+      rootItem,
+    ]
   );
   const { handleZoomChange, handleExpand } = useBulkTimelines({
     engineId,
     queryId: queryBundle.query_id,
-    rootItem,
+    rootItem: bulkRootItem,
     expandedIds,
     selectedTypes,
     groupFsmFilters: selectedFsmTypes,
@@ -159,11 +241,6 @@ export function useResourceTimelinesTreeModel({
     enabled: rootResourceGroupId != null && !!rootResourceType,
     placeholderData: keepPreviousData,
   });
-
-  const tree = useMemo(
-    () => subRows.reduce((item, subRow) => subRow.injectRows(item), rootItem),
-    [rootItem, subRows]
-  );
 
   const renderLabel = useCallback(
     (item: TimelineTreeItem) => {
@@ -229,8 +306,31 @@ export function useResourceTimelinesTreeModel({
   );
 
   return {
+    filterMatchCount: resourceFilterResult.matchCount,
+    isFilterActive: resourceFilterResult.isActive,
     rootItem,
-    tree: tree as TimelineTreeItem,
+    showOthers: resourceFilter.showOthers,
+    trees: trees as TimelineTreeItem[],
+    emptyMessage: 'No resources match this filter.',
+    filters: (
+      <ResourceFilterSearch
+        fsmTypes={fsmTypeOptions}
+        matchCount={resourceFilterResult.matchCount}
+        onFsmTypesChange={fsmTypes => setResourceFilter(current => ({ ...current, fsmTypes }))}
+        onResourceTypesChange={resourceTypes =>
+          setResourceFilter(current => ({ ...current, resourceTypes }))
+        }
+        onSearchChange={search => setResourceFilter(current => ({ ...current, search }))}
+        onShowOthersChange={showOthers =>
+          setResourceFilter(current => ({ ...current, showOthers }))
+        }
+        resourceTypes={resourceTypeOptions}
+        search={resourceFilter.search}
+        selectedFsmTypes={resourceFilter.fsmTypes}
+        selectedResourceTypes={resourceFilter.resourceTypes}
+        showOthers={resourceFilter.showOthers}
+      />
+    ),
     initialSelectedItemId: rootItem.id,
     expandedIds,
     highlightedItemIds,
@@ -256,12 +356,16 @@ export function ResourceTimelinesTree({
     subRows,
     seedRootExpanded,
   });
+  const trees =
+    resourceTree.isFilterActive && resourceTree.showOthers && resourceTree.filterMatchCount === 0
+      ? []
+      : [resourceTree];
 
   return (
     <TimelineTreeTable
       durationSeconds={durationSeconds}
       isDark={isDark}
-      trees={[resourceTree]}
+      trees={trees}
       controls={resourceTree}
     />
   );

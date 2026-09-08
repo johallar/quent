@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { useLayoutEffect } from 'react';
-import { Provider as JotaiProvider, useAtomValue, useSetAtom } from 'jotai';
+import { Provider as JotaiProvider, createStore, useAtomValue, useSetAtom } from 'jotai';
 import {
   useDebouncedZoomRange,
   useHydrateTimelineAtoms,
@@ -15,10 +15,15 @@ import { NVTX_SECTION_ID, toast, Toaster } from '@quent/components';
 import { render, screen, waitFor, userEvent } from '@/test/test-utils';
 import {
   expandedIdsAtom,
+  resourceFilterAtom,
   rootResourceTypeAtom,
   selectedFsmTypesAtom,
   selectedTypesAtom,
 } from '@/atoms/resourceTree';
+import {
+  EMPTY_RESOURCE_FILTER,
+  type ResourceFilter,
+} from '@/features/resource-filter/resourceFilter';
 import {
   OPERATOR_TABLE_INDEX_ORDER,
   OPERATOR_TABLE_PERSIST_KEY,
@@ -65,6 +70,7 @@ function SerializableStateProbe() {
   const selectedTypes = useAtomValue(selectedTypesAtom);
   const selectedFsmTypes = useAtomValue(selectedFsmTypesAtom);
   const rootResourceType = useAtomValue(rootResourceTypeAtom);
+  const resourceFilter = useAtomValue(resourceFilterAtom);
   return (
     <output data-testid="serializable-state">
       {JSON.stringify({
@@ -74,6 +80,7 @@ function SerializableStateProbe() {
           selectedTypes: [...selectedTypes],
           selectedFsmTypes: [...selectedFsmTypes],
           rootResourceType,
+          resourceFilter,
         },
       })}
     </output>
@@ -109,6 +116,15 @@ function SeedEmptyDataFlowDimensions() {
   useLayoutEffect(() => {
     hydrate({ dataFlow: { dimensions: [] } });
   }, [hydrate]);
+  return null;
+}
+
+function SeedResourceFilter({ filter }: { filter: ResourceFilter }) {
+  const setResourceFilter = useSetAtom(resourceFilterAtom);
+
+  useLayoutEffect(() => {
+    setResourceFilter(filter);
+  }, [filter, setResourceFilter]);
   return null;
 }
 
@@ -211,6 +227,12 @@ describe('DeepLinkBoundary', () => {
       selection: { planId: 'plan-a', operatorNodeIds: ['operator-a'] },
       resources: {
         expandedRowIds: ['worker-a'],
+        resourceFilter: {
+          search: 'worker',
+          resourceTypes: ['channel', 'memory'],
+          fsmTypes: ['task', 'transfer'],
+          showOthers: true,
+        },
         rootResourceType: 'channel',
         resourceTypeSelections: [{ rowId: 'worker-a', resourceType: 'memory' }],
         fsmSelections: [{ rowId: 'worker-a', fsmType: 'task' }],
@@ -285,8 +307,43 @@ describe('DeepLinkBoundary', () => {
         selectedTypes: [['worker-a', 'memory']],
         selectedFsmTypes: [['worker-a', 'task']],
         rootResourceType: 'channel',
+        resourceFilter: {
+          search: 'worker',
+          resourceTypes: ['channel', 'memory'],
+          fsmTypes: ['task', 'transfer'],
+          showOthers: true,
+        },
       },
     });
+  });
+
+  it('clears an existing resource filter when shared state omits resources', () => {
+    const encoded = encodeDeepLinkState({
+      route: { engineId: 'e', queryId: 'q', tab: 'timeline' },
+      timeline: { zoomRange: { start: 10, end: 40 } },
+    });
+    expect(encoded.ok).toBe(true);
+    if (!encoded.ok) {
+      return;
+    }
+    const store = createStore();
+    store.set(resourceFilterAtom, {
+      search: 'stale',
+      resourceTypes: ['gpu'],
+      fsmTypes: ['task'],
+      showOthers: true,
+    });
+
+    render(
+      <JotaiProvider store={store}>
+        <DeepLinkBoundary {...BOUNDARY_PROPS} encodedState={encoded.value}>
+          <SerializableStateProbe />
+        </DeepLinkBoundary>
+      </JotaiProvider>
+    );
+
+    const value = JSON.parse(screen.getByTestId('serializable-state').textContent ?? '{}');
+    expect(value.resources.resourceFilter).toEqual(EMPTY_RESOURCE_FILTER);
   });
 
   it('does not subscribe to render-time timeline hydration', () => {
@@ -358,6 +415,14 @@ describe('DeepLinkBoundary', () => {
             <SeedViewport start={20} end={60} />
             <SeedExpandedRows ids={[RESOURCE_B_ID, NVTX_SECTION_ID, RESOURCE_A_ID]} />
             <SeedEmptyDataFlowDimensions />
+            <SeedResourceFilter
+              filter={{
+                search: 'resource',
+                resourceTypes: ['channel'],
+                fsmTypes: [],
+                showOthers: false,
+              }}
+            />
             <ViewportProbe />
             <CopyLinkButton />
           </DeepLinkBoundary>
@@ -385,11 +450,60 @@ describe('DeepLinkBoundary', () => {
         data: {
           route: { engineId: 'e', queryId: 'q', tab: 'timeline' },
           timeline: { zoomRange: { start: 20, end: 60 } },
-          resources: { expandedRowIds: [RESOURCE_A_ID, RESOURCE_B_ID, NVTX_SECTION_ID] },
+          resources: {
+            expandedRowIds: [RESOURCE_A_ID, RESOURCE_B_ID, NVTX_SECTION_ID],
+            resourceFilter: { search: 'resource', resourceTypes: ['channel'] },
+          },
         },
       },
     });
     expect(window.location.href).toBe(originalUrl);
+  });
+
+  it('includes Show All when copying an active resource filter', async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, 'clipboard', {
+      configurable: true,
+      value: { writeText },
+    });
+
+    render(
+      <>
+        <div id={DEEP_LINK_NAV_SLOT_ID} />
+        <JotaiProvider>
+          <DeepLinkBoundary {...BOUNDARY_PROPS}>
+            <SeedViewport start={20} end={60} />
+            <SeedResourceFilter
+              filter={{
+                search: 'resource',
+                resourceTypes: [],
+                fsmTypes: [],
+                showOthers: true,
+              }}
+            />
+            <CopyLinkButton />
+          </DeepLinkBoundary>
+        </JotaiProvider>
+      </>
+    );
+
+    await userEvent.click(await screen.findByRole('button', { name: 'Copy Link' }));
+    await waitFor(() => expect(writeText).toHaveBeenCalledOnce());
+
+    const copiedUrl = new URL(writeText.mock.calls[0][0] as string);
+    const encoded = copiedUrl.searchParams.get('s');
+    expect(encoded).not.toBeNull();
+    expect(decodeDeepLinkState(encoded!)).toMatchObject({
+      ok: true,
+      value: {
+        version: 'v2',
+        data: {
+          resources: {
+            resourceFilter: { search: 'resource', showOthers: true },
+          },
+        },
+      },
+    });
   });
 
   it('shows an error toast when copying fails', async () => {
