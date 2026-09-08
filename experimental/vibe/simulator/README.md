@@ -1,8 +1,17 @@
-# NVTX query-engine simulator
+# NVTX-enabled query-engine simulator
 
-This experimental simulator emits query-engine and NVTX telemetry for UI and
-analysis development. It models NVTX domains, categories, marks, nested ranges,
-resources, and ranges associated with simulated query execution.
+This experimental simulator uses Quent's query-engine analyzer,
+instrumentation model, server, UI bindings, and UI. Its workload models
+compressed scans, GPU decoding, partitioned and local joins, host and GPU
+memory, storage, and network transfers.
+
+The simulator also emits NVTX domains, categories, marks, nested ranges,
+resources, and ranges associated with query execution.
+
+Worker threads execute query partitions concurrently within bounded pipeline
+phases. Shuffle exchanges, aggregations, and sorts are query-wide barriers
+across all workers; scans and ordinary transforms continue to overlap within
+each phase.
 
 ## Run
 
@@ -26,4 +35,12 @@ The complete Docker example can be started from the repository root:
 
 ```bash
 docker compose -f experimental/vibe/simulator/docker-compose.yml up --build
+```
+
+## Verify
+
+```bash
+pixi run cargo fmt --all -- --check
+pixi run cargo test -p quent-simulator -p quent-simulator-analyzer
+pixi run cargo check -p quent-simulator-server --features ui
 ```

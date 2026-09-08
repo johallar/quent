@@ -18,6 +18,10 @@ entity! {
     Network: ResourceGroup {}
 }
 
+entity! {
+    Gpu: ResourceGroup {}
+}
+
 #[cfg(feature = "collector")]
 pub use collector_sink::SimulatorCollectorSink;
 pub use nvtx::{
@@ -41,6 +45,7 @@ model! {
         task::Task,
         ThreadPool,
         Network,
+        Gpu,
         quent_stdlib::memory::Memory,
         quent_stdlib::processor::Processor,
         quent_stdlib::channel::Channel,

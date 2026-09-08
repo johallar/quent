@@ -7,4 +7,4 @@ own risk.
 
 ## Experiments
 
-- [NVTX query-engine simulator](simulator/)
+- [NVTX-enabled query-engine simulator](simulator/)

@@ -4,10 +4,11 @@
 use quent_dynamic_attributes::DynamicValue;
 use quent_events::Event;
 pub use quent_query_engine_analyzer::QueryEngineModel;
+#[cfg(not(target_arch = "wasm32"))]
+use quent_query_engine_analyzer::ui::{QuentViewer, ViewerEventStream};
 use quent_query_engine_analyzer::{
     EngineEntity, OperatorEntity, PlanEntity, PortEntity, QueryEntity, QueryGroupEntity,
-    WorkerEntity, entities,
-    ui::{QuentViewer, UiAnalyzer, ViewerEventStream},
+    WorkerEntity, entities, ui::UiAnalyzer,
 };
 use quent_query_engine_ui::{
     DataFlowTimelineBinned, OperatorFilter, QueryBundle, QueryEntities, QueryFilter,
@@ -50,7 +51,9 @@ use quent_analyzer::{
         },
     },
 };
-use quent_simulator_instrumentation::{Simulator, SimulatorEvent};
+#[cfg(not(target_arch = "wasm32"))]
+use quent_simulator_instrumentation::Simulator;
+use quent_simulator_instrumentation::SimulatorEvent;
 use quent_simulator_ui::EntityRef;
 use quent_time::{SpanNanoSec, TimeNanoSec, TimeUnixNanoSec, Timestamp, to_nanosecs, to_secs};
 use uuid::Uuid;
@@ -146,8 +149,10 @@ pub struct SimulatorUiAnalyzer {
 /// `quent-open` viewer entry for the simulator model: renders [`SimulatorEvent`]
 /// streams with [`SimulatorUiAnalyzer`]. The required `Viewer` path
 /// `quent-open` names when building a viewer for this analyzer's models.
+#[cfg(not(target_arch = "wasm32"))]
 pub struct Viewer;
 
+#[cfg(not(target_arch = "wasm32"))]
 impl QuentViewer for Viewer {
     type Analyzer = SimulatorUiAnalyzer;
 
@@ -407,7 +412,7 @@ impl UiAnalyzer for SimulatorUiAnalyzer {
             .model
             .query_view(query_id)?
             .operators()
-            .map(|op| op.id())
+            .map(|operator| operator.id())
             .collect();
 
         entities::list_entities(
@@ -907,11 +912,18 @@ impl UiAnalyzer for SimulatorUiAnalyzer {
         let want_tasks = want(MEASURE_TASKS);
         let want_bytes = want(MEASURE_BYTES);
 
-        let query_operators: HashSet<Uuid> = self
-            .model
-            .query_view(query_id)?
+        let query_view = self.model.query_view(query_id)?;
+        let operator_series: HashMap<Uuid, Vec<Uuid>> = query_view
             .operators()
-            .map(|op| op.id())
+            .map(|operator| {
+                let parent_operator_ids = operator.parent_operator_ids();
+                let mut series = Vec::with_capacity(1 + parent_operator_ids.len());
+                series.push(operator.id());
+                series.extend(parent_operator_ids);
+                series.sort_unstable();
+                series.dedup();
+                (operator.id(), series)
+            })
             .collect();
 
         // The dimension of the distribution is where a task's data resides:
@@ -940,9 +952,9 @@ impl UiAnalyzer for SimulatorUiAnalyzer {
             let Some(operator_id) = task.operator_id() else {
                 continue;
             };
-            if !query_operators.contains(&operator_id) {
+            let Some(series_ids) = operator_series.get(&operator_id) else {
                 continue;
-            }
+            };
             // Walk state spans: state `i` spans transition `i` to `i + 1`. Use
             // raw transitions rather than `usages_with_state_names` so states
             // without usages still count.
@@ -960,16 +972,18 @@ impl UiAnalyzer for SimulatorUiAnalyzer {
                     memory_usage.map_or(none_key.as_str(), |u| memory_names[&u.resource_id]);
                 if want_tasks {
                     present_dimensions.insert(dimension);
-                    builder.try_push(
-                        CategoricalKey {
-                            series: operator_id,
-                            measure: MEASURE_TASKS,
-                            state,
-                            dimension,
-                        },
-                        span,
-                        1.0,
-                    )?;
+                    for &series in series_ids {
+                        builder.try_push(
+                            CategoricalKey {
+                                series,
+                                measure: MEASURE_TASKS,
+                                state,
+                                dimension,
+                            },
+                            span,
+                            1.0,
+                        )?;
+                    }
                 }
                 if want_bytes {
                     let bytes: u64 = memory_usage
@@ -983,16 +997,18 @@ impl UiAnalyzer for SimulatorUiAnalyzer {
                         .unwrap_or(0);
                     if bytes > 0 {
                         present_dimensions.insert(dimension);
-                        builder.try_push(
-                            CategoricalKey {
-                                series: operator_id,
-                                measure: MEASURE_BYTES,
-                                state,
-                                dimension,
-                            },
-                            span,
-                            bytes as f64,
-                        )?;
+                        for &series in series_ids {
+                            builder.try_push(
+                                CategoricalKey {
+                                    series,
+                                    measure: MEASURE_BYTES,
+                                    state,
+                                    dimension,
+                                },
+                                span,
+                                bytes as f64,
+                            )?;
+                        }
                     }
                 }
             }
