@@ -39,6 +39,11 @@ export interface HighlightedNodeIdsState {
 /** Inspected details for every selected operator, keyed by selection id. */
 export const selectedNodesDataAtom = atom<ReadonlyMap<string, InspectedNodeData>>(new Map());
 
+export interface SelectedNodeDataUpdate {
+  selectionId: string;
+  data: InspectedNodeData;
+}
+
 /** Last pinned node; writing replaces the whole inspected-node map. */
 export const selectedNodeDataAtom = atom(
   get => {
@@ -49,8 +54,11 @@ export const selectedNodeDataAtom = atom(
     }
     return last;
   },
-  (_get, set, value: InspectedNodeData | null) => {
-    set(selectedNodesDataAtom, value == null ? new Map() : new Map([[value.nodeId, value]]));
+  (_get, set, value: SelectedNodeDataUpdate | null) => {
+    set(
+      selectedNodesDataAtom,
+      value == null ? new Map() : new Map([[value.selectionId, value.data]])
+    );
   }
 );
 

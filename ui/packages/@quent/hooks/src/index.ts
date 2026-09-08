@@ -99,7 +99,11 @@ export {
   useSetHoveredStat,
   useSetDagDisplayedNodeIds,
 } from './dag/dagControlSelectors';
-export type { HoveredStatInfo, HighlightedNodeIdsState } from './atoms/dagControls';
+export type {
+  HoveredStatInfo,
+  HighlightedNodeIdsState,
+  SelectedNodeDataUpdate,
+} from './atoms/dagControls';
 export type { InspectedNodeData, InspectedOperatorData } from '@quent/utils';
 
 // Data-flow overlay hooks (HOOKS-02: selector hooks over private atoms)

@@ -31,17 +31,17 @@ describe('operator selection actions', () => {
 
     const selectedIds = store.set(operatorSelectionActionAtom, {
       type: 'add',
-      selectionId: 'scan',
+      selectionId: 'logical-scan',
       label: 'Scan',
-      operatorIds: ['scan', 'physical-scan'],
+      operatorIds: ['logical-scan', 'physical-scan'],
       inspectedData: scanData,
     });
 
-    expect(selectedIds).toEqual(new Set(['scan', 'physical-scan']));
-    expect(store.get(operatorSelectionAtom).selections.has('scan')).toBe(true);
-    expect(store.get(selectedNodesDataAtom)).toEqual(new Map([['scan', scanData]]));
+    expect(selectedIds).toEqual(new Set(['logical-scan', 'physical-scan']));
+    expect(store.get(operatorSelectionAtom).selections.has('logical-scan')).toBe(true);
+    expect(store.get(selectedNodesDataAtom)).toEqual(new Map([['logical-scan', scanData]]));
 
-    store.set(operatorSelectionActionAtom, { type: 'remove', selectionId: 'scan' });
+    store.set(operatorSelectionActionAtom, { type: 'remove', selectionId: 'logical-scan' });
 
     expect(store.get(operatorSelectionAtom).selections.size).toBe(0);
     expect(store.get(selectedNodesDataAtom).size).toBe(0);
@@ -110,16 +110,16 @@ describe('operator selection actions', () => {
     expect(store.get(selectedNodesDataAtom).size).toBe(0);
   });
 
-  it('hydrates a grouped replacement as one inspected selection', () => {
+  it('keys a grouped replacement by selection ID when its inspected node differs', () => {
     const store = createStore();
 
     store.set(operatorSelectionActionAtom, {
       type: 'replace',
       selections: [
         {
-          selectionId: 'join',
+          selectionId: 'logical-join',
           label: 'Join',
-          operatorIds: new Set(['join', 'physical-join']),
+          operatorIds: new Set(['logical-join', 'physical-join']),
           inspectedData: joinData,
         },
       ],
@@ -128,15 +128,15 @@ describe('operator selection actions', () => {
     expect(store.get(operatorSelectionAtom).selections).toEqual(
       new Map([
         [
-          'join',
+          'logical-join',
           {
             label: 'Join',
-            operatorIds: new Set(['join', 'physical-join']),
+            operatorIds: new Set(['logical-join', 'physical-join']),
           },
         ],
       ])
     );
-    expect(store.get(selectedNodesDataAtom)).toEqual(new Map([['join', joinData]]));
+    expect(store.get(selectedNodesDataAtom)).toEqual(new Map([['logical-join', joinData]]));
   });
 
   it('hydrates inspection data without changing global selections', () => {

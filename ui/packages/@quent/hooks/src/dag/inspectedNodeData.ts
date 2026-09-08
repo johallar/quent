@@ -5,21 +5,22 @@ import type { InspectedNodeData } from '@quent/utils';
 
 export function upsertInspectedNodeData(
   current: ReadonlyMap<string, InspectedNodeData>,
+  selectionId: string,
   data: InspectedNodeData
 ): Map<string, InspectedNodeData> {
   const next = new Map(current);
-  next.set(data.nodeId, data);
+  next.set(selectionId, data);
   return next;
 }
 
 export function removeInspectedNodeData(
   current: ReadonlyMap<string, InspectedNodeData>,
-  nodeId: string
+  selectionId: string
 ): ReadonlyMap<string, InspectedNodeData> {
-  if (!current.has(nodeId)) {
+  if (!current.has(selectionId)) {
     return current;
   }
   const next = new Map(current);
-  next.delete(nodeId);
+  next.delete(selectionId);
   return next;
 }

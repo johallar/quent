@@ -66,7 +66,7 @@ export const operatorSelectionActionAtom = atom(
         );
         nextData = new Map([...currentData].filter(([id]) => nextSelection.selections.has(id)));
         if (nextSelection.selections.has(action.selectionId)) {
-          nextData = upsertInspectedNodeData(nextData, action.inspectedData);
+          nextData = upsertInspectedNodeData(nextData, action.selectionId, action.inspectedData);
         }
         break;
       case 'remove':
@@ -88,7 +88,7 @@ export const operatorSelectionActionAtom = atom(
           }
           const inspectedData = selection.inspectedData ?? currentData.get(selection.selectionId);
           if (inspectedData) {
-            nextData = upsertInspectedNodeData(nextData, inspectedData);
+            nextData = upsertInspectedNodeData(nextData, selection.selectionId, inspectedData);
           }
         }
         nextData = new Map([...nextData].filter(([id]) => nextSelection.selections.has(id)));
@@ -99,7 +99,11 @@ export const operatorSelectionActionAtom = atom(
         nextData = new Map(currentData);
         for (const selection of action.selections) {
           if (currentSelection.selections.has(selection.selectionId)) {
-            nextData = upsertInspectedNodeData(nextData, selection.inspectedData);
+            nextData = upsertInspectedNodeData(
+              nextData,
+              selection.selectionId,
+              selection.inspectedData
+            );
           }
         }
         break;

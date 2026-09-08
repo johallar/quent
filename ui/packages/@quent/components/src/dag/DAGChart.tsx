@@ -429,16 +429,19 @@ const FlowLayout = ({
         setSelectedNodeIds(newSet);
         setSelectedOperatorLabel(node.data.label);
         setSelectedNodeData({
-          nodeId: node.id,
-          label: node.data.label,
-          operationType: node.data.operationType,
-          statistics: parseCustomStatistics(node.data.metadata?.rawNode),
-          relatedOperators: node.data.metadata?.relatedOperators?.map(operator => ({
-            nodeId: operator.id,
-            label: operator.instance_name ?? operator.operator_type_name ?? 'Operator',
-            operationType: operator.operator_type_name?.toLowerCase() ?? 'operator',
-            statistics: parseCustomStatistics(operator),
-          })),
+          selectionId: node.id,
+          data: {
+            nodeId: node.id,
+            label: node.data.label,
+            operationType: node.data.operationType,
+            statistics: parseCustomStatistics(node.data.metadata?.rawNode),
+            relatedOperators: node.data.metadata?.relatedOperators?.map(operator => ({
+              nodeId: operator.id,
+              label: operator.instance_name ?? operator.operator_type_name ?? 'Operator',
+              operationType: operator.operator_type_name?.toLowerCase() ?? 'operator',
+              statistics: parseCustomStatistics(operator),
+            })),
+          },
         });
         onSelectionChange?.(selectionIds);
       }
