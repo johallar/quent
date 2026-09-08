@@ -9,7 +9,7 @@ import {
   useOperatorSelectionActions,
   useSelectedNodeIds,
 } from '@quent/hooks';
-import type { EntityRef, QueryBundle } from '@quent/utils';
+import type { EntityRef, Operator, QueryBundle } from '@quent/utils';
 import { ThemeProvider } from '@/contexts/ThemeContext';
 import { EntitiesTable } from './EntitiesTable';
 
@@ -30,54 +30,92 @@ vi.mock('@quent/client', () => ({
   useEntityList: (...args: unknown[]) => useEntityList(...args),
 }));
 
+function makeOperator(
+  id: string,
+  instanceName: string,
+  typeName: string,
+  parentOperatorIds: string[] = []
+): Operator {
+  return {
+    id,
+    plan_id: null,
+    parent_operator_ids: parentOperatorIds,
+    instance_name: instanceName,
+    operator_type_name: typeName,
+    custom_attributes: {},
+    statistics: null,
+    active_span: null,
+  };
+}
+
 const queryBundle = {
   query_id: 'query-1',
   duration_s: 10,
   entities: {
-    operators: {
-      'operator-1': {
-        id: 'operator-1',
-        instance_name: 'Operator One',
-        operator_type_name: 'Scan',
-      },
+    engine: {
+      id: 'engine-1',
+      start_time_unix_ns: null,
+      duration_s: null,
+      instance_name: null,
+      implementation: null,
     },
+    query_group: {
+      id: 'query-group-1',
+      instance_name: null,
+      engine_id: 'engine-1',
+    },
+    query: {
+      id: 'query-1',
+      query_group_id: 'query-group-1',
+      instance_name: null,
+      start_unix_ns: null,
+      planning_s: null,
+      executing_s: null,
+      completed_s: null,
+    },
+    workers: {},
+    plans: {},
+    operators: {
+      'operator-1': makeOperator('operator-1', 'Operator One', 'Scan'),
+    },
+    ports: {},
+    resource_types: {},
+    resource_group_types: {},
     resources: {
       'resource-1': {
         id: 'resource-1',
         instance_name: 'GPU 1',
         type_name: 'GPU',
+        parent_group_id: '',
       },
     },
+    resource_groups: {},
     fsm_types: { Task: { name: 'Task', states: [], transitions: [] } },
   },
-} as unknown as QueryBundle<EntityRef>;
+  plan_tree: { id: 'plan-1', worker: null, children: [] },
+  resource_tree: { Resource: { Resource: 'resource-1' } },
+  unique_operator_names: [],
+  quantity_specs: {},
+  start_time_unix_ns: 0n,
+} satisfies QueryBundle<EntityRef>;
 
-const logicalOperatorQueryBundle = {
-  ...queryBundle,
-  entities: {
-    ...queryBundle.entities,
-    operators: {
-      logical: {
-        id: 'logical',
-        instance_name: 'Logical Operator',
-        operator_type_name: 'Logical',
-        parent_operator_ids: [],
-      },
-      'child-one': {
-        id: 'child-one',
-        instance_name: 'Child One',
-        operator_type_name: 'Physical',
-        parent_operator_ids: ['logical'],
-      },
-      'child-two': {
-        id: 'child-two',
-        instance_name: 'Child Two',
-        operator_type_name: 'Physical',
-        parent_operator_ids: ['logical'],
-      },
+function withOperators(
+  operators: QueryBundle<EntityRef>['entities']['operators']
+): QueryBundle<EntityRef> {
+  return {
+    ...queryBundle,
+    entities: {
+      ...queryBundle.entities,
+      operators,
     },
-  },
-} as unknown as QueryBundle<EntityRef>;
+  };
+}
+
+const logicalOperatorQueryBundle = withOperators({
+  logical: makeOperator('logical', 'Logical Operator', 'Logical'),
+  'child-one': makeOperator('child-one', 'Child One', 'Physical', ['logical']),
+  'child-two': makeOperator('child-two', 'Child Two', 'Physical', ['logical']),
+});
 
 const fsm = {
   id: 'entity-1',
@@ -248,20 +286,10 @@ describe('EntitiesTable', () => {
 
   it('supports selecting multiple operators from the dropdown', () => {
     const store = createStore();
-    const multiOperatorQueryBundle = {
-      ...queryBundle,
-      entities: {
-        ...queryBundle.entities,
-        operators: {
-          ...queryBundle.entities.operators,
-          'operator-2': {
-            id: 'operator-2',
-            instance_name: 'Operator Two',
-            operator_type_name: 'Filter',
-          },
-        },
-      },
-    } as unknown as QueryBundle<EntityRef>;
+    const multiOperatorQueryBundle = withOperators({
+      ...queryBundle.entities.operators,
+      'operator-2': makeOperator('operator-2', 'Operator Two', 'Filter'),
+    });
 
     renderTable(
       <>
