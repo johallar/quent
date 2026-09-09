@@ -351,12 +351,20 @@ describe('EntitiesTable', () => {
     fireEvent.click(screen.getByRole('option', { name: 'Child One' }));
 
     params = useEntities.mock.lastCall?.[0];
-    expect(params.request.entry.application.operator_ids).toEqual(
-      expect.arrayContaining(['logical', 'child-two'])
+    expect(params.request.entry.application.operator_ids).toEqual(['child-two']);
+    expect(screen.getByTestId('selected-operator-ids')).toHaveTextContent(
+      JSON.stringify(['child-two'])
     );
-    expect(params.request.entry.application.operator_ids).toHaveLength(2);
     expect(screen.getByTestId('operator-selection-labels')).toHaveTextContent(
-      JSON.stringify(['Child Two', 'Logical Operator'])
+      JSON.stringify(['Child Two'])
+    );
+    expect(screen.getByRole('option', { name: 'Logical Operator' })).toHaveAttribute(
+      'aria-selected',
+      'false'
+    );
+    expect(screen.getByRole('option', { name: 'Child Two' })).toHaveAttribute(
+      'aria-selected',
+      'true'
     );
   });
 

@@ -14,7 +14,11 @@ import {
   getSelectedOperatorIds,
   removeOperatorSelection as removeSelection,
 } from '../dag/operatorSelection';
-import { removeInspectedNodeData, upsertInspectedNodeData } from '../dag/inspectedNodeData';
+import {
+  findInspectedNodeData,
+  removeInspectedNodeData,
+  upsertInspectedNodeData,
+} from '../dag/inspectedNodeData';
 import { selectedNodesDataAtom } from './dagControls';
 
 export type OperatorSelectionAction =
@@ -85,7 +89,8 @@ export const operatorSelectionActionAtom = atom(
           if (!nextSelection.selections.has(selection.selectionId)) {
             continue;
           }
-          const inspectedData = selection.inspectedData ?? currentData.get(selection.selectionId);
+          const inspectedData =
+            selection.inspectedData ?? findInspectedNodeData(currentData, selection.selectionId);
           if (inspectedData) {
             nextData = upsertInspectedNodeData(nextData, selection.selectionId, inspectedData);
           }

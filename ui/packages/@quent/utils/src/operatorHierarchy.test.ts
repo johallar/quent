@@ -84,11 +84,45 @@ describe('operator hierarchy', () => {
       'left'
     );
 
-    expect(new Map(selections.map(selection => [selection.selectionId, selection.label]))).toEqual(
-      new Map([
-        ['right', 'Right'],
-        ['logical', 'Logical'],
-      ])
-    );
+    expect(selections).toEqual([
+      {
+        selectionId: 'right',
+        label: 'Right',
+        operatorIds: new Set(['right']),
+      },
+    ]);
+  });
+
+  it('deselects every selected ancestor of a covered descendant', () => {
+    const operators = [
+      makeOperator('logical', 'Logical'),
+      makeOperator('intermediate', 'Intermediate', ['logical']),
+      makeOperator('left', 'Left', ['intermediate']),
+      makeOperator('right', 'Right', ['intermediate']),
+    ];
+    const selectedIds = new Set(['logical', 'intermediate', 'left', 'right']);
+
+    expect(
+      toggleOperatorSelection(
+        operators,
+        selectedIds,
+        new Map([
+          [
+            'logical',
+            {
+              label: 'Logical',
+              operatorIds: selectedIds,
+            },
+          ],
+        ]),
+        'left'
+      )
+    ).toEqual([
+      {
+        selectionId: 'right',
+        label: 'Right',
+        operatorIds: new Set(['right']),
+      },
+    ]);
   });
 });

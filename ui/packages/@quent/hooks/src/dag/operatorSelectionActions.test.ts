@@ -80,6 +80,25 @@ describe('operator selection actions', () => {
     expect(store.get(selectedNodesDataAtom)).toEqual(new Map([['join', groupedJoinData]]));
   });
 
+  it('promotes related inspection data when a parent selection is split', () => {
+    const store = createStore();
+    store.set(operatorSelectionActionAtom, {
+      type: 'add',
+      selectionId: 'join',
+      label: 'Join',
+      operatorIds: ['join', 'scan'],
+      inspectedData: groupedJoinData,
+    });
+
+    store.set(operatorSelectionActionAtom, {
+      type: 'replace',
+      selections: [{ selectionId: 'scan', label: 'Scan', operatorIds: new Set(['scan']) }],
+    });
+
+    expect(store.get(operatorSelectionAtom).selections.has('join')).toBe(false);
+    expect(store.get(selectedNodesDataAtom)).toEqual(new Map([['scan', scanData]]));
+  });
+
   it('prunes stale inspection data when replacing or clearing selections', () => {
     const store = createStore();
     store.set(operatorSelectionActionAtom, {

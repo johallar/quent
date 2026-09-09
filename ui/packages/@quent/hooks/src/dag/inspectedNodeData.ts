@@ -3,6 +3,26 @@
 
 import type { InspectedNodeData } from '@quent/utils';
 
+export function findInspectedNodeData(
+  current: ReadonlyMap<string, InspectedNodeData>,
+  operatorId: string
+): InspectedNodeData | undefined {
+  const direct = current.get(operatorId);
+  if (direct) {
+    return direct;
+  }
+  for (const data of current.values()) {
+    if (data.nodeId === operatorId) {
+      return data;
+    }
+    const related = data.relatedOperators?.find(operator => operator.nodeId === operatorId);
+    if (related) {
+      return related;
+    }
+  }
+  return undefined;
+}
+
 export function upsertInspectedNodeData(
   current: ReadonlyMap<string, InspectedNodeData>,
   selectionId: string,

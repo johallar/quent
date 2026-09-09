@@ -133,6 +133,18 @@ export function toggleOperatorSelection(
     }
   } else if (nextIds.has(operatorId)) {
     nextIds.delete(operatorId);
+    const operatorsById = new Map(operators.map(operator => [operator.id, operator]));
+    const pendingParentIds = [...(operatorsById.get(operatorId)?.parent_operator_ids ?? [])];
+    const visitedParentIds = new Set<string>();
+    while (pendingParentIds.length > 0) {
+      const parentId = pendingParentIds.pop()!;
+      if (visitedParentIds.has(parentId)) {
+        continue;
+      }
+      visitedParentIds.add(parentId);
+      nextIds.delete(parentId);
+      pendingParentIds.push(...(operatorsById.get(parentId)?.parent_operator_ids ?? []));
+    }
   } else {
     nextIds.add(operatorId);
     for (const id of buildRelatedOperatorIdsById(operators, [operatorId]).get(operatorId) ?? []) {

@@ -8,8 +8,11 @@ import {
   useOperatorSelection,
   useOperatorSelectionActions,
   useSelectedNodeIds,
+  useSelectedNodesData,
 } from '@quent/hooks';
 import type { Operator } from '@quent/utils';
+import { DAGNodeInfoPanel } from '../dag/DAGNodeInfoPanel';
+import { QueryToolbar } from '../timeline/QueryToolbar';
 import { OperatorGanttChart } from './OperatorGanttChart';
 import type { OperatorActiveSpanEntry } from './types';
 
@@ -44,6 +47,7 @@ function makeOperator(id: string, parentOperatorIds: string[] = []): Operator {
 function SelectionControls() {
   const selection = useOperatorSelection();
   const selectedIds = useSelectedNodeIds();
+  const selectedNodesData = useSelectedNodesData();
   const updateSelection = useOperatorSelectionActions();
 
   return (
@@ -61,6 +65,20 @@ function SelectionControls() {
               label: 'parent',
               operationType: 'test',
               statistics: [],
+              relatedOperators: [
+                {
+                  nodeId: 'left',
+                  label: 'left',
+                  operationType: 'test',
+                  statistics: [],
+                },
+                {
+                  nodeId: 'right',
+                  label: 'right',
+                  operationType: 'test',
+                  statistics: [],
+                },
+              ],
             },
           })
         }
@@ -70,6 +88,9 @@ function SelectionControls() {
       <output data-testid="selection-ids">{JSON.stringify([...selectedIds].sort())}</output>
       <output data-testid="selection-groups">
         {JSON.stringify([...selection.selections.keys()].sort())}
+      </output>
+      <output data-testid="inspected-operators">
+        {JSON.stringify(selectedNodesData.map(operator => operator.nodeId).sort())}
       </output>
     </>
   );
@@ -98,6 +119,8 @@ describe('OperatorGanttChart', () => {
     render(
       <Provider>
         <SelectionControls />
+        <QueryToolbar />
+        <DAGNodeInfoPanel />
         <OperatorGanttChart
           operators={operators}
           allOperators={allOperators}
@@ -115,11 +138,12 @@ describe('OperatorGanttChart', () => {
       });
     });
 
-    expect(screen.getByTestId('selection-ids')).toHaveTextContent(
-      JSON.stringify(['parent', 'right'])
-    );
-    expect(screen.getByTestId('selection-groups')).toHaveTextContent(
-      JSON.stringify(['parent', 'right'])
-    );
+    expect(screen.getByTestId('selection-ids')).toHaveTextContent(JSON.stringify(['right']));
+    expect(screen.getByTestId('selection-groups')).toHaveTextContent(JSON.stringify(['right']));
+    expect(screen.getByTestId('inspected-operators')).toHaveTextContent(JSON.stringify(['right']));
+    expect(screen.queryByRole('button', { name: 'Remove parent' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Remove right' })).toBeInTheDocument();
+    expect(screen.getByTestId('operator-details-title')).toHaveTextContent('right');
+    expect(screen.getByTestId('operator-details-title')).not.toHaveTextContent('parent');
   });
 });
