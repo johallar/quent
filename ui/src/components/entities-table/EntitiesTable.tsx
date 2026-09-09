@@ -34,7 +34,7 @@ export function EntitiesTable(props: EntitiesTableProps) {
   return (
     <div className="flex flex-col h-full">
       <QueryToolbar />
-      <ResizablePanelGroup orientation="horizontal">
+      <ResizablePanelGroup orientation="horizontal" className="min-h-0 flex-1">
         <ResizablePanel defaultSize="65%" minSize="40%">
           <div className="flex h-full min-h-0 flex-col">
             <EntitiesToolbar
