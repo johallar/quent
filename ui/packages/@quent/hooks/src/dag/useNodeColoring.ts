@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { useMemo } from 'react';
-import { useSelectedNodeIds } from './useSelectedNodeIds';
+import { useSelectedOperatorIds } from './useSelectedOperatorIds';
 import { useAtomValue } from 'jotai';
 import { nodeColoringAtom, selectedColorField, nodeColorPaletteAtom } from '../atoms/dagControls';
 import { continuousColor } from '@quent/utils';
@@ -41,12 +41,12 @@ export function useNodeColoring(
   isDark: boolean,
   relatedOperatorIds: readonly string[] = []
 ): NodeColoringResult {
-  const selectedNodeIds = useSelectedNodeIds();
+  const selectedOperatorIds = useSelectedOperatorIds();
   const nodeColoring = useAtomValue(nodeColoringAtom);
   const nodePalette = useAtomValue(nodeColorPaletteAtom);
   const colorField = useAtomValue(selectedColorField);
 
-  const isSelected = isOperatorGroupSelected(selectedNodeIds, operatorId, relatedOperatorIds);
+  const isSelected = isOperatorGroupSelected(selectedOperatorIds, operatorId, relatedOperatorIds);
 
   const { fieldColor, fieldDimmed } = useMemo(() => {
     if (!nodeColoring) {
@@ -67,7 +67,7 @@ export function useNodeColoring(
     return { fieldColor: color, fieldDimmed: !color };
   }, [nodeColoring, operatorId, nodePalette, isDark]);
 
-  const hasSelection = selectedNodeIds.size > 0;
+  const hasSelection = selectedOperatorIds.size > 0;
   const isDimmed = fieldDimmed || (hasSelection && !isSelected);
 
   return { fieldColor, fieldDimmed, isDimmed, isSelected, colorField };

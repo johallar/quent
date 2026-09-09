@@ -5,7 +5,7 @@ import { useCallback, useMemo } from 'react';
 
 import { useTimelineEchartsTheme } from '../timeline/timelineEchartsTheme';
 import {
-  useSelectedNodeIds,
+  useSelectedOperatorIds,
   useOperatorSelection,
   useOperatorSelectionActions,
   useSetSelectedPlanId,
@@ -61,7 +61,7 @@ export function OperatorGanttChart({
   const nodeColoring = useNodeColoringValue();
   const [nodePalette] = useNodeColorPalette();
   const barLabelTextColor = textColor;
-  const selectedNodeIds = useSelectedNodeIds();
+  const selectedOperatorIds = useSelectedOperatorIds();
 
   const customSeriesData = useMemo(
     () =>
@@ -131,8 +131,8 @@ export function OperatorGanttChart({
           : (op?.label ?? '');
       const { fill } = getOperatorBarColors(op?.typeName);
       const fieldStyle = op ? operatorFieldStyles.get(op.operatorId) : undefined;
-      const hasSelection = selectedNodeIds.size > 0;
-      const isSelected = op != null && selectedNodeIds.has(op.operatorId);
+      const hasSelection = selectedOperatorIds.size > 0;
+      const isSelected = op != null && selectedOperatorIds.has(op.operatorId);
       const fieldDimmed = fieldStyle?.fieldDimmed ?? false;
       const opacity = fieldDimmed || (hasSelection && !isSelected) ? 0.35 : 1;
 
@@ -166,7 +166,7 @@ export function OperatorGanttChart({
         children: [rect, text],
       };
     },
-    [operators, operatorFieldStyles, barLabelTextColor, selectedNodeIds]
+    [operators, operatorFieldStyles, barLabelTextColor, selectedOperatorIds]
   );
 
   const handleClick = useMemo(
@@ -179,12 +179,12 @@ export function OperatorGanttChart({
         if (!op) {
           return;
         }
-        if (selectedNodeIds.has(op.operatorId)) {
+        if (selectedOperatorIds.has(op.operatorId)) {
           updateOperatorSelection({
             type: 'replace',
             selections: toggleOperatorSelection(
               allOperators,
-              selectedNodeIds,
+              selectedOperatorIds,
               operatorSelection.selections,
               op.operatorId
             ),
@@ -212,7 +212,7 @@ export function OperatorGanttChart({
       allOperators,
       operators,
       operatorSelection.selections,
-      selectedNodeIds,
+      selectedOperatorIds,
       setSelectedPlanId,
       updateOperatorSelection,
     ]

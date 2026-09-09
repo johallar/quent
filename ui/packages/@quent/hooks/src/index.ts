@@ -6,7 +6,7 @@ export { QuentProvider } from './QuentProvider';
 export type { QuentProviderProps } from './QuentProvider';
 
 // DAG hooks
-export { useSelectedNodeIds } from './dag/useSelectedNodeIds';
+export { useSelectedOperatorIds } from './dag/useSelectedOperatorIds';
 export { useSelectedOperatorLabel } from './dag/useSelectedOperatorLabel';
 export { useOperatorSelection, useOperatorSelectionActions } from './dag/useOperatorSelection';
 export { useSelectedPlanId, useSetSelectedPlanId } from './dag/useSelectedPlanId';

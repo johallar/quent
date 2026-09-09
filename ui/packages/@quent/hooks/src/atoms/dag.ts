@@ -125,7 +125,9 @@ export const operatorSelectionActionAtom = atom(
 );
 
 /** The operator IDs represented by the current selections */
-export const selectedNodeIdsAtom = atom(get => getSelectedOperatorIds(get(operatorSelectionAtom)));
+export const selectedOperatorIdsAtom = atom(get =>
+  getSelectedOperatorIds(get(operatorSelectionAtom))
+);
 
 /** Display label of the active operator selection */
 export const selectedOperatorLabelAtom = atom(get =>
