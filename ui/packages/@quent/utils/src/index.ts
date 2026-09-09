@@ -89,11 +89,10 @@ export type {
 } from './operatorTypes';
 export {
   buildRelatedOperatorIdsById,
-  getOperatorDisplayLabel,
   resolveOperatorSelectionCandidates,
   resolveOperatorSelections,
+  toggleOperatorSelection,
 } from './operatorHierarchy';
-export type { ResolvedOperatorSelectionCandidates } from './operatorHierarchy';
 
 export { AGG_MODES } from './aggMode';
 export type { AggMode } from './aggMode';

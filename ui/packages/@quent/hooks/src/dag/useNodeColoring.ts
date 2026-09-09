@@ -20,18 +20,33 @@ interface NodeColoringResult {
   colorField: string | null;
 }
 
+export function isOperatorGroupSelected(
+  selectedOperatorIds: ReadonlySet<string>,
+  operatorId: string,
+  relatedOperatorIds: readonly string[] = []
+): boolean {
+  return (
+    selectedOperatorIds.has(operatorId) &&
+    relatedOperatorIds.every(id => selectedOperatorIds.has(id))
+  );
+}
+
 /**
  * Returns coloring state for a DAG node.
  * @param operatorId - The node's operator ID
  * @param isDark - Whether the UI is in dark mode (replaces useTheme dependency)
  */
-export function useNodeColoring(operatorId: string, isDark: boolean): NodeColoringResult {
+export function useNodeColoring(
+  operatorId: string,
+  isDark: boolean,
+  relatedOperatorIds: readonly string[] = []
+): NodeColoringResult {
   const selectedNodeIds = useSelectedNodeIds();
   const nodeColoring = useAtomValue(nodeColoringAtom);
   const nodePalette = useAtomValue(nodeColorPaletteAtom);
   const colorField = useAtomValue(selectedColorField);
 
-  const isSelected = selectedNodeIds.has(operatorId);
+  const isSelected = isOperatorGroupSelected(selectedNodeIds, operatorId, relatedOperatorIds);
 
   const { fieldColor, fieldDimmed } = useMemo(() => {
     if (!nodeColoring) {

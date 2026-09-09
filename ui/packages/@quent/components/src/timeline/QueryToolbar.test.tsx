@@ -7,41 +7,36 @@ import userEvent from '@testing-library/user-event';
 import { Provider } from 'jotai';
 import { describe, expect, it } from 'vitest';
 import {
-  useSelectedNodeData,
   useSelectedNodeIds,
   useSelectedNodesData,
   useSelectedOperatorLabel,
-  useSetSelectedNodeData,
-  useSetSelectedNodeIds,
-  useSetSelectedOperatorLabel,
   useOperatorSelectionActions,
 } from '@quent/hooks';
 import { QueryToolbar } from './QueryToolbar';
 
 function SeedOperatorFilter() {
-  const setNodeIds = useSetSelectedNodeIds();
-  const setLabel = useSetSelectedOperatorLabel();
-  const setNodeData = useSetSelectedNodeData();
+  const updateOperatorSelection = useOperatorSelectionActions();
 
   useEffect(() => {
-    setNodeIds(new Set(['operator-1']));
-    setLabel('Scan');
-    setNodeData({
+    updateOperatorSelection({
+      type: 'add',
       selectionId: 'operator-1',
-      data: {
+      label: 'Scan',
+      operatorIds: ['operator-1'],
+      inspectedData: {
         nodeId: 'operator-1',
         label: 'Scan',
         operationType: 'logical',
         statistics: [],
       },
     });
-  }, [setLabel, setNodeData, setNodeIds]);
+  }, [updateOperatorSelection]);
   return null;
 }
 
 function ToolbarHarness() {
   const selectedNodeIds = useSelectedNodeIds();
-  const selectedNodeData = useSelectedNodeData();
+  const selectedNodesData = useSelectedNodesData();
   const updateOperatorSelection = useOperatorSelectionActions();
 
   useEffect(() => {
@@ -63,7 +58,7 @@ function ToolbarHarness() {
     <>
       <QueryToolbar />
       <span data-testid="selected-count">{selectedNodeIds.size}</span>
-      <span data-testid="selected-details">{selectedNodeData?.nodeId ?? 'none'}</span>
+      <span data-testid="selected-details">{selectedNodesData[0]?.nodeId ?? 'none'}</span>
     </>
   );
 }

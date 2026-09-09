@@ -2,16 +2,16 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import type { Operator } from './types';
-import type { OperatorSelectionInput } from './operatorTypes';
+import type { OperatorSelection, OperatorSelectionInput } from './operatorTypes';
 
-export interface ResolvedOperatorSelectionCandidates<
+interface ResolvedOperatorSelectionCandidates<
   Selection extends OperatorSelectionInput = OperatorSelectionInput,
 > {
   selections: Selection[];
   unresolvedOperatorIds: ReadonlySet<string>;
 }
 
-export function getOperatorDisplayLabel(operator: Operator): string {
+function getOperatorDisplayLabel(operator: Operator): string {
   return operator.instance_name ?? operator.operator_type_name ?? operator.id;
 }
 
@@ -116,4 +116,29 @@ export function resolveOperatorSelections(
   }
 
   return selections;
+}
+
+export function toggleOperatorSelection(
+  operators: readonly Operator[],
+  selectedOperatorIds: Iterable<string>,
+  selections: ReadonlyMap<string, OperatorSelection>,
+  operatorId: string
+): OperatorSelectionInput[] {
+  const nextIds = new Set(selectedOperatorIds);
+  const selectedGroup = selections.get(operatorId);
+
+  if (selectedGroup) {
+    for (const id of selectedGroup.operatorIds) {
+      nextIds.delete(id);
+    }
+  } else if (nextIds.has(operatorId)) {
+    nextIds.delete(operatorId);
+  } else {
+    nextIds.add(operatorId);
+    for (const id of buildRelatedOperatorIdsById(operators, [operatorId]).get(operatorId) ?? []) {
+      nextIds.add(id);
+    }
+  }
+
+  return resolveOperatorSelections(operators, nextIds);
 }

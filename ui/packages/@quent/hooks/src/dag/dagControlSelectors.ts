@@ -17,7 +17,6 @@ import {
   edgeColorPaletteAtom,
   selectedNodeLabelFieldAtom,
   selectedDagLayoutDirectionAtom,
-  selectedNodeDataAtom,
   selectedNodesDataAtom,
   highlightedNodeIdsAtom,
   effectiveHighlightedNodeIdsAtom,
@@ -68,13 +67,6 @@ export function useSelectedNodeLabelField() {
 
 export function useSelectedDagLayoutDirection() {
   return useAtom(selectedDagLayoutDirectionAtom);
-}
-
-export function useSelectedNodeData() {
-  return useAtomValue(selectedNodeDataAtom);
-}
-export function useSetSelectedNodeData() {
-  return useSetAtom(selectedNodeDataAtom);
 }
 
 export function useSelectedNodesData() {

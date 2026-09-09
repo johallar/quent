@@ -215,7 +215,6 @@ describe('operator selection actions', () => {
     store.set(operatorSelectionActionAtom, {
       type: 'hydrate',
       selections: [],
-      unresolvedOperatorIds: ['timeline-only'],
     });
 
     expect(store.get(operatorSelectionAtom).selections.get('timeline-only')).toEqual({

@@ -54,7 +54,9 @@ import {
   getOperationTypeColor,
   buildOperatorColorMap,
   inferFieldFormatter,
+  toggleOperatorSelection,
   type InspectedNodeData,
+  type Operator,
   type QuantitySpec,
 } from '@quent/utils';
 
@@ -266,6 +268,8 @@ interface DAGProps {
   selectedNodeIds?: string[];
   /** Called when node selection changes. */
   onSelectionChange?: (nodeIds: string[]) => void;
+  /** Complete operator hierarchy used to split grouped selections. */
+  operators?: readonly Operator[];
 }
 
 function inspectedNodeFromFlowNode(node: Node<QueryPlanNodeData>): InspectedNodeData {
@@ -287,12 +291,14 @@ const FlowLayout = ({
   data,
   containerRef,
   isDark,
+  operators,
   selectedNodeIds: controlledSelectedNodeIds,
   onSelectionChange,
 }: {
   data: DAGData;
   containerRef: RefObject<HTMLDivElement | null>;
   isDark: boolean;
+  operators?: readonly Operator[];
   selectedNodeIds?: string[];
   onSelectionChange?: (nodeIds: string[]) => void;
 }) => {
@@ -310,6 +316,22 @@ const FlowLayout = ({
   // so toggling the overlay relayouts exactly once.
   const flowBarVisible = dataFlowEnabled && dataFlowMeta != null;
   const hasUserInteracted = useRef(false);
+  const hierarchyOperators = useMemo(() => {
+    if (operators) {
+      return operators;
+    }
+    const byId = new Map<string, Operator>();
+    for (const node of data.nodes) {
+      const metadata = node.metadata as QueryPlanNodeData['metadata'];
+      if (metadata?.rawNode) {
+        byId.set(metadata.rawNode.id, metadata.rawNode);
+      }
+      for (const operator of metadata?.relatedOperators ?? []) {
+        byId.set(operator.id, operator);
+      }
+    }
+    return [...byId.values()];
+  }, [data.nodes, operators]);
   const hydratedNodeIdsKey = useMemo(
     () =>
       [...(controlledSelectedNodeIds === undefined ? selectedNodeIds : controlledSelectedNodeIds)]
@@ -431,10 +453,15 @@ const FlowLayout = ({
   const handleNodeClick = useCallback(
     (_event: MouseEvent, node: Node<QueryPlanNodeData>): void => {
       let nextSelectedIds: Set<string>;
-      if (operatorSelection.selections.has(node.id)) {
+      if (selectedNodeIds.has(node.id)) {
         nextSelectedIds = updateOperatorSelection({
-          type: 'remove',
-          selectionId: node.id,
+          type: 'replace',
+          selections: toggleOperatorSelection(
+            hierarchyOperators,
+            selectedNodeIds,
+            operatorSelection.selections,
+            node.id
+          ),
         });
       } else {
         nextSelectedIds = updateOperatorSelection({
@@ -447,7 +474,14 @@ const FlowLayout = ({
       }
       onSelectionChange?.([...nextSelectedIds]);
     },
-    [getSelectionIds, operatorSelection, updateOperatorSelection, onSelectionChange]
+    [
+      getSelectionIds,
+      hierarchyOperators,
+      onSelectionChange,
+      operatorSelection.selections,
+      selectedNodeIds,
+      updateOperatorSelection,
+    ]
   );
 
   const handlePaneClick = useCallback(() => {
@@ -543,6 +577,7 @@ export const DAGChart = ({
   data,
   height = '100%',
   isDark,
+  operators,
   selectedNodeIds,
   onSelectionChange,
 }: DAGProps) => {
@@ -554,6 +589,7 @@ export const DAGChart = ({
           data={data}
           containerRef={containerRef}
           isDark={isDark}
+          operators={operators}
           selectedNodeIds={selectedNodeIds}
           onSelectionChange={onSelectionChange}
         />

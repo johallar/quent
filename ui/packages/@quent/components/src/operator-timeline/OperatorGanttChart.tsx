@@ -12,7 +12,13 @@ import {
   useNodeColoringValue,
   useNodeColorPalette,
 } from '@quent/hooks';
-import { continuousColor, withOpacity, getOperationTypeColor } from '@quent/utils';
+import {
+  continuousColor,
+  withOpacity,
+  getOperationTypeColor,
+  toggleOperatorSelection,
+  type Operator,
+} from '@quent/utils';
 import type { OperatorActiveSpanEntry } from './types';
 import { GanttChart, type GanttRenderItem } from '../gantt-chart/GanttChart';
 import type { GanttHover } from '../gantt-chart/hover';
@@ -34,6 +40,7 @@ function getOperatorBarColors(typeName: string | undefined): { fill: string; str
 
 export interface OperatorGanttChartProps {
   operators: OperatorActiveSpanEntry[];
+  allOperators: readonly Operator[];
   durationSeconds: number;
   height?: number;
   /** Whether dark mode is active. Passed explicitly to decouple from ThemeContext. */
@@ -42,6 +49,7 @@ export interface OperatorGanttChartProps {
 
 export function OperatorGanttChart({
   operators,
+  allOperators,
   durationSeconds,
   height = DEFAULT_HEIGHT,
   isDark,
@@ -171,8 +179,16 @@ export function OperatorGanttChart({
         if (!op) {
           return;
         }
-        if (operatorSelection.selections.has(op.operatorId)) {
-          updateOperatorSelection({ type: 'remove', selectionId: op.operatorId });
+        if (selectedNodeIds.has(op.operatorId)) {
+          updateOperatorSelection({
+            type: 'replace',
+            selections: toggleOperatorSelection(
+              allOperators,
+              selectedNodeIds,
+              operatorSelection.selections,
+              op.operatorId
+            ),
+          });
         } else {
           updateOperatorSelection({
             type: 'add',
@@ -192,7 +208,14 @@ export function OperatorGanttChart({
         }
       },
     }),
-    [operators, operatorSelection, setSelectedPlanId, updateOperatorSelection]
+    [
+      allOperators,
+      operators,
+      operatorSelection.selections,
+      selectedNodeIds,
+      setSelectedPlanId,
+      updateOperatorSelection,
+    ]
   );
 
   return (

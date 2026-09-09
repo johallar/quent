@@ -11,7 +11,6 @@ import {
   addOperatorSelection as addSelection,
   createEmptyOperatorSelectionState,
   getActiveOperatorLabel,
-  getLastOperatorSelectionId,
   getSelectedOperatorIds,
   removeOperatorSelection as removeSelection,
 } from '../dag/operatorSelection';
@@ -121,42 +120,11 @@ export const operatorSelectionActionAtom = atom(
 );
 
 /** The operator IDs represented by the current selections */
-export const selectedNodeIdsAtom = atom(
-  get => getSelectedOperatorIds(get(operatorSelectionAtom)),
-  (_get, set, operatorIds: Set<string>) =>
-    set(operatorSelectionActionAtom, {
-      type: 'replace',
-      selections: [...operatorIds].map(selectionId => ({
-        selectionId,
-        label: selectionId,
-        operatorIds: new Set([selectionId]),
-      })),
-    })
-);
+export const selectedNodeIdsAtom = atom(get => getSelectedOperatorIds(get(operatorSelectionAtom)));
 
 /** Display label of the active operator selection */
-export const selectedOperatorLabelAtom = atom(
-  get => getActiveOperatorLabel(get(operatorSelectionAtom)),
-  (get, set, label: string | null) => {
-    const state = get(operatorSelectionAtom);
-    if (label === null) {
-      set(operatorSelectionAtom, { ...state, activeId: null });
-      return;
-    }
-
-    const activeId = state.activeId ?? getLastOperatorSelectionId(state.selections);
-    if (!activeId) {
-      return;
-    }
-    const activeSelection = state.selections.get(activeId);
-    if (!activeSelection) {
-      return;
-    }
-
-    const selections = new Map(state.selections);
-    selections.set(activeId, { ...activeSelection, label });
-    set(operatorSelectionAtom, { selections, activeId });
-  }
+export const selectedOperatorLabelAtom = atom(get =>
+  getActiveOperatorLabel(get(operatorSelectionAtom))
 );
 
 /** The currently selected plan ID in the query plan tree view */

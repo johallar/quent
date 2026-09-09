@@ -91,7 +91,11 @@ export const QueryPlanNode = memo(({ data }: { data: QueryPlanNodeData }) => {
   const statistics = parseCustomStatistics(data.metadata?.rawNode);
   const { quantitySpecs } = data;
   const [nodeLabelField] = useSelectedNodeLabelField();
-  const { fieldColor, isDimmed, isSelected, colorField } = useNodeColoring(operatorId, isDark);
+  const { fieldColor, isDimmed, isSelected, colorField } = useNodeColoring(
+    operatorId,
+    isDark,
+    data.metadata?.relatedOperatorIds
+  );
   const [isHoveredLocal, setIsHoveredLocal] = useState(false);
 
   const resolvedLabel = useMemo(() => {

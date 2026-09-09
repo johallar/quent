@@ -3,7 +3,11 @@
 
 import { describe, expect, it } from 'vitest';
 import type { Operator } from './types';
-import { buildRelatedOperatorIdsById, resolveOperatorSelections } from './operatorHierarchy';
+import {
+  buildRelatedOperatorIdsById,
+  resolveOperatorSelections,
+  toggleOperatorSelection,
+} from './operatorHierarchy';
 
 function makeOperator(id: string, label: string, parentOperatorIds: string[] = []): Operator {
   return {
@@ -64,7 +68,21 @@ describe('operator hierarchy', () => {
       makeOperator('right', 'Right', ['logical']),
     ];
 
-    const selections = resolveOperatorSelections(operators, ['logical', 'right']);
+    const selectedIds = new Set(['logical', 'left', 'right']);
+    const selections = toggleOperatorSelection(
+      operators,
+      selectedIds,
+      new Map([
+        [
+          'logical',
+          {
+            label: 'Logical',
+            operatorIds: selectedIds,
+          },
+        ],
+      ]),
+      'left'
+    );
 
     expect(new Map(selections.map(selection => [selection.selectionId, selection.label]))).toEqual(
       new Map([

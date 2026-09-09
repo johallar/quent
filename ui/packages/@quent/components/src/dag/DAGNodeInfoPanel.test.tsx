@@ -4,17 +4,20 @@
 import { useEffect, useState } from 'react';
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import { Provider } from 'jotai';
-import { useOperatorSelectionActions, useSetSelectedNodeData } from '@quent/hooks';
+import { useOperatorSelectionActions } from '@quent/hooks';
 import { getOperationTypeColor } from '@quent/utils';
 import { DAGNodeInfoPanel } from './DAGNodeInfoPanel';
 
 function SelectedNode() {
-  const setSelectedNodeData = useSetSelectedNodeData();
+  const updateOperatorSelection = useOperatorSelectionActions();
 
   useEffect(() => {
-    setSelectedNodeData({
+    updateOperatorSelection({
+      type: 'add',
       selectionId: 'logical',
-      data: {
+      label: 'Logical join',
+      operatorIds: ['logical', 'physical-1', 'physical-2'],
+      inspectedData: {
         nodeId: 'logical',
         label: 'Logical join',
         operationType: 'logicaljoin',
@@ -35,14 +38,14 @@ function SelectedNode() {
         ],
       },
     });
-  }, [setSelectedNodeData]);
+  }, [updateOperatorSelection]);
 
   return <DAGNodeInfoPanel />;
 }
 
 function SwitchSelectedNode() {
   const [showLogical, setShowLogical] = useState(true);
-  const setSelectedNodeData = useSetSelectedNodeData();
+  const updateOperatorSelection = useOperatorSelectionActions();
 
   useEffect(() => {
     const data = showLogical
@@ -58,8 +61,18 @@ function SwitchSelectedNode() {
           operationType: 'scan',
           statistics: [],
         };
-    setSelectedNodeData({ selectionId: data.nodeId, data });
-  }, [setSelectedNodeData, showLogical]);
+    updateOperatorSelection({
+      type: 'replace',
+      selections: [
+        {
+          selectionId: data.nodeId,
+          label: data.label,
+          operatorIds: new Set([data.nodeId]),
+          inspectedData: data,
+        },
+      ],
+    });
+  }, [showLogical, updateOperatorSelection]);
 
   return (
     <>

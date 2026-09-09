@@ -6,16 +6,9 @@ export { QuentProvider } from './QuentProvider';
 export type { QuentProviderProps } from './QuentProvider';
 
 // DAG hooks
-export { useSelectedNodeIds, useSetSelectedNodeIds } from './dag/useSelectedNodeIds';
-export {
-  useSelectedOperatorLabel,
-  useSetSelectedOperatorLabel,
-} from './dag/useSelectedOperatorLabel';
-export {
-  useOperatorSelection,
-  useOperatorSelectionActions,
-  type OperatorSelectionAction,
-} from './dag/useOperatorSelection';
+export { useSelectedNodeIds } from './dag/useSelectedNodeIds';
+export { useSelectedOperatorLabel } from './dag/useSelectedOperatorLabel';
+export { useOperatorSelection, useOperatorSelectionActions } from './dag/useOperatorSelection';
 export { useSelectedPlanId, useSetSelectedPlanId } from './dag/useSelectedPlanId';
 export { useHoveredWorkerId, useSetHoveredWorkerId } from './dag/useHoveredWorkerId';
 
@@ -89,8 +82,6 @@ export {
   useEdgeColorPalette,
   useSelectedNodeLabelField,
   useSelectedDagLayoutDirection,
-  useSelectedNodeData,
-  useSetSelectedNodeData,
   useSelectedNodesData,
   useHighlightedNodeIds,
   useSetHighlightedNodeIds,
@@ -100,11 +91,7 @@ export {
   useSetHoveredStat,
   useSetDagDisplayedNodeIds,
 } from './dag/dagControlSelectors';
-export type {
-  HoveredStatInfo,
-  HighlightedNodeIdsState,
-  SelectedNodeDataUpdate,
-} from './atoms/dagControls';
+export type { HoveredStatInfo, HighlightedNodeIdsState } from './atoms/dagControls';
 export type { InspectedNodeData, InspectedOperatorData } from '@quent/utils';
 
 // Data-flow overlay hooks (HOOKS-02: selector hooks over private atoms)

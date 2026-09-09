@@ -10,8 +10,8 @@ import {
 } from '@quent/hooks';
 import type { OptionMultiSelectOption, SelectFieldOption } from '@quent/components';
 import {
-  buildRelatedOperatorIdsById,
   resolveOperatorSelections,
+  toggleOperatorSelection as resolveOperatorSelectionToggle,
   type EntityRef,
   type FiniteStateMachine,
   type QueryBundle,
@@ -46,7 +46,6 @@ export function useEntityTable({ engineId, queryId, queryBundle }: UseEntityTabl
   const operatorIds = useSelectedNodeIds();
   const updateOperatorSelection = useOperatorSelectionActions();
   const operators = useMemo(() => Object.values(entities.operators), [entities.operators]);
-  const relatedOperatorIdsById = useMemo(() => buildRelatedOperatorIdsById(operators), [operators]);
   const defaults = useMemo(() => defaultEntityFilters(durationS), [durationS]);
   // The "Min usage (s)" slider is bounded by the query duration, which is often far longer than
   // when entities actually occur. Use the longest-running entity's usage duration as a tighter,
@@ -124,23 +123,19 @@ export function useEntityTable({ engineId, queryId, queryBundle }: UseEntityTabl
 
   const toggleOperator = useCallback(
     (value: string) => {
-      const next = new Set(operatorIds);
-      const selectedGroup = operatorSelection.selections.get(value);
-      if (selectedGroup) {
-        for (const id of selectedGroup.operatorIds) {
-          next.delete(id);
-        }
-      } else if (next.has(value)) {
-        next.delete(value);
-      } else {
-        next.add(value);
-        for (const id of relatedOperatorIdsById.get(value) ?? []) {
-          next.add(id);
-        }
-      }
-      applyOperatorSelection(next);
+      updateOperatorSelection({
+        type: 'replace',
+        selections: resolveOperatorSelectionToggle(
+          operators,
+          operatorIds,
+          operatorSelection.selections,
+          value
+        ),
+      });
+      setPage(0);
+      setSelected(null);
     },
-    [applyOperatorSelection, operatorIds, operatorSelection.selections, relatedOperatorIdsById]
+    [operatorIds, operatorSelection.selections, operators, updateOperatorSelection]
   );
 
   const selectAllOperators = useCallback(

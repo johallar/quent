@@ -8,10 +8,10 @@ import { ReactFlowProvider } from '@xyflow/react';
 import { render, screen, fireEvent, act, within } from '@testing-library/react';
 import {
   useDataFlowSync,
+  useOperatorSelectionActions,
   useSetDataFlowEnabled,
   useSetDataFlowLabelMeasure,
   useSetDataFlowSelectedDimensions,
-  useSetSelectedNodeData,
   type InspectedNodeData,
 } from '@quent/hooks';
 import { DagPlayhead, DAGLegend, DAGNodeInfoPanel, NodeFlowBar } from '@quent/components';
@@ -400,10 +400,20 @@ describe('DAGNodeInfoPanel matrix under tier selection', () => {
     operator: InspectedNodeData = selectedOperator
   ) {
     function SelectNode({ value }: { value: InspectedNodeData }) {
-      const setSelectedNodeData = useSetSelectedNodeData();
+      const updateOperatorSelection = useOperatorSelectionActions();
       useEffect(() => {
-        setSelectedNodeData({ selectionId: value.nodeId, data: value });
-      }, [setSelectedNodeData, value]);
+        updateOperatorSelection({
+          type: 'replace',
+          selections: [
+            {
+              selectionId: value.nodeId,
+              label: value.label,
+              operatorIds: new Set([value.nodeId]),
+              inspectedData: value,
+            },
+          ],
+        });
+      }, [updateOperatorSelection, value]);
       return <DAGNodeInfoPanel />;
     }
     return render(
