@@ -55,14 +55,3 @@ export function resolveInspectedNodeSelections(
 
   return resolveOperatorSelectionCandidates(candidates, selectedNodeIds);
 }
-
-export function resolveInspectedNodeData(
-  nodes: readonly DAGNode[],
-  selectedNodeIds: ReadonlySet<string>
-): InspectedNodeData | null {
-  const resolved = resolveInspectedNodeSelections(nodes, selectedNodeIds);
-  if (resolved.selections.length !== 1 || resolved.unresolvedOperatorIds.size > 0) {
-    return null;
-  }
-  return resolved.selections[0].inspectedData;
-}

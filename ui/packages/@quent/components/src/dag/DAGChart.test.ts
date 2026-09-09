@@ -3,7 +3,7 @@
 
 import { describe, expect, it } from 'vitest';
 import type { DAGNode } from '@quent/utils';
-import { resolveInspectedNodeData, resolveInspectedNodeSelections } from './dagSelection';
+import { resolveInspectedNodeSelections } from './dagSelection';
 
 const NODES: DAGNode[] = [
   {
@@ -19,21 +19,7 @@ const NODES: DAGNode[] = [
   },
 ];
 
-describe('resolveInspectedNodeData', () => {
-  it('resolves the primary operator from a hydrated grouped selection', () => {
-    expect(
-      resolveInspectedNodeData(NODES, new Set(['logical', 'physical-1', 'physical-2']))
-    ).toMatchObject({
-      nodeId: 'logical',
-      label: 'Logical join',
-      operationType: 'join',
-    });
-  });
-
-  it('does not inspect an ambiguous selection', () => {
-    expect(resolveInspectedNodeData(NODES, new Set(['logical', 'other']))).toBeNull();
-  });
-
+describe('resolveInspectedNodeSelections', () => {
   it('reconstructs multiple physical and higher-level selections', () => {
     const resolved = resolveInspectedNodeSelections(
       NODES,
