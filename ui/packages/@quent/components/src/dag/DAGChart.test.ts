@@ -3,7 +3,7 @@
 
 import { describe, expect, it } from 'vitest';
 import type { DAGNode } from '@quent/utils';
-import { resolveSelectedOperatorSelectionsFromNodes } from './dagSelection';
+import { resolveSelectedOperatorsFromNodes } from './dagSelection';
 
 const NODES: DAGNode[] = [
   {
@@ -19,9 +19,9 @@ const NODES: DAGNode[] = [
   },
 ];
 
-describe('resolveSelectedOperatorSelectionsFromNodes', () => {
+describe('resolveSelectedOperatorsFromNodes', () => {
   it('reconstructs multiple physical and higher-level selections', () => {
-    const resolved = resolveSelectedOperatorSelectionsFromNodes(
+    const resolved = resolveSelectedOperatorsFromNodes(
       NODES,
       new Set(['logical', 'physical-1', 'physical-2', 'other'])
     );
@@ -44,11 +44,11 @@ describe('resolveSelectedOperatorSelectionsFromNodes', () => {
   it('preserves IDs until matching DAG data is available', () => {
     const selectedIds = new Set(['logical', 'physical-1', 'physical-2', 'unknown']);
 
-    const beforeData = resolveSelectedOperatorSelectionsFromNodes([], selectedIds);
+    const beforeData = resolveSelectedOperatorsFromNodes([], selectedIds);
     expect(beforeData.selections).toEqual([]);
     expect(beforeData.unresolvedOperatorIds).toEqual(selectedIds);
 
-    const afterData = resolveSelectedOperatorSelectionsFromNodes(NODES, selectedIds);
+    const afterData = resolveSelectedOperatorsFromNodes(NODES, selectedIds);
     expect(afterData.selections.map(selection => selection.selectionId)).toEqual(['logical']);
     expect(afterData.unresolvedOperatorIds).toEqual(new Set(['unknown']));
   });

@@ -46,7 +46,7 @@ import { calculateLayout, NODE_LAYOUT_WIDTH, NODE_LAYOUT_HEIGHT, FLOW_BAR_HEIGHT
 import type { DAGData } from '../services/query-plan/types';
 import { QueryPlanNode, type QueryPlanNodeData } from '../query-plan/QueryPlanNode';
 import { DAGLegend } from './DAGLegend';
-import { resolveSelectedOperatorSelectionsFromNodes } from './dagSelection';
+import { resolveSelectedOperatorsFromNodes } from './dagSelection';
 import { shouldDimEdgeFromInteraction } from './edgeOpacity';
 import { parseCustomStatistics } from '../lib/queryBundle.utils';
 import {
@@ -348,7 +348,7 @@ const FlowLayout = ({
 
   useEffect(() => {
     const operatorIds = new Set(hydratedNodeIdsKey === '' ? [] : hydratedNodeIdsKey.split('\0'));
-    const resolved = resolveSelectedOperatorSelectionsFromNodes(data.nodes, operatorIds);
+    const resolved = resolveSelectedOperatorsFromNodes(data.nodes, operatorIds);
     if (controlledSelectedNodeIds !== undefined) {
       updateOperatorSelection({
         type: 'replace',

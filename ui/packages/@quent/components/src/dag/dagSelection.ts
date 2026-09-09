@@ -42,7 +42,7 @@ function getSelectedOperatorData(node: DAGNode): SelectedOperatorGroupData {
   };
 }
 
-export function resolveSelectedOperatorSelectionsFromNodes(
+export function resolveSelectedOperatorsFromNodes(
   nodes: readonly DAGNode[],
   selectedOperatorIds: ReadonlySet<string>
 ): ResolvedOperatorSelections {
