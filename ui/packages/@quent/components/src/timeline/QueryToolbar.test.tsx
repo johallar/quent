@@ -7,9 +7,8 @@ import userEvent from '@testing-library/user-event';
 import { Provider } from 'jotai';
 import { describe, expect, it } from 'vitest';
 import {
-  useSelectedNodeIds,
-  useSelectedNodesData,
-  useSelectedOperatorLabel,
+  useSelectedOperatorIds,
+  useSelectedOperatorsData,
   useOperatorSelectionActions,
 } from '@quent/hooks';
 import { QueryToolbar } from './QueryToolbar';
@@ -23,7 +22,7 @@ function SeedOperatorFilter() {
       selectionId: 'operator-1',
       label: 'Scan',
       operatorIds: ['operator-1'],
-      inspectedData: {
+      selectedData: {
         nodeId: 'operator-1',
         label: 'Scan',
         operationType: 'logical',
@@ -35,8 +34,8 @@ function SeedOperatorFilter() {
 }
 
 function ToolbarHarness() {
-  const selectedNodeIds = useSelectedNodeIds();
-  const selectedNodesData = useSelectedNodesData();
+  const selectedOperatorIds = useSelectedOperatorIds();
+  const selectedOperatorsData = useSelectedOperatorsData();
   const updateOperatorSelection = useOperatorSelectionActions();
 
   useEffect(() => {
@@ -45,7 +44,7 @@ function ToolbarHarness() {
       selectionId: 'parent',
       label: 'Parent operator',
       operatorIds: ['parent', 'child'],
-      inspectedData: {
+      selectedData: {
         nodeId: 'parent',
         label: 'Parent operator',
         operationType: 'logical',
@@ -57,19 +56,19 @@ function ToolbarHarness() {
   return (
     <>
       <QueryToolbar />
-      <span data-testid="selected-count">{selectedNodeIds.size}</span>
-      <span data-testid="selected-details">{selectedNodesData[0]?.nodeId ?? 'none'}</span>
+      <span data-testid="selected-count">{selectedOperatorIds.size}</span>
+      <span data-testid="selected-details">{selectedOperatorsData[0]?.nodeId ?? 'none'}</span>
     </>
   );
 }
 
-function OperatorLabel() {
-  return <span data-testid="operator-label">{useSelectedOperatorLabel() ?? 'none'}</span>;
+function OperatorSelectionCount() {
+  return <span data-testid="operator-count">{useSelectedOperatorIds().size}</span>;
 }
 
 function MultiOperatorToolbarHarness() {
-  const selectedNodeIds = useSelectedNodeIds();
-  const selectedNodes = useSelectedNodesData();
+  const selectedOperatorIds = useSelectedOperatorIds();
+  const selectedOperators = useSelectedOperatorsData();
   const updateOperatorSelection = useOperatorSelectionActions();
 
   useEffect(() => {
@@ -81,7 +80,7 @@ function MultiOperatorToolbarHarness() {
         selectionId: id,
         label: `Operator ${number}`,
         operatorIds: [id],
-        inspectedData: {
+        selectedData: {
           nodeId: id,
           label: `Operator ${number}`,
           operationType: 'physical',
@@ -94,14 +93,14 @@ function MultiOperatorToolbarHarness() {
   return (
     <>
       <QueryToolbar />
-      <span data-testid="selected-count">{selectedNodeIds.size}</span>
-      <span data-testid="inspected-count">{selectedNodes.length}</span>
+      <span data-testid="selected-count">{selectedOperatorIds.size}</span>
+      <span data-testid="selected-data-count">{selectedOperators.length}</span>
     </>
   );
 }
 
 function TwoOperatorToolbarHarness() {
-  const selectedNodes = useSelectedNodesData();
+  const selectedOperators = useSelectedOperatorsData();
   const updateOperatorSelection = useOperatorSelectionActions();
 
   useEffect(() => {
@@ -110,7 +109,7 @@ function TwoOperatorToolbarHarness() {
       selectionId: 'scan',
       label: 'Scan',
       operatorIds: ['scan'],
-      inspectedData: {
+      selectedData: {
         nodeId: 'scan',
         label: 'Scan',
         operationType: 'scan',
@@ -122,7 +121,7 @@ function TwoOperatorToolbarHarness() {
       selectionId: 'join',
       label: 'Join',
       operatorIds: ['join'],
-      inspectedData: {
+      selectedData: {
         nodeId: 'join',
         label: 'Join',
         operationType: 'join',
@@ -134,7 +133,9 @@ function TwoOperatorToolbarHarness() {
   return (
     <>
       <QueryToolbar />
-      <span data-testid="inspected-ids">{selectedNodes.map(node => node.nodeId).join(',')}</span>
+      <span data-testid="selected-data-ids">
+        {selectedOperators.map(operator => operator.nodeId).join(',')}
+      </span>
     </>
   );
 }
@@ -161,13 +162,13 @@ describe('QueryToolbar', () => {
     render(
       <Provider>
         <SeedOperatorFilter />
-        <OperatorLabel />
+        <OperatorSelectionCount />
         <QueryToolbar filters={<input aria-label="Filter resources" value="id:gpu-0" readOnly />} />
       </Provider>
     );
 
     await user.click(await screen.findByRole('button', { name: 'Clear all operator filters' }));
-    expect(screen.getByTestId('operator-label')).toHaveTextContent('none');
+    expect(screen.getByTestId('operator-count')).toHaveTextContent('0');
     expect(screen.getByRole('textbox', { name: 'Filter resources' })).toHaveValue('id:gpu-0');
   });
 
@@ -203,14 +204,14 @@ describe('QueryToolbar', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Remove Operator 2' }));
 
     expect(screen.getByTestId('selected-count')).toHaveTextContent('4');
-    expect(screen.getByTestId('inspected-count')).toHaveTextContent('4');
+    expect(screen.getByTestId('selected-data-count')).toHaveTextContent('4');
     expect(screen.getByText('Operator 4')).toBeInTheDocument();
     expect(screen.getByText('and 1 more')).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: 'Clear all operator filters' }));
 
     expect(screen.getByTestId('selected-count')).toHaveTextContent('0');
-    expect(screen.getByTestId('inspected-count')).toHaveTextContent('0');
+    expect(screen.getByTestId('selected-data-count')).toHaveTextContent('0');
     expect(screen.getByText('No filters')).toBeInTheDocument();
   });
 
@@ -223,7 +224,7 @@ describe('QueryToolbar', () => {
 
     fireEvent.click(await screen.findByRole('button', { name: 'Remove Join' }));
 
-    expect(screen.getByTestId('inspected-ids')).toHaveTextContent('scan');
+    expect(screen.getByTestId('selected-data-ids')).toHaveTextContent('scan');
     expect(screen.getByText('Scan')).toBeInTheDocument();
     expect(screen.queryByText('Join')).not.toBeInTheDocument();
   });

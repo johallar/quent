@@ -1,12 +1,12 @@
 // SPDX-FileCopyrightText: Copyright (c) 2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-import type { InspectedNodeData } from '@quent/utils';
+import type { SelectedOperatorGroupData } from '@quent/utils';
 
-export function findInspectedNodeData(
-  current: ReadonlyMap<string, InspectedNodeData>,
+export function findSelectedOperatorData(
+  current: ReadonlyMap<string, SelectedOperatorGroupData>,
   operatorId: string
-): InspectedNodeData | undefined {
+): SelectedOperatorGroupData | undefined {
   const direct = current.get(operatorId);
   if (direct) {
     return direct;
@@ -23,20 +23,20 @@ export function findInspectedNodeData(
   return undefined;
 }
 
-export function upsertInspectedNodeData(
-  current: ReadonlyMap<string, InspectedNodeData>,
+export function upsertSelectedOperatorData(
+  current: ReadonlyMap<string, SelectedOperatorGroupData>,
   selectionId: string,
-  data: InspectedNodeData
-): Map<string, InspectedNodeData> {
+  data: SelectedOperatorGroupData
+): Map<string, SelectedOperatorGroupData> {
   const next = new Map(current);
   next.set(selectionId, data);
   return next;
 }
 
-export function removeInspectedNodeData(
-  current: ReadonlyMap<string, InspectedNodeData>,
+export function removeSelectedOperatorData(
+  current: ReadonlyMap<string, SelectedOperatorGroupData>,
   selectionId: string
-): ReadonlyMap<string, InspectedNodeData> {
+): ReadonlyMap<string, SelectedOperatorGroupData> {
   if (!current.has(selectionId)) {
     return current;
   }

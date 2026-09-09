@@ -41,7 +41,7 @@ vi.mock('@quent/hooks', () => ({
   useLongEntityDensity: () => mocks.longEntityDensity,
   useReturnedTimelineIsStale: () => mocks.returnedTimelineIsStale,
   useReturnedTimelineNumBins: () => mocks.returnedNumBins,
-  useSelectedNodeIds: () => new Set(['operator-1']),
+  useSelectedOperatorIds: () => new Set(['operator-1']),
   useZeroUtilizationResourceIds: () => mocks.zeroUtilizationResourceIds,
 }));
 

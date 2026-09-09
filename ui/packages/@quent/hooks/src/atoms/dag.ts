@@ -3,23 +3,22 @@
 
 import { atom } from 'jotai';
 import type {
-  InspectedNodeData,
   OperatorSelectionInput,
   OperatorSelectionState,
+  SelectedOperatorGroupData,
 } from '@quent/utils';
 import {
   addOperatorSelection as addSelection,
   createEmptyOperatorSelectionState,
-  getActiveOperatorLabel,
   getSelectedOperatorIds,
   removeOperatorSelection as removeSelection,
 } from '../dag/operatorSelection';
 import {
-  findInspectedNodeData,
-  removeInspectedNodeData,
-  upsertInspectedNodeData,
-} from '../dag/inspectedNodeData';
-import { selectedNodesDataAtom } from './dagControls';
+  findSelectedOperatorData,
+  removeSelectedOperatorData,
+  upsertSelectedOperatorData,
+} from '../dag/selectedOperatorData';
+import { selectedOperatorsDataAtom } from './dagControls';
 
 export type OperatorSelectionAction =
   | {
@@ -27,12 +26,14 @@ export type OperatorSelectionAction =
       selectionId: string;
       label: string;
       operatorIds: Iterable<string>;
-      inspectedData: InspectedNodeData;
+      selectedData: SelectedOperatorGroupData;
     }
   | { type: 'remove'; selectionId: string }
   | {
       type: 'replace';
-      selections: ReadonlyArray<OperatorSelectionInput & { inspectedData?: InspectedNodeData }>;
+      selections: ReadonlyArray<
+        OperatorSelectionInput & { selectedData?: SelectedOperatorGroupData }
+      >;
     }
   | {
       type: 'hydrate';
@@ -40,7 +41,7 @@ export type OperatorSelectionAction =
         selectionId: string;
         label: string;
         operatorIds: Iterable<string>;
-        inspectedData: InspectedNodeData;
+        selectedData: SelectedOperatorGroupData;
       }>;
     }
   | { type: 'clear' };
@@ -50,14 +51,14 @@ export const operatorSelectionAtom = atom<OperatorSelectionState>(
   createEmptyOperatorSelectionState()
 );
 
-/** Updates operator filters and their inspected details as one transaction. */
+/** Updates operator filters and their selected details as one transaction. */
 export const operatorSelectionActionAtom = atom(
   null,
   (get, set, action: OperatorSelectionAction): Set<string> => {
     const currentSelection = get(operatorSelectionAtom);
-    const currentData = get(selectedNodesDataAtom);
+    const currentData = get(selectedOperatorsDataAtom);
     let nextSelection: OperatorSelectionState;
-    let nextData: ReadonlyMap<string, InspectedNodeData>;
+    let nextData: ReadonlyMap<string, SelectedOperatorGroupData>;
 
     switch (action.type) {
       case 'add':
@@ -69,12 +70,12 @@ export const operatorSelectionActionAtom = atom(
         );
         nextData = new Map([...currentData].filter(([id]) => nextSelection.selections.has(id)));
         if (nextSelection.selections.has(action.selectionId)) {
-          nextData = upsertInspectedNodeData(nextData, action.selectionId, action.inspectedData);
+          nextData = upsertSelectedOperatorData(nextData, action.selectionId, action.selectedData);
         }
         break;
       case 'remove':
         nextSelection = removeSelection(currentSelection, action.selectionId);
-        nextData = removeInspectedNodeData(currentData, action.selectionId);
+        nextData = removeSelectedOperatorData(currentData, action.selectionId);
         break;
       case 'replace': {
         nextSelection = createEmptyOperatorSelectionState();
@@ -89,10 +90,10 @@ export const operatorSelectionActionAtom = atom(
           if (!nextSelection.selections.has(selection.selectionId)) {
             continue;
           }
-          const inspectedData =
-            selection.inspectedData ?? findInspectedNodeData(currentData, selection.selectionId);
-          if (inspectedData) {
-            nextData = upsertInspectedNodeData(nextData, selection.selectionId, inspectedData);
+          const selectedData =
+            selection.selectedData ?? findSelectedOperatorData(currentData, selection.selectionId);
+          if (selectedData) {
+            nextData = upsertSelectedOperatorData(nextData, selection.selectionId, selectedData);
           }
         }
         nextData = new Map([...nextData].filter(([id]) => nextSelection.selections.has(id)));
@@ -103,10 +104,10 @@ export const operatorSelectionActionAtom = atom(
         nextData = new Map(currentData);
         for (const selection of action.selections) {
           if (currentSelection.selections.has(selection.selectionId)) {
-            nextData = upsertInspectedNodeData(
+            nextData = upsertSelectedOperatorData(
               nextData,
               selection.selectionId,
-              selection.inspectedData
+              selection.selectedData
             );
           }
         }
@@ -119,7 +120,7 @@ export const operatorSelectionActionAtom = atom(
     }
 
     set(operatorSelectionAtom, nextSelection);
-    set(selectedNodesDataAtom, nextData);
+    set(selectedOperatorsDataAtom, nextData);
     return getSelectedOperatorIds(nextSelection);
   }
 );
@@ -127,11 +128,6 @@ export const operatorSelectionActionAtom = atom(
 /** The operator IDs represented by the current selections */
 export const selectedOperatorIdsAtom = atom(get =>
   getSelectedOperatorIds(get(operatorSelectionAtom))
-);
-
-/** Display label of the active operator selection */
-export const selectedOperatorLabelAtom = atom(get =>
-  getActiveOperatorLabel(get(operatorSelectionAtom))
 );
 
 /** The currently selected plan ID in the query plan tree view */

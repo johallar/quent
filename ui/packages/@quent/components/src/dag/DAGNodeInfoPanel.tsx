@@ -8,7 +8,7 @@ import {
   useDataFlowFrame,
   useDataFlowIsPlaying,
   useDataFlowMeta,
-  useSelectedNodesData,
+  useSelectedOperatorsData,
 } from '@quent/hooks';
 import { cn, type QuantitySpec } from '@quent/utils';
 import { OperatorColorBar, OperatorDataFlowBlock, OperatorDetailsBlock } from '../node-info';
@@ -23,7 +23,7 @@ export const DAGNodeInfoPanel = ({
   isDark?: boolean;
   quantitySpecs?: { [key: string]: QuantitySpec | undefined };
 }) => {
-  const selectedNodes = useSelectedNodesData();
+  const selectedOperators = useSelectedOperatorsData();
   const dataFlowEnabled = useDataFlowEnabled();
   const isPlaying = useDataFlowIsPlaying();
   const dataFlowMeta = useDataFlowMeta();
@@ -31,10 +31,10 @@ export const DAGNodeInfoPanel = ({
   const [isExpanded, setIsExpanded] = useState(false);
   const [activeTab, setActiveTab] = useState('stats');
   const [closedOperatorIds, setClosedOperatorIds] = useState<Set<string>>(() => new Set());
-  const hasSelection = selectedNodes.length > 0;
-  const showHeaders = selectedNodes.length > 1;
-  const selectedNode = selectedNodes[0];
-  const selectedNodeIdsKey = selectedNodes.map(node => node.nodeId).join('\0');
+  const hasSelection = selectedOperators.length > 0;
+  const showHeaders = selectedOperators.length > 1;
+  const selectedOperator = selectedOperators[0];
+  const selectedOperatorIdsKey = selectedOperators.map(operator => operator.nodeId).join('\0');
 
   const showDataFlowTab = dataFlowEnabled && dataFlowMeta != null;
   const isOperatorOpen = (id: string) => !closedOperatorIds.has(id);
@@ -63,7 +63,7 @@ export const DAGNodeInfoPanel = ({
 
   useEffect(() => {
     setClosedOperatorIds(new Set());
-  }, [selectedNodeIdsKey]);
+  }, [selectedOperatorIdsKey]);
 
   useEffect(() => {
     if (isPlaying && isExpanded && showDataFlowTab) {
@@ -75,7 +75,7 @@ export const DAGNodeInfoPanel = ({
 
   const statsContent = hasSelection ? (
     <div className="flex flex-col gap-1 pr-2 pt-1.5">
-      {selectedNodes.map((operator, index) => (
+      {selectedOperators.map((operator, index) => (
         <div key={operator.nodeId} className={index > 0 ? 'border-t pt-1.5 mt-1.5' : ''}>
           <OperatorDetailsBlock
             operator={operator}
@@ -91,7 +91,7 @@ export const DAGNodeInfoPanel = ({
   const dataFlowContent =
     dataFlowMeta && dataFlowFrame ? (
       <div className="flex flex-col">
-        {selectedNodes.map((operator, index) => (
+        {selectedOperators.map((operator, index) => (
           <div key={operator.nodeId} className={index > 0 ? 'border-t pt-1.5 mt-1.5' : ''}>
             <OperatorDataFlowBlock
               operator={operator}
@@ -115,14 +115,14 @@ export const DAGNodeInfoPanel = ({
           <span className="text-xs text-muted-foreground font-medium flex-shrink-0">
             Operator Details
           </span>
-          {selectedNode && (
+          {selectedOperator && (
             <>
               <span className="text-muted-foreground text-xs flex-shrink-0">·</span>
               <div
                 data-testid="operator-details-title"
                 className="flex min-w-0 items-center gap-1.5 overflow-hidden"
               >
-                {selectedNodes.map((operator, index) => (
+                {selectedOperators.map((operator, index) => (
                   <span key={operator.nodeId} className="flex min-w-0 items-center gap-1">
                     {index > 0 && <span className="text-muted-foreground text-xs shrink-0">,</span>}
                     <OperatorColorBar operationType={operator.operationType} className="h-3 w-1" />

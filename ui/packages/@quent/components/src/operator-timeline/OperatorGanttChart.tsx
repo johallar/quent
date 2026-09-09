@@ -195,7 +195,7 @@ export function OperatorGanttChart({
             selectionId: op.operatorId,
             label: op.label,
             operatorIds: [op.operatorId],
-            inspectedData: {
+            selectedData: {
               nodeId: op.operatorId,
               label: op.label,
               operationType: op.typeName,

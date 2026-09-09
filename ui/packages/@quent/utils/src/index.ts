@@ -79,17 +79,18 @@ export type {
   DAGEdge,
 } from './dagTypes';
 
-// Operator selection and inspection types
+// Operator selection types
 export type {
   OperatorSelection,
   OperatorSelectionInput,
   OperatorSelectionState,
-  InspectedOperatorData,
-  InspectedNodeData,
+  SelectedOperatorData,
+  SelectedOperatorGroupData,
 } from './operatorTypes';
 export {
   buildRelatedOperatorIdsById,
   resolveOperatorSelectionCandidates,
+  resolveSelectedOperatorSelections,
   resolveOperatorSelections,
   toggleOperatorSelection,
 } from './operatorHierarchy';

@@ -12,7 +12,7 @@ import {
   useSetDataFlowEnabled,
   useSetDataFlowLabelMeasure,
   useSetDataFlowSelectedDimensions,
-  type InspectedNodeData,
+  type SelectedOperatorGroupData,
 } from '@quent/hooks';
 import { DagPlayhead, DAGLegend, DAGNodeInfoPanel, NodeFlowBar } from '@quent/components';
 import type { DataFlowTimelineBinned, EntityRef, QueryBundle } from '@quent/utils';
@@ -388,7 +388,7 @@ describe('tier (dimension) selection', () => {
 });
 
 describe('DAGNodeInfoPanel matrix under tier selection', () => {
-  const selectedOperator: InspectedNodeData = {
+  const selectedOperator: SelectedOperatorGroupData = {
     nodeId: 'op-1',
     label: 'Op 1',
     operationType: 'scan',
@@ -397,9 +397,9 @@ describe('DAGNodeInfoPanel matrix under tier selection', () => {
 
   function renderPanel(
     selectedDimensions: ReadonlySet<string> | null,
-    operator: InspectedNodeData = selectedOperator
+    operator: SelectedOperatorGroupData = selectedOperator
   ) {
-    function SelectNode({ value }: { value: InspectedNodeData }) {
+    function SelectNode({ value }: { value: SelectedOperatorGroupData }) {
       const updateOperatorSelection = useOperatorSelectionActions();
       useEffect(() => {
         updateOperatorSelection({
@@ -409,7 +409,7 @@ describe('DAGNodeInfoPanel matrix under tier selection', () => {
               selectionId: value.nodeId,
               label: value.label,
               operatorIds: new Set([value.nodeId]),
-              inspectedData: value,
+              selectedData: value,
             },
           ],
         });

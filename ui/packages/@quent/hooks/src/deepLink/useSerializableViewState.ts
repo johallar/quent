@@ -5,7 +5,7 @@ import { useCallback } from 'react';
 import { useStore } from 'jotai';
 import type { SortingState } from '@tanstack/react-table';
 import {
-  resolveOperatorSelections,
+  resolveSelectedOperatorSelections,
   type ContinuousPaletteName,
   type DagLayoutDirection,
   type NodeLabelField,
@@ -161,7 +161,7 @@ export function useSerializableViewState({
       if (state.selection?.operatorNodeIds !== undefined) {
         store.set(operatorSelectionActionAtom, {
           type: 'replace',
-          selections: resolveOperatorSelections(operators, state.selection.operatorNodeIds),
+          selections: resolveSelectedOperatorSelections(operators, state.selection.operatorNodeIds),
         });
       }
 

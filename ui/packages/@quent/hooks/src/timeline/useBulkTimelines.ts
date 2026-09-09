@@ -79,10 +79,7 @@ export function useBulkTimelines<T extends TreeNode>({
   const queryClient = useQueryClient();
   const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const selectedOperatorIds = useAtomValue(selectedOperatorIdsAtom);
-  const operatorIds = useMemo(
-    () => [...selectedOperatorIds].sort(),
-    [selectedOperatorIds]
-  );
+  const operatorIds = useMemo(() => [...selectedOperatorIds].sort(), [selectedOperatorIds]);
 
   useEffect(() => {
     return () => {

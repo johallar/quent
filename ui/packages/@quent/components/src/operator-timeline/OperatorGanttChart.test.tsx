@@ -7,8 +7,8 @@ import { describe, expect, it, vi } from 'vitest';
 import {
   useOperatorSelection,
   useOperatorSelectionActions,
-  useSelectedNodeIds,
-  useSelectedNodesData,
+  useSelectedOperatorIds,
+  useSelectedOperatorsData,
 } from '@quent/hooks';
 import type { Operator } from '@quent/utils';
 import { DAGNodeInfoPanel } from '../dag/DAGNodeInfoPanel';
@@ -46,8 +46,8 @@ function makeOperator(id: string, parentOperatorIds: string[] = []): Operator {
 
 function SelectionControls() {
   const selection = useOperatorSelection();
-  const selectedIds = useSelectedNodeIds();
-  const selectedNodesData = useSelectedNodesData();
+  const selectedIds = useSelectedOperatorIds();
+  const selectedOperatorsData = useSelectedOperatorsData();
   const updateSelection = useOperatorSelectionActions();
 
   return (
@@ -60,7 +60,7 @@ function SelectionControls() {
             selectionId: 'parent',
             label: 'parent',
             operatorIds: ['parent', 'left', 'right'],
-            inspectedData: {
+            selectedData: {
               nodeId: 'parent',
               label: 'parent',
               operationType: 'test',
@@ -89,8 +89,8 @@ function SelectionControls() {
       <output data-testid="selection-groups">
         {JSON.stringify([...selection.selections.keys()].sort())}
       </output>
-      <output data-testid="inspected-operators">
-        {JSON.stringify(selectedNodesData.map(operator => operator.nodeId).sort())}
+      <output data-testid="selected-operators">
+        {JSON.stringify(selectedOperatorsData.map(operator => operator.nodeId).sort())}
       </output>
     </>
   );
@@ -140,7 +140,7 @@ describe('OperatorGanttChart', () => {
 
     expect(screen.getByTestId('selection-ids')).toHaveTextContent(JSON.stringify(['right']));
     expect(screen.getByTestId('selection-groups')).toHaveTextContent(JSON.stringify(['right']));
-    expect(screen.getByTestId('inspected-operators')).toHaveTextContent(JSON.stringify(['right']));
+    expect(screen.getByTestId('selected-operators')).toHaveTextContent(JSON.stringify(['right']));
     expect(screen.queryByRole('button', { name: 'Remove parent' })).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Remove right' })).toBeInTheDocument();
     expect(screen.getByTestId('operator-details-title')).toHaveTextContent('right');

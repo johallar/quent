@@ -18,7 +18,7 @@ import type {
 } from '@quent/components';
 import {
   useSelectedPlanId,
-  useSelectedNodeIds,
+  useSelectedOperatorIds,
   useHighlightedNodeIds,
   useHoveredStat,
   useStatGroupTableControls,
@@ -80,7 +80,7 @@ interface OperatorTableProps {
 
 export function OperatorTable({ queryBundle }: OperatorTableProps) {
   const selectedPlanId = useSelectedPlanId();
-  const selectedNodeIds = useSelectedNodeIds();
+  const selectedOperatorIds = useSelectedOperatorIds();
   const [highlightState, setHighlightState] = useHighlightedNodeIds();
   const [hoveredStat, setHoveredStat] = useHoveredStat();
   const { theme } = useTheme();
@@ -154,12 +154,12 @@ export function OperatorTable({ queryBundle }: OperatorTableProps) {
   // current sibling-plan scope (e.g. a stage node was selected), fall back to
   // the unfiltered rows so the table doesn't appear inexplicably empty.
   const rows = useMemo(() => {
-    if (selectedNodeIds.size === 0) {
+    if (selectedOperatorIds.size === 0) {
       return allRows;
     }
-    const filtered = allRows.filter(r => selectedNodeIds.has(r.itemId));
+    const filtered = allRows.filter(r => selectedOperatorIds.has(r.itemId));
     return filtered.length > 0 ? filtered : allRows;
-  }, [allRows, selectedNodeIds]);
+  }, [allRows, selectedOperatorIds]);
 
   // Per-group-key lookup of `gk.id -> Set<itemId>`. Used by the group-cell
   // hover handlers to highlight every operator that belongs to the group.
@@ -315,7 +315,7 @@ export function OperatorTable({ queryBundle }: OperatorTableProps) {
       hoveredStat,
       setHoveredStat,
       hoveredItemId: dagHoveredOperatorId,
-      selectedItemIds: selectedNodeIds,
+      selectedItemIds: selectedOperatorIds,
       onTableMouseLeave: handleTableMouseLeave,
       groupCellHandlers: getGroupCellHandlers,
     }),
@@ -323,7 +323,7 @@ export function OperatorTable({ queryBundle }: OperatorTableProps) {
       hoveredStat,
       setHoveredStat,
       dagHoveredOperatorId,
-      selectedNodeIds,
+      selectedOperatorIds,
       handleTableMouseLeave,
       getGroupCellHandlers,
     ]

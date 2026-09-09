@@ -5,6 +5,7 @@ import { describe, expect, it } from 'vitest';
 import type { Operator } from './types';
 import {
   buildRelatedOperatorIdsById,
+  resolveSelectedOperatorSelections,
   resolveOperatorSelections,
   toggleOperatorSelection,
 } from './operatorHierarchy';
@@ -57,6 +58,42 @@ describe('operator hierarchy', () => {
         selectionId: 'logical',
         label: 'Logical',
         operatorIds: new Set(['logical', 'left', 'right']),
+      },
+    ]);
+  });
+
+  it('resolves selected operator data from the global operator list', () => {
+    const operators = [
+      makeOperator('logical', 'Logical'),
+      makeOperator('left', 'Left', ['logical']),
+      makeOperator('right', 'Right', ['logical']),
+    ];
+
+    expect(resolveSelectedOperatorSelections(operators, ['logical', 'left', 'right'])).toEqual([
+      {
+        selectionId: 'logical',
+        label: 'Logical',
+        operatorIds: new Set(['logical', 'left', 'right']),
+        selectedData: {
+          nodeId: 'logical',
+          label: 'Logical',
+          operationType: 'operator',
+          statistics: [],
+          relatedOperators: [
+            {
+              nodeId: 'left',
+              label: 'Left',
+              operationType: 'operator',
+              statistics: [],
+            },
+            {
+              nodeId: 'right',
+              label: 'Right',
+              operationType: 'operator',
+              statistics: [],
+            },
+          ],
+        },
       },
     ]);
   });

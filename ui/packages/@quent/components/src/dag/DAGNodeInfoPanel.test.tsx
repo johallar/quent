@@ -17,7 +17,7 @@ function SelectedNode() {
       selectionId: 'logical',
       label: 'Logical join',
       operatorIds: ['logical', 'physical-1', 'physical-2'],
-      inspectedData: {
+      selectedData: {
         nodeId: 'logical',
         label: 'Logical join',
         operationType: 'logicaljoin',
@@ -68,7 +68,7 @@ function SwitchSelectedNode() {
           selectionId: data.nodeId,
           label: data.label,
           operatorIds: new Set([data.nodeId]),
-          inspectedData: data,
+          selectedData: data,
         },
       ],
     });
@@ -91,7 +91,7 @@ function TwoSelectedNodes() {
       selectionId: 'scan',
       label: 'Table scan',
       operatorIds: ['scan'],
-      inspectedData: {
+      selectedData: {
         nodeId: 'scan',
         label: 'Table scan',
         operationType: 'scan',
@@ -103,7 +103,7 @@ function TwoSelectedNodes() {
       selectionId: 'join',
       label: 'Hash join',
       operatorIds: ['join'],
-      inspectedData: {
+      selectedData: {
         nodeId: 'join',
         label: 'Hash join',
         operationType: 'hashjoin',

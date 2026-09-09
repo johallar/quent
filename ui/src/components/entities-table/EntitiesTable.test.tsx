@@ -7,8 +7,9 @@ import { createStore, Provider } from 'jotai';
 import {
   useOperatorSelection,
   useOperatorSelectionActions,
-  useSelectedNodeIds,
+  useSelectedOperatorIds,
 } from '@quent/hooks';
+import { DAGNodeInfoPanel } from '@quent/components';
 import type { EntityRef, Operator, QueryBundle } from '@quent/utils';
 import { ThemeProvider } from '@/contexts/ThemeContext';
 import { EntitiesTable } from './EntitiesTable';
@@ -150,7 +151,7 @@ function DagSelectionControl() {
           selectionId: 'operator-1',
           label: 'Operator One',
           operatorIds: ['operator-1'],
-          inspectedData: {
+          selectedData: {
             nodeId: 'operator-1',
             label: 'Operator One',
             operationType: 'scan',
@@ -165,7 +166,7 @@ function DagSelectionControl() {
 }
 
 function OperatorSelectionProbe() {
-  const operatorIds = useSelectedNodeIds();
+  const operatorIds = useSelectedOperatorIds();
   const selection = useOperatorSelection();
   return (
     <>
@@ -282,6 +283,20 @@ describe('EntitiesTable', () => {
 
     const params = useEntities.mock.lastCall?.[0];
     expect(params.request.entry.application.operator_ids).toEqual([]);
+  });
+
+  it('populates global operator details without DAG plan hydration', () => {
+    renderTable(
+      <>
+        <DAGNodeInfoPanel />
+        <EntitiesTable engineId="engine-1" queryId="query-1" queryBundle={queryBundle} />
+      </>
+    );
+
+    fireEvent.click(screen.getByRole('combobox', { name: 'Operator' }));
+    fireEvent.click(screen.getByRole('option', { name: 'Operator One' }));
+
+    expect(screen.getByTestId('operator-details-title')).toHaveTextContent('Operator One');
   });
 
   it('supports selecting multiple operators from the dropdown', () => {

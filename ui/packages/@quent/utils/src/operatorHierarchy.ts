@@ -2,7 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import type { Operator } from './types';
-import type { OperatorSelection, OperatorSelectionInput } from './operatorTypes';
+import { unwrapTaggedValue } from './formatters';
+import type {
+  OperatorSelection,
+  OperatorSelectionInput,
+  SelectedOperatorData,
+  SelectedOperatorGroupData,
+} from './operatorTypes';
 
 interface ResolvedOperatorSelectionCandidates<
   Selection extends OperatorSelectionInput = OperatorSelectionInput,
@@ -13,6 +19,21 @@ interface ResolvedOperatorSelectionCandidates<
 
 function getOperatorDisplayLabel(operator: Operator): string {
   return operator.instance_name ?? operator.operator_type_name ?? operator.id;
+}
+
+function getSelectedOperatorData(operator: Operator): SelectedOperatorData {
+  return {
+    nodeId: operator.id,
+    label: getOperatorDisplayLabel(operator),
+    operationType: operator.operator_type_name?.toLowerCase() ?? 'operator',
+    statistics: Object.entries(operator.statistics?.custom_statistics ?? {}).map(
+      ([key, statistic]) => ({
+        key,
+        value: statistic.value ? unwrapTaggedValue(statistic.value) : null,
+        ...(statistic.quantity !== null ? { quantity: statistic.quantity } : {}),
+      })
+    ),
+  };
 }
 
 export function buildRelatedOperatorIdsById(
@@ -116,6 +137,32 @@ export function resolveOperatorSelections(
   }
 
   return selections;
+}
+
+export function resolveSelectedOperatorSelections(
+  operators: readonly Operator[],
+  selectedOperatorIds: Iterable<string>
+): Array<OperatorSelectionInput & { selectedData?: SelectedOperatorGroupData }> {
+  const operatorsById = new Map(operators.map(operator => [operator.id, operator]));
+  return resolveOperatorSelections(operators, selectedOperatorIds).map(selection => {
+    const operator = operatorsById.get(selection.selectionId);
+    if (!operator) {
+      return selection;
+    }
+    return {
+      ...selection,
+      selectedData: {
+        ...getSelectedOperatorData(operator),
+        label: selection.label,
+        relatedOperators: [...selection.operatorIds]
+          .filter(id => id !== selection.selectionId)
+          .flatMap(id => {
+            const related = operatorsById.get(id);
+            return related ? [getSelectedOperatorData(related)] : [];
+          }),
+      },
+    };
+  });
 }
 
 export function toggleOperatorSelection(

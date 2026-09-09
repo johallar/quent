@@ -9,7 +9,7 @@ import {
   useLongEntityDensity,
   useReturnedTimelineIsStale,
   useReturnedTimelineNumBins,
-  useSelectedNodeIds,
+  useSelectedOperatorIds,
   useZeroUtilizationResourceIds,
 } from '@quent/hooks';
 import { type FiniteStateMachine, type FsmTypeDecl, MAX_TIMELINE_BINS } from '@quent/utils';
@@ -57,7 +57,7 @@ export function LongEntitiesRow({
   selectedEntityId,
   onBackgroundClick,
 }: LongEntitiesRowProps) {
-  const selectedNodeIds = useSelectedNodeIds();
+  const selectedOperatorIds = useSelectedOperatorIds();
   const debouncedZoomRange = useDebouncedZoomRange();
   const bulkInitialized = useBulkInitialized();
   const longEntityDensity = useLongEntityDensity();
@@ -67,7 +67,7 @@ export function LongEntitiesRow({
   const previousHasNoUsagesInWindow = useRef(false);
   const previousMinUsageSeconds = useRef<number | null>(null);
   const [maxEntities, setMaxEntities] = useState(ENTITIES_PER_PAGE);
-  const operatorIds = useMemo(() => [...selectedNodeIds], [selectedNodeIds]);
+  const operatorIds = useMemo(() => [...selectedOperatorIds], [selectedOperatorIds]);
   const zoomWindow =
     debouncedZoomRange.end > debouncedZoomRange.start
       ? debouncedZoomRange

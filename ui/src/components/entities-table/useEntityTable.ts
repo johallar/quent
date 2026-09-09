@@ -6,11 +6,11 @@ import { useEntities, useEntityList } from '@quent/client';
 import {
   useOperatorSelection,
   useOperatorSelectionActions,
-  useSelectedNodeIds,
+  useSelectedOperatorIds,
 } from '@quent/hooks';
 import type { OptionMultiSelectOption, SelectFieldOption } from '@quent/components';
 import {
-  resolveOperatorSelections,
+  resolveSelectedOperatorSelections,
   toggleOperatorSelection as resolveOperatorSelectionToggle,
   type EntityRef,
   type FiniteStateMachine,
@@ -43,7 +43,7 @@ interface UseEntityTableParams {
 export function useEntityTable({ engineId, queryId, queryBundle }: UseEntityTableParams) {
   const { entities, duration_s: durationS } = queryBundle;
   const operatorSelection = useOperatorSelection();
-  const operatorIds = useSelectedNodeIds();
+  const operatorIds = useSelectedOperatorIds();
   const updateOperatorSelection = useOperatorSelectionActions();
   const operators = useMemo(() => Object.values(entities.operators), [entities.operators]);
   const defaults = useMemo(() => defaultEntityFilters(durationS), [durationS]);
@@ -85,7 +85,6 @@ export function useEntityTable({ engineId, queryId, queryBundle }: UseEntityTabl
     },
     [entities.operators]
   );
-
   // Reset pagination/selection whenever the operator filter changes, regardless of whether
   // it came from this toolbar or another crossfiltered view (DAG, operator swimlanes, etc).
   useEffect(() => {
@@ -113,7 +112,7 @@ export function useEntityTable({ engineId, queryId, queryBundle }: UseEntityTabl
     (nextIds: Set<string>) => {
       updateOperatorSelection({
         type: 'replace',
-        selections: resolveOperatorSelections(operators, nextIds),
+        selections: resolveSelectedOperatorSelections(operators, nextIds),
       });
       setPage(0);
       setSelected(null);
@@ -123,13 +122,17 @@ export function useEntityTable({ engineId, queryId, queryBundle }: UseEntityTabl
 
   const toggleOperator = useCallback(
     (value: string) => {
+      const nextSelections = resolveOperatorSelectionToggle(
+        operators,
+        operatorIds,
+        operatorSelection.selections,
+        value
+      );
       updateOperatorSelection({
         type: 'replace',
-        selections: resolveOperatorSelectionToggle(
+        selections: resolveSelectedOperatorSelections(
           operators,
-          operatorIds,
-          operatorSelection.selections,
-          value
+          nextSelections.flatMap(selection => [...selection.operatorIds])
         ),
       });
       setPage(0);
