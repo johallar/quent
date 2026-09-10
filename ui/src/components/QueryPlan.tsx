@@ -166,9 +166,9 @@ export function QueryPlan({ queryId, engineId }: { queryId: string; engineId: st
 
   const renderItem = ({ item, hasChildren }: { item: QueryPlanDataItem; hasChildren: boolean }) => {
     const selectedOperatorCount = selectedOperatorCountsByPlan.get(item.id) ?? 0;
-    const selectedOperatorLabel = `${selectedOperatorCount} selected operator${
+    const selectedOperatorLabel = `${selectedOperatorCount} operator${
       selectedOperatorCount === 1 ? '' : 's'
-    } in this plan`;
+    } selected`;
 
     return (
       <div className="flex flex-col items-start py-0.5 pl-1">
