@@ -11,14 +11,10 @@ import {
   useSetSelectedPlanId,
   useNodeColoringValue,
   useNodeColorPalette,
+  COLOR_REGISTRY_KEYS,
+  useColorResolver,
 } from '@quent/hooks';
-import {
-  continuousColor,
-  withOpacity,
-  getOperationTypeColor,
-  toggleOperatorSelection,
-  type Operator,
-} from '@quent/utils';
+import { continuousColor, withOpacity, toggleOperatorSelection, type Operator } from '@quent/utils';
 import type { OperatorActiveSpanEntry } from './types';
 import { GanttChart, type GanttRenderItem } from '../gantt-chart/GanttChart';
 import type { GanttHover } from '../gantt-chart/hover';
@@ -32,9 +28,11 @@ const BAR_FONT_SIZE = 10;
 const BAR_HEIGHT = 16;
 const BAR_GAP = 2;
 
-function getOperatorBarColors(typeName: string | undefined): { fill: string; stroke: string } {
-  const key = typeName?.toLowerCase().replace(/\s+/g, '') ?? '';
-  const stroke = getOperationTypeColor(key);
+function getOperatorBarColors(
+  typeName: string | undefined,
+  resolveColor: (value: string) => string
+): { fill: string; stroke: string } {
+  const stroke = resolveColor(typeName ?? '');
   return { stroke, fill: withOpacity(stroke, 0.45) };
 }
 
@@ -60,6 +58,7 @@ export function OperatorGanttChart({
   const { textColor } = useTimelineEchartsTheme(isDark);
   const nodeColoring = useNodeColoringValue();
   const [nodePalette] = useNodeColorPalette();
+  const resolveOperatorTypeColor = useColorResolver(COLOR_REGISTRY_KEYS.OPERATOR_TYPES);
   const barLabelTextColor = textColor;
   const selectedOperatorIds = useSelectedOperatorIds();
 
@@ -76,13 +75,13 @@ export function OperatorGanttChart({
       const items: GanttTooltipItem[] = hover
         ? getOperatorsAtTimestamp(operators, hover.timestampMs).map(operator => ({
             id: operator.operatorId,
-            color: getOperatorBarColors(operator.typeName).stroke,
+            color: getOperatorBarColors(operator.typeName, resolveOperatorTypeColor).stroke,
             name: operator.label,
           }))
         : [];
       return <GanttTooltipPortal hover={hover} items={items} />;
     },
-    [operators]
+    [operators, resolveOperatorTypeColor]
   );
   const operatorFieldStyles = useMemo(() => {
     const styles = new Map<string, { stroke?: string; fieldDimmed: boolean }>();
@@ -129,7 +128,7 @@ export function OperatorGanttChart({
         op?.typeName && op.typeName !== op.label
           ? `${op.typeName}: ${op.label}`
           : (op?.label ?? '');
-      const { fill } = getOperatorBarColors(op?.typeName);
+      const { fill } = getOperatorBarColors(op?.typeName, resolveOperatorTypeColor);
       const fieldStyle = op ? operatorFieldStyles.get(op.operatorId) : undefined;
       const hasSelection = selectedOperatorIds.size > 0;
       const isSelected = op != null && selectedOperatorIds.has(op.operatorId);
@@ -166,7 +165,13 @@ export function OperatorGanttChart({
         children: [rect, text],
       };
     },
-    [operators, operatorFieldStyles, barLabelTextColor, selectedOperatorIds]
+    [
+      operators,
+      operatorFieldStyles,
+      barLabelTextColor,
+      selectedOperatorIds,
+      resolveOperatorTypeColor,
+    ]
   );
 
   const handleClick = useMemo(

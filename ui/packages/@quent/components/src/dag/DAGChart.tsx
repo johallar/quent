@@ -41,6 +41,8 @@ import {
   useSelectedDagLayoutDirection,
   useDataFlowEnabled,
   useDataFlowMeta,
+  COLOR_REGISTRY_KEYS,
+  useColorResolver,
 } from '@quent/hooks';
 import { calculateLayout, NODE_LAYOUT_WIDTH, NODE_LAYOUT_HEIGHT, FLOW_BAR_HEIGHT } from './layout';
 import type { DAGData } from '../services/query-plan/types';
@@ -51,8 +53,6 @@ import { shouldDimEdgeFromInteraction } from './edgeOpacity';
 import { parseCustomStatistics } from '../lib/queryBundle.utils';
 import {
   continuousColor,
-  getOperationTypeColor,
-  buildOperatorColorMap,
   inferFieldFormatter,
   toggleOperatorSelection,
   type Operator,
@@ -314,6 +314,7 @@ const FlowLayout = ({
   const [layoutDirection] = useSelectedDagLayoutDirection();
   const dataFlowEnabled = useDataFlowEnabled();
   const dataFlowMeta = useDataFlowMeta();
+  const resolveOperatorTypeColor = useColorResolver(COLOR_REGISTRY_KEYS.OPERATOR_TYPES);
   // Stable boolean: only flips on availability/toggle, not on zoom refetches,
   // so toggling the overlay relayouts exactly once.
   const flowBarVisible = dataFlowEnabled && dataFlowMeta != null;
@@ -382,11 +383,6 @@ const FlowLayout = ({
     }
   }, []);
 
-  const operatorColorMap = useMemo(
-    () => buildOperatorColorMap(data.nodes.map(n => n.type)),
-    [data.nodes]
-  );
-
   const getSelectionIds = useCallback((node: Node<QueryPlanNodeData>): string[] => {
     const relatedOperatorIds = node.data.metadata?.relatedOperatorIds ?? [];
     return relatedOperatorIds.length > 0 ? [...relatedOperatorIds, node.id] : [node.id];
@@ -429,7 +425,6 @@ const FlowLayout = ({
           hasOutgoing: nodesWithOutgoing.has(node.id),
           layoutDirection,
           isDark,
-          baseColor: operatorColorMap.get(node.type.toLowerCase()),
           flowBarVisible,
           quantitySpecs: data.quantitySpecs,
         },
@@ -454,7 +449,7 @@ const FlowLayout = ({
     }));
 
     return { flowNodes, flowEdges };
-  }, [data, isDark, operatorColorMap, layoutDirection, flowBarVisible]);
+  }, [data, isDark, layoutDirection, flowBarVisible]);
 
   const handleNodeClick = useCallback(
     (_event: MouseEvent, node: Node<QueryPlanNodeData>): void => {
@@ -570,8 +565,7 @@ const FlowLayout = ({
         style={{ width: MINIMAP_SIZE, height: MINIMAP_SIZE, background: 'hsl(var(--card))' }}
         maskColor="hsl(var(--muted) / 0.7)"
         nodeColor={(node: Node<QueryPlanNodeData>) =>
-          (node.data as QueryPlanNodeData).baseColor ??
-          getOperationTypeColor((node.data as QueryPlanNodeData).operationType)
+          resolveOperatorTypeColor((node.data as QueryPlanNodeData).operationType)
         }
       />
     </ReactFlow>

@@ -12,8 +12,10 @@ export {
   getColorForKey,
   assignColors,
   getColorByIndex,
-  getOperationTypeColor,
-  buildOperatorColorMap,
+  normalizeDeterministicColorKey,
+  getDeterministicColor,
+  buildDeterministicColorMap,
+  createDeterministicColorResolver,
   withOpacity,
   resetColorAssignments,
   darkenColor,
@@ -30,7 +32,14 @@ export {
   continuousColor,
   getLegendGradientStops,
 } from './colors';
-export type { PaletteName, PaletteTheme, ChartColor, ContinuousPaletteName } from './colors';
+export type {
+  PaletteName,
+  PaletteTheme,
+  ChartColor,
+  ContinuousPaletteName,
+  DeterministicColorKey,
+  DeterministicColorResolver,
+} from './colors';
 
 // Formatter utilities
 export {

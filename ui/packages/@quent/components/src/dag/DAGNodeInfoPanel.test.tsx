@@ -5,7 +5,7 @@ import { useEffect, useState } from 'react';
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import { Provider } from 'jotai';
 import { useOperatorSelectionActions } from '@quent/hooks';
-import { getOperationTypeColor } from '@quent/utils';
+import { getDeterministicColor } from '@quent/utils';
 import { DAGNodeInfoPanel } from './DAGNodeInfoPanel';
 
 function SelectedNode() {
@@ -145,10 +145,10 @@ describe('DAGNodeInfoPanel', () => {
       bars.filter(bar => bar.getAttribute('data-operation-type') === 'logicaljoin')
     ).not.toHaveLength(0);
     expect(bars.find(bar => bar.getAttribute('data-operation-type') === 'hashbuild')).toHaveStyle({
-      backgroundColor: getOperationTypeColor('hashbuild'),
+      backgroundColor: getDeterministicColor('hashbuild'),
     });
     expect(bars.find(bar => bar.getAttribute('data-operation-type') === 'hashprobe')).toHaveStyle({
-      backgroundColor: getOperationTypeColor('hashprobe'),
+      backgroundColor: getDeterministicColor('hashprobe'),
     });
   });
 
@@ -169,9 +169,9 @@ describe('DAGNodeInfoPanel', () => {
 
     const titleBars = within(title).getAllByTestId('operator-color-bar');
     expect(titleBars[0]).toHaveAttribute('data-operation-type', 'scan');
-    expect(titleBars[0]).toHaveStyle({ backgroundColor: getOperationTypeColor('scan') });
+    expect(titleBars[0]).toHaveStyle({ backgroundColor: getDeterministicColor('scan') });
     expect(titleBars[1]).toHaveAttribute('data-operation-type', 'hashjoin');
-    expect(titleBars[1]).toHaveStyle({ backgroundColor: getOperationTypeColor('hashjoin') });
+    expect(titleBars[1]).toHaveStyle({ backgroundColor: getDeterministicColor('hashjoin') });
   });
 
   it('collapses a selected operator without hiding the others', async () => {

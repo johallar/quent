@@ -5,6 +5,14 @@
 export { QuentProvider } from './QuentProvider';
 export type { QuentProviderProps } from './QuentProvider';
 
+// Query-scoped deterministic color registries
+export {
+  COLOR_REGISTRY_KEYS,
+  useColorResolver,
+  useHydrateColorRegistry,
+} from './colors/colorRegistry';
+export type { ColorRegistry, ColorRegistryKey } from './colors/colorRegistry';
+
 // DAG hooks
 export { useSelectedOperatorIds } from './dag/useSelectedOperatorIds';
 export { useOperatorSelection, useOperatorSelectionActions } from './dag/useOperatorSelection';
