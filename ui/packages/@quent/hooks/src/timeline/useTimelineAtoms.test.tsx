@@ -6,7 +6,7 @@ import { act, renderHook } from '@testing-library/react';
 import { Provider, createStore } from 'jotai';
 import { describe, expect, it, vi } from 'vitest';
 import type { OperatorFilter, SingleTimelineResponse, TimelineRequest } from '@quent/utils';
-import { selectedNodeIdsAtom } from '../atoms/dag';
+import { operatorSelectionAtom } from '../atoms/dag';
 import {
   debouncedZoomRangeAtom,
   timelineCacheKey,
@@ -255,7 +255,9 @@ describe('useZeroUtilizationResourceIds', () => {
   it('checks operator-filtered utilization, not the unfiltered base timeline, when operators are selected', () => {
     const store = createStore();
     store.set(visibleEntriesAtom, { 'worker-resource': makeRequest('worker-resource') });
-    store.set(selectedNodeIdsAtom, new Set(['op-1']));
+    store.set(operatorSelectionAtom, {
+      selections: new Map([['op-1', { label: 'Operator 1', operatorIds: new Set(['op-1']) }]]),
+    });
     store.set(timelineDataMapAtom, {
       // Base (unfiltered) timeline is busy...
       [timelineCacheKey({ resourceId: 'worker-resource', resourceTypeName: '' })]: makeResponse([

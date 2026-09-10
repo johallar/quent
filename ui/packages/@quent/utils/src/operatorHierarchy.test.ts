@@ -162,4 +162,31 @@ describe('operator hierarchy', () => {
       },
     ]);
   });
+
+  it('deselects every descendant when a covered parent is deselected', () => {
+    const operators = [
+      makeOperator('logical', 'Logical'),
+      makeOperator('intermediate', 'Intermediate', ['logical']),
+      makeOperator('left', 'Left', ['intermediate']),
+      makeOperator('right', 'Right', ['intermediate']),
+    ];
+    const selectedIds = new Set(['logical', 'intermediate', 'left', 'right']);
+
+    expect(
+      toggleOperatorSelection(
+        operators,
+        selectedIds,
+        new Map([
+          [
+            'logical',
+            {
+              label: 'Logical',
+              operatorIds: selectedIds,
+            },
+          ],
+        ]),
+        'intermediate'
+      )
+    ).toEqual([]);
+  });
 });

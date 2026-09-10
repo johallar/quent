@@ -180,6 +180,9 @@ export function toggleOperatorSelection(
     }
   } else if (nextIds.has(operatorId)) {
     nextIds.delete(operatorId);
+    for (const id of buildRelatedOperatorIdsById(operators, [operatorId]).get(operatorId) ?? []) {
+      nextIds.delete(id);
+    }
     const operatorsById = new Map(operators.map(operator => [operator.id, operator]));
     const pendingParentIds = [...(operatorsById.get(operatorId)?.parent_operator_ids ?? [])];
     const visitedParentIds = new Set<string>();
