@@ -24,6 +24,7 @@ export {
   useTimelineData,
   useReturnedTimelineNumBins,
   useReturnedTimelineIsStale,
+  useZeroUtilizationResourceIds,
   useZoomRange,
   useGetZoomRange,
   useReadZoomRange,
@@ -48,7 +49,7 @@ export {
 // Timeline cache key helpers (consumers need these to address per-item data)
 export { LONG_ENTITY_DENSITIES, timelineCacheKey } from './atoms/timeline';
 export type { LongEntityDensity, TimelineCacheParams, TimelineHoverState } from './atoms/timeline';
-export { bulkEntryId } from './timeline/timeline.utils';
+export { bulkEntryId, isTimelineUtilizationAllZero } from './timeline/timeline.utils';
 
 // Complex timeline hooks
 export { useBulkTimelines } from './timeline/useBulkTimelines';
