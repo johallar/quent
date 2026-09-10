@@ -230,6 +230,7 @@ export { ResourceTimeline } from './timeline/ResourceTimeline';
 // ─── DAG components ───────────────────────────────────────────────────────────
 export { DAGChart } from './dag/DAGChart';
 export { DAGControls } from './dag/DAGControls';
+export { DAGSettingsPopover } from './dag/DAGSettingsPopover';
 export { DAGLegend } from './dag/DAGLegend';
 export { DAGNodeInfoPanel } from './dag/DAGNodeInfoPanel';
 export { DagPlayhead } from './dag/DagPlayhead';
