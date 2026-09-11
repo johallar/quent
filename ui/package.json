@@ -27,6 +27,7 @@
     "build:packages": "pnpm --filter '@quent/*' --recursive build:ci",
     "ci:build": "pnpm --filter '@quent/*' --recursive build:ci && pnpm ci:build:app",
     "ci:build:app": "tsr generate && tsc && vite build",
+    "ask": "tsx scripts/ask.ts",
     "deep-link": "tsx scripts/deep-link.ts",
     "demo:wasm": "cargo build --manifest-path ../Cargo.toml -p quent-simulator-wasm --lib --target wasm32-unknown-unknown --release --locked && wasm-bindgen ../target/wasm32-unknown-unknown/release/quent_simulator_wasm.wasm --target web --out-dir generated/simulator-wasm",
     "demo:data": "cargo run --manifest-path ../Cargo.toml -p quent-simulator-wasm --bin generate-demo --features generate --locked -- generated/simulator-demo.postcard",
