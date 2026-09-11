@@ -28,6 +28,7 @@
     "build:packages": "pnpm --filter '@quent/*' --recursive build:ci",
     "ci:build": "pnpm --filter '@quent/*' --recursive build:ci && pnpm ci:build:app",
     "ci:build:app": "tsr generate && tsc && vite build",
+    "ask": "tsx scripts/ask.ts",
     "deep-link": "tsx scripts/deep-link.ts",
     "simulator:data:clean": "node -e \"const fs=require('node:fs');const dir='../data/simulator-events';fs.rmSync(dir,{recursive:true,force:true});fs.mkdirSync(dir,{recursive:true});\"",
     "simulator:data:generate": "cargo run --manifest-path ../Cargo.toml -p quent-simulator -- --num-workloads 1 --num-queries 2 --num-workers 8 --num-threads 2 --num-gpus 1 --num-tasks 2000 --exporter collector --collector-address http://localhost:7836 --dynamic-engine-id",
