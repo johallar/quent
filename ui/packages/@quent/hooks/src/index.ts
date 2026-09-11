@@ -5,12 +5,17 @@
 export { QuentProvider } from './QuentProvider';
 export type { QuentProviderProps } from './QuentProvider';
 
-// DAG hooks
-export { useSelectedNodeIds, useSetSelectedNodeIds } from './dag/useSelectedNodeIds';
+// Query-scoped deterministic color registries
 export {
-  useSelectedOperatorLabel,
-  useSetSelectedOperatorLabel,
-} from './dag/useSelectedOperatorLabel';
+  COLOR_REGISTRY_KEYS,
+  useColorResolver,
+  useHydrateColorRegistry,
+} from './colors/colorRegistry';
+export type { ColorRegistry, ColorRegistryKey } from './colors/colorRegistry';
+
+// DAG hooks
+export { useSelectedOperatorIds } from './dag/useSelectedOperatorIds';
+export { useOperatorSelection, useOperatorSelectionActions } from './dag/useOperatorSelection';
 export { useSelectedPlanId, useSetSelectedPlanId } from './dag/useSelectedPlanId';
 export { useHoveredWorkerId, useSetHoveredWorkerId } from './dag/useHoveredWorkerId';
 
@@ -19,6 +24,7 @@ export {
   useTimelineData,
   useReturnedTimelineNumBins,
   useReturnedTimelineIsStale,
+  useZeroUtilizationResourceIds,
   useZoomRange,
   useGetZoomRange,
   useReadZoomRange,
@@ -43,7 +49,7 @@ export {
 // Timeline cache key helpers (consumers need these to address per-item data)
 export { LONG_ENTITY_DENSITIES, timelineCacheKey } from './atoms/timeline';
 export type { LongEntityDensity, TimelineCacheParams, TimelineHoverState } from './atoms/timeline';
-export { bulkEntryId } from './timeline/timeline.utils';
+export { bulkEntryId, isTimelineUtilizationAllZero } from './timeline/timeline.utils';
 
 // Complex timeline hooks
 export { useBulkTimelines } from './timeline/useBulkTimelines';
@@ -83,8 +89,7 @@ export {
   useEdgeColorPalette,
   useSelectedNodeLabelField,
   useSelectedDagLayoutDirection,
-  useSelectedNodeData,
-  useSetSelectedNodeData,
+  useSelectedOperatorsData,
   useHighlightedNodeIds,
   useSetHighlightedNodeIds,
   useEffectiveHighlightedNodeIds,
@@ -93,12 +98,8 @@ export {
   useSetHoveredStat,
   useSetDagDisplayedNodeIds,
 } from './dag/dagControlSelectors';
-export type {
-  HoveredStatInfo,
-  HighlightedNodeIdsState,
-  InspectedOperatorData,
-  InspectedNodeData,
-} from './atoms/dagControls';
+export type { HoveredStatInfo, HighlightedNodeIdsState } from './atoms/dagControls';
+export type { SelectedOperatorData, SelectedOperatorGroupData } from '@quent/utils';
 
 // Data-flow overlay hooks (HOOKS-02: selector hooks over private atoms)
 export {
@@ -140,6 +141,15 @@ export type {
 
 // Utility hooks
 export { useDeferredReady } from './dag/useDeferredReady';
+
+export { useSerializableViewState } from './deepLink/useSerializableViewState';
+export type {
+  HydratableViewState,
+  SerializableDagControls,
+  SerializableDataFlowState,
+  SerializableOperatorTableState,
+  SerializableViewState,
+} from './deepLink/useSerializableViewState';
 
 // Pivot-table hooks
 export { useColumnDragDrop } from './pivot-table/useColumnDragDrop';

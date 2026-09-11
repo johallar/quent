@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import EChartsReactCore from 'echarts-for-react/lib/core';
+import { EChartsReactCore } from '../lib/echartsReactCore';
 import { echarts } from '../lib/echarts';
 import type { EChartsOption } from '../lib/echarts';
 import type { LineSeriesOption } from 'echarts/charts';
@@ -76,7 +76,9 @@ export function Timeline({
   const { themeName, textColor, labelBackgroundColor } = useTimelineEchartsTheme(isDark);
   const markCount = marks?.length ?? 0;
   const [maxMarkCount, setMaxMarkCount] = useState(markCount);
-  if (markCount > maxMarkCount) setMaxMarkCount(markCount);
+  if (markCount > maxMarkCount) {
+    setMaxMarkCount(markCount);
+  }
 
   const seriesOptions = useMemo(() => {
     const sortedEntries = Object.entries(series).sort((a, b) => a[0].localeCompare(b[0]));
@@ -305,9 +307,15 @@ export function Timeline({
     // converts pointer pixels into a snapped bin index so the parent can
     // sample series data without re-doing the search.
     const reportHover = (e: PointerEvent) => {
-      if (!showTooltipRef.current) return;
-      if (isDraggingRef.current) return;
-      if (instance.isDisposed?.()) return;
+      if (!showTooltipRef.current) {
+        return;
+      }
+      if (isDraggingRef.current) {
+        return;
+      }
+      if (instance.isDisposed?.()) {
+        return;
+      }
       const rect = dom.getBoundingClientRect();
       const offsetX = e.clientX - rect.left;
       // Don't report hover if the pointer is outside the timeline
@@ -318,13 +326,17 @@ export function Timeline({
       let tsMs: number;
       try {
         const v = instance.convertFromPixel({ xAxisIndex: 0 }, offsetX);
-        if (v == null || !isFinite(v as number)) return;
+        if (v == null || !isFinite(v as number)) {
+          return;
+        }
         tsMs = v as number;
       } catch {
         return;
       }
       const idx = snapToBinIndex(timestampsRef.current, tsMs);
-      if (idx < 0) return;
+      if (idx < 0) {
+        return;
+      }
       onHoverChangeRef.current?.({
         dataIndex: idx,
         timestampMs: tsMs,
@@ -419,19 +431,28 @@ export function Timeline({
  */
 function snapToBinIndex(timestamps: number[], ts: number): number {
   const n = timestamps.length;
-  if (n === 0) return -1;
-  if (n === 1) return 0;
+  if (n === 0) {
+    return -1;
+  }
+  if (n === 1) {
+    return 0;
+  }
   let lo = 0;
   let hi = n - 1;
   while (lo < hi) {
     const mid = (lo + hi) >>> 1;
-    if ((timestamps[mid] ?? 0) < ts) lo = mid + 1;
-    else hi = mid;
+    if ((timestamps[mid] ?? 0) < ts) {
+      lo = mid + 1;
+    } else {
+      hi = mid;
+    }
   }
   if (lo > 0) {
     const a = timestamps[lo - 1] ?? 0;
     const b = timestamps[lo] ?? 0;
-    if (Math.abs(a - ts) < Math.abs(b - ts)) return lo - 1;
+    if (Math.abs(a - ts) < Math.abs(b - ts)) {
+      return lo - 1;
+    }
   }
   return lo;
 }

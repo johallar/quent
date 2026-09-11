@@ -8,8 +8,8 @@ import {
   useDebouncedZoomRange,
   timelineCacheKey,
   useTimelineData,
-  useSelectedNodeIds,
-  useSelectedOperatorLabel,
+  useOperatorSelection,
+  useSelectedOperatorIds,
   useDeferredReady,
   useSetTimelineHover,
 } from '@quent/hooks';
@@ -88,11 +88,18 @@ export function ResourceTimeline({
   const deferredReady = useDeferredReady();
   const zoomRange = useDebouncedZoomRange();
   const bulkInitialized = useBulkInitialized();
-  const operatorLabel = useSelectedOperatorLabel();
-
-  const selectedNodeIds = useSelectedNodeIds();
-  const operatorIds = useMemo(() => [...selectedNodeIds].sort(), [selectedNodeIds]);
+  const operatorSelection = useOperatorSelection();
+  const selectedOperatorIds = useSelectedOperatorIds();
+  const operatorIds = useMemo(() => [...selectedOperatorIds].sort(), [selectedOperatorIds]);
   const hasOperatorFilter = operatorIds.length > 0;
+  const operatorLabel = useMemo(() => {
+    const selections = [...operatorSelection.selections.values()];
+    return selections.length === 1
+      ? (selections[0]?.label ?? null)
+      : selections.length > 1
+        ? 'Selected operators'
+        : null;
+  }, [operatorSelection.selections]);
 
   const cacheResourceTypeName =
     resourceType === EntityTypeKey.ResourceGroup ? (resourceTypeName ?? '') : '';
@@ -122,7 +129,9 @@ export function ResourceTimeline({
     }
   } else if (!hasOperatorFilter) {
     effectiveRetainedOverlay = null;
-    if (retainedOverlay !== null) setRetainedOverlay(null);
+    if (retainedOverlay !== null) {
+      setRetainedOverlay(null);
+    }
   }
   const overlayPreloadedData = resolveOverlayData(
     operatorTimelineData,
@@ -190,7 +199,9 @@ export function ResourceTimeline({
     yAxisLabel?: string;
   }>(() => {
     const data = preloadedData ?? fetchedData;
-    if (!data) return { timestamps: [], series: EMPTY_TIMELINE_SERIES };
+    if (!data) {
+      return { timestamps: [], series: EMPTY_TIMELINE_SERIES };
+    }
 
     const base = buildBinnedTimelineSeries(
       data.data,

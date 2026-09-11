@@ -12,6 +12,8 @@ export const DeepLinkNavTargetContext = createContext<DeepLinkNavTargetContextVa
 
 export function useDeepLinkNavTarget() {
   const context = useContext(DeepLinkNavTargetContext);
-  if (!context) throw new Error('DeepLinkNavTargetProvider is missing');
+  if (!context) {
+    throw new Error('DeepLinkNavTargetProvider is missing');
+  }
   return context;
 }

@@ -7,16 +7,24 @@
 //! there is a very special reason. Instead, it should interact with the
 //! generated instrumentation library only.
 
+#[cfg(feature = "io-collector")]
+#[doc(hidden)]
+pub mod collector;
 mod context;
 mod entity;
+mod fsm_handle;
 mod handle;
 mod model;
 mod noop;
 mod observer;
 mod sidecar;
 
+#[cfg(feature = "io-collector")]
+#[doc(hidden)]
+pub use collector::{CollectorRouter, CollectorSink, deserialize_event, serialize_event};
 pub use context::ContextInner;
 pub use entity::{InstrumentedEntity, Observer};
+pub use fsm_handle::{FsmEvent, FsmHandleInner};
 pub use handle::{HandleError, HandleInner};
 pub use model::{Context, InstrumentedModel, ObserverBuilder, ObserverProvider};
 pub use noop::Noop;
@@ -27,7 +35,9 @@ pub use sidecar::{ContextExporter, write_sidecar};
 // consumer needs only the `quent-instrumentation` dependency, selecting an
 // exporter backend through its `io-*` features.
 pub use quent_build_info as build_info;
-pub use quent_dynamic_attributes::DynamicAttributes;
+pub use quent_dynamic_attributes::{
+    DynamicAttribute, DynamicAttributes, DynamicList, DynamicNull, DynamicStruct, DynamicValue,
+};
 #[doc(hidden)]
 pub use quent_events as events;
 pub use quent_events::{AnyEntity, EntityEvent, EntityRef, Event, Model, ModelEvents};

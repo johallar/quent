@@ -30,9 +30,13 @@ export function useTimelineWheelNavigation(minZoomSpanPct: number) {
       cleanupRef.current?.();
 
       const isAtZoomLimit = () => {
-        if (instance.isDisposed?.()) return false;
+        if (instance.isDisposed?.()) {
+          return false;
+        }
         const dataZoom = getDataZoomState(instance);
-        if (!dataZoom) return false;
+        if (!dataZoom) {
+          return false;
+        }
         const spanPct = (dataZoom.end ?? 100) - (dataZoom.start ?? 0);
         return spanPct <= minZoomSpanPctRef.current * ZOOM_LIMIT_FLOAT_TOLERANCE;
       };
@@ -50,12 +54,18 @@ export function useTimelineWheelNavigation(minZoomSpanPct: number) {
         }
 
         event.stopPropagation();
-        if (!isHorizontalScroll) return;
-        if (instance.isDisposed?.()) return;
+        if (!isHorizontalScroll) {
+          return;
+        }
+        if (instance.isDisposed?.()) {
+          return;
+        }
 
         event.preventDefault();
         const dataZoom = getDataZoomState(instance);
-        if (!dataZoom) return;
+        if (!dataZoom) {
+          return;
+        }
 
         const currentStart = dataZoom.start ?? 0;
         const currentEnd = dataZoom.end ?? 100;
@@ -80,7 +90,9 @@ export function useTimelineWheelNavigation(minZoomSpanPct: number) {
 
       const cleanup = () => {
         wheelTarget.removeEventListener('wheel', handleWheel, { capture: true });
-        if (cleanupRef.current === cleanup) cleanupRef.current = null;
+        if (cleanupRef.current === cleanup) {
+          cleanupRef.current = null;
+        }
       };
       cleanupRef.current = cleanup;
       return cleanup;

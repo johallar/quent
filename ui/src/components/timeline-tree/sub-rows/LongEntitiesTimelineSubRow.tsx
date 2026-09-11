@@ -23,6 +23,7 @@ interface LongEntitiesTimelineSubRowOptions {
   onEntitySelect?: (fsm: FiniteStateMachine) => void;
   selectedEntityId?: string;
   onBackgroundClick?: () => void;
+  zeroUtilizationResourceIds?: ReadonlySet<string>;
 }
 
 export function createLongEntitiesTimelineSubRow({
@@ -32,6 +33,7 @@ export function createLongEntitiesTimelineSubRow({
   onEntitySelect,
   selectedEntityId,
   onBackgroundClick,
+  zeroUtilizationResourceIds,
 }: LongEntitiesTimelineSubRowOptions) {
   return createTimelineSubRow({
     id: 'long-entities',
@@ -42,7 +44,7 @@ export function createLongEntitiesTimelineSubRow({
         const next: TreeTableItem[] = [];
         for (const child of children) {
           next.push(child);
-          if (child.type === EntityTypeKey.Resource) {
+          if (child.type === EntityTypeKey.Resource && !zeroUtilizationResourceIds?.has(child.id)) {
             next.push(createSyntheticSubRow(longEntitiesRowId(child.id), LONG_ENTITIES_ROW_TYPE));
           }
         }
@@ -50,7 +52,9 @@ export function createLongEntitiesTimelineSubRow({
       }),
     renderTimeline: item => {
       const resourceId = resourceIdFromLongEntitiesRowId(item.id);
-      if (resourceId == null) return null;
+      if (resourceId == null) {
+        return null;
+      }
       return (
         <LongEntitiesRow
           engineId={engineId}

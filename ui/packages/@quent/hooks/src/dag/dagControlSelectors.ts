@@ -4,6 +4,7 @@
 // Selector hooks for DAG control atoms (HOOKS-02: no raw atom exports).
 // Components use these hooks to read/write DAG visual control state.
 
+import { useMemo } from 'react';
 import { useAtomValue, useSetAtom, useAtom } from 'jotai';
 import {
   selectedColorField,
@@ -16,7 +17,7 @@ import {
   edgeColorPaletteAtom,
   selectedNodeLabelFieldAtom,
   selectedDagLayoutDirectionAtom,
-  selectedNodeDataAtom,
+  selectedOperatorsDataAtom,
   highlightedNodeIdsAtom,
   effectiveHighlightedNodeIdsAtom,
   effectiveHoveredStatAtom,
@@ -68,11 +69,9 @@ export function useSelectedDagLayoutDirection() {
   return useAtom(selectedDagLayoutDirectionAtom);
 }
 
-export function useSelectedNodeData() {
-  return useAtomValue(selectedNodeDataAtom);
-}
-export function useSetSelectedNodeData() {
-  return useSetAtom(selectedNodeDataAtom);
+export function useSelectedOperatorsData() {
+  const map = useAtomValue(selectedOperatorsDataAtom);
+  return useMemo(() => [...map.values()], [map]);
 }
 
 export function useHighlightedNodeIds() {

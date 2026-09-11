@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import EChartsReactCore from 'echarts-for-react/lib/core';
+import { EChartsReactCore } from '../lib/echartsReactCore';
 import { echarts } from '../lib/echarts';
 import type { EChartsOption } from '../lib/echarts';
 import type { EChartsInstance } from 'echarts-for-react';
@@ -126,11 +126,15 @@ export function TimelineController({
   const [containerWidth, setContainerWidth] = useState(0);
   useEffect(() => {
     const el = containerRef.current;
-    if (!el || typeof ResizeObserver === 'undefined') return;
+    if (!el || typeof ResizeObserver === 'undefined') {
+      return;
+    }
     setContainerWidth(el.clientWidth);
     const observer = new ResizeObserver(entries => {
       const entry = entries[0];
-      if (entry) setContainerWidth(entry.contentRect.width);
+      if (entry) {
+        setContainerWidth(entry.contentRect.width);
+      }
     });
     observer.observe(el);
     return () => observer.disconnect();
@@ -277,7 +281,9 @@ export function TimelineController({
   ]);
 
   const handleDataZoom = useMemo(() => {
-    if (!onZoomChange) return undefined;
+    if (!onZoomChange) {
+      return undefined;
+    }
     return {
       dataZoom: (params: {
         start?: number;
@@ -335,7 +341,9 @@ export function TimelineController({
       selfTriggeredRef.current = false;
       return;
     }
-    if (!chartInstance || durationSeconds === 0) return;
+    if (!chartInstance || durationSeconds === 0) {
+      return;
+    }
 
     const startPct = (zoomRange.start / durationSeconds) * 100;
     const endPct = (zoomRange.end / durationSeconds) * 100;

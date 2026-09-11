@@ -47,6 +47,12 @@ export interface LongEntitiesGanttProps {
   selectedEntityId?: string;
   /** Called when the user clicks the chart background (not an entity bar). */
   onBackgroundClick?: () => void;
+  /**
+   * True when this resource has no usages at all in the current time range
+   * (as opposed to having usages shorter than `minUsageSeconds`). Swaps the
+   * empty-state copy since zooming further in this case won't reveal anything.
+   */
+  noUsagesInRange?: boolean;
 }
 
 export function LongEntitiesGantt({
@@ -58,6 +64,7 @@ export function LongEntitiesGantt({
   onEntityClick,
   selectedEntityId,
   onBackgroundClick,
+  noUsagesInRange,
 }: LongEntitiesGanttProps) {
   const { textColor } = useTimelineEchartsTheme(isDark);
   const zoomRange = useZoomRange();
@@ -109,10 +116,14 @@ export function LongEntitiesGantt({
       const datum = customSeriesData[params.dataIndex];
       const entry = datum ? entries[datum.entryIndex] : undefined;
       const segment = entry?.segments[datum!.segmentIndex];
-      if (!entry || !segment) return null;
+      if (!entry || !segment) {
+        return null;
+      }
 
       const layout = layoutGanttBar(params, api, { barHeight: BAR_HEIGHT });
-      if (!layout) return null;
+      if (!layout) {
+        return null;
+      }
       const { clippedShape } = layout;
 
       const hasSelection = selectedEntityId != null;
@@ -169,14 +180,22 @@ export function LongEntitiesGantt({
   );
 
   const onEvents = useMemo(() => {
-    if (!onEntityClick) return undefined;
+    if (!onEntityClick) {
+      return undefined;
+    }
     return {
       click: (params: { dataIndex: number; seriesName?: string }) => {
-        if (params.seriesName !== SERIES_NAME) return;
+        if (params.seriesName !== SERIES_NAME) {
+          return;
+        }
         const datum = customSeriesData[params.dataIndex];
-        if (!datum) return;
+        if (!datum) {
+          return;
+        }
         const entry = entries[datum.entryIndex];
-        if (entry) onEntityClick(entry);
+        if (entry) {
+          onEntityClick(entry);
+        }
       },
     };
   }, [onEntityClick, customSeriesData, entries]);
@@ -196,11 +215,17 @@ export function LongEntitiesGantt({
       collapseLabel="Collapse entities chart"
       emptyMessage={
         <div className="flex flex-col items-center gap-0.5 text-center text-muted-foreground opacity-50">
-          <div className="font-medium">No Matching Entities</div>
-          <div className="text-xs">
-            Showing entities longer than {formatDuration(minUsageSeconds * 1_000, 1)}. Zoom to see
-            more.
-          </div>
+          {noUsagesInRange ? (
+            <div className="font-medium">No entities in the selected time range</div>
+          ) : (
+            <>
+              <div className="font-medium">No Matching Entities</div>
+              <div className="text-xs">
+                Showing entities longer than {formatDuration(minUsageSeconds * 1_000, 1)}. Zoom to
+                see more.
+              </div>
+            </>
+          )}
         </div>
       }
       renderTooltip={renderTooltip}

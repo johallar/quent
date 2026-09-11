@@ -15,7 +15,7 @@ import {
   debouncedZoomRangeAtom,
   visibleEntriesAtom,
 } from '../atoms/timeline';
-import { selectedNodeIdsAtom } from '../atoms/dag';
+import { selectedOperatorIdsAtom } from '../atoms/dag';
 import {
   useBulkTimelineFetch,
   buildMergedBulkEntries,
@@ -78,12 +78,14 @@ export function useBulkTimelines<T extends TreeNode>({
   const store = useStore();
   const queryClient = useQueryClient();
   const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const selectedNodeIds = useAtomValue(selectedNodeIdsAtom);
-  const operatorIds = useMemo(() => [...selectedNodeIds].sort(), [selectedNodeIds]);
+  const selectedOperatorIds = useAtomValue(selectedOperatorIdsAtom);
+  const operatorIds = useMemo(() => [...selectedOperatorIds].sort(), [selectedOperatorIds]);
 
   useEffect(() => {
     return () => {
-      if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current);
+      }
     };
   }, []);
 
@@ -136,7 +138,9 @@ export function useBulkTimelines<T extends TreeNode>({
     (range: ZoomRange) => {
       store.set(zoomRangeAtom, range);
 
-      if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current);
+      }
       debounceTimerRef.current = setTimeout(() => {
         store.set(debouncedZoomRangeAtom, range);
         debounceTimerRef.current = null;
@@ -148,10 +152,14 @@ export function useBulkTimelines<T extends TreeNode>({
   // Expand handler — fetches base + operator data for newly expanded children
   const handleExpand = useCallback(
     async (itemId: string, isExpanded: boolean) => {
-      if (!isExpanded) return;
+      if (!isExpanded) {
+        return;
+      }
 
       const item = findItemByIdFn(rootItem, itemId);
-      if (!item?.children) return;
+      if (!item?.children) {
+        return;
+      }
 
       const zoom = store.get(debouncedZoomRangeAtom);
       const expandConfig = {
@@ -184,7 +192,9 @@ export function useBulkTimelines<T extends TreeNode>({
         }
       }
 
-      if (Object.keys(newBaseEntries).length === 0) return;
+      if (Object.keys(newBaseEntries).length === 0) {
+        return;
+      }
 
       const {
         entries: expandEntries,

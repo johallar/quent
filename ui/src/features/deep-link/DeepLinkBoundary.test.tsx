@@ -2,17 +2,34 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { useLayoutEffect } from 'react';
-import { Provider as JotaiProvider, useAtomValue, useSetAtom } from 'jotai';
+import { Provider as JotaiProvider, createStore, useAtomValue, useSetAtom } from 'jotai';
 import {
   useDebouncedZoomRange,
   useHydrateTimelineAtoms,
+  useOperatorSelection,
+  useSerializableViewState,
   useSetDebouncedZoomRange,
   useSetZoomRange,
   useZoomRange,
 } from '@quent/hooks';
-import { toast, Toaster } from '@quent/components';
+import { NVTX_SECTION_ID, toast, Toaster } from '@quent/components';
+import type { Operator } from '@quent/utils';
 import { render, screen, waitFor, userEvent } from '@/test/test-utils';
-import { expandedIdsAtom } from '@/atoms/resourceTree';
+import {
+  expandedIdsAtom,
+  resourceFilterAtom,
+  rootResourceTypeAtom,
+  selectedFsmTypesAtom,
+  selectedTypesAtom,
+} from '@/atoms/resourceTree';
+import {
+  EMPTY_RESOURCE_FILTER,
+  type ResourceFilter,
+} from '@/features/resource-filter/resourceFilter';
+import {
+  OPERATOR_TABLE_INDEX_ORDER,
+  OPERATOR_TABLE_PERSIST_KEY,
+} from '@/components/operator-table/types';
 import { CopyLinkButton } from './CopyLinkButton';
 import { DeepLinkBoundary } from './DeepLinkBoundary';
 import { DeepLinkNavSlot } from './DeepLinkNavSlot';
@@ -20,9 +37,39 @@ import { DeepLinkNavTargetProvider } from './DeepLinkNavTargetProvider';
 import { decodeDeepLinkState, encodeDeepLinkState } from './deepLink.codec';
 import { useDeepLink } from './deepLink.context';
 
+const BOUNDARY_PROPS = {
+  engineId: 'e',
+  queryId: 'q',
+  activeTab: 'timeline' as const,
+  durationSeconds: 100,
+  isQueryReady: true,
+  operators: [],
+};
+
 const RESOURCE_A_ID = '01a025ff-ea8b-7881-9d31-72a275872c9d';
 const RESOURCE_B_ID = '01a025ff-ea8b-7881-9d31-72a275872c9e';
-const NVTX_SECTION_ID = '__nvtx__';
+const DEEP_LINK_OPERATORS: Operator[] = [
+  {
+    id: 'operator-a',
+    plan_id: null,
+    parent_operator_ids: [],
+    instance_name: 'Operator A',
+    operator_type_name: null,
+    custom_attributes: {},
+    statistics: null,
+    active_span: null,
+  },
+  {
+    id: 'operator-child',
+    plan_id: null,
+    parent_operator_ids: ['operator-a'],
+    instance_name: 'Operator Child',
+    operator_type_name: null,
+    custom_attributes: {},
+    statistics: null,
+    active_span: null,
+  },
+];
 
 function ViewportProbe() {
   const immediate = useZoomRange();
@@ -38,6 +85,48 @@ function IntakeStatusProbe() {
 function ExpandedRowsProbe() {
   const expandedIds = useAtomValue(expandedIdsAtom);
   return <output data-testid="expanded-rows">{JSON.stringify([...expandedIds].sort())}</output>;
+}
+
+function SerializableStateProbe() {
+  const { read } = useSerializableViewState({
+    operatorTablePersistKey: OPERATOR_TABLE_PERSIST_KEY,
+    operatorTableGroupKeys: OPERATOR_TABLE_INDEX_ORDER,
+    operators: [],
+  });
+  const expandedIds = useAtomValue(expandedIdsAtom);
+  const selectedTypes = useAtomValue(selectedTypesAtom);
+  const selectedFsmTypes = useAtomValue(selectedFsmTypesAtom);
+  const rootResourceType = useAtomValue(rootResourceTypeAtom);
+  const resourceFilter = useAtomValue(resourceFilterAtom);
+  return (
+    <output data-testid="serializable-state">
+      {JSON.stringify({
+        view: read(),
+        resources: {
+          expandedIds: [...expandedIds].sort(),
+          selectedTypes: [...selectedTypes],
+          selectedFsmTypes: [...selectedFsmTypes],
+          rootResourceType,
+          resourceFilter,
+        },
+      })}
+    </output>
+  );
+}
+
+function OperatorSelectionProbe() {
+  const selection = useOperatorSelection();
+  return (
+    <output data-testid="operator-selection">
+      {JSON.stringify(
+        [...selection.selections].map(([id, value]) => ({
+          id,
+          label: value.label,
+          operatorIds: [...value.operatorIds],
+        }))
+      )}
+    </output>
+  );
 }
 
 function SeedViewport({ start, end }: { start: number; end: number }) {
@@ -60,6 +149,28 @@ function SeedExpandedRows({ ids }: { ids: string[] }) {
   return null;
 }
 
+function SeedEmptyDataFlowDimensions() {
+  const { hydrate } = useSerializableViewState({
+    operatorTablePersistKey: OPERATOR_TABLE_PERSIST_KEY,
+    operatorTableGroupKeys: OPERATOR_TABLE_INDEX_ORDER,
+    operators: [],
+  });
+
+  useLayoutEffect(() => {
+    hydrate({ dataFlow: { dimensions: [] } });
+  }, [hydrate]);
+  return null;
+}
+
+function SeedResourceFilter({ filter }: { filter: ResourceFilter }) {
+  const setResourceFilter = useSetAtom(resourceFilterAtom);
+
+  useLayoutEffect(() => {
+    setResourceFilter(filter);
+  }, [filter, setResourceFilter]);
+  return null;
+}
+
 function HydrateTimelineDuringRender() {
   useHydrateTimelineAtoms({
     zoomRange: { start: 0, end: 100 },
@@ -76,15 +187,18 @@ describe('DeepLinkBoundary', () => {
 
   it('hydrates timeline viewport and expanded rows before rendering children', () => {
     const encoded = encodeDeepLinkState({
-      zoomRange: { start: 10, end: 40 },
-      expandedResourceIds: [RESOURCE_B_ID, RESOURCE_A_ID],
+      route: { engineId: 'e', queryId: 'q', tab: 'timeline' },
+      timeline: { zoomRange: { start: 10, end: 40 } },
+      resources: { expandedRowIds: [RESOURCE_B_ID, RESOURCE_A_ID] },
     });
     expect(encoded.ok).toBe(true);
-    if (!encoded.ok) return;
+    if (!encoded.ok) {
+      return;
+    }
 
     render(
       <JotaiProvider>
-        <DeepLinkBoundary durationSeconds={100} encodedState={encoded.value} isQueryReady>
+        <DeepLinkBoundary {...BOUNDARY_PROPS} encodedState={encoded.value}>
           <ViewportProbe />
           <ExpandedRowsProbe />
         </DeepLinkBoundary>
@@ -102,35 +216,202 @@ describe('DeepLinkBoundary', () => {
     );
   });
 
-  it('shows a spinner while waiting for the query to be ready', () => {
+  it('removes consumed shared state from the address bar', () => {
     const encoded = encodeDeepLinkState({
-      zoomRange: { start: 10, end: 40 },
+      route: { engineId: 'e', queryId: 'q', tab: 'timeline' },
+      timeline: { zoomRange: { start: 10, end: 40 } },
     });
     expect(encoded.ok).toBe(true);
-    if (!encoded.ok) return;
+    if (!encoded.ok) {
+      return;
+    }
+    window.history.replaceState(
+      null,
+      '',
+      `/profile/engine/e/query/q/timeline?s=${encodeURIComponent(encoded.value)}&unrelated=kept#view`
+    );
 
-    const { rerender } = render(
+    render(
       <JotaiProvider>
-        <DeepLinkBoundary durationSeconds={0} encodedState={encoded.value} isQueryReady={false}>
-          <div data-testid="deep-link-content" />
+        <DeepLinkBoundary {...BOUNDARY_PROPS} encodedState={encoded.value}>
+          <ViewportProbe />
         </DeepLinkBoundary>
       </JotaiProvider>
     );
 
-    const loadingState = screen.getByRole('status', { name: 'Loading shared query' });
-    expect(loadingState.querySelector('svg')).toHaveClass('animate-spin');
-    expect(screen.queryByTestId('deep-link-content')).not.toBeInTheDocument();
+    expect(window.location.search).toBe('?unrelated=kept');
+    expect(window.location.hash).toBe('#view');
+  });
 
-    rerender(
+  it('hydrates a legacy v1 viewport without version-specific branching', () => {
+    render(
       <JotaiProvider>
-        <DeepLinkBoundary durationSeconds={100} encodedState={encoded.value} isQueryReady>
-          <div data-testid="deep-link-content" />
+        <DeepLinkBoundary
+          {...BOUNDARY_PROPS}
+          encodedState="v1.H4sIAAAAAAACA6tWqsrPzw1KzEtPVbKqViouSSwqUbIy0FFKzUsB0nomBua1tQAidcVYJQAAAA"
+        >
+          <ViewportProbe />
         </DeepLinkBoundary>
       </JotaiProvider>
     );
 
-    expect(screen.queryByRole('status', { name: 'Loading shared query' })).not.toBeInTheDocument();
-    expect(screen.getByTestId('deep-link-content')).toBeInTheDocument();
+    expect(screen.getByTestId('viewport')).toHaveTextContent(
+      JSON.stringify({
+        immediate: { start: 0, end: 0.407 },
+        debounced: { start: 0, end: 0.407 },
+      })
+    );
+  });
+
+  it('hydrates comprehensive view state before rendering children', () => {
+    const encoded = encodeDeepLinkState({
+      route: { engineId: 'e', queryId: 'q', tab: 'timeline' },
+      timeline: { zoomRange: { start: 10, end: 40 } },
+      selection: {
+        planId: 'plan-a',
+        operatorNodeIds: ['operator-a', 'operator-child', 'operator-unknown'],
+      },
+      resources: {
+        expandedRowIds: ['worker-a'],
+        resourceFilter: {
+          search: 'worker',
+          resourceTypes: ['channel', 'memory'],
+          fsmTypes: ['task', 'transfer'],
+          showOthers: true,
+        },
+        rootResourceType: 'channel',
+        resourceTypeSelections: [{ rowId: 'worker-a', resourceType: 'memory' }],
+        fsmSelections: [{ rowId: 'worker-a', fsmType: 'task' }],
+      },
+      dag: {
+        nodeColorField: 'duration_s',
+        nodeColorPalette: 'viridis',
+        edgeWidthField: 'bytes',
+        edgeColorField: 'rows',
+        edgeColorPalette: 'purple',
+        nodeLabelField: 'type',
+        layoutDirection: 'top-to-bottom',
+      },
+      dataFlow: {
+        enabled: false,
+        measure: 'bytes',
+        labelMeasure: 'tasks',
+        dimensions: ['filesystem'],
+        playheadS: 25,
+      },
+      operatorTable: {
+        groupingOrder: ['partition', 'item_type', 'item'],
+        enabledGroups: ['partition', 'item_type'],
+        visibleStats: ['duration_s', 'spill_bytes'],
+        aggregation: 'max',
+        sort: [{ id: 'spill_bytes', desc: true }],
+      },
+    });
+    expect(encoded.ok).toBe(true);
+    if (!encoded.ok) {
+      return;
+    }
+
+    render(
+      <JotaiProvider>
+        <DeepLinkBoundary
+          {...BOUNDARY_PROPS}
+          operators={DEEP_LINK_OPERATORS}
+          encodedState={encoded.value}
+        >
+          <SerializableStateProbe />
+          <OperatorSelectionProbe />
+        </DeepLinkBoundary>
+      </JotaiProvider>
+    );
+
+    const value = JSON.parse(screen.getByTestId('serializable-state').textContent ?? '{}');
+    expect(value).toMatchObject({
+      view: {
+        selection: {
+          planId: 'plan-a',
+          operatorNodeIds: ['operator-a', 'operator-child', 'operator-unknown'],
+        },
+        dag: {
+          nodeColorField: 'duration_s',
+          nodeColorPalette: 'viridis',
+          edgeWidthField: 'bytes',
+          edgeColorField: 'rows',
+          edgeColorPalette: 'purple',
+          nodeLabelField: 'type',
+          layoutDirection: 'top-to-bottom',
+        },
+        dataFlow: {
+          enabled: false,
+          measure: 'bytes',
+          labelMeasure: 'tasks',
+          dimensions: ['filesystem'],
+          playheadS: 25,
+        },
+        operatorTable: {
+          groupingOrder: ['partition', 'item_type', 'item'],
+          enabledGroups: ['partition', 'item_type'],
+          visibleStats: ['duration_s', 'spill_bytes'],
+          aggregation: 'max',
+          sort: [{ id: 'spill_bytes', desc: true }],
+        },
+      },
+      resources: {
+        expandedIds: ['worker-a'],
+        selectedTypes: [['worker-a', 'memory']],
+        selectedFsmTypes: [['worker-a', 'task']],
+        rootResourceType: 'channel',
+        resourceFilter: {
+          search: 'worker',
+          resourceTypes: ['channel', 'memory'],
+          fsmTypes: ['task', 'transfer'],
+          showOthers: true,
+        },
+      },
+    });
+    expect(screen.getByTestId('operator-selection')).toHaveTextContent(
+      JSON.stringify([
+        {
+          id: 'operator-a',
+          label: 'Operator A',
+          operatorIds: ['operator-a', 'operator-child'],
+        },
+        {
+          id: 'operator-unknown',
+          label: 'operator-unknown',
+          operatorIds: ['operator-unknown'],
+        },
+      ])
+    );
+  });
+
+  it('clears an existing resource filter when shared state omits resources', () => {
+    const encoded = encodeDeepLinkState({
+      route: { engineId: 'e', queryId: 'q', tab: 'timeline' },
+      timeline: { zoomRange: { start: 10, end: 40 } },
+    });
+    expect(encoded.ok).toBe(true);
+    if (!encoded.ok) {
+      return;
+    }
+    const store = createStore();
+    store.set(resourceFilterAtom, {
+      search: 'stale',
+      resourceTypes: ['gpu'],
+      fsmTypes: ['task'],
+      showOthers: true,
+    });
+
+    render(
+      <JotaiProvider store={store}>
+        <DeepLinkBoundary {...BOUNDARY_PROPS} encodedState={encoded.value}>
+          <SerializableStateProbe />
+        </DeepLinkBoundary>
+      </JotaiProvider>
+    );
+
+    const value = JSON.parse(screen.getByTestId('serializable-state').textContent ?? '{}');
+    expect(value.resources.resourceFilter).toEqual(EMPTY_RESOURCE_FILTER);
   });
 
   it('does not subscribe to render-time timeline hydration', () => {
@@ -138,7 +419,7 @@ describe('DeepLinkBoundary', () => {
 
     render(
       <JotaiProvider>
-        <DeepLinkBoundary durationSeconds={100} isQueryReady>
+        <DeepLinkBoundary {...BOUNDARY_PROPS}>
           <HydrateTimelineDuringRender />
         </DeepLinkBoundary>
       </JotaiProvider>
@@ -154,7 +435,7 @@ describe('DeepLinkBoundary', () => {
     render(
       <>
         <JotaiProvider>
-          <DeepLinkBoundary durationSeconds={100} encodedState="v1.invalid" isQueryReady>
+          <DeepLinkBoundary {...BOUNDARY_PROPS} encodedState="v1.invalid">
             <IntakeStatusProbe />
             <ViewportProbe />
           </DeepLinkBoundary>
@@ -198,9 +479,18 @@ describe('DeepLinkBoundary', () => {
       <DeepLinkNavTargetProvider>
         <DeepLinkNavSlot />
         <JotaiProvider>
-          <DeepLinkBoundary durationSeconds={100} isQueryReady>
+          <DeepLinkBoundary {...BOUNDARY_PROPS}>
             <SeedViewport start={20} end={60} />
             <SeedExpandedRows ids={[RESOURCE_B_ID, NVTX_SECTION_ID, RESOURCE_A_ID]} />
+            <SeedEmptyDataFlowDimensions />
+            <SeedResourceFilter
+              filter={{
+                search: 'resource',
+                resourceTypes: ['channel'],
+                fsmTypes: [],
+                showOthers: false,
+              }}
+            />
             <ViewportProbe />
             <CopyLinkButton />
           </DeepLinkBoundary>
@@ -224,11 +514,64 @@ describe('DeepLinkBoundary', () => {
     expect(decodeDeepLinkState(encoded!)).toEqual({
       ok: true,
       value: {
-        zoomRange: { start: 20, end: 60 },
-        expandedResourceIds: [RESOURCE_A_ID, RESOURCE_B_ID, NVTX_SECTION_ID],
+        version: 'v2',
+        data: {
+          route: { engineId: 'e', queryId: 'q', tab: 'timeline' },
+          timeline: { zoomRange: { start: 20, end: 60 } },
+          resources: {
+            expandedRowIds: [RESOURCE_A_ID, RESOURCE_B_ID, NVTX_SECTION_ID],
+            resourceFilter: { search: 'resource', resourceTypes: ['channel'] },
+          },
+        },
       },
     });
     expect(window.location.href).toBe(originalUrl);
+  });
+
+  it('includes Show All when copying an active resource filter', async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, 'clipboard', {
+      configurable: true,
+      value: { writeText },
+    });
+
+    render(
+      <DeepLinkNavTargetProvider>
+        <DeepLinkNavSlot />
+        <JotaiProvider>
+          <DeepLinkBoundary {...BOUNDARY_PROPS}>
+            <SeedViewport start={20} end={60} />
+            <SeedResourceFilter
+              filter={{
+                search: 'resource',
+                resourceTypes: [],
+                fsmTypes: [],
+                showOthers: true,
+              }}
+            />
+            <CopyLinkButton />
+          </DeepLinkBoundary>
+        </JotaiProvider>
+      </DeepLinkNavTargetProvider>
+    );
+
+    await userEvent.click(await screen.findByRole('button', { name: 'Copy Link' }));
+    await waitFor(() => expect(writeText).toHaveBeenCalledOnce());
+
+    const copiedUrl = new URL(writeText.mock.calls[0][0] as string);
+    const encoded = copiedUrl.searchParams.get('s');
+    expect(encoded).not.toBeNull();
+    expect(decodeDeepLinkState(encoded!)).toMatchObject({
+      ok: true,
+      value: {
+        version: 'v2',
+        data: {
+          resources: {
+            resourceFilter: { search: 'resource', showOthers: true },
+          },
+        },
+      },
+    });
   });
 
   it('shows an error toast when copying fails', async () => {
@@ -242,7 +585,7 @@ describe('DeepLinkBoundary', () => {
       <DeepLinkNavTargetProvider>
         <DeepLinkNavSlot />
         <JotaiProvider>
-          <DeepLinkBoundary durationSeconds={100} isQueryReady>
+          <DeepLinkBoundary {...BOUNDARY_PROPS}>
             <SeedViewport start={20} end={60} />
             <CopyLinkButton />
           </DeepLinkBoundary>

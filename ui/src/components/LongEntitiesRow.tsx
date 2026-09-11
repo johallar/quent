@@ -9,7 +9,8 @@ import {
   useLongEntityDensity,
   useReturnedTimelineIsStale,
   useReturnedTimelineNumBins,
-  useSelectedNodeIds,
+  useSelectedOperatorIds,
+  useZeroUtilizationResourceIds,
 } from '@quent/hooks';
 import { type FiniteStateMachine, type FsmTypeDecl, MAX_TIMELINE_BINS } from '@quent/utils';
 import {
@@ -56,15 +57,17 @@ export function LongEntitiesRow({
   selectedEntityId,
   onBackgroundClick,
 }: LongEntitiesRowProps) {
-  const selectedNodeIds = useSelectedNodeIds();
+  const selectedOperatorIds = useSelectedOperatorIds();
   const debouncedZoomRange = useDebouncedZoomRange();
   const bulkInitialized = useBulkInitialized();
   const longEntityDensity = useLongEntityDensity();
   const returnedNumBins = useReturnedTimelineNumBins(resourceId);
   const returnedTimelineIsStale = useReturnedTimelineIsStale(resourceId);
+  const zeroUtilizationResourceIds = useZeroUtilizationResourceIds();
   const [maxEntities, setMaxEntities] = useState(ENTITIES_PER_PAGE);
   const [retainedMinUsageSeconds, setRetainedMinUsageSeconds] = useState<number | null>(null);
-  const operatorIds = useMemo(() => [...selectedNodeIds], [selectedNodeIds]);
+  const [retainedHasNoUsagesInWindow, setRetainedHasNoUsagesInWindow] = useState(false);
+  const operatorIds = useMemo(() => [...selectedOperatorIds], [selectedOperatorIds]);
   const zoomWindow =
     debouncedZoomRange.end > debouncedZoomRange.start
       ? debouncedZoomRange
@@ -98,7 +101,20 @@ export function LongEntitiesRow({
     { enabled: numBins != null }
   );
 
-  const entities = useMemo(() => data?.items ?? [], [data]);
+  // Retain the previous empty-state signal until both the timeline bins and the entity list
+  // itself have caught up to the active zoom window. Bins and entities resolve at different
+  // times while panning/zooming (entities keep showing the previous window's data in the
+  // meantime), and updating from just one of them flashes the wrong empty-state message.
+  const canRefreshEmptyState = !returnedTimelineIsStale && !isFetching;
+  const currentHasNoUsagesInWindow = zeroUtilizationResourceIds.has(resourceId);
+  const hasNoUsagesInWindow = canRefreshEmptyState
+    ? currentHasNoUsagesInWindow
+    : retainedHasNoUsagesInWindow;
+  if (canRefreshEmptyState && currentHasNoUsagesInWindow !== retainedHasNoUsagesInWindow) {
+    setRetainedHasNoUsagesInWindow(currentHasNoUsagesInWindow);
+  }
+
+  const entities = useMemo(() => (data?.items ?? []).map(item => item.entity), [data]);
   const entries = useMemo(
     () =>
       buildLongEntityEntries(
@@ -116,9 +132,13 @@ export function LongEntitiesRow({
 
   const handleEntityClick = useCallback(
     (entry: LongEntityEntry) => {
-      if (!onEntitySelect) return;
+      if (!onEntitySelect) {
+        return;
+      }
       const fsm = entities.find(e => e.id === entry.entityId);
-      if (fsm) onEntitySelect(fsm);
+      if (fsm) {
+        onEntitySelect(fsm);
+      }
     },
     [entities, onEntitySelect]
   );
@@ -149,6 +169,7 @@ export function LongEntitiesRow({
         onEntityClick={onEntitySelect ? handleEntityClick : undefined}
         selectedEntityId={selectedEntityId}
         onBackgroundClick={onBackgroundClick}
+        noUsagesInRange={hasNoUsagesInWindow}
       />
 
       {showMoreButton && (

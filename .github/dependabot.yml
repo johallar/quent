@@ -25,7 +25,6 @@ updates:
       default-days: 14
     directories:
       - "/ui"
-      - "/ui/examples/quent-pivot-table-panel"
       - "/crates/schema/ts"
     groups:
       npm:

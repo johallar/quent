@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { useMemo } from 'react';
-import EChartsReactCore from 'echarts-for-react/lib/core';
+import { EChartsReactCore } from '../lib/echartsReactCore';
 import { echarts } from '../lib/echarts';
 import type { EChartsOption } from '../lib/echarts';
 import { useZoomRange } from '@quent/hooks';
@@ -66,7 +66,9 @@ export function TimelineRuler({ isDark, mode = 'relative' }: TimelineRulerProps)
         text = formatDurationForAxisInterval(absoluteMs, interval);
       }
 
-      if (!isMinMax) return text;
+      if (!isMinMax) {
+        return text;
+      }
       const chip = `{chip|${text}}`;
       return isMin ? `{chipInset|}${chip}` : `${chip}{chipInset|}`;
     };

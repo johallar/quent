@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: Copyright (c) 2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-import { useCallback, useEffect, useId } from 'react';
+import { useCallback, useEffect, useId, useMemo } from 'react';
 import { useAtomValue, useSetAtom, useStore } from 'jotai';
 import { useHydrateAtoms } from 'jotai/utils';
 import {
@@ -16,12 +16,14 @@ import {
   longEntityDensityAtom,
   timelineCacheKey,
 } from '../atoms/timeline';
+import { selectedOperatorIdsAtom } from '../atoms/dag';
 import {
   getFsmTypeName,
   getResourceTypeName,
   type ZoomRange,
   type SingleTimelineResponse,
 } from '@quent/utils';
+import { isTimelineUtilizationAllZero } from './timeline.utils';
 
 // Record-based replacement for atomFamily(timelineDataAtom(key))
 export function useTimelineData(key: string): SingleTimelineResponse | undefined {
@@ -37,14 +39,18 @@ function useReturnedTimelineState(resourceId: string): {
   const visibleEntries = useAtomValue(visibleEntriesAtom);
   const activeSpan = useAtomValue(debouncedZoomRangeAtom);
   const request = visibleEntries[resourceId];
-  if (!request) return { data: undefined, isStale: false };
+  if (!request) {
+    return { data: undefined, isStale: false };
+  }
   const key = timelineCacheKey({
     resourceId,
     resourceTypeName: getResourceTypeName(request),
     fsmTypeName: getFsmTypeName(request),
   });
   const data = timelineDataMap[key];
-  if (!data) return { data: undefined, isStale: false };
+  if (!data) {
+    return { data: undefined, isStale: false };
+  }
   const tolerance = data.config.bin_duration;
   const matchesActiveSpan =
     Math.abs(data.config.span.start - activeSpan.start) <= tolerance &&
@@ -60,6 +66,44 @@ export function useReturnedTimelineNumBins(resourceId: string): number | undefin
 
 export function useReturnedTimelineIsStale(resourceId: string): boolean {
   return useReturnedTimelineState(resourceId).isStale;
+}
+
+/**
+ * Resource ids whose binned utilization is entirely zero across the current
+ * (non-stale) zoom window. Zero utilization means no usages occurred either,
+ * so callers use this to hide UI that only makes sense when usages exist
+ * (e.g. the per-resource long-entities lane).
+ */
+export function useZeroUtilizationResourceIds(): ReadonlySet<string> {
+  const timelineDataMap = useAtomValue(timelineDataMapAtom);
+  const visibleEntries = useAtomValue(visibleEntriesAtom);
+  const activeSpan = useAtomValue(debouncedZoomRangeAtom);
+  const selectedOperatorIds = useAtomValue(selectedOperatorIdsAtom);
+
+  return useMemo(() => {
+    const operatorIds = [...selectedOperatorIds];
+    const zeroResourceIds = new Set<string>();
+    for (const [resourceId, request] of Object.entries(visibleEntries)) {
+      const key = timelineCacheKey({
+        resourceId,
+        resourceTypeName: getResourceTypeName(request),
+        operatorIds,
+        fsmTypeName: getFsmTypeName(request),
+      });
+      const data = timelineDataMap[key];
+      if (!data) {
+        continue;
+      }
+      const tolerance = data.config.bin_duration;
+      const matchesActiveSpan =
+        Math.abs(data.config.span.start - activeSpan.start) <= tolerance &&
+        Math.abs(data.config.span.end - activeSpan.end) <= tolerance;
+      if (matchesActiveSpan && isTimelineUtilizationAllZero(data.data)) {
+        zeroResourceIds.add(resourceId);
+      }
+    }
+    return zeroResourceIds;
+  }, [timelineDataMap, visibleEntries, activeSpan, selectedOperatorIds]);
 }
 
 export const useZoomRange = () => useAtomValue(zoomRangeAtom);
@@ -91,7 +135,9 @@ export function useTimelinePointerPublisher() {
   );
   const clear = useCallback(() => {
     const ownedPointer = store.get(timelinePointerAtom);
-    if (ownedPointer?.ownerId !== ownerId) return;
+    if (ownedPointer?.ownerId !== ownerId) {
+      return;
+    }
     const clearIfUnchanged = () => {
       if (store.get(timelinePointerAtom) === ownedPointer) {
         setPointer(null);
@@ -106,7 +152,9 @@ export function useTimelinePointerPublisher() {
 
   useEffect(
     () => () => {
-      if (store.get(timelinePointerAtom)?.ownerId === ownerId) setPointer(null);
+      if (store.get(timelinePointerAtom)?.ownerId === ownerId) {
+        setPointer(null);
+      }
     },
     [ownerId, setPointer, store]
   );

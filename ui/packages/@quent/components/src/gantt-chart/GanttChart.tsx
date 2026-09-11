@@ -11,10 +11,10 @@ import {
   type ReactNode,
 } from 'react';
 import { ChevronDown, ChevronUp } from 'lucide-react';
-import EChartsReactCore from 'echarts-for-react/lib/core';
 
 import type { EChartsInstance } from 'echarts-for-react';
 import { echarts } from '../lib/echarts';
+import { EChartsReactCore } from '../lib/echartsReactCore';
 import { useChartConnect } from '../lib/useChartConnect';
 import { useMinZoomSpanPct } from '../lib/useMinZoomSpanPct';
 import { useTimelineWheelNavigation } from '../lib/useTimelineWheelNavigation';
@@ -80,7 +80,7 @@ export function GanttChart<T extends GanttDatum>({
   expandable = false,
   expandLabel = 'Expand chart',
   collapseLabel = 'Collapse chart',
-  showPlayhead = false,
+  showPlayhead = true,
   renderTooltip,
   onBackgroundClick,
 }: GanttChartProps<T>) {
@@ -94,7 +94,9 @@ export function GanttChart<T extends GanttDatum>({
   const chartCleanupRef = useRef<(() => void) | null>(null);
 
   const { yAxisCategories, rowCount } = useMemo(() => {
-    if (data.length === 0) return { yAxisCategories: [] as number[], rowCount: 0 };
+    if (data.length === 0) {
+      return { yAxisCategories: [] as number[], rowCount: 0 };
+    }
     const maxRow = data.reduce((max, datum) => Math.max(max, datum.value[2]), 0);
     return {
       yAxisCategories: Array.from({ length: maxRow + 1 }, (_, index) => index),
@@ -170,7 +172,9 @@ export function GanttChart<T extends GanttDatum>({
         }
       ).getZr?.();
       const handleZrClick = (e: ZrEvent) => {
-        if (!e.target) onBackgroundClick?.();
+        if (!e.target) {
+          onBackgroundClick?.();
+        }
       };
       zr?.on('click', handleZrClick);
 
@@ -178,7 +182,9 @@ export function GanttChart<T extends GanttDatum>({
         detachWheelNavigation();
         detachHover?.();
         zr?.off('click', handleZrClick);
-        if (chartCleanupRef.current === cleanup) chartCleanupRef.current = null;
+        if (chartCleanupRef.current === cleanup) {
+          chartCleanupRef.current = null;
+        }
       };
       chartCleanupRef.current = cleanup;
     },

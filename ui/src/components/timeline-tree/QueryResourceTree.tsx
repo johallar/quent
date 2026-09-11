@@ -5,6 +5,7 @@ import { useCallback, useMemo, useState } from 'react';
 import { createFsmTypeColorFn } from '@quent/utils';
 import type { EntityRef, FiniteStateMachine, QueryBundle, ZoomRange } from '@quent/utils';
 import { EntityDetailDrawer } from '@/components/EntityDetailDrawer';
+import { THEME_DARK, THEME_LIGHT } from '@/contexts/ThemeContext';
 import { useNvtxTreeModel } from './NvtxTree';
 import { createLongEntitiesTimelineSubRow, createOperatorGanttTimelineSubRow } from './sub-rows';
 import {
@@ -12,6 +13,7 @@ import {
   type ResourceTimelineSubRow,
 } from './ResourceTimelinesTree';
 import { TimelineTreeTable, useTimelineTreeSetup } from './TimelineTreeTable';
+import { useFullDurationZeroUtilizationResourceIds } from './useFullDurationZeroUtilizationResourceIds';
 
 export interface QueryResourceTreeProps {
   engineId: string;
@@ -40,7 +42,7 @@ export function QueryResourceTree({
   const closeDrawer = useCallback(() => setDrawerFsm(null), []);
 
   const stateColorFn = useMemo(
-    () => createFsmTypeColorFn(entities.fsm_types, isDark ? 'dark' : 'light'),
+    () => createFsmTypeColorFn(entities.fsm_types, isDark ? THEME_DARK : THEME_LIGHT),
     [entities.fsm_types, isDark]
   );
   const resourceLabel = useCallback(
@@ -62,6 +64,13 @@ export function QueryResourceTree({
     () => createOperatorGanttTimelineSubRow({ queryBundle, isDark }),
     [isDark, queryBundle]
   );
+  const zeroUtilizationResourceIds = useFullDurationZeroUtilizationResourceIds(
+    engineId,
+    queryBundle.query_id,
+    queryBundle.duration_s,
+    entities,
+    resourceSubRows === undefined
+  );
   const longEntitiesSubRow = useMemo(
     () =>
       createLongEntitiesTimelineSubRow({
@@ -71,8 +80,17 @@ export function QueryResourceTree({
         onEntitySelect: toggleDrawerFsm,
         selectedEntityId: drawerFsm?.id,
         onBackgroundClick: closeDrawer,
+        zeroUtilizationResourceIds,
       }),
-    [closeDrawer, drawerFsm?.id, engineId, isDark, queryBundle, toggleDrawerFsm]
+    [
+      closeDrawer,
+      drawerFsm?.id,
+      engineId,
+      isDark,
+      queryBundle,
+      toggleDrawerFsm,
+      zeroUtilizationResourceIds,
+    ]
   );
   const defaultResourceSubRows = useMemo(
     () => [operatorGanttSubRow, longEntitiesSubRow],
@@ -86,13 +104,22 @@ export function QueryResourceTree({
     seedRootExpanded,
   });
   const nvtxTree = useNvtxTreeModel({ engineId, queryBundle, isDark });
+  const highlightedItemIds = new Set([
+    ...(resourceTree.highlightedItemIds ?? []),
+    ...(nvtxTree.highlightedItemIds ?? []),
+  ]);
+  const hasFilterMatches = resourceTree.filterMatchCount + nvtxTree.filterMatchCount > 0;
+  const trees =
+    resourceTree.isFilterActive && resourceTree.showOthers && !hasFilterMatches
+      ? []
+      : [resourceTree, nvtxTree];
 
   return (
     <TimelineTreeTable
       durationSeconds={durationSeconds}
       isDark={isDark}
-      trees={[resourceTree, nvtxTree]}
-      controls={resourceTree}
+      trees={trees}
+      controls={{ ...resourceTree, highlightedItemIds }}
     >
       <EntityDetailDrawer
         fsm={drawerFsm}

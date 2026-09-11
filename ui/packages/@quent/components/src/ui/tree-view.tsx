@@ -114,7 +114,9 @@ function TreeView<T extends TreeDataItem = TreeDataItem>({
           if (walkTreeItems(items[i], targetId) && !expandAll) {
             return true;
           }
-          if (!expandAll) ids.pop();
+          if (!expandAll) {
+            ids.pop();
+          }
         }
       } else if (!expandAll && items.id === targetId) {
         return true;
@@ -405,7 +407,9 @@ function TreeLeaf<T extends TreeDataItem = TreeDataItem>({
   };
 
   const onDrop = (e: React.DragEvent) => {
-    if (item.disabled) return;
+    if (item.disabled) {
+      return;
+    }
     e.preventDefault();
     setIsDragOver(false);
     handleDrop?.(item);
@@ -423,7 +427,9 @@ function TreeLeaf<T extends TreeDataItem = TreeDataItem>({
         item.className
       )}
       onClick={() => {
-        if (item.disabled) return;
+        if (item.disabled) {
+          return;
+        }
         handleSelectChange(item);
         item.onClick?.();
       }}

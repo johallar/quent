@@ -28,32 +28,36 @@ import {
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import {
-  useSelectedNodeIds,
-  useSetSelectedNodeIds,
-  useSetSelectedOperatorLabel,
+  useSelectedOperatorIds,
+  useOperatorSelection,
+  useOperatorSelectionActions,
   useEdgeWidthConfig,
   useEdgeColoring,
   useEdgeColorPalette,
   useSelectedEdgeWidthField,
   useSelectedEdgeColorField,
   useEffectiveHighlightedNodeIds,
-  useSetSelectedNodeData,
   useSetDagDisplayedNodeIds,
   useSelectedDagLayoutDirection,
   useDataFlowEnabled,
   useDataFlowMeta,
+  COLOR_REGISTRY_KEYS,
+  useColorResolver,
 } from '@quent/hooks';
 import { calculateLayout, NODE_LAYOUT_WIDTH, NODE_LAYOUT_HEIGHT, FLOW_BAR_HEIGHT } from './layout';
 import type { DAGData } from '../services/query-plan/types';
 import { QueryPlanNode, type QueryPlanNodeData } from '../query-plan/QueryPlanNode';
 import { DAGLegend } from './DAGLegend';
+import { resolveSelectedOperatorsFromNodes } from './dagSelection';
+import { shouldDimEdgeFromInteraction } from './edgeOpacity';
 import { parseCustomStatistics } from '../lib/queryBundle.utils';
 import {
   continuousColor,
-  getOperationTypeColor,
-  buildOperatorColorMap,
   inferFieldFormatter,
+  toggleOperatorSelection,
+  type Operator,
   type QuantitySpec,
+  type SelectedOperatorGroupData,
 } from '@quent/utils';
 
 // Edge geometry constants
@@ -93,7 +97,7 @@ const VariableWidthEdge = ({
   const edgeWidthConfig = useEdgeWidthConfig();
   const edgeColoring = useEdgeColoring();
   const edgePalette = useEdgeColorPalette()[0];
-  const selectedNodeIds = useSelectedNodeIds();
+  const selectedOperatorIds = useSelectedOperatorIds();
   const highlightedNodeIds = useEffectiveHighlightedNodeIds().ids;
   const [edgeWidthField] = useSelectedEdgeWidthField();
   const [edgeColorField] = useSelectedEdgeColorField();
@@ -127,22 +131,21 @@ const VariableWidthEdge = ({
       }
     } else {
       const color = edgeColoring.colorMap.get(id);
-      if (!color) edgeDimmed = true;
-      else edgeColor = color;
+      if (!color) {
+        edgeDimmed = true;
+      } else {
+        edgeColor = color;
+      }
     }
   }
 
-  const hasSelection = selectedNodeIds.size > 0;
-  const hasActiveHighlight = highlightedNodeIds !== null;
-  // An edge "belongs to" a set when at least one endpoint is in the set.
-  const isInSelection = selectedNodeIds.has(source) || selectedNodeIds.has(target);
-  const isInHighlight =
-    hasActiveHighlight && (highlightedNodeIds.has(source) || highlightedNodeIds.has(target));
-  // While a hover-driven highlight set is active, it overrides the
-  // selection-based dim (matching `QueryPlanNode`).
-  const dimFromHighlight = hasActiveHighlight && !isInHighlight;
-  const dimFromSelection = !hasActiveHighlight && hasSelection && !isInSelection;
-  const isEdgeDimmed = edgeDimmed || dimFromHighlight || dimFromSelection;
+  const dimFromInteraction = shouldDimEdgeFromInteraction({
+    sourceId: source,
+    targetId: target,
+    selectedNodeIds: selectedOperatorIds,
+    highlightedNodeIds,
+  });
+  const isEdgeDimmed = edgeDimmed || dimFromInteraction;
 
   let edgeLabelValue: string | undefined;
   if (edgeColoring) {
@@ -153,7 +156,9 @@ const VariableWidthEdge = ({
       }
     } else {
       const v = edgeColoring.labelMap.get(id);
-      if (v !== undefined) edgeLabelValue = v;
+      if (v !== undefined) {
+        edgeLabelValue = v;
+      }
     }
   } else if (edgeWidthConfig) {
     const v = edgeWidthConfig.values.get(id);
@@ -263,43 +268,104 @@ interface DAGProps {
   selectedNodeIds?: string[];
   /** Called when node selection changes. */
   onSelectionChange?: (nodeIds: string[]) => void;
+  /** Complete operator hierarchy used to split grouped selections. */
+  operators?: readonly Operator[];
+}
+
+function selectedOperatorDataFromFlowNode(
+  node: Node<QueryPlanNodeData>
+): SelectedOperatorGroupData {
+  return {
+    nodeId: node.id,
+    label: node.data.label,
+    operationType: node.data.operationType,
+    statistics: parseCustomStatistics(node.data.metadata?.rawNode),
+    relatedOperators: node.data.metadata?.relatedOperators?.map(operator => ({
+      nodeId: operator.id,
+      label: operator.instance_name ?? operator.operator_type_name ?? 'Operator',
+      operationType: operator.operator_type_name?.toLowerCase() ?? 'operator',
+      statistics: parseCustomStatistics(operator),
+    })),
+  };
 }
 
 const FlowLayout = ({
   data,
   containerRef,
   isDark,
+  operators,
   selectedNodeIds: controlledSelectedNodeIds,
   onSelectionChange,
 }: {
   data: DAGData;
   containerRef: RefObject<HTMLDivElement | null>;
   isDark: boolean;
+  operators?: readonly Operator[];
   selectedNodeIds?: string[];
   onSelectionChange?: (nodeIds: string[]) => void;
 }) => {
   const [nodes, setNodes, onNodesChange] = useNodesState<Node<QueryPlanNodeData>>([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
   const { fitView } = useReactFlow();
-  const setSelectedNodeIds = useSetSelectedNodeIds();
-  const setSelectedOperatorLabel = useSetSelectedOperatorLabel();
+  const operatorSelection = useOperatorSelection();
+  const updateOperatorSelection = useOperatorSelectionActions();
   const setDagDisplayedNodeIds = useSetDagDisplayedNodeIds();
-  const setSelectedNodeData = useSetSelectedNodeData();
-  const selectedNodeIds = useSelectedNodeIds();
+  const selectedOperatorIds = useSelectedOperatorIds();
   const [layoutDirection] = useSelectedDagLayoutDirection();
   const dataFlowEnabled = useDataFlowEnabled();
   const dataFlowMeta = useDataFlowMeta();
+  const resolveOperatorTypeColor = useColorResolver(COLOR_REGISTRY_KEYS.OPERATOR_TYPES);
   // Stable boolean: only flips on availability/toggle, not on zoom refetches,
   // so toggling the overlay relayouts exactly once.
   const flowBarVisible = dataFlowEnabled && dataFlowMeta != null;
   const hasUserInteracted = useRef(false);
-
-  // Sync controlled selectedNodeIds into the atom when provided
-  useEffect(() => {
-    if (controlledSelectedNodeIds !== undefined) {
-      setSelectedNodeIds(new Set(controlledSelectedNodeIds));
+  const hierarchyOperators = useMemo(() => {
+    if (operators) {
+      return operators;
     }
-  }, [controlledSelectedNodeIds, setSelectedNodeIds]);
+    const byId = new Map<string, Operator>();
+    for (const node of data.nodes) {
+      const metadata = node.metadata as QueryPlanNodeData['metadata'];
+      if (metadata?.rawNode) {
+        byId.set(metadata.rawNode.id, metadata.rawNode);
+      }
+      for (const operator of metadata?.relatedOperators ?? []) {
+        byId.set(operator.id, operator);
+      }
+    }
+    return [...byId.values()];
+  }, [data.nodes, operators]);
+  const hydratedNodeIdsKey = useMemo(
+    () =>
+      [
+        ...(controlledSelectedNodeIds === undefined
+          ? selectedOperatorIds
+          : controlledSelectedNodeIds),
+      ]
+        .sort()
+        .join('\0'),
+    [controlledSelectedNodeIds, selectedOperatorIds]
+  );
+
+  useEffect(() => {
+    const operatorIds = new Set(hydratedNodeIdsKey === '' ? [] : hydratedNodeIdsKey.split('\0'));
+    const resolved = resolveSelectedOperatorsFromNodes(data.nodes, operatorIds);
+    if (controlledSelectedNodeIds !== undefined) {
+      updateOperatorSelection({
+        type: 'replace',
+        selections: [
+          ...resolved.selections,
+          ...[...resolved.unresolvedOperatorIds].map(selectionId => ({
+            selectionId,
+            label: data.nodes.find(node => node.id === selectionId)?.label ?? selectionId,
+            operatorIds: new Set([selectionId]),
+          })),
+        ],
+      });
+      return;
+    }
+    updateOperatorSelection({ type: 'hydrate', selections: resolved.selections });
+  }, [controlledSelectedNodeIds, data.nodes, hydratedNodeIdsKey, updateOperatorSelection]);
 
   // Publish the set of operator IDs visible in this DAG so other consumers
   // (effective highlight/heatmap atoms) can decide whether a hover-driven
@@ -317,24 +383,23 @@ const FlowLayout = ({
     }
   }, []);
 
-  const operatorColorMap = useMemo(
-    () => buildOperatorColorMap(data.nodes.map(n => n.type)),
-    [data.nodes]
-  );
-
   const getSelectionIds = useCallback((node: Node<QueryPlanNodeData>): string[] => {
     const relatedOperatorIds = node.data.metadata?.relatedOperatorIds ?? [];
     return relatedOperatorIds.length > 0 ? [...relatedOperatorIds, node.id] : [node.id];
   }, []);
 
   const statQuantitySpecs = useMemo((): Record<string, QuantitySpec> => {
-    if (!data.quantitySpecs) return {};
+    if (!data.quantitySpecs) {
+      return {};
+    }
     const result: Record<string, QuantitySpec> = {};
     for (const node of data.nodes) {
       for (const stat of parseCustomStatistics(node.metadata?.rawNode)) {
         if (stat.quantity && !(stat.key in result)) {
           const spec = data.quantitySpecs[stat.quantity];
-          if (spec) result[stat.key] = spec;
+          if (spec) {
+            result[stat.key] = spec;
+          }
         }
       }
     }
@@ -360,7 +425,6 @@ const FlowLayout = ({
           hasOutgoing: nodesWithOutgoing.has(node.id),
           layoutDirection,
           isDark,
-          baseColor: operatorColorMap.get(node.type.toLowerCase()),
           flowBarVisible,
           quantitySpecs: data.quantitySpecs,
         },
@@ -385,56 +449,54 @@ const FlowLayout = ({
     }));
 
     return { flowNodes, flowEdges };
-  }, [data, isDark, operatorColorMap, layoutDirection, flowBarVisible]);
+  }, [data, isDark, layoutDirection, flowBarVisible]);
 
   const handleNodeClick = useCallback(
     (_event: MouseEvent, node: Node<QueryPlanNodeData>): void => {
-      if (selectedNodeIds.has(node.id)) {
-        setSelectedNodeIds(new Set());
-        setSelectedOperatorLabel(null);
-        setSelectedNodeData(null);
-        onSelectionChange?.([]);
-      } else {
-        const selectionIds = getSelectionIds(node);
-        const newSet = new Set(selectionIds);
-        setSelectedNodeIds(newSet);
-        setSelectedOperatorLabel(node.data.label);
-        setSelectedNodeData({
-          nodeId: node.id,
-          label: node.data.label,
-          operationType: node.data.operationType,
-          statistics: parseCustomStatistics(node.data.metadata?.rawNode),
-          relatedOperators: node.data.metadata?.relatedOperators?.map(operator => ({
-            nodeId: operator.id,
-            label: operator.instance_name ?? operator.operator_type_name ?? 'Operator',
-            operationType: operator.operator_type_name?.toLowerCase() ?? 'operator',
-            statistics: parseCustomStatistics(operator),
-          })),
+      let nextSelectedIds: Set<string>;
+      if (selectedOperatorIds.has(node.id)) {
+        nextSelectedIds = updateOperatorSelection({
+          type: 'replace',
+          selections: toggleOperatorSelection(
+            hierarchyOperators,
+            selectedOperatorIds,
+            operatorSelection.selections,
+            node.id
+          ),
         });
-        onSelectionChange?.(selectionIds);
+      } else {
+        nextSelectedIds = updateOperatorSelection({
+          type: 'add',
+          selectionId: node.id,
+          label: node.data.label,
+          operatorIds: getSelectionIds(node),
+          selectedData: selectedOperatorDataFromFlowNode(node),
+        });
       }
+      onSelectionChange?.([...nextSelectedIds]);
     },
     [
       getSelectionIds,
-      selectedNodeIds,
-      setSelectedNodeIds,
-      setSelectedOperatorLabel,
-      setSelectedNodeData,
+      hierarchyOperators,
       onSelectionChange,
+      operatorSelection.selections,
+      selectedOperatorIds,
+      updateOperatorSelection,
     ]
   );
 
   const handlePaneClick = useCallback(() => {
-    setSelectedNodeIds(new Set());
-    setSelectedOperatorLabel(null);
-    setSelectedNodeData(null);
-  }, [setSelectedNodeIds, setSelectedOperatorLabel, setSelectedNodeData]);
+    updateOperatorSelection({ type: 'clear' });
+    onSelectionChange?.([]);
+  }, [onSelectionChange, updateOperatorSelection]);
 
   // Re-fit view when the react-flow container is resized, but only if the user
   // hasn't interacted with the chart (to maintain any focus states applied)
   useEffect(() => {
     const container = containerRef.current;
-    if (!container) return;
+    if (!container) {
+      return;
+    }
     const observer = new ResizeObserver(() => {
       if (nodes.length > 0 && !hasUserInteracted.current) {
         fitView({ padding: FIT_VIEW_PADDING, minZoom: FLOW_MIN_ZOOM });
@@ -460,7 +522,9 @@ const FlowLayout = ({
         layoutDirection,
         NODE_LAYOUT_HEIGHT + (flowBarVisible ? FLOW_BAR_HEIGHT : 0)
       );
-      if (cancelled) return;
+      if (cancelled) {
+        return;
+      }
 
       setNodes(layoutResult.nodes);
       setEdges(layoutResult.edges);
@@ -501,8 +565,7 @@ const FlowLayout = ({
         style={{ width: MINIMAP_SIZE, height: MINIMAP_SIZE, background: 'hsl(var(--card))' }}
         maskColor="hsl(var(--muted) / 0.7)"
         nodeColor={(node: Node<QueryPlanNodeData>) =>
-          (node.data as QueryPlanNodeData).baseColor ??
-          getOperationTypeColor((node.data as QueryPlanNodeData).operationType)
+          resolveOperatorTypeColor((node.data as QueryPlanNodeData).operationType)
         }
       />
     </ReactFlow>
@@ -514,6 +577,7 @@ export const DAGChart = ({
   data,
   height = '100%',
   isDark,
+  operators,
   selectedNodeIds,
   onSelectionChange,
 }: DAGProps) => {
@@ -525,6 +589,7 @@ export const DAGChart = ({
           data={data}
           containerRef={containerRef}
           isDark={isDark}
+          operators={operators}
           selectedNodeIds={selectedNodeIds}
           onSelectionChange={onSelectionChange}
         />

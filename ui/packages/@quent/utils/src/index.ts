@@ -12,8 +12,10 @@ export {
   getColorForKey,
   assignColors,
   getColorByIndex,
-  getOperationTypeColor,
-  buildOperatorColorMap,
+  normalizeDeterministicColorKey,
+  getDeterministicColor,
+  buildDeterministicColorMap,
+  createDeterministicColorResolver,
   withOpacity,
   resetColorAssignments,
   darkenColor,
@@ -30,7 +32,14 @@ export {
   continuousColor,
   getLegendGradientStops,
 } from './colors';
-export type { PaletteName, PaletteTheme, ChartColor, ContinuousPaletteName } from './colors';
+export type {
+  PaletteName,
+  PaletteTheme,
+  ChartColor,
+  ContinuousPaletteName,
+  DeterministicColorKey,
+  DeterministicColorResolver,
+} from './colors';
 
 // Formatter utilities
 export {
@@ -78,6 +87,25 @@ export type {
   DAGNode,
   DAGEdge,
 } from './dagTypes';
+
+// Operator selection types
+export type {
+  OperatorSelection,
+  OperatorSelectionInput,
+  OperatorSelectionState,
+  SelectedOperatorData,
+  SelectedOperatorGroupData,
+} from './operatorTypes';
+export {
+  buildRelatedOperatorIdsById,
+  resolveOperatorSelectionCandidates,
+  resolveSelectedOperatorSelections,
+  resolveOperatorSelections,
+  toggleOperatorSelection,
+} from './operatorHierarchy';
+
+export { AGG_MODES } from './aggMode';
+export type { AggMode } from './aggMode';
 
 // Operator timeline row ID utilities
 export const OPERATOR_TIMELINE_ROW_TYPE = 'operator-timeline';
