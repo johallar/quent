@@ -149,9 +149,11 @@ Query and engine IDs can also be supplied with `--baseline-query`,
 `--baseline-engine`, and repeated `--candidate-query` options. Use repeated
 `--candidate ENGINE:QUERY` options when candidates span engines. Without
 explicit IDs, the Ink query tree selects one baseline and any number of
-candidates across all engines. Every comparison reports candidate-minus-
-baseline deltas. The renderer-independent comparison logic is exported by
-`@quent/query-diff` for CLI and browser use.
+candidates across all engines. A second multiselect offers only metrics present
+in every selected query, including an **All metrics** option. Automation can
+repeat `--metric` or pass `--metric all`. Every comparison reports
+candidate-minus-baseline deltas. The renderer-independent comparison logic is
+exported by `@quent/query-diff` for CLI and browser use.
 
 ## API Integration
 

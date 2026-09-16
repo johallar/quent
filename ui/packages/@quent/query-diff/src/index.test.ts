@@ -3,7 +3,7 @@
 
 import { describe, expect, it } from 'vitest';
 import type { EntityRef, Operator, QueryBundle } from '@quent/utils';
-import { diffQueryBundles } from './index';
+import { commonQueryMetrics, diffQueryBundles } from './index';
 
 function operator(
   id: string,
@@ -244,6 +244,28 @@ describe('query bundle diff', () => {
       { engineId: 'engine-1', queryId: 'candidate-1', durationSeconds: 2 },
       { engineId: 'engine-2', queryId: 'candidate-2', durationSeconds: 3 },
     ]);
+  });
+
+  it('intersects available metrics and filters comparisons', () => {
+    const baseline = bundle('baseline', 1, [
+      operator('baseline-scan', 'logical', 'Scan', null, {
+        output_rows: { value: 100n, quantity: 'rows' },
+        bytes_read: { value: 1000n, quantity: 'bytes' },
+      }),
+    ]);
+    const candidate = bundle('candidate', 1, [
+      operator('candidate-scan', 'logical', 'Scan', null, {
+        output_rows: { value: 80n, quantity: 'rows' },
+        selectivity: { value: 0.8, quantity: null },
+      }),
+    ]);
+
+    expect(commonQueryMetrics([baseline, candidate])).toEqual(['output_rows']);
+    const result = diffQueryBundles({ bundle: baseline }, [{ bundle: candidate }], {
+      metrics: ['output_rows'],
+    });
+    expect(result.metrics).toEqual(['output_rows']);
+    expect(result.comparisons[0]!.rows.every(row => row.metric === 'output_rows')).toBe(true);
   });
 
   it('rejects operators whose plan is unavailable', () => {

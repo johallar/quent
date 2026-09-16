@@ -126,6 +126,7 @@ export function formatQueryDiff(
   const lines = [
     `Baseline: ${baselineId} (${result.baseline.durationSeconds}s)`,
     `Candidates: ${result.comparisons.length}`,
+    `Metrics: ${result.metrics.join(', ')}`,
     '',
     ...result.comparisons.flatMap((comparison, index) => [
       ...formatComparison(comparison, index),
