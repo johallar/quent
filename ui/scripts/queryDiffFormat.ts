@@ -108,13 +108,17 @@ export function formatQueryDiff(
   result: QueryDiffResult,
   options: QueryDiffFormatOptions = {}
 ): string {
-  const baselineId = result.baseline.engineId
-    ? `${result.baseline.engineId} / ${result.baseline.queryId}`
-    : result.baseline.queryId;
+  const baselineId = [result.baseline.source, result.baseline.engineId, result.baseline.queryId]
+    .filter(Boolean)
+    .join(' / ');
   const formatComparison = (comparison: QueryDiffComparison, index: number) => {
-    const candidateId = comparison.candidate.engineId
-      ? `${comparison.candidate.engineId} / ${comparison.candidate.queryId}`
-      : comparison.candidate.queryId;
+    const candidateId = [
+      comparison.candidate.source,
+      comparison.candidate.engineId,
+      comparison.candidate.queryId,
+    ]
+      .filter(Boolean)
+      .join(' / ');
     return [
       `Candidate ${index + 1}: ${candidateId} (${comparison.candidate.durationSeconds}s)`,
       '',

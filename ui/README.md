@@ -155,6 +155,23 @@ repeat `--metric` or pass `--metric all`. Every comparison reports
 candidate-minus-baseline deltas. The renderer-independent comparison logic is
 exported by `@quent/query-diff` for CLI and browser use.
 
+Database telemetry is an optional source:
+
+```bash
+pixi run pnpm --dir ui ask query-diff \
+  --db-run 6647 \
+  --db-run 6650 \
+  --db-api-base-url https://accel-etl.nvidia.com \
+  --db-token "$QUENT_OPEN_TOKEN"
+```
+
+Each run starts a temporary `quent-open` API and appears in the query tree as
+`db RUN`. Add `--api-base http://localhost:8080/api` to compare those runs with
+an existing local API. Use `--db` without `--db-run` to enter run IDs
+interactively; automation can pair explicit queries with `--baseline-source`
+and repeated `--candidate-source`. Database processes are stopped when the
+command exits.
+
 ## API Integration
 
 The application includes stub API functions in `src/services/api.ts`. These

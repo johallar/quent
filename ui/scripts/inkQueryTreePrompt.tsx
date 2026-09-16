@@ -127,7 +127,10 @@ export function QueryTreePrompt({ prompt, choices, multiple }: QueryTreePromptPr
         <Box flexDirection="column" marginTop={1}>
           {visible.choices.map((choice, visibleIndex) => {
             const previous = visible.choices[visibleIndex - 1];
-            const showEngine = !previous || previous.engineId !== choice.engineId;
+            const showEngine =
+              !previous ||
+              previous.sourceId !== choice.sourceId ||
+              previous.engineId !== choice.engineId;
             const showGroup =
               showEngine || !previous || previous.queryGroupId !== choice.queryGroupId;
             const index = visible.offset + visibleIndex;

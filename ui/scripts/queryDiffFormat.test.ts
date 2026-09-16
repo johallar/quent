@@ -81,5 +81,19 @@ describe('query diff terminal formatter', () => {
     );
     expect(redDelta).toContain('50');
     expect(blueDelta).toContain('-1');
+
+    const sourced = formatQueryDiff({
+      ...result,
+      baseline: { ...result.baseline, source: 'local' },
+      comparisons: result.comparisons.map((comparison, index) => ({
+        ...comparison,
+        candidate: {
+          ...comparison.candidate,
+          source: index === 0 ? 'db 6647' : 'db 6650',
+        },
+      })),
+    });
+    expect(sourced).toContain('Baseline: local / engine-1 / query-1');
+    expect(sourced).toContain('Candidate 1: db 6647 / engine-2 / query-2');
   });
 });

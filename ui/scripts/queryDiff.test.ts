@@ -5,7 +5,14 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { getApiClient, setApiClient, type ApiClient } from '@quent/client';
 import type { EntityRef, QueryBundle } from '@quent/utils';
 import type { DiscoveryApi, SelectFromList, SelectFromQueryTree } from './askSelection';
-import { queryDiffCommand, resolveQueryDiffMetrics, resolveQueryDiffSelections } from './queryDiff';
+import {
+  queryDiffCommand,
+  resolveDatabaseRunIds,
+  resolveQueryDiffMetrics,
+  resolveQueryDiffSelections,
+  resolveSourcedQueryDiffSelections,
+  type QueryDiffSource,
+} from './queryDiff';
 
 const originalClient = getApiClient();
 
@@ -246,6 +253,146 @@ describe('query diff selections', () => {
     ]);
     await expect(resolveQueryDiffMetrics({ metric: ['selectivity'] }, bundles)).rejects.toThrow(
       'Metrics not available in every selected query: selectivity'
+    );
+  });
+
+  it('keeps colliding engine and query IDs distinct across sources', async () => {
+    const api = discoveryApi();
+    const sources: QueryDiffSource[] = [
+      { id: 'local', label: 'local', api },
+      { id: '6647', label: 'db 6647', api },
+    ];
+    const selectTree = vi
+      .fn<SelectFromQueryTree>()
+      .mockResolvedValueOnce(['local\0engine-1\0query-1'])
+      .mockResolvedValueOnce(['6647\0engine-1\0query-1']);
+
+    await expect(
+      resolveSourcedQueryDiffSelections({}, sources, vi.fn<SelectFromList>(), selectTree)
+    ).resolves.toEqual({
+      baseline: {
+        sourceId: 'local',
+        sourceLabel: 'local',
+        engineId: 'engine-1',
+        queryId: 'query-1',
+      },
+      candidates: [
+        {
+          sourceId: '6647',
+          sourceLabel: 'db 6647',
+          engineId: 'engine-1',
+          queryId: 'query-1',
+        },
+      ],
+    });
+    const candidateChoices = selectTree.mock.calls[1]![1];
+    expect(candidateChoices).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          sourceId: '6647',
+          engineLabel: 'db 6647 · Baseline (engine-1)',
+        }),
+      ])
+    );
+  });
+
+  it('resolves explicit DB-to-DB sources', async () => {
+    const api = discoveryApi();
+    const sources: QueryDiffSource[] = [
+      { id: '6647', label: 'db 6647', api },
+      { id: '6650', label: 'db 6650', api },
+    ];
+
+    await expect(
+      resolveSourcedQueryDiffSelections(
+        {
+          'baseline-source': '6647',
+          'baseline-engine': 'engine-1',
+          'baseline-query': 'query-1',
+          'candidate-source': ['6650'],
+          'candidate-engine': ['engine-2'],
+          'candidate-query': ['query-2'],
+        },
+        sources,
+        vi.fn<SelectFromList>(),
+        vi.fn<SelectFromQueryTree>()
+      )
+    ).resolves.toEqual({
+      baseline: {
+        sourceId: '6647',
+        sourceLabel: 'db 6647',
+        engineId: 'engine-1',
+        queryId: 'query-1',
+      },
+      candidates: [
+        {
+          sourceId: '6650',
+          sourceLabel: 'db 6650',
+          engineId: 'engine-2',
+          queryId: 'query-2',
+        },
+      ],
+    });
+  });
+
+  it('infers the only DB source for explicit selections', async () => {
+    const api = discoveryApi();
+
+    await expect(
+      resolveSourcedQueryDiffSelections(
+        {
+          engine: 'engine-1',
+          'baseline-query': 'query-1',
+          'candidate-query': ['query-2'],
+        },
+        [{ id: '6647', label: 'db 6647', api }],
+        vi.fn<SelectFromList>(),
+        vi.fn<SelectFromQueryTree>()
+      )
+    ).resolves.toMatchObject({
+      baseline: { sourceId: '6647' },
+      candidates: [{ sourceId: '6647' }],
+    });
+  });
+
+  it('preserves the local-only query tree labels', async () => {
+    const api = discoveryApi();
+    const selectTree = vi
+      .fn<SelectFromQueryTree>()
+      .mockResolvedValueOnce(['engine-1\0query-1'])
+      .mockResolvedValueOnce(['engine-2\0query-2']);
+
+    await resolveSourcedQueryDiffSelections(
+      {},
+      [{ id: 'local', label: 'local', api }],
+      vi.fn<SelectFromList>(),
+      selectTree
+    );
+
+    expect(selectTree.mock.calls[0]![1][0]!.engineLabel).toBe('Baseline (engine-1)');
+    expect(selectTree.mock.calls[0]![1][0]!.sourceId).toBeUndefined();
+  });
+});
+
+describe('database run selection', () => {
+  it('deduplicates explicit runs without prompting', async () => {
+    const input = vi.fn();
+
+    await expect(
+      resolveDatabaseRunIds({ 'db-run': ['6647', '6650', '6647'] }, input)
+    ).resolves.toEqual(['6647', '6650']);
+    expect(input).not.toHaveBeenCalled();
+  });
+
+  it('accepts comma-separated interactive run IDs', async () => {
+    const input = vi.fn().mockResolvedValue('6647, 6650, 6647');
+
+    await expect(resolveDatabaseRunIds({ db: true }, input)).resolves.toEqual(['6647', '6650']);
+  });
+
+  it('does not prompt in JSON mode', async () => {
+    await expect(resolveDatabaseRunIds({ db: true, json: true }, vi.fn())).rejects.toThrow(
+      'JSON mode requires explicit --db-run'
     );
   });
 });

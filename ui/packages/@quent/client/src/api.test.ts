@@ -3,7 +3,7 @@
 
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import type { DataFlowTimelineBinned, TimelineConfig } from '@quent/utils';
-import { fetchDataFlow } from './api';
+import { createHttpApiClient, fetchDataFlow } from './api';
 
 const CONFIG: TimelineConfig = { start: 0, end: 8, num_bins: 4 };
 
@@ -63,5 +63,27 @@ describe('fetchDataFlow', () => {
         }),
       })
     );
+  });
+});
+
+describe('createHttpApiClient', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('keeps concurrent clients pinned to independent API bases', async () => {
+    const fetchMock = vi.fn().mockImplementation(async () => {
+      return new Response(JSON.stringify([]), { status: 200 });
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    const first = createHttpApiClient('http://first.test/api/');
+    const second = createHttpApiClient('http://second.test/api');
+
+    await Promise.all([first.fetchListEngines(), second.fetchListEngines()]);
+
+    expect(fetchMock.mock.calls.map(call => call[0])).toEqual([
+      'http://first.test/api/engines?with_metadata=true',
+      'http://second.test/api/engines?with_metadata=true',
+    ]);
   });
 });
