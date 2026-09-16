@@ -9,7 +9,8 @@ import {
   fetchQueryBundle,
   setApiBaseUrl,
 } from '@quent/client';
-import { diffQueryBundles } from '@quent/query-diff';
+import { commonQueryMetrics, diffQueryBundles } from '@quent/query-diff';
+import type { EntityRef, QueryBundle } from '@quent/utils';
 import {
   createNonInteractiveSelector,
   createTerminalSelector,
@@ -23,7 +24,7 @@ import {
   type SelectFromQueryTree,
 } from './askSelection';
 import type { AskCommand } from './askCommand.types';
-import { selectFromQueryTreeWithInk } from './inkSelectorRunner';
+import { selectFromQueryTreeWithInk, selectManyWithInk } from './inkSelectorRunner';
 import { machineResult, serializeMachineOutput } from './machineOutput';
 import { formatQueryDiff } from './queryDiffFormat';
 
@@ -38,6 +39,7 @@ Options:
   --candidate-engine ID   Candidate engine; one for all queries or one per query
   --candidate ENGINE:QUERY
                           Qualified candidate; repeat for cross-engine comparison
+  --metric NAME           Metric to compare; repeat or pass "all"
   --api-base URL          API base (default: QUENT_API_BASE_URL or http://localhost:8080/api)
   --json                  Emit versioned JSON; never open interactive prompts`;
 
@@ -59,6 +61,49 @@ function ids(value: QueryDiffCliValue): string[] {
 export interface QueryDiffSelections {
   baseline: QuerySelection;
   candidates: QuerySelection[];
+}
+
+type SelectMetrics = (
+  prompt: string,
+  choices: readonly { value: string; label: string }[],
+  allValue?: string
+) => Promise<string[]>;
+
+const ALL_METRICS = '\0all-metrics';
+
+export async function resolveQueryDiffMetrics(
+  values: QueryDiffCliValues,
+  bundles: readonly QueryBundle<EntityRef>[],
+  selectMetrics: SelectMetrics = selectManyWithInk
+): Promise<string[]> {
+  const commonMetrics = commonQueryMetrics(bundles);
+  if (commonMetrics.length === 0) {
+    throw new Error('The selected queries have no numeric metrics in common.');
+  }
+  let requested = ids(values.metric);
+  if (requested.length === 0) {
+    requested = await selectMetrics(
+      'Select metrics to compare',
+      [
+        { value: ALL_METRICS, label: `All metrics (${commonMetrics.length})` },
+        ...commonMetrics.map(metric => ({ value: metric, label: metric })),
+      ],
+      ALL_METRICS
+    );
+  }
+  if (
+    requested.includes(ALL_METRICS) ||
+    requested.some(metric => metric.toLocaleLowerCase() === 'all')
+  ) {
+    return commonMetrics;
+  }
+  const invalid = requested.filter(metric => !commonMetrics.includes(metric));
+  if (invalid.length > 0) {
+    throw new Error(
+      `Metrics not available in every selected query: ${invalid.join(', ')}. Available metrics: ${commonMetrics.join(', ')}.`
+    );
+  }
+  return [...new Set(requested)];
 }
 
 function parseQualifiedCandidate(value: string): QuerySelection {
@@ -193,6 +238,7 @@ export const queryDiffCommand: AskCommand = {
         'candidate-query': { type: 'string', multiple: true },
         engine: { type: 'string' },
         json: { type: 'boolean' },
+        metric: { type: 'string', multiple: true },
       },
     });
 
@@ -213,6 +259,7 @@ export const queryDiffCommand: AskCommand = {
         !values['baseline-query'] && '--baseline-query',
         !hasCandidates && '--candidate or --candidate-query',
         hasCandidates && !candidateQueriesHaveEngine && '--candidate-engine or --engine',
+        ids(values.metric).length === 0 && '--metric',
       ].filter((option): option is string => Boolean(option));
       if (missing.length > 0) {
         throw new Error(
@@ -243,12 +290,14 @@ export const queryDiffCommand: AskCommand = {
       fetchQueryBundle(baseline.engineId, baseline.queryId),
       ...candidates.map(candidate => fetchQueryBundle(candidate.engineId, candidate.queryId)),
     ]);
+    const metrics = await resolveQueryDiffMetrics(values, [baselineBundle, ...candidateBundles]);
     const result = diffQueryBundles(
       { engineId: baseline.engineId, bundle: baselineBundle },
       candidates.map((candidate, index) => ({
         engineId: candidate.engineId,
         bundle: candidateBundles[index]!,
-      }))
+      })),
+      { metrics }
     );
     process.stdout.write(
       values.json

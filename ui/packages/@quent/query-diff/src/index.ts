@@ -23,6 +23,7 @@ export interface QueryDiffRow {
 export interface QueryDiffResult {
   baseline: { engineId: string | null; queryId: string; durationSeconds: number };
   comparisons: QueryDiffComparison[];
+  metrics: string[];
   limitations: string[];
 }
 
@@ -34,6 +35,10 @@ export interface QueryDiffComparison {
 export interface QueryDiffBundle {
   engineId?: string | null;
   bundle: QueryBundle<EntityRef>;
+}
+
+export interface QueryDiffOptions {
+  metrics?: readonly string[];
 }
 
 interface AggregatedMetric {
@@ -170,6 +175,26 @@ function aggregateBundle(bundle: QueryBundle<EntityRef>): Map<string, Aggregated
   return aggregated;
 }
 
+export function commonQueryMetrics(bundles: readonly QueryBundle<EntityRef>[]): string[] {
+  if (bundles.length === 0) {
+    return [];
+  }
+  const metricSets = bundles.map(
+    bundle => new Set([...aggregateBundle(bundle).values()].map(metric => metric.metric))
+  );
+  return [...metricSets[0]!]
+    .filter(metric => metricSets.every(available => available.has(metric)))
+    .sort((left, right) => {
+      if (left === ACTIVE_SPAN_METRIC) {
+        return -1;
+      }
+      if (right === ACTIVE_SPAN_METRIC) {
+        return 1;
+      }
+      return left.localeCompare(right);
+    });
+}
+
 function deltaPercent(baseline: NumericValue, candidate: NumericValue): number | null {
   const baselineNumber = Number(baseline);
   const candidateNumber = Number(candidate);
@@ -184,7 +209,8 @@ function deltaPercent(baseline: NumericValue, candidate: NumericValue): number |
 
 function compareAggregates(
   baseline: Map<string, AggregatedMetric>,
-  candidate: Map<string, AggregatedMetric>
+  candidate: Map<string, AggregatedMetric>,
+  metrics?: ReadonlySet<string>
 ): QueryDiffRow[] {
   const keys = new Set([...baseline.keys(), ...candidate.keys()]);
   return [...keys]
@@ -213,6 +239,7 @@ function compareAggregates(
             : deltaPercent(baselineValue, candidateValue),
       } satisfies QueryDiffRow;
     })
+    .filter(row => !metrics || metrics.has(row.metric))
     .sort(
       (left, right) =>
         left.scope.localeCompare(right.scope) ||
@@ -225,12 +252,22 @@ function compareAggregates(
 
 export function diffQueryBundles(
   baseline: QueryDiffBundle,
-  candidates: readonly QueryDiffBundle[]
+  candidates: readonly QueryDiffBundle[],
+  options: QueryDiffOptions = {}
 ): QueryDiffResult {
   if (candidates.length === 0) {
     throw new Error('At least one candidate query bundle is required.');
   }
   const baselineMetrics = aggregateBundle(baseline.bundle);
+  const selectedMetrics = options.metrics ? new Set(options.metrics) : undefined;
+  const comparisons = candidates.map(candidate => ({
+    candidate: {
+      engineId: candidate.engineId ?? null,
+      queryId: candidate.bundle.query_id,
+      durationSeconds: candidate.bundle.duration_s,
+    },
+    rows: compareAggregates(baselineMetrics, aggregateBundle(candidate.bundle), selectedMetrics),
+  }));
 
   return {
     baseline: {
@@ -238,14 +275,12 @@ export function diffQueryBundles(
       queryId: baseline.bundle.query_id,
       durationSeconds: baseline.bundle.duration_s,
     },
-    comparisons: candidates.map(candidate => ({
-      candidate: {
-        engineId: candidate.engineId ?? null,
-        queryId: candidate.bundle.query_id,
-        durationSeconds: candidate.bundle.duration_s,
-      },
-      rows: compareAggregates(baselineMetrics, aggregateBundle(candidate.bundle)),
-    })),
+    comparisons,
+    metrics:
+      options.metrics?.slice().sort() ??
+      [
+        ...new Set(comparisons.flatMap(comparison => comparison.rows.map(row => row.metric))),
+      ].sort(),
     limitations: [
       'Operator metrics are summed by type; the result does not align individual operator instances.',
       'active_span_s includes idle gaps and is not CPU or GPU execution time.',

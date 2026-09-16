@@ -52,6 +52,7 @@ describe('query diff terminal formatter', () => {
           rows: [],
         },
       ],
+      metrics: ['active_span_s', 'output_rows'],
       limitations: ['Example limitation.'],
     };
 
@@ -59,6 +60,7 @@ describe('query diff terminal formatter', () => {
 
     expect(formatted).toContain('Baseline: engine-1 / query-1 (10s)');
     expect(formatted).toContain('Candidates: 2');
+    expect(formatted).toContain('Metrics: active_span_s, output_rows');
     expect(formatted).toContain('Candidate 1: engine-2 / query-2 (12s)');
     expect(formatted).toContain('Candidate 2: engine-3 / query-3 (14s)');
     expect(formatted).toContain('Logical · Scan\n┌');

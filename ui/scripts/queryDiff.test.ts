@@ -5,7 +5,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { getApiClient, setApiClient, type ApiClient } from '@quent/client';
 import type { EntityRef, QueryBundle } from '@quent/utils';
 import type { DiscoveryApi, SelectFromList, SelectFromQueryTree } from './askSelection';
-import { queryDiffCommand, resolveQueryDiffSelections } from './queryDiff';
+import { queryDiffCommand, resolveQueryDiffMetrics, resolveQueryDiffSelections } from './queryDiff';
 
 const originalClient = getApiClient();
 
@@ -33,10 +33,34 @@ function discoveryApi(): DiscoveryApi {
   } as unknown as DiscoveryApi;
 }
 
+function metricBundle(queryId: string, metrics: string[]): QueryBundle<EntityRef> {
+  return {
+    query_id: queryId,
+    duration_s: 1,
+    entities: {
+      plans: { logical: { id: 'logical', worker_id: null } },
+      operators: {
+        operator: {
+          id: 'operator',
+          plan_id: 'logical',
+          parent_operator_ids: [],
+          operator_type_name: 'Scan',
+          active_span: null,
+          statistics: {
+            custom_statistics: Object.fromEntries(
+              metrics.map(metric => [metric, { value: 1, quantity: null }])
+            ),
+          },
+        },
+      },
+    },
+  } as unknown as QueryBundle<EntityRef>;
+}
+
 describe('query diff selections', () => {
   it('requires every selection explicitly in JSON mode', async () => {
     await expect(queryDiffCommand.run(['--json'])).rejects.toThrow(
-      'JSON mode requires explicit --baseline-engine or --engine, --baseline-query, --candidate or --candidate-query'
+      'JSON mode requires explicit --baseline-engine or --engine, --baseline-query, --candidate or --candidate-query, --metric'
     );
   });
 
@@ -124,7 +148,21 @@ describe('query diff selections', () => {
       return {
         query_id: queryId,
         duration_s: 1,
-        entities: { operators: {}, plans: {} },
+        entities: {
+          plans: {
+            logical: { id: 'logical', worker_id: null },
+          },
+          operators: {
+            operator: {
+              id: 'operator',
+              plan_id: 'logical',
+              parent_operator_ids: [],
+              operator_type_name: 'Scan',
+              active_span: { start: 0, end: 1 },
+              statistics: { custom_statistics: {} },
+            },
+          },
+        },
       } as unknown as QueryBundle<EntityRef>;
     });
     setApiClient({ fetchQueryBundle: fetch } as unknown as ApiClient);
@@ -139,6 +177,8 @@ describe('query diff selections', () => {
       'query-2',
       '--candidate-query',
       'query-3',
+      '--metric',
+      'all',
       '--json',
     ]);
 
@@ -150,6 +190,7 @@ describe('query diff selections', () => {
     const output = JSON.parse(String(write.mock.calls[0]![0]));
     expect(output.schemaVersion).toBe(2);
     expect(output.data.comparisons).toHaveLength(2);
+    expect(output.data.metrics).toEqual(['active_span_s']);
   });
 
   it('requires candidate engine counts to be unambiguous', async () => {
@@ -167,6 +208,44 @@ describe('query diff selections', () => {
       )
     ).rejects.toThrow(
       'Pass one --candidate-engine for all candidate queries or one --candidate-engine per query.'
+    );
+  });
+
+  it('offers only metrics shared by every selected query', async () => {
+    const selectMetrics = vi.fn().mockResolvedValue(['output_rows']);
+    const metrics = await resolveQueryDiffMetrics(
+      {},
+      [
+        metricBundle('baseline', ['bytes_read', 'output_rows']),
+        metricBundle('candidate-1', ['output_rows', 'selectivity']),
+        metricBundle('candidate-2', ['output_rows', 'spill_bytes']),
+      ],
+      selectMetrics
+    );
+
+    expect(metrics).toEqual(['output_rows']);
+    expect(selectMetrics).toHaveBeenCalledWith(
+      'Select metrics to compare',
+      [
+        { value: '\0all-metrics', label: 'All metrics (1)' },
+        { value: 'output_rows', label: 'output_rows' },
+      ],
+      '\0all-metrics'
+    );
+  });
+
+  it('supports all and rejects metrics absent from any query', async () => {
+    const bundles = [
+      metricBundle('baseline', ['bytes_read', 'output_rows']),
+      metricBundle('candidate', ['bytes_read', 'output_rows']),
+    ];
+
+    await expect(resolveQueryDiffMetrics({ metric: ['all'] }, bundles)).resolves.toEqual([
+      'bytes_read',
+      'output_rows',
+    ]);
+    await expect(resolveQueryDiffMetrics({ metric: ['selectivity'] }, bundles)).rejects.toThrow(
+      'Metrics not available in every selected query: selectivity'
     );
   });
 });
