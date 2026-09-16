@@ -1,11 +1,11 @@
 // SPDX-FileCopyrightText: Copyright (c) 2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-import { createInterface } from 'node:readline/promises';
 import type { Readable, Writable } from 'node:stream';
 import type { ApiClient } from '@quent/client';
 import type { EntityRef, QueryBundle } from '@quent/utils';
 import type { QuestionCliValues } from '../src/features/question-cli/question.types';
+import { selectWithInk } from './inkSelectorRunner';
 
 type TerminalReadable = Readable & { isTTY?: boolean };
 type TerminalWritable = Writable & { isTTY?: boolean };
@@ -20,7 +20,7 @@ export type SelectFromList = (
   choices: readonly SelectionChoice[]
 ) => Promise<string>;
 
-type DiscoveryApi = Pick<
+export type DiscoveryApi = Pick<
   ApiClient,
   'fetchListEngines' | 'fetchListCoordinators' | 'fetchListQueries' | 'fetchQueryBundle'
 >;
@@ -53,7 +53,11 @@ function stableChoices(choices: SelectionChoice[]): SelectionChoice[] {
   );
 }
 
-async function selectEngine(api: DiscoveryApi, select: SelectFromList): Promise<string> {
+export async function selectEngine(
+  api: DiscoveryApi,
+  select: SelectFromList,
+  prompt = 'Select an engine'
+): Promise<string> {
   const engines = await api.fetchListEngines();
   const choices = stableChoices(
     engines.map(engine => ({
@@ -64,33 +68,50 @@ async function selectEngine(api: DiscoveryApi, select: SelectFromList): Promise<
   if (choices.length === 0) {
     throw new Error('The Quent API returned no available engines.');
   }
-  return select('Select an engine', choices);
+  return select(prompt, choices);
 }
 
-async function selectQuery(
+export async function selectQuery(
   api: DiscoveryApi,
   select: SelectFromList,
-  engineId: string
+  engineId: string,
+  prompt = 'Select a query',
+  excludedQueryIds: ReadonlySet<string> = new Set()
 ): Promise<string> {
   const groups = await api.fetchListCoordinators(engineId);
   const groupedQueries = await Promise.all(
     groups.map(async group => ({
       group,
-      queries: await api.fetchListQueries(engineId, group.id),
+      queries: (await api.fetchListQueries(engineId, group.id)).filter(
+        query => !excludedQueryIds.has(query.id)
+      ),
     }))
   );
-  const choices = stableChoices(
-    groupedQueries.flatMap(({ group, queries }) =>
-      queries.map(query => ({
-        value: query.id,
-        label: `${label(query.instance_name, query.id)} — ${label(group.instance_name, group.id)}`,
-      }))
-    )
+  const availableGroups = groupedQueries.filter(({ queries }) => queries.length > 0);
+  const groupPrompt = prompt.replace(/\bquery\b/u, 'query group');
+  const groupChoices = stableChoices(
+    availableGroups.map(({ group, queries }) => ({
+      value: group.id,
+      label: `${label(group.instance_name, group.id)} · ${queries.length} quer${
+        queries.length === 1 ? 'y' : 'ies'
+      }`,
+    }))
   );
-  if (choices.length === 0) {
+  if (groupChoices.length === 0) {
     throw new Error(`The Quent API returned no available queries for engine "${engineId}".`);
   }
-  return select('Select a query', choices);
+  const groupId = await select(groupPrompt, groupChoices);
+  const selectedGroup = availableGroups.find(({ group }) => group.id === groupId);
+  if (!selectedGroup) {
+    throw new Error(`Selected query group "${groupId}" is unavailable.`);
+  }
+  const queryChoices = stableChoices(
+    selectedGroup.queries.map(query => ({
+      value: query.id,
+      label: label(query.instance_name, query.id),
+    }))
+  );
+  return select(prompt, queryChoices);
 }
 
 async function selectResource(
@@ -149,24 +170,11 @@ export function createTerminalSelector(
     if (!input.isTTY || !output.isTTY) {
       throw new Error(`${prompt} requires an interactive terminal; pass the corresponding ID.`);
     }
-
-    const readline = createInterface({ input, output });
-    try {
-      output.write(`\n${prompt}:\n`);
-      choices.forEach((choice, index) => {
-        output.write(`  ${index + 1}. ${choice.label}\n`);
-      });
-
-      while (true) {
-        const answer = await readline.question(`Choose 1-${choices.length}: `);
-        const index = Number(answer.trim()) - 1;
-        if (Number.isInteger(index) && index >= 0 && index < choices.length) {
-          return choices[index]!.value;
-        }
-        output.write(`Enter a number from 1 to ${choices.length}.\n`);
-      }
-    } finally {
-      readline.close();
-    }
+    return await selectWithInk(
+      prompt,
+      choices,
+      input as NodeJS.ReadStream,
+      output as NodeJS.WriteStream
+    );
   };
 }

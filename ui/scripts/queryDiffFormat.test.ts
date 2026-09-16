@@ -1,0 +1,68 @@
+// SPDX-FileCopyrightText: Copyright (c) 2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+// SPDX-License-Identifier: Apache-2.0
+
+import { describe, expect, it } from 'vitest';
+import type { QueryDiffResult } from '@quent/query-diff';
+import { formatQueryDiff } from './queryDiffFormat';
+
+describe('query diff terminal formatter', () => {
+  it('renders query metadata, metrics, and limitations', () => {
+    const result: QueryDiffResult = {
+      baseline: {
+        engineId: 'engine-1',
+        queryId: 'query-1',
+        durationSeconds: 10,
+      },
+      candidate: {
+        engineId: 'engine-2',
+        queryId: 'query-2',
+        durationSeconds: 12,
+      },
+      rows: [
+        {
+          scope: 'logical',
+          operatorType: 'Scan',
+          metric: 'output_rows',
+          quantity: 'rows',
+          baseline: '100',
+          candidate: '150',
+          delta: '50',
+          deltaPercent: 50,
+        },
+        {
+          scope: 'physical',
+          operatorType: 'Filter',
+          metric: 'active_span_s',
+          quantity: 'seconds',
+          baseline: 4,
+          candidate: 3,
+          delta: -1,
+          deltaPercent: -25,
+        },
+      ],
+      limitations: ['Example limitation.'],
+    };
+
+    const formatted = formatQueryDiff(result);
+
+    expect(formatted).toContain('Baseline: engine-1 / query-1 (10s)');
+    expect(formatted).toContain('Logical · Scan\n┌');
+    expect(formatted).toContain('Physical · Filter\n┌');
+    expect(formatted).toContain('│ Metric');
+    expect(formatted).toContain('+50.00%');
+    expect(formatted).toContain('- Example limitation.');
+    expect(formatted).not.toContain('\u001B[');
+
+    const colored = formatQueryDiff(result, { color: true });
+    const redDelta = colored.slice(
+      colored.indexOf('\u001B[31m'),
+      colored.indexOf('\u001B[39m', colored.indexOf('\u001B[31m'))
+    );
+    const blueDelta = colored.slice(
+      colored.indexOf('\u001B[34m'),
+      colored.indexOf('\u001B[39m', colored.indexOf('\u001B[34m'))
+    );
+    expect(redDelta).toContain('50');
+    expect(blueDelta).toContain('-1');
+  });
+});

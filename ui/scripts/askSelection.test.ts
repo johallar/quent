@@ -5,7 +5,12 @@ import { PassThrough } from 'node:stream';
 import { describe, expect, it, vi } from 'vitest';
 import type { ApiClient } from '@quent/client';
 import type { EntityRef, QueryBundle } from '@quent/utils';
-import { createTerminalSelector, resolveAskSelections, type SelectFromList } from './askSelection';
+import {
+  createTerminalSelector,
+  resolveAskSelections,
+  selectQuery,
+  type SelectFromList,
+} from './askSelection';
 
 const queryBundle = {
   query_id: 'query-2',
@@ -89,6 +94,9 @@ describe('ask CLI selections', () => {
       if (prompt === 'Select an engine') {
         return 'engine-2';
       }
+      if (prompt === 'Select a query group') {
+        return 'group-1';
+      }
       if (prompt === 'Select a query') {
         return 'query-2';
       }
@@ -111,11 +119,14 @@ describe('ask CLI selections', () => {
       { value: 'engine-1', label: 'Alpha Engine (engine-1)' },
       { value: 'engine-2', label: 'Zeta Engine (engine-2)' },
     ]);
-    expect(select).toHaveBeenNthCalledWith(2, 'Select a query', [
-      { value: 'query-1', label: 'Query A (query-1) — group-2' },
-      { value: 'query-2', label: 'Query Z (query-2) — Warehouse (group-1)' },
+    expect(select).toHaveBeenNthCalledWith(2, 'Select a query group', [
+      { value: 'group-2', label: 'group-2 · 1 query' },
+      { value: 'group-1', label: 'Warehouse (group-1) · 1 query' },
     ]);
-    expect(select).toHaveBeenNthCalledWith(3, 'Select a resource', [
+    expect(select).toHaveBeenNthCalledWith(3, 'Select a query', [
+      { value: 'query-2', label: 'Query Z (query-2)' },
+    ]);
+    expect(select).toHaveBeenNthCalledWith(4, 'Select a resource', [
       { value: 'resource-2', label: 'GPU Memory (Memory, resource-2)' },
       { value: 'resource-1', label: 'Host Memory (Memory, resource-1)' },
     ]);
@@ -158,6 +169,23 @@ describe('ask CLI selections', () => {
     });
   });
 
+  it('supports a custom query prompt and excluded query IDs', async () => {
+    const api = discoveryApi();
+    const select = vi
+      .fn<SelectFromList>()
+      .mockResolvedValueOnce('group-1')
+      .mockResolvedValueOnce('query-2');
+
+    await selectQuery(api, select, 'engine-2', 'Select the candidate query', new Set(['query-1']));
+
+    expect(select).toHaveBeenNthCalledWith(1, 'Select the candidate query group', [
+      { value: 'group-1', label: 'Warehouse (group-1) · 1 query' },
+    ]);
+    expect(select).toHaveBeenNthCalledWith(2, 'Select the candidate query', [
+      { value: 'query-2', label: 'Query Z (query-2)' },
+    ]);
+  });
+
   it('fails clearly when interactive selection is unavailable', async () => {
     const input = Object.assign(new PassThrough(), { isTTY: false });
     const output = Object.assign(new PassThrough(), { isTTY: false });
@@ -166,25 +194,5 @@ describe('ask CLI selections', () => {
     await expect(
       select('Select an engine', [{ value: 'engine-1', label: 'Engine 1' }])
     ).rejects.toThrow('requires an interactive terminal');
-  });
-
-  it('renders a numbered terminal list and returns the chosen value', async () => {
-    const input = Object.assign(new PassThrough(), { isTTY: true });
-    const output = Object.assign(new PassThrough(), { isTTY: true });
-    let rendered = '';
-    output.on('data', chunk => {
-      rendered += String(chunk);
-    });
-    const select = createTerminalSelector(input, output);
-    const selected = select('Select an engine', [
-      { value: 'engine-1', label: 'Engine 1' },
-      { value: 'engine-2', label: 'Engine 2' },
-    ]);
-
-    input.end('2\n');
-
-    await expect(selected).resolves.toBe('engine-2');
-    expect(rendered).toContain('1. Engine 1');
-    expect(rendered).toContain('2. Engine 2');
   });
 });

@@ -113,14 +113,28 @@ view snapshots through the **Copy Link** action. See
 and command-line creation and decoding examples.
 
 The question CLI answers registered analysis questions and emits a supporting
-deep link. Omit engine, query, or required resource IDs in an interactive
-terminal to select them from Quent API results:
+deep link. Omit engine, query, or required resource IDs to use the searchable
+Ink interface. Query selection walks through engine, query group, and query:
 
 ```bash
 pixi run pnpm --dir ui ask longest-resource-users
 ```
 
 Pass all IDs explicitly for scripts and other non-interactive callers.
+
+The query-diff CLI compares two query bundles and prints numeric operator
+statistics and active-span deltas aggregated by logical or physical operator
+type:
+
+```bash
+pixi run pnpm --dir ui ask query-diff
+```
+
+Query and engine IDs can also be supplied with `--baseline-query`,
+`--candidate-query`, `--baseline-engine`, and `--candidate-engine`. Omitted
+engines are selected independently; `--engine` explicitly uses one engine for
+both queries. Deltas are candidate minus baseline. The renderer-independent
+comparison logic is exported by `@quent/query-diff` for CLI and browser use.
 
 ## API Integration
 
