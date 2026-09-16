@@ -15,10 +15,7 @@ export function SelectionPrompt({ prompt, choices }: SelectionPromptProps) {
   const { exit } = useApp();
   const [filter, setFilter] = React.useState('');
   const [selectedIndex, setSelectedIndex] = React.useState(0);
-  const filtered = React.useMemo(
-    () => filterSelectionChoices(choices, filter),
-    [choices, filter]
-  );
+  const filtered = React.useMemo(() => filterSelectionChoices(choices, filter), [choices, filter]);
   const boundedIndex = Math.min(selectedIndex, Math.max(0, filtered.length - 1));
   const visible = selectionWindow(filtered, boundedIndex);
 

@@ -22,14 +22,18 @@ export interface QueryDiffRow {
 
 export interface QueryDiffResult {
   baseline: { engineId: string | null; queryId: string; durationSeconds: number };
-  candidate: { engineId: string | null; queryId: string; durationSeconds: number };
-  rows: QueryDiffRow[];
+  comparisons: QueryDiffComparison[];
   limitations: string[];
 }
 
-export interface QueryDiffEngines {
-  baselineEngineId: string;
-  candidateEngineId: string;
+export interface QueryDiffComparison {
+  candidate: { engineId: string | null; queryId: string; durationSeconds: number };
+  rows: QueryDiffRow[];
+}
+
+export interface QueryDiffBundle {
+  engineId?: string | null;
+  bundle: QueryBundle<EntityRef>;
 }
 
 interface AggregatedMetric {
@@ -178,15 +182,12 @@ function deltaPercent(baseline: NumericValue, candidate: NumericValue): number |
   return ((candidateNumber - baselineNumber) / Math.abs(baselineNumber)) * 100;
 }
 
-export function diffQueryBundles(
-  baselineBundle: QueryBundle<EntityRef>,
-  candidateBundle: QueryBundle<EntityRef>,
-  engines?: QueryDiffEngines
-): QueryDiffResult {
-  const baseline = aggregateBundle(baselineBundle);
-  const candidate = aggregateBundle(candidateBundle);
+function compareAggregates(
+  baseline: Map<string, AggregatedMetric>,
+  candidate: Map<string, AggregatedMetric>
+): QueryDiffRow[] {
   const keys = new Set([...baseline.keys(), ...candidate.keys()]);
-  const rows = [...keys]
+  return [...keys]
     .map(key => {
       const baselineMetric = baseline.get(key);
       const candidateMetric = candidate.get(key);
@@ -220,19 +221,31 @@ export function diffQueryBundles(
         left.metric.localeCompare(right.metric) ||
         (left.quantity ?? '').localeCompare(right.quantity ?? '')
     );
+}
+
+export function diffQueryBundles(
+  baseline: QueryDiffBundle,
+  candidates: readonly QueryDiffBundle[]
+): QueryDiffResult {
+  if (candidates.length === 0) {
+    throw new Error('At least one candidate query bundle is required.');
+  }
+  const baselineMetrics = aggregateBundle(baseline.bundle);
 
   return {
     baseline: {
-      engineId: engines?.baselineEngineId ?? null,
-      queryId: baselineBundle.query_id,
-      durationSeconds: baselineBundle.duration_s,
+      engineId: baseline.engineId ?? null,
+      queryId: baseline.bundle.query_id,
+      durationSeconds: baseline.bundle.duration_s,
     },
-    candidate: {
-      engineId: engines?.candidateEngineId ?? null,
-      queryId: candidateBundle.query_id,
-      durationSeconds: candidateBundle.duration_s,
-    },
-    rows,
+    comparisons: candidates.map(candidate => ({
+      candidate: {
+        engineId: candidate.engineId ?? null,
+        queryId: candidate.bundle.query_id,
+        durationSeconds: candidate.bundle.duration_s,
+      },
+      rows: compareAggregates(baselineMetrics, aggregateBundle(candidate.bundle)),
+    })),
     limitations: [
       'Operator metrics are summed by type; the result does not align individual operator instances.',
       'active_span_s includes idle gaps and is not CPU or GPU execution time.',

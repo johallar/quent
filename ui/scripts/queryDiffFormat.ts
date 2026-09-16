@@ -3,6 +3,7 @@
 
 import {
   ACTIVE_SPAN_METRIC,
+  type QueryDiffComparison,
   type QueryDiffResult,
   type QueryDiffRow,
   type SerializedNumericValue,
@@ -110,16 +111,26 @@ export function formatQueryDiff(
   const baselineId = result.baseline.engineId
     ? `${result.baseline.engineId} / ${result.baseline.queryId}`
     : result.baseline.queryId;
-  const candidateId = result.candidate.engineId
-    ? `${result.candidate.engineId} / ${result.candidate.queryId}`
-    : result.candidate.queryId;
+  const formatComparison = (comparison: QueryDiffComparison, index: number) => {
+    const candidateId = comparison.candidate.engineId
+      ? `${comparison.candidate.engineId} / ${comparison.candidate.queryId}`
+      : comparison.candidate.queryId;
+    return [
+      `Candidate ${index + 1}: ${candidateId} (${comparison.candidate.durationSeconds}s)`,
+      '',
+      comparison.rows.length > 0
+        ? renderGroupedTables(comparison.rows, options.color ?? false)
+        : 'No numeric operator metrics found.',
+    ];
+  };
   const lines = [
     `Baseline: ${baselineId} (${result.baseline.durationSeconds}s)`,
-    `Candidate: ${candidateId} (${result.candidate.durationSeconds}s)`,
+    `Candidates: ${result.comparisons.length}`,
     '',
-    result.rows.length > 0
-      ? renderGroupedTables(result.rows, options.color ?? false)
-      : 'No numeric operator metrics found.',
+    ...result.comparisons.flatMap((comparison, index) => [
+      ...formatComparison(comparison, index),
+      ...(index < result.comparisons.length - 1 ? ['', '═'.repeat(72), ''] : []),
+    ]),
     '',
     'Delta = candidate - baseline.',
     '',

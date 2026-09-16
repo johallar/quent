@@ -112,17 +112,21 @@ describe('query bundle diff', () => {
       ),
     ]);
 
-    const result = diffQueryBundles(baseline, candidate, {
-      baselineEngineId: 'engine-old',
-      candidateEngineId: 'engine-new',
-    });
+    const result = diffQueryBundles({ engineId: 'engine-old', bundle: baseline }, [
+      { engineId: 'engine-new', bundle: candidate },
+    ]);
 
     expect(result).toMatchObject({
       baseline: { engineId: 'engine-old', queryId: 'baseline', durationSeconds: 10 },
-      candidate: { engineId: 'engine-new', queryId: 'candidate', durationSeconds: 12 },
+      comparisons: [
+        {
+          candidate: { engineId: 'engine-new', queryId: 'candidate', durationSeconds: 12 },
+        },
+      ],
     });
+    const rows = result.comparisons[0]!.rows;
     expect(
-      result.rows.find(
+      rows.find(
         row =>
           row.scope === 'logical' && row.operatorType === 'Scan' && row.metric === 'output_rows'
       )
@@ -137,7 +141,7 @@ describe('query bundle diff', () => {
       deltaPercent: 50,
     });
     expect(
-      result.rows.find(
+      rows.find(
         row =>
           row.scope === 'physical' &&
           row.operatorType === 'HashJoin' &&
@@ -150,7 +154,7 @@ describe('query bundle diff', () => {
       deltaPercent: 20,
     });
     expect(
-      result.rows.find(
+      rows.find(
         row =>
           row.scope === 'physical' &&
           row.operatorType === 'HashJoin' &&
@@ -162,7 +166,7 @@ describe('query bundle diff', () => {
       delta: '20',
     });
     expect(
-      result.rows.find(
+      rows.find(
         row =>
           row.scope === 'logical' && row.operatorType === 'Join' && row.metric === 'output_rows'
       )
@@ -172,7 +176,7 @@ describe('query bundle diff', () => {
       delta: '20',
     });
     expect(
-      result.rows.find(
+      rows.find(
         row =>
           row.scope === 'physical' &&
           row.operatorType === 'HashJoin' &&
@@ -184,19 +188,20 @@ describe('query bundle diff', () => {
       delta: 10,
       deltaPercent: null,
     });
-    expect(result.rows.some(row => row.metric === 'label')).toBe(false);
+    expect(rows.some(row => row.metric === 'label')).toBe(false);
   });
 
   it('shows unavailable values without manufacturing a delta', () => {
-    const result = diffQueryBundles(
-      bundle('baseline', 10, []),
-      bundle('candidate', 10, [
-        operator('aggregate', 'logical', 'Aggregate', 2, {
-          output_rows: { value: 8n, quantity: 'rows' },
-        }),
-      ])
-    );
-    const outputRows = result.rows.find(row => row.metric === 'output_rows');
+    const result = diffQueryBundles({ bundle: bundle('baseline', 10, []) }, [
+      {
+        bundle: bundle('candidate', 10, [
+          operator('aggregate', 'logical', 'Aggregate', 2, {
+            output_rows: { value: 8n, quantity: 'rows' },
+          }),
+        ]),
+      },
+    ]);
+    const outputRows = result.comparisons[0]!.rows.find(row => row.metric === 'output_rows');
 
     expect(outputRows).toMatchObject({
       baseline: null,
@@ -217,19 +222,35 @@ describe('query bundle diff', () => {
       selectivity: { value: 0.3, quantity: null },
     });
 
+    const result = diffQueryBundles({ bundle: bundle('baseline', 1, [first, second, third]) }, [
+      { bundle: bundle('candidate', 1, [third, first, second]) },
+    ]);
+
+    expect(result.comparisons[0]!.rows.every(row => row.delta === 0 || row.delta === '0')).toBe(
+      true
+    );
+  });
+
+  it('compares any number of candidates against one baseline', () => {
     const result = diffQueryBundles(
-      bundle('baseline', 1, [first, second, third]),
-      bundle('candidate', 1, [third, first, second])
+      { engineId: 'baseline-engine', bundle: bundle('baseline', 1, []) },
+      [
+        { engineId: 'engine-1', bundle: bundle('candidate-1', 2, []) },
+        { engineId: 'engine-2', bundle: bundle('candidate-2', 3, []) },
+      ]
     );
 
-    expect(result.rows.every(row => row.delta === 0 || row.delta === '0')).toBe(true);
+    expect(result.comparisons.map(comparison => comparison.candidate)).toEqual([
+      { engineId: 'engine-1', queryId: 'candidate-1', durationSeconds: 2 },
+      { engineId: 'engine-2', queryId: 'candidate-2', durationSeconds: 3 },
+    ]);
   });
 
   it('rejects operators whose plan is unavailable', () => {
     const invalid = bundle('invalid', 10, [operator('orphan', 'missing-plan', 'Scan', 1, {})]);
 
-    expect(() => diffQueryBundles(invalid, bundle('candidate', 10, []))).toThrow(
-      'does not reference an available plan'
-    );
+    expect(() =>
+      diffQueryBundles({ bundle: invalid }, [{ bundle: bundle('candidate', 10, []) }])
+    ).toThrow('does not reference an available plan');
   });
 });

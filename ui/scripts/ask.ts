@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { askUsage, getAskCommand } from './askCommands';
+import { machineError, serializeMachineOutput } from './machineOutput';
 
 const [commandId, ...args] = process.argv.slice(2);
 let selectedUsage = askUsage;
@@ -18,8 +19,12 @@ try {
     }
   }
 } catch (error) {
-  process.stderr.write(
-    `${error instanceof Error ? error.message : String(error)}\n\n${selectedUsage}\n`
-  );
+  if (args.includes('--json')) {
+    process.stderr.write(serializeMachineOutput(machineError(commandId ?? null, error)));
+  } else {
+    process.stderr.write(
+      `${error instanceof Error ? error.message : String(error)}\n\n${selectedUsage}\n`
+    );
+  }
   process.exitCode = 1;
 }
