@@ -26,6 +26,7 @@ export interface QuerySelection {
 }
 
 export interface QueryTreeChoice extends SelectionChoice {
+  sourceId?: string;
   engineId: string;
   engineLabel: string;
   queryId: string;

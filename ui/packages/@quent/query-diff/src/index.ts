@@ -21,18 +21,29 @@ export interface QueryDiffRow {
 }
 
 export interface QueryDiffResult {
-  baseline: { engineId: string | null; queryId: string; durationSeconds: number };
+  baseline: {
+    source?: string;
+    engineId: string | null;
+    queryId: string;
+    durationSeconds: number;
+  };
   comparisons: QueryDiffComparison[];
   metrics: string[];
   limitations: string[];
 }
 
 export interface QueryDiffComparison {
-  candidate: { engineId: string | null; queryId: string; durationSeconds: number };
+  candidate: {
+    source?: string;
+    engineId: string | null;
+    queryId: string;
+    durationSeconds: number;
+  };
   rows: QueryDiffRow[];
 }
 
 export interface QueryDiffBundle {
+  source?: string;
   engineId?: string | null;
   bundle: QueryBundle<EntityRef>;
 }
@@ -262,6 +273,7 @@ export function diffQueryBundles(
   const selectedMetrics = options.metrics ? new Set(options.metrics) : undefined;
   const comparisons = candidates.map(candidate => ({
     candidate: {
+      ...(candidate.source ? { source: candidate.source } : {}),
       engineId: candidate.engineId ?? null,
       queryId: candidate.bundle.query_id,
       durationSeconds: candidate.bundle.duration_s,
@@ -271,6 +283,7 @@ export function diffQueryBundles(
 
   return {
     baseline: {
+      ...(baseline.source ? { source: baseline.source } : {}),
       engineId: baseline.engineId ?? null,
       queryId: baseline.bundle.query_id,
       durationSeconds: baseline.bundle.duration_s,

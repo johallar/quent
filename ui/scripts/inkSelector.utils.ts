@@ -28,6 +28,7 @@ export function filterQueryTreeChoices(
   }
   return choices.filter(choice =>
     [
+      choice.sourceId,
       choice.engineLabel,
       choice.engineId,
       choice.queryGroupLabel,

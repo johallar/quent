@@ -246,6 +246,16 @@ describe('query bundle diff', () => {
     ]);
   });
 
+  it('preserves optional source provenance', () => {
+    const result = diffQueryBundles(
+      { source: 'local', engineId: 'engine', bundle: bundle('baseline', 1, []) },
+      [{ source: 'db 6647', engineId: 'engine', bundle: bundle('candidate', 1, []) }]
+    );
+
+    expect(result.baseline.source).toBe('local');
+    expect(result.comparisons[0]!.candidate.source).toBe('db 6647');
+  });
+
   it('intersects available metrics and filters comparisons', () => {
     const baseline = bundle('baseline', 1, [
       operator('baseline-scan', 'logical', 'Scan', null, {

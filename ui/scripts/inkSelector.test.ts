@@ -7,6 +7,7 @@ import { renderToString } from 'ink';
 import { MultiSelectionPrompt } from './inkMultiSelectionPrompt';
 import { QueryTreePrompt } from './inkQueryTreePrompt';
 import { SelectionPrompt } from './inkSelectionPrompt';
+import { TextPrompt } from './inkTextPrompt';
 import {
   filterQueryTreeChoices,
   filterSelectionChoices,
@@ -86,6 +87,22 @@ describe('Ink selector', () => {
     expect(output).toContain('○ All metrics (2)');
     expect(output).toContain('○ output_rows');
     expect(output).toContain('space toggle');
+  });
+
+  it('renders a database run text prompt', async () => {
+    let output = '';
+    await act(() => {
+      output = renderToString(
+        createElement(TextPrompt, {
+          prompt: 'Enter database run IDs',
+          placeholder: 'comma-separated, e.g. 6647, 6650',
+        })
+      );
+    });
+
+    expect(output).toContain('Enter database run IDs');
+    expect(output).toContain('6647, 6650');
+    expect(output).toContain('enter confirm');
   });
 
   it('filters case-insensitively across labels and IDs', () => {
