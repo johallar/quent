@@ -13,8 +13,8 @@ and a query-relative time window.
 The implementation uses the existing Quent model:
 
 - Resources and resource groups organize the resource tree. The first command
-  accepts a leaf resource; resource-group scope remains an API-supported next
-  step.
+  accepts a leaf resource or presents query-bundle resources for selection;
+  resource-group scope remains an API-supported next step.
 - Resource capacities retain their analyzer-declared occupancy or rate
   semantics. The first command does not inspect capacity values.
 - Channel resources remain ordinary typed Quent resources. The CLI does not
@@ -35,16 +35,20 @@ bounds, saved analyses, cross-query comparison, and inferred causal claims.
 
 `longest-resource-users` requires:
 
-1. `GET /engines/{engine}/query/{query}` to obtain the query bundle.
-2. A resource ID present in `entities.resources`.
-3. At least one FSM type declared as a user of the resource type, unless an
+1. `GET /engines`, query-group listing, and query listing when engine or query
+   IDs are omitted.
+2. `GET /engines/{engine}/query/{query}` to obtain the query bundle.
+3. A resource ID present in `entities.resources`, selected interactively when
+   omitted.
+4. At least one FSM type declared as a user of the resource type, unless an
    explicit entity type is supplied.
-4. `POST /engines/{engine}/entities` with resource, entity-type, operator,
+5. `POST /engines/{engine}/entities` with resource, entity-type, operator,
    window, descending usage-duration, and page filters.
 
-The query bundle is fetched first. It supplies query duration, resources,
-resource types, FSM declarations, operators, plans, capacities, and the
-resource tree used for validation and labeling.
+The CLI resolves a missing engine first, then flattens queries across that
+engine's query groups. After fetching the chosen query bundle, it resolves a
+missing resource from `entities.resources`. Explicit IDs skip their
+corresponding list requests, which preserves non-interactive automation.
 
 ## Architecture
 
@@ -73,9 +77,9 @@ Initial command:
 
 ```sh
 pixi run pnpm --dir ui ask longest-resource-users \
-  --engine ENGINE \
-  --query QUERY \
-  --resource RESOURCE \
+  [--engine ENGINE] \
+  [--query QUERY] \
+  [--resource RESOURCE] \
   [--entity-type FSM_TYPE] \
   [--operator OPERATOR_ID[,OPERATOR_ID...]] \
   [--start SECONDS] \
@@ -88,7 +92,9 @@ pixi run pnpm --dir ui ask longest-resource-users \
 
 Defaults are the whole query window, the resource type's sole `used_by` FSM
 type when unambiguous, no operator filter, ten results, and
-`http://localhost:8000/api`.
+`http://localhost:8000/api`. Missing engine, query, and required resource IDs
+open numbered selection lists backed by the Quent API. A non-interactive caller
+must pass all required IDs.
 
 ## Evidence classification
 
@@ -129,13 +135,15 @@ Focused tests cover:
 - human and JSON-stable result fields
 - generated deep-link decode and restored evidence filters
 - registry lookup and unknown question handling
+- API-backed engine, query, and resource discovery with deterministic choices
+- explicit-ID bypass and non-interactive failure behavior
 
 Validation uses Pixi for focused Vitest, TypeScript, ESLint, and Prettier
 checks. Browser automation is not used.
 
 Completed validation:
 
-- focused Vitest: 4 tests passed
+- focused Vitest: 8 tests passed across registry and interactive selection
 - UI TypeScript typecheck: passed
 - focused ESLint: passed
 - focused Prettier check: passed
@@ -159,6 +167,26 @@ Completed validation:
   response, and capacity bounds are not exposed.
 - Deep-link state has no shareable analysis annotation.
 
+## Integration notes
+
+- This branch is stacked on the entities-v3 deep-link commits `a3f4b79ff` and
+  `f28a97211`; land those first or include the complete stack so generated
+  entity links restore correctly.
+- Discovery calls the existing engine, query-group, query, and query-bundle
+  endpoints. It adds no API schema and explicit IDs retain automation behavior.
+- Merge the timeline-annotations work before adding annotated CLI answers. The
+  current command intentionally emits a valid v3 entities link; a future
+  question can target v4 and attach its point/range finding without replacing
+  the shared codec.
+- Channel endpoint metadata can enable channel-direction questions after the
+  channel-flow branch lands. The CLI must use typed `channel_endpoints`, not
+  resource names, to classify channels.
+- Resource-hotspot questions should reuse the heatmap's exact capacity tuple
+  and the selected-window summary calculations instead of implementing a
+  second interpretation of occupancy, observed rate, or integrated work.
+- Expected merge overlap is limited to `ui/package.json` and future deep-link
+  imports. Preserve all added scripts and keep versioned legacy link decoding.
+
 ## Next iterations
 
 1. Add resource-group scope to entities state and the entities UI, then allow
@@ -178,5 +206,6 @@ Completed validation:
 - [x] Inspected the v3 deep-link schema, codec, CLI, and tests.
 - [x] Chosen the exact entity-list vertical slice.
 - [x] Implemented the registry and `longest-resource-users`.
+- [x] Added API-backed selection for omitted engine, query, and resource IDs.
 - [x] Added focused request, result, validation, registry, and deep-link tests.
 - [x] Ran validation and recorded final gaps.

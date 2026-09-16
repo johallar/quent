@@ -2,13 +2,25 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { parseArgs } from 'node:util';
-import { fetchEntityList, fetchQueryBundle, setApiBaseUrl, type ApiClient } from '@quent/client';
+import {
+  fetchEntityList,
+  fetchListCoordinators,
+  fetchListEngines,
+  fetchListQueries,
+  fetchQueryBundle,
+  setApiBaseUrl,
+  type ApiClient,
+} from '@quent/client';
 import { getQuestion, questionRegistry } from '../src/features/question-cli/questionRegistry';
+import { createTerminalSelector, resolveAskSelections } from './askSelection';
 
 const usage = `Usage:
-  pnpm ask longest-resource-users --engine ID --query ID --resource ID [options]
+  pnpm ask longest-resource-users [--engine ID] [--query ID] [--resource ID] [options]
 
 Options:
+  --engine ID            Engine ID (select from API results when omitted)
+  --query ID             Query ID (select from API results when omitted)
+  --resource ID          Resource ID (select from the query bundle when omitted)
   --entity-type NAME     Restrict to one declared FSM entity type
   --operator IDS         Comma-separated operator IDs
   --start SECONDS        Query-relative window start (default: 0)
@@ -48,30 +60,36 @@ async function main() {
   if (!questionId || positionals.length !== 1) {
     fail('Expected exactly one question ID.');
   }
-  if (typeof values.engine !== 'string' || values.engine.trim() === '') {
-    fail('Missing --engine.');
-  }
-  if (typeof values.query !== 'string' || values.query.trim() === '') {
-    fail('Missing --query.');
-  }
   const question = getQuestion(questionId);
   const apiBase =
     values['api-base'] ?? process.env.QUENT_API_BASE_URL ?? 'http://localhost:8000/api';
   setApiBaseUrl(apiBase.replace(/\/+$/u, ''));
 
-  const queryBundle = await fetchQueryBundle(values.engine, values.query);
+  const selections = await resolveAskSelections({
+    values,
+    api: {
+      fetchListEngines,
+      fetchListCoordinators,
+      fetchListQueries,
+      fetchQueryBundle,
+    },
+    select: createTerminalSelector(),
+    requireResource: question.metadata.parameters.some(
+      parameter => parameter.name === 'resource' && parameter.required
+    ),
+  });
   const result = await question.run(
     {
-      engineId: values.engine,
-      queryId: values.query,
+      engineId: selections.engineId,
+      queryId: selections.queryId,
       ...(values.base ? { appBaseUrl: values.base } : {}),
-      queryBundle,
+      queryBundle: selections.queryBundle,
       api: {
         fetchEntityList: (engineId, request): ReturnType<ApiClient['fetchEntityList']> =>
           fetchEntityList(engineId, request),
       },
     },
-    values
+    selections.values
   );
   process.stdout.write(
     values.json ? `${JSON.stringify(result, null, 2)}\n` : `${question.formatHuman(result)}\n`

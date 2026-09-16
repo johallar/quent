@@ -112,6 +112,16 @@ view snapshots through the **Copy Link** action. See
 [Deep links](./docs/deep-links.md) for the stored state, compatibility policy,
 and command-line creation and decoding examples.
 
+The question CLI answers registered analysis questions and emits a supporting
+deep link. Omit engine, query, or required resource IDs in an interactive
+terminal to select them from Quent API results:
+
+```bash
+pixi run pnpm --dir ui ask longest-resource-users
+```
+
+Pass all IDs explicitly for scripts and other non-interactive callers.
+
 ## API Integration
 
 The application includes stub API functions in `src/services/api.ts`. These

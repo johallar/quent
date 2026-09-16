@@ -129,3 +129,16 @@ pixi run pnpm --dir ui deep-link decode 'URL'
 ```
 
 Agents should use these commands rather than recreating the compression format.
+
+For a computed answer plus its evidence link, run a registered question:
+
+```sh
+pixi run pnpm --dir ui ask longest-resource-users \
+  --engine ENGINE \
+  --query QUERY \
+  --resource RESOURCE \
+  --base http://localhost:5173
+```
+
+Interactive callers may omit the three IDs and select from API-backed lists.
+Non-interactive callers must provide them explicitly.
