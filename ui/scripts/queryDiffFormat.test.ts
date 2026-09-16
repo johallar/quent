@@ -13,31 +13,43 @@ describe('query diff terminal formatter', () => {
         queryId: 'query-1',
         durationSeconds: 10,
       },
-      candidate: {
-        engineId: 'engine-2',
-        queryId: 'query-2',
-        durationSeconds: 12,
-      },
-      rows: [
+      comparisons: [
         {
-          scope: 'logical',
-          operatorType: 'Scan',
-          metric: 'output_rows',
-          quantity: 'rows',
-          baseline: '100',
-          candidate: '150',
-          delta: '50',
-          deltaPercent: 50,
+          candidate: {
+            engineId: 'engine-2',
+            queryId: 'query-2',
+            durationSeconds: 12,
+          },
+          rows: [
+            {
+              scope: 'logical',
+              operatorType: 'Scan',
+              metric: 'output_rows',
+              quantity: 'rows',
+              baseline: '100',
+              candidate: '150',
+              delta: '50',
+              deltaPercent: 50,
+            },
+            {
+              scope: 'physical',
+              operatorType: 'Filter',
+              metric: 'active_span_s',
+              quantity: 'seconds',
+              baseline: 4,
+              candidate: 3,
+              delta: -1,
+              deltaPercent: -25,
+            },
+          ],
         },
         {
-          scope: 'physical',
-          operatorType: 'Filter',
-          metric: 'active_span_s',
-          quantity: 'seconds',
-          baseline: 4,
-          candidate: 3,
-          delta: -1,
-          deltaPercent: -25,
+          candidate: {
+            engineId: 'engine-3',
+            queryId: 'query-3',
+            durationSeconds: 14,
+          },
+          rows: [],
         },
       ],
       limitations: ['Example limitation.'],
@@ -46,6 +58,9 @@ describe('query diff terminal formatter', () => {
     const formatted = formatQueryDiff(result);
 
     expect(formatted).toContain('Baseline: engine-1 / query-1 (10s)');
+    expect(formatted).toContain('Candidates: 2');
+    expect(formatted).toContain('Candidate 1: engine-2 / query-2 (12s)');
+    expect(formatted).toContain('Candidate 2: engine-3 / query-3 (14s)');
     expect(formatted).toContain('Logical · Scan\n┌');
     expect(formatted).toContain('Physical · Filter\n┌');
     expect(formatted).toContain('│ Metric');

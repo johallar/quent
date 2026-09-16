@@ -122,6 +122,21 @@ pixi run pnpm --dir ui ask longest-resource-users
 
 Pass all IDs explicitly for scripts and other non-interactive callers.
 
+Agent and automation callers should discover IDs through versioned JSON:
+
+```bash
+pixi run pnpm --silent --dir ui ask engines --json
+pixi run pnpm --silent --dir ui ask query-groups --engine ENGINE_ID --json
+pixi run pnpm --silent --dir ui ask queries \
+  --engine ENGINE_ID --query-group QUERY_GROUP_ID --json
+```
+
+`--json` never opens Ink, even when the process owns a pseudo-terminal. It
+requires every selection explicitly, writes only its versioned result envelope
+to stdout, and reports a versioned error envelope on stderr with a nonzero exit
+code. `--silent` prevents pnpm's lifecycle messages from contaminating those
+streams.
+
 The query-diff CLI compares two query bundles and prints numeric operator
 statistics and active-span deltas aggregated by logical or physical operator
 type:
@@ -131,10 +146,12 @@ pixi run pnpm --dir ui ask query-diff
 ```
 
 Query and engine IDs can also be supplied with `--baseline-query`,
-`--candidate-query`, `--baseline-engine`, and `--candidate-engine`. Omitted
-engines are selected independently; `--engine` explicitly uses one engine for
-both queries. Deltas are candidate minus baseline. The renderer-independent
-comparison logic is exported by `@quent/query-diff` for CLI and browser use.
+`--baseline-engine`, and repeated `--candidate-query` options. Use repeated
+`--candidate ENGINE:QUERY` options when candidates span engines. Without
+explicit IDs, the Ink query tree selects one baseline and any number of
+candidates across all engines. Every comparison reports candidate-minus-
+baseline deltas. The renderer-independent comparison logic is exported by
+`@quent/query-diff` for CLI and browser use.
 
 ## API Integration
 

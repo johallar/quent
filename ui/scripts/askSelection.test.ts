@@ -6,10 +6,15 @@ import { describe, expect, it, vi } from 'vitest';
 import type { ApiClient } from '@quent/client';
 import type { EntityRef, QueryBundle } from '@quent/utils';
 import {
+  createNonInteractiveSelector,
   createTerminalSelector,
+  querySelectionKey,
   resolveAskSelections,
+  selectQueriesFromTree,
+  selectQueryGroup,
   selectQuery,
   type SelectFromList,
+  type SelectFromQueryTree,
 } from './askSelection';
 
 const queryBundle = {
@@ -186,6 +191,47 @@ describe('ask CLI selections', () => {
     ]);
   });
 
+  it('selects query groups independently for discovery commands', async () => {
+    const api = discoveryApi();
+    const select = vi.fn<SelectFromList>().mockResolvedValue('group-1');
+
+    await expect(selectQueryGroup(api, select, 'engine-2')).resolves.toBe('group-1');
+    expect(select).toHaveBeenCalledWith('Select a query group', [
+      { value: 'group-2', label: 'group-2' },
+      { value: 'group-1', label: 'Warehouse (group-1)' },
+    ]);
+  });
+
+  it('builds an all-engine query tree and returns multiple selections', async () => {
+    const api = discoveryApi();
+    const selectTree = vi
+      .fn<SelectFromQueryTree>()
+      .mockResolvedValue([
+        querySelectionKey('engine-2', 'query-1'),
+        querySelectionKey('engine-2', 'query-2'),
+      ]);
+
+    await expect(
+      selectQueriesFromTree(api, selectTree, 'Select candidates', true)
+    ).resolves.toEqual([
+      { engineId: 'engine-2', queryId: 'query-1' },
+      { engineId: 'engine-2', queryId: 'query-2' },
+    ]);
+    expect(selectTree).toHaveBeenCalledWith(
+      'Select candidates',
+      expect.arrayContaining([
+        expect.objectContaining({
+          engineId: 'engine-2',
+          engineLabel: 'Zeta Engine (engine-2)',
+          queryGroupId: 'group-1',
+          queryGroupLabel: 'Warehouse (group-1)',
+          queryId: 'query-2',
+        }),
+      ]),
+      true
+    );
+  });
+
   it('fails clearly when interactive selection is unavailable', async () => {
     const input = Object.assign(new PassThrough(), { isTTY: false });
     const output = Object.assign(new PassThrough(), { isTTY: false });
@@ -194,5 +240,13 @@ describe('ask CLI selections', () => {
     await expect(
       select('Select an engine', [{ value: 'engine-1', label: 'Engine 1' }])
     ).rejects.toThrow('requires an interactive terminal');
+  });
+
+  it('never opens a prompt in JSON mode', async () => {
+    const select = createNonInteractiveSelector();
+
+    await expect(select('Select an engine', [])).rejects.toThrow(
+      'Select an engine is required in JSON mode'
+    );
   });
 });

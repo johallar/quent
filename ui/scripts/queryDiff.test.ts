@@ -1,9 +1,18 @@
 // SPDX-FileCopyrightText: Copyright (c) 2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-import { describe, expect, it, vi } from 'vitest';
-import type { DiscoveryApi, SelectFromList } from './askSelection';
-import { resolveQueryDiffSelections } from './queryDiff';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { getApiClient, setApiClient, type ApiClient } from '@quent/client';
+import type { EntityRef, QueryBundle } from '@quent/utils';
+import type { DiscoveryApi, SelectFromList, SelectFromQueryTree } from './askSelection';
+import { queryDiffCommand, resolveQueryDiffSelections } from './queryDiff';
+
+const originalClient = getApiClient();
+
+afterEach(() => {
+  setApiClient(originalClient);
+  vi.restoreAllMocks();
+});
 
 function discoveryApi(): DiscoveryApi {
   return {
@@ -25,72 +34,139 @@ function discoveryApi(): DiscoveryApi {
 }
 
 describe('query diff selections', () => {
-  it('selects baseline and candidate engines independently', async () => {
-    const api = discoveryApi();
-    const select = vi.fn<SelectFromList>(async prompt => {
-      switch (prompt) {
-        case 'Select the baseline engine':
-          return 'engine-1';
-        case 'Select the baseline query group':
-          return 'group-engine-1';
-        case 'Select the baseline query':
-          return 'query-1';
-        case 'Select the candidate engine':
-          return 'engine-2';
-        case 'Select the candidate query group':
-          return 'group-engine-2';
-        case 'Select the candidate query':
-          return 'query-2';
-        default:
-          throw new Error(`Unexpected prompt: ${prompt}`);
-      }
-    });
-
-    await expect(resolveQueryDiffSelections({}, api, select)).resolves.toEqual({
-      baselineEngineId: 'engine-1',
-      baselineQueryId: 'query-1',
-      candidateEngineId: 'engine-2',
-      candidateQueryId: 'query-2',
-    });
-    expect(select.mock.calls.map(([prompt]) => prompt)).toEqual([
-      'Select the baseline engine',
-      'Select the baseline query group',
-      'Select the baseline query',
-      'Select the candidate engine',
-      'Select the candidate query group',
-      'Select the candidate query',
-    ]);
+  it('requires every selection explicitly in JSON mode', async () => {
+    await expect(queryDiffCommand.run(['--json'])).rejects.toThrow(
+      'JSON mode requires explicit --baseline-engine or --engine, --baseline-query, --candidate or --candidate-query'
+    );
   });
 
-  it('uses --engine for an explicit same-engine comparison', async () => {
+  it('selects the baseline and multiple candidates from the all-engine query tree', async () => {
     const api = discoveryApi();
-    vi.mocked(api.fetchListQueries).mockResolvedValue([
-      { id: 'query-1', instance_name: 'Old query' },
-      { id: 'query-2', instance_name: 'New query' },
-    ] as never);
-    const select = vi
-      .fn<SelectFromList>()
-      .mockResolvedValueOnce('group-engine-1')
-      .mockResolvedValueOnce('query-2');
+    const select = vi.fn<SelectFromList>();
+    const selectTree = vi
+      .fn<SelectFromQueryTree>()
+      .mockResolvedValueOnce(['engine-1\0query-1'])
+      .mockResolvedValueOnce(['engine-2\0query-2']);
+
+    await expect(resolveQueryDiffSelections({}, api, select, selectTree)).resolves.toEqual({
+      baseline: { engineId: 'engine-1', queryId: 'query-1' },
+      candidates: [{ engineId: 'engine-2', queryId: 'query-2' }],
+    });
+    expect(select).not.toHaveBeenCalled();
+    expect(selectTree).toHaveBeenNthCalledWith(
+      1,
+      'Select the baseline query',
+      expect.any(Array),
+      false
+    );
+    expect(selectTree).toHaveBeenNthCalledWith(
+      2,
+      'Select candidate queries',
+      expect.any(Array),
+      true
+    );
+  });
+
+  it('accepts any number of candidate query IDs on one engine', async () => {
+    const api = discoveryApi();
+    const select = vi.fn<SelectFromList>();
+    const selectTree = vi.fn<SelectFromQueryTree>();
 
     await expect(
-      resolveQueryDiffSelections({ engine: 'engine-1', 'baseline-query': 'query-1' }, api, select)
+      resolveQueryDiffSelections(
+        {
+          engine: 'engine-1',
+          'baseline-query': 'query-1',
+          'candidate-query': ['query-2', 'query-3', 'query-4'],
+        },
+        api,
+        select,
+        selectTree
+      )
     ).resolves.toEqual({
-      baselineEngineId: 'engine-1',
-      baselineQueryId: 'query-1',
-      candidateEngineId: 'engine-1',
-      candidateQueryId: 'query-2',
+      baseline: { engineId: 'engine-1', queryId: 'query-1' },
+      candidates: [
+        { engineId: 'engine-1', queryId: 'query-2' },
+        { engineId: 'engine-1', queryId: 'query-3' },
+        { engineId: 'engine-1', queryId: 'query-4' },
+      ],
     });
     expect(api.fetchListEngines).not.toHaveBeenCalled();
-    expect(select).toHaveBeenNthCalledWith(
-      1,
-      'Select the candidate query group',
-      expect.any(Array)
-    );
-    expect(select).toHaveBeenNthCalledWith(
-      2,
-      'Select the candidate query',
-      expect.not.arrayContaining([expect.objectContaining({ value: 'query-1' })])
+    expect(select).not.toHaveBeenCalled();
+    expect(selectTree).not.toHaveBeenCalled();
+  });
+
+  it('accepts repeatable qualified candidates across engines', async () => {
+    const api = discoveryApi();
+
+    await expect(
+      resolveQueryDiffSelections(
+        {
+          'baseline-engine': 'engine-1',
+          'baseline-query': 'query-1',
+          candidate: ['engine-2:query-2', 'engine-3:query-3'],
+        },
+        api,
+        vi.fn<SelectFromList>(),
+        vi.fn<SelectFromQueryTree>()
+      )
+    ).resolves.toEqual({
+      baseline: { engineId: 'engine-1', queryId: 'query-1' },
+      candidates: [
+        { engineId: 'engine-2', queryId: 'query-2' },
+        { engineId: 'engine-3', queryId: 'query-3' },
+      ],
+    });
+  });
+
+  it('fetches and emits every candidate through the JSON command', async () => {
+    const fetch = vi.fn(async (_engineId: string, queryId: string) => {
+      return {
+        query_id: queryId,
+        duration_s: 1,
+        entities: { operators: {}, plans: {} },
+      } as unknown as QueryBundle<EntityRef>;
+    });
+    setApiClient({ fetchQueryBundle: fetch } as unknown as ApiClient);
+    const write = vi.spyOn(process.stdout, 'write').mockImplementation(() => true);
+
+    await queryDiffCommand.run([
+      '--engine',
+      'engine-1',
+      '--baseline-query',
+      'query-1',
+      '--candidate-query',
+      'query-2',
+      '--candidate-query',
+      'query-3',
+      '--json',
+    ]);
+
+    expect(fetch.mock.calls).toEqual([
+      ['engine-1', 'query-1'],
+      ['engine-1', 'query-2'],
+      ['engine-1', 'query-3'],
+    ]);
+    const output = JSON.parse(String(write.mock.calls[0]![0]));
+    expect(output.schemaVersion).toBe(2);
+    expect(output.data.comparisons).toHaveLength(2);
+  });
+
+  it('requires candidate engine counts to be unambiguous', async () => {
+    await expect(
+      resolveQueryDiffSelections(
+        {
+          'baseline-engine': 'engine-1',
+          'baseline-query': 'query-1',
+          'candidate-engine': ['engine-2', 'engine-3'],
+          'candidate-query': ['query-2', 'query-3', 'query-4'],
+        },
+        discoveryApi(),
+        vi.fn<SelectFromList>(),
+        vi.fn<SelectFromQueryTree>()
+      )
+    ).rejects.toThrow(
+      'Pass one --candidate-engine for all candidate queries or one --candidate-engine per query.'
     );
   });
 });

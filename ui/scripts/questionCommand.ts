@@ -13,7 +13,12 @@ import {
 } from '@quent/client';
 import type { RegisteredQuestion } from '../src/features/question-cli/question.types';
 import type { AskCommand } from './askCommand.types';
-import { createTerminalSelector, resolveAskSelections } from './askSelection';
+import {
+  createNonInteractiveSelector,
+  createTerminalSelector,
+  resolveAskSelections,
+} from './askSelection';
+import { machineResult, serializeMachineOutput } from './machineOutput';
 
 function usage(question: RegisteredQuestion): string {
   return `Usage:
@@ -30,7 +35,7 @@ Options:
   --limit COUNT          Maximum results, 1-500 (default: 10)
   --api-base URL         API base (default: QUENT_API_BASE_URL or http://localhost:8080/api)
   --base URL             Quent UI base for an absolute deep link
-  --json                 Emit machine-readable JSON`;
+  --json                 Emit versioned JSON; never open interactive prompts`;
 }
 
 export function createQuestionCommand(question: RegisteredQuestion): AskCommand {
@@ -60,6 +65,21 @@ export function createQuestionCommand(question: RegisteredQuestion): AskCommand 
         values['api-base'] ?? process.env.QUENT_API_BASE_URL ?? 'http://localhost:8080/api';
       setApiBaseUrl(apiBase.replace(/\/+$/u, ''));
 
+      const requireResource = question.metadata.parameters.some(
+        parameter => parameter.name === 'resource' && parameter.required
+      );
+      if (values.json) {
+        const missing = [
+          !values.engine && '--engine',
+          !values.query && '--query',
+          requireResource && !values.resource && '--resource',
+        ].filter((option): option is string => Boolean(option));
+        if (missing.length > 0) {
+          throw new Error(
+            `JSON mode requires explicit ${missing.join(', ')}. Use the discovery commands to find IDs.`
+          );
+        }
+      }
       const selections = await resolveAskSelections({
         values,
         api: {
@@ -68,10 +88,8 @@ export function createQuestionCommand(question: RegisteredQuestion): AskCommand 
           fetchListQueries,
           fetchQueryBundle,
         },
-        select: createTerminalSelector(),
-        requireResource: question.metadata.parameters.some(
-          parameter => parameter.name === 'resource' && parameter.required
-        ),
+        select: values.json ? createNonInteractiveSelector() : createTerminalSelector(),
+        requireResource,
       });
       const result = await question.run(
         {
@@ -87,7 +105,9 @@ export function createQuestionCommand(question: RegisteredQuestion): AskCommand 
         selections.values
       );
       process.stdout.write(
-        values.json ? `${JSON.stringify(result, null, 2)}\n` : `${question.formatHuman(result)}\n`
+        values.json
+          ? serializeMachineOutput(machineResult(question.metadata.id, result))
+          : `${question.formatHuman(result)}\n`
       );
     },
   };

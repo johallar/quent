@@ -3,10 +3,15 @@
 
 import { questionRegistry } from '../src/features/question-cli/questionRegistry';
 import type { AskCommand } from './askCommand.types';
+import { discoveryCommands } from './discoveryCommands';
 import { createQuestionCommand } from './questionCommand';
 import { queryDiffCommand } from './queryDiff';
 
-const commands = [...[...questionRegistry.values()].map(createQuestionCommand), queryDiffCommand];
+const commands = [
+  ...discoveryCommands,
+  ...[...questionRegistry.values()].map(createQuestionCommand),
+  queryDiffCommand,
+];
 
 export const askCommandRegistry: ReadonlyMap<string, AskCommand> = new Map(
   commands.map(command => [command.id, command])
