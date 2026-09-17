@@ -20,6 +20,8 @@ export interface QueryDiffRow {
   deltaPercent: number | null;
 }
 
+export type QueryDiffSummary = Omit<QueryDiffRow, 'operatorType'>;
+
 export interface QueryDiffResult {
   baseline: {
     source?: string;
@@ -39,6 +41,7 @@ export interface QueryDiffComparison {
     queryId: string;
     durationSeconds: number;
   };
+  summary: QueryDiffSummary[];
   rows: QueryDiffRow[];
 }
 
@@ -261,6 +264,42 @@ function compareAggregates(
     );
 }
 
+function summarizeAggregates(
+  aggregates: ReadonlyMap<string, AggregatedMetric>
+): Map<string, AggregatedMetric> {
+  const summaries = new Map<string, AggregatedMetric>();
+  for (const aggregate of aggregates.values()) {
+    const key = metricKey(aggregate.scope, 'All operators', aggregate.metric, aggregate.quantity);
+    const current = summaries.get(key);
+    summaries.set(key, {
+      ...aggregate,
+      operatorType: 'All operators',
+      value: current ? addNumeric(current.value, aggregate.value) : aggregate.value,
+    });
+  }
+  return summaries;
+}
+
+function compareSummaries(
+  baseline: ReadonlyMap<string, AggregatedMetric>,
+  candidate: ReadonlyMap<string, AggregatedMetric>,
+  metrics?: ReadonlySet<string>
+): QueryDiffSummary[] {
+  return compareAggregates(
+    summarizeAggregates(baseline),
+    summarizeAggregates(candidate),
+    metrics
+  ).map(row => ({
+    scope: row.scope,
+    metric: row.metric,
+    quantity: row.quantity,
+    baseline: row.baseline,
+    candidate: row.candidate,
+    delta: row.delta,
+    deltaPercent: row.deltaPercent,
+  }));
+}
+
 export function diffQueryBundles(
   baseline: QueryDiffBundle,
   candidates: readonly QueryDiffBundle[],
@@ -271,15 +310,19 @@ export function diffQueryBundles(
   }
   const baselineMetrics = aggregateBundle(baseline.bundle);
   const selectedMetrics = options.metrics ? new Set(options.metrics) : undefined;
-  const comparisons = candidates.map(candidate => ({
-    candidate: {
-      ...(candidate.source ? { source: candidate.source } : {}),
-      engineId: candidate.engineId ?? null,
-      queryId: candidate.bundle.query_id,
-      durationSeconds: candidate.bundle.duration_s,
-    },
-    rows: compareAggregates(baselineMetrics, aggregateBundle(candidate.bundle), selectedMetrics),
-  }));
+  const comparisons = candidates.map(candidate => {
+    const candidateMetrics = aggregateBundle(candidate.bundle);
+    return {
+      candidate: {
+        ...(candidate.source ? { source: candidate.source } : {}),
+        engineId: candidate.engineId ?? null,
+        queryId: candidate.bundle.query_id,
+        durationSeconds: candidate.bundle.duration_s,
+      },
+      summary: compareSummaries(baselineMetrics, candidateMetrics, selectedMetrics),
+      rows: compareAggregates(baselineMetrics, candidateMetrics, selectedMetrics),
+    };
+  });
 
   return {
     baseline: {
@@ -300,6 +343,7 @@ export function diffQueryBundles(
       'A missing metric is shown as unavailable and does not receive a numeric delta.',
       'Logical rows roll physical metrics up through parent_operator_ids; standalone logical operators use direct metrics.',
       'Physical operators with multiple logical parent types use one composite logical type.',
+      'Summary totals are separate logical and physical views and must not be added together.',
     ],
   };
 }

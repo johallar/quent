@@ -189,6 +189,22 @@ describe('query bundle diff', () => {
       deltaPercent: null,
     });
     expect(rows.some(row => row.metric === 'label')).toBe(false);
+
+    const summary = result.comparisons[0]!.summary;
+    expect(
+      summary.find(row => row.scope === 'logical' && row.metric === 'output_rows')
+    ).toMatchObject({
+      baseline: '220',
+      candidate: '315',
+      delta: '95',
+    });
+    expect(
+      summary.find(row => row.scope === 'physical' && row.metric === 'output_rows')
+    ).toMatchObject({
+      baseline: '120',
+      candidate: '140',
+      delta: '20',
+    });
   });
 
   it('shows unavailable values without manufacturing a delta', () => {
@@ -276,6 +292,7 @@ describe('query bundle diff', () => {
     });
     expect(result.metrics).toEqual(['output_rows']);
     expect(result.comparisons[0]!.rows.every(row => row.metric === 'output_rows')).toBe(true);
+    expect(result.comparisons[0]!.summary.every(row => row.metric === 'output_rows')).toBe(true);
   });
 
   it('rejects operators whose plan is unavailable', () => {

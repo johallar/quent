@@ -152,7 +152,9 @@ explicit IDs, the Ink query tree selects one baseline and any number of
 candidates across all engines. A second multiselect offers only metrics present
 in every selected query, including an **All metrics** option. Automation can
 repeat `--metric` or pass `--metric all`. Every comparison reports
-candidate-minus-baseline deltas. The renderer-independent comparison logic is
+candidate-minus-baseline deltas, summary totals by plan type, and a combined
+operator table with Plan and Operator columns. Pass `--no-combined-table` for
+separate per-operator tables. The renderer-independent comparison logic is
 exported by `@quent/query-diff` for CLI and browser use.
 
 Database telemetry is an optional source:

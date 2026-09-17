@@ -43,6 +43,7 @@ Options:
   --candidate ENGINE:QUERY
                           Qualified candidate; repeat for cross-engine comparison
   --metric NAME           Metric to compare; repeat or pass "all"
+  --[no-]combined-table   Combine operator rows into one table (default: true)
   --api-base URL          API base (default: QUENT_API_BASE_URL or http://localhost:8080/api)
   --db                    Prompt for comma-separated database run IDs
   --db-run RUN            Database run to add; repeat for multiple runs
@@ -554,6 +555,7 @@ export const queryDiffCommand: AskCommand = {
   async run(args) {
     const { values } = parseArgs({
       args,
+      allowNegative: true,
       allowPositionals: false,
       options: {
         'api-base': { type: 'string' },
@@ -564,6 +566,7 @@ export const queryDiffCommand: AskCommand = {
         'candidate-engine': { type: 'string', multiple: true },
         'candidate-query': { type: 'string', multiple: true },
         'candidate-source': { type: 'string', multiple: true },
+        'combined-table': { type: 'boolean', default: true },
         db: { type: 'boolean' },
         'db-api-base-url': { type: 'string' },
         'db-run': { type: 'string', multiple: true },
@@ -696,6 +699,7 @@ export const queryDiffCommand: AskCommand = {
           ? serializeMachineOutput(machineResult('query-diff', result))
           : `${formatQueryDiff(result, {
               color: process.stdout.isTTY && !('NO_COLOR' in process.env),
+              combinedTable: values['combined-table'],
             })}\n`
       );
     } finally {
