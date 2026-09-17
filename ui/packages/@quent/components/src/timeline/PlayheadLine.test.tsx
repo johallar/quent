@@ -46,6 +46,14 @@ describe('PlayheadLine', () => {
     expect(container).toBeEmptyDOMElement();
   });
 
+  it('only renders the top indicator when requested', () => {
+    const { container, rerender } = render(<PlayheadLine instance={null} />);
+    expect(container.querySelector('[data-playhead-indicator]')).not.toBeInTheDocument();
+
+    rerender(<PlayheadLine instance={null} showIndicator />);
+    expect(container.querySelector('[data-playhead-indicator]')).toBeInTheDocument();
+  });
+
   it('positions the overlay at the computed pixel, including zero', () => {
     const { container, rerender } = render(<PlayheadLine instance={null} />);
     expect(container.firstElementChild).toHaveStyle({ left: '24px' });

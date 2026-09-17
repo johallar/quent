@@ -19,10 +19,16 @@ type PlayheadLineProps = {
   instance: EChartsInstance | null;
   xAxisIndex?: number;
   draggable?: boolean;
+  showIndicator?: boolean;
 };
 
 /** Playhead overlay aligned to an ECharts x-axis. */
-export function PlayheadLine({ instance, xAxisIndex = 0, draggable = false }: PlayheadLineProps) {
+export function PlayheadLine({
+  instance,
+  xAxisIndex = 0,
+  draggable = false,
+  showIndicator = false,
+}: PlayheadLineProps) {
   const pixelX = usePlayheadLinePixel(instance, xAxisIndex);
   const isPlaying = useDataFlowIsPlaying();
   const setIsPlaying = useSetDataFlowIsPlaying();
@@ -158,7 +164,21 @@ export function PlayheadLine({ instance, xAxisIndex = 0, draggable = false }: Pl
       onPointerUp={draggable ? handlePointerEnd : undefined}
       onPointerCancel={draggable ? handlePointerEnd : undefined}
     >
-      <div className="pointer-events-none absolute bottom-0 left-1/2 top-0 w-px -translate-x-1/2 bg-primary/70" />
+      {showIndicator && (
+        <div
+          data-playhead-indicator
+          className="pointer-events-none absolute left-1/2 top-0 flex -translate-x-1/2 flex-col items-center"
+        >
+          <div className="h-1.5 w-1.5 rounded-t-[1px] bg-foreground/70" />
+          <div className="h-0 w-0 border-l-3 border-r-3 border-t-4 border-l-transparent border-r-transparent border-t-foreground/70" />
+        </div>
+      )}
+      <div
+        className={cn(
+          'pointer-events-none absolute bottom-0 left-1/2 w-px -translate-x-1/2 bg-foreground/70',
+          showIndicator ? 'top-2.5' : 'top-0'
+        )}
+      />
     </div>
   );
 }
