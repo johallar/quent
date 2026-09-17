@@ -45,10 +45,10 @@ bounds, saved analyses, cross-query comparison, and inferred causal claims.
 5. `POST /engines/{engine}/entities` with resource, entity-type, operator,
    window, descending usage-duration, and page filters.
 
-The CLI resolves a missing engine first, then flattens queries across that
-engine's query groups. After fetching the chosen query bundle, it resolves a
-missing resource from `entities.resources`. Explicit IDs skip their
-corresponding list requests, which preserves non-interactive automation.
+The CLI resolves a missing engine first, then presents query groups and queries
+as separate searchable Ink selections. After fetching the chosen query bundle,
+it resolves a missing resource from `entities.resources`. Explicit IDs skip
+their corresponding list requests, which preserves non-interactive automation.
 
 ## Architecture
 
@@ -69,11 +69,19 @@ result without a generic workflow language or capability framework.
 
 The CLI entry point is transport orchestration only. It parses arguments,
 configures the existing API client, fetches the bundle, selects a registered
-question, and chooses human or JSON output.
+question, and chooses human or JSON output. Versioned JSON is the primary agent
+contract: it never invokes Ink, requires explicit IDs, keeps stdout
+machine-readable, and reports structured errors on stderr.
 
 ## Commands
 
-Initial command:
+`pnpm ask` is the stable entry point. It dispatches the first argument to a
+registered question command, so future questions can be added without creating
+new package scripts. `engines`, `query-groups`, and `queries` provide
+machine-readable ID discovery without requiring agents to call the API
+directly.
+
+Initial resource question:
 
 ```sh
 pixi run pnpm --dir ui ask longest-resource-users \
@@ -85,16 +93,19 @@ pixi run pnpm --dir ui ask longest-resource-users \
   [--start SECONDS] \
   [--end SECONDS] \
   [--limit COUNT] \
-  [--api-base http://localhost:8000/api] \
+  [--api-base http://localhost:8080/api] \
   [--base http://localhost:5173] \
   [--json]
 ```
 
 Defaults are the whole query window, the resource type's sole `used_by` FSM
 type when unambiguous, no operator filter, ten results, and
-`http://localhost:8000/api`. Missing engine, query, and required resource IDs
-open numbered selection lists backed by the Quent API. A non-interactive caller
-must pass all required IDs.
+`http://localhost:8080/api`. Missing engine, query, and required resource IDs
+open searchable Ink selections backed by the Quent API. A non-interactive
+caller must pass all required IDs.
+
+The query comparison command is `pnpm ask query-diff`; see
+[Query diff CLI](./query-diff-cli.md).
 
 ## Evidence classification
 
@@ -135,7 +146,8 @@ Focused tests cover:
 - human and JSON-stable result fields
 - generated deep-link decode and restored evidence filters
 - registry lookup and unknown question handling
-- API-backed engine, query, and resource discovery with deterministic choices
+- API-backed engine, query-group, query, and resource discovery
+- Ink filtering, keyboard navigation, and bounded scrolling behavior
 - explicit-ID bypass and non-interactive failure behavior
 
 Validation uses Pixi for focused Vitest, TypeScript, ESLint, and Prettier
@@ -143,9 +155,10 @@ checks. Browser automation is not used.
 
 Completed validation:
 
-- focused Vitest: 8 tests passed across registry and interactive selection
+- full Vitest: 937 tests passed, including common-metric and multiselect tests
 - UI TypeScript typecheck: passed
-- focused ESLint: passed
+- CLI TypeScript typecheck: passed
+- full ESLint: passed with existing warnings only
 - focused Prettier check: passed
 - CLI entry-point smoke test: passed
 
