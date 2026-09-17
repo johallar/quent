@@ -20,6 +20,26 @@ describe('query diff terminal formatter', () => {
             queryId: 'query-2',
             durationSeconds: 12,
           },
+          summary: [
+            {
+              scope: 'logical',
+              metric: 'output_rows',
+              quantity: 'rows',
+              baseline: '100',
+              candidate: '150',
+              delta: '50',
+              deltaPercent: 50,
+            },
+            {
+              scope: 'physical',
+              metric: 'active_span_s',
+              quantity: 'seconds',
+              baseline: 4,
+              candidate: 3,
+              delta: -1,
+              deltaPercent: -25,
+            },
+          ],
           rows: [
             {
               scope: 'logical',
@@ -49,6 +69,7 @@ describe('query diff terminal formatter', () => {
             queryId: 'query-3',
             durationSeconds: 14,
           },
+          summary: [],
           rows: [],
         },
       ],
@@ -63,9 +84,10 @@ describe('query diff terminal formatter', () => {
     expect(formatted).toContain('Metrics: active_span_s, output_rows');
     expect(formatted).toContain('Candidate 1: engine-2 / query-2 (12s)');
     expect(formatted).toContain('Candidate 2: engine-3 / query-3 (14s)');
-    expect(formatted).toContain('Logical · Scan\n┌');
-    expect(formatted).toContain('Physical · Filter\n┌');
-    expect(formatted).toContain('│ Metric');
+    expect(formatted).toContain('Summary · totals across operators by plan type');
+    expect(formatted).toContain('│ Plan');
+    expect(formatted).toContain('│ Operator');
+    expect(formatted).not.toContain('Logical · Scan\n┌');
     expect(formatted).toContain('+50.00%');
     expect(formatted).toContain('- Example limitation.');
     expect(formatted).not.toContain('\u001B[');
@@ -81,6 +103,10 @@ describe('query diff terminal formatter', () => {
     );
     expect(redDelta).toContain('50');
     expect(blueDelta).toContain('-1');
+
+    const grouped = formatQueryDiff(result, { combinedTable: false });
+    expect(grouped).toContain('Logical · Scan\n┌');
+    expect(grouped).toContain('Physical · Filter\n┌');
 
     const sourced = formatQueryDiff({
       ...result,

@@ -200,6 +200,33 @@ describe('query diff selections', () => {
     expect(output.data.metrics).toEqual(['active_span_s']);
   });
 
+  it('uses a combined operator table by default and allows grouped output', async () => {
+    setApiClient({
+      fetchQueryBundle: vi.fn(async (_engineId: string, queryId: string) =>
+        metricBundle(queryId, ['output_rows'])
+      ),
+    } as unknown as ApiClient);
+    const write = vi.spyOn(process.stdout, 'write').mockImplementation(() => true);
+    const args = [
+      '--engine',
+      'engine-1',
+      '--baseline-query',
+      'query-1',
+      '--candidate-query',
+      'query-2',
+      '--metric',
+      'output_rows',
+    ];
+
+    await queryDiffCommand.run(args);
+    expect(String(write.mock.calls[0]![0])).toContain('│ Plan');
+    expect(String(write.mock.calls[0]![0])).toContain('│ Operator');
+
+    write.mockClear();
+    await queryDiffCommand.run([...args, '--no-combined-table']);
+    expect(String(write.mock.calls[0]![0])).toContain('Logical · Scan\n┌');
+  });
+
   it('requires candidate engine counts to be unambiguous', async () => {
     await expect(
       resolveQueryDiffSelections(
