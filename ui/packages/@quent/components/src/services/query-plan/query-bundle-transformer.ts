@@ -6,6 +6,7 @@ import type { QueryBundle, EntityRef } from '@quent/utils';
 import {
   buildRelatedOperatorIdsById,
   operatorWorkerLabel,
+  workerDisplayName,
   Operator,
   Port,
   Plan,
@@ -92,7 +93,7 @@ const transformNodeForTreeView = (
     name: `Query Plan: ${node.id}`,
     queryId: node.id ?? undefined,
     workerId: node.worker ?? undefined,
-    workerName: worker?.instance_name ?? undefined,
+    workerName: worker ? workerDisplayName(worker) : undefined,
     planType: plan?.instance_name ?? undefined,
     className: 'rounded-none',
     children: node.children?.length
