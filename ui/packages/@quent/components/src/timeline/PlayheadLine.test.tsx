@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: Copyright (c) 2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-import { render } from '@testing-library/react';
+import { fireEvent, render } from '@testing-library/react';
 import type { EChartsInstance } from 'echarts-for-react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { usePlayheadLinePixel } from '../lib/usePlayheadLinePixel';
@@ -10,10 +10,16 @@ import { PlayheadLine } from './PlayheadLine';
 const mocks = vi.hoisted(() => ({
   isPlaying: false,
   pixelX: 24 as number | null,
+  setIsPlaying: vi.fn(),
+  setPlayheadLineTimeMs: vi.fn(),
+  setPlayheadTimeS: vi.fn(),
 }));
 
 vi.mock('@quent/hooks', () => ({
   useDataFlowIsPlaying: () => mocks.isPlaying,
+  useSetDataFlowIsPlaying: () => mocks.setIsPlaying,
+  useSetPlayheadLineTimeMs: () => mocks.setPlayheadLineTimeMs,
+  useSetPlayheadTimeS: () => mocks.setPlayheadTimeS,
 }));
 
 vi.mock('../lib/usePlayheadLinePixel', () => ({
@@ -24,7 +30,11 @@ describe('PlayheadLine', () => {
   afterEach(() => {
     mocks.isPlaying = false;
     mocks.pixelX = 24;
+    mocks.setIsPlaying.mockReset();
+    mocks.setPlayheadLineTimeMs.mockReset();
+    mocks.setPlayheadTimeS.mockReset();
     vi.mocked(usePlayheadLinePixel).mockClear();
+    vi.unstubAllGlobals();
   });
 
   it('renders nothing when the playhead has no pixel position', () => {
@@ -68,5 +78,77 @@ describe('PlayheadLine', () => {
 
     rerender(<PlayheadLine instance={instance} xAxisIndex={1} />);
     expect(usePlayheadLinePixel).toHaveBeenCalledWith(instance, 1);
+  });
+
+  it('captures a line drag and updates both playhead times from chart coordinates', () => {
+    const chartDom = document.createElement('div');
+    vi.spyOn(chartDom, 'getBoundingClientRect').mockReturnValue({
+      left: 10,
+      width: 100,
+    } as DOMRect);
+    const convertFromPixel = vi.fn(
+      (_finder: { xAxisIndex: number }, offsetX: number) => offsetX * 100
+    );
+    const instance = {
+      convertFromPixel,
+      getDom: () => chartDom,
+      isDisposed: () => false,
+    } as unknown as EChartsInstance;
+    const { container } = render(<PlayheadLine instance={instance} xAxisIndex={2} />);
+    const dragArea = container.firstElementChild as HTMLDivElement;
+    dragArea.setPointerCapture = vi.fn();
+    dragArea.hasPointerCapture = vi.fn(() => true);
+    dragArea.releasePointerCapture = vi.fn();
+
+    fireEvent.pointerDown(dragArea, { clientX: 50, pointerId: 7 });
+
+    expect(dragArea.setPointerCapture).toHaveBeenCalledWith(7);
+    expect(mocks.setIsPlaying).toHaveBeenCalledWith(false);
+    expect(convertFromPixel).toHaveBeenCalledWith({ xAxisIndex: 2 }, 40);
+    expect(mocks.setPlayheadLineTimeMs).toHaveBeenCalledWith(4000);
+    expect(mocks.setPlayheadTimeS).toHaveBeenCalledWith(4);
+  });
+
+  it('continues updating while the captured pointer crosses timeline rows', () => {
+    const animationFrames: FrameRequestCallback[] = [];
+    vi.stubGlobal(
+      'requestAnimationFrame',
+      vi.fn((callback: FrameRequestCallback) => {
+        animationFrames.push(callback);
+        return animationFrames.length;
+      })
+    );
+    vi.stubGlobal('cancelAnimationFrame', vi.fn());
+
+    const chartDom = document.createElement('div');
+    vi.spyOn(chartDom, 'getBoundingClientRect').mockReturnValue({
+      left: 0,
+      width: 100,
+    } as DOMRect);
+    const instance = {
+      convertFromPixel: vi.fn((_finder: unknown, offsetX: number) => offsetX * 10),
+      getDom: () => chartDom,
+      isDisposed: () => false,
+    } as unknown as EChartsInstance;
+    const { container } = render(<PlayheadLine instance={instance} />);
+    const dragArea = container.firstElementChild as HTMLDivElement;
+    dragArea.setPointerCapture = vi.fn();
+    dragArea.hasPointerCapture = vi.fn(() => true);
+    dragArea.releasePointerCapture = vi.fn();
+
+    fireEvent.pointerDown(dragArea, { clientX: 20, clientY: 10, pointerId: 3 });
+    mocks.setPlayheadLineTimeMs.mockClear();
+    mocks.setPlayheadTimeS.mockClear();
+
+    fireEvent.pointerMove(dragArea, { clientX: 70, clientY: 200, pointerId: 3 });
+    animationFrames[0]?.(0);
+
+    expect(mocks.setPlayheadLineTimeMs).toHaveBeenLastCalledWith(700);
+    expect(mocks.setPlayheadTimeS).toHaveBeenLastCalledWith(0.7);
+
+    fireEvent.pointerUp(dragArea, { clientX: 80, clientY: 200, pointerId: 3 });
+
+    expect(mocks.setPlayheadLineTimeMs).toHaveBeenLastCalledWith(800);
+    expect(dragArea.releasePointerCapture).toHaveBeenCalledWith(3);
   });
 });
