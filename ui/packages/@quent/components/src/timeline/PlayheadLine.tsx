@@ -8,8 +8,9 @@ import {
   useSetDataFlowIsPlaying,
   useSetPlayheadLineTimeMs,
   useSetPlayheadTimeS,
+  useZoomRange,
 } from '@quent/hooks';
-import { cn } from '@quent/utils';
+import { clamp, cn } from '@quent/utils';
 import { usePlayheadLinePixel } from '../lib/usePlayheadLinePixel';
 
 const PLAYHEAD_HIT_AREA_PX = 10;
@@ -17,15 +18,17 @@ const PLAYHEAD_HIT_AREA_PX = 10;
 type PlayheadLineProps = {
   instance: EChartsInstance | null;
   xAxisIndex?: number;
+  draggable?: boolean;
 };
 
 /** Playhead overlay aligned to an ECharts x-axis. */
-export function PlayheadLine({ instance, xAxisIndex = 0 }: PlayheadLineProps) {
+export function PlayheadLine({ instance, xAxisIndex = 0, draggable = false }: PlayheadLineProps) {
   const pixelX = usePlayheadLinePixel(instance, xAxisIndex);
   const isPlaying = useDataFlowIsPlaying();
   const setIsPlaying = useSetDataFlowIsPlaying();
   const setPlayheadLineTimeMs = useSetPlayheadLineTimeMs();
   const setPlayheadTimeS = useSetPlayheadTimeS();
+  const zoomRange = useZoomRange();
   const isDraggingRef = useRef(false);
   const pendingClientXRef = useRef<number | null>(null);
   const rafRef = useRef<number | null>(null);
@@ -39,7 +42,7 @@ export function PlayheadLine({ instance, xAxisIndex = 0 }: PlayheadLineProps) {
       if (rect.width <= 0) {
         return;
       }
-      const offsetX = Math.min(rect.width, Math.max(0, clientX - rect.left));
+      const offsetX = clamp(clientX - rect.left, 0, rect.width);
 
       try {
         const value = instance.convertFromPixel({ xAxisIndex }, offsetX);
@@ -47,13 +50,20 @@ export function PlayheadLine({ instance, xAxisIndex = 0 }: PlayheadLineProps) {
         if (typeof timeMs !== 'number' || !Number.isFinite(timeMs)) {
           return;
         }
-        setPlayheadLineTimeMs(timeMs);
-        setPlayheadTimeS(timeMs / 1000);
+        const viewportStartMs = zoomRange.start * 1000;
+        const viewportEndMs = zoomRange.end * 1000;
+        const clampedTimeMs = clamp(
+          timeMs,
+          Math.min(viewportStartMs, viewportEndMs),
+          Math.max(viewportStartMs, viewportEndMs)
+        );
+        setPlayheadLineTimeMs(clampedTimeMs);
+        setPlayheadTimeS(clampedTimeMs / 1000);
       } catch {
         // The chart can be disposed between pointer events.
       }
     },
-    [instance, xAxisIndex, setPlayheadLineTimeMs, setPlayheadTimeS]
+    [instance, xAxisIndex, setPlayheadLineTimeMs, setPlayheadTimeS, zoomRange]
   );
 
   const flushPendingClientX = useCallback(() => {
@@ -69,6 +79,9 @@ export function PlayheadLine({ instance, xAxisIndex = 0 }: PlayheadLineProps) {
 
   const handlePointerDown = useCallback(
     (event: React.PointerEvent<HTMLDivElement>) => {
+      if (!draggable) {
+        return;
+      }
       event.preventDefault();
       event.stopPropagation();
       isDraggingRef.current = true;
@@ -76,12 +89,12 @@ export function PlayheadLine({ instance, xAxisIndex = 0 }: PlayheadLineProps) {
       event.currentTarget.setPointerCapture(event.pointerId);
       applyClientX(event.clientX);
     },
-    [applyClientX, setIsPlaying]
+    [applyClientX, draggable, setIsPlaying]
   );
 
   const handlePointerMove = useCallback(
     (event: React.PointerEvent<HTMLDivElement>) => {
-      if (!isDraggingRef.current) {
+      if (!draggable || !isDraggingRef.current) {
         return;
       }
       event.stopPropagation();
@@ -97,12 +110,12 @@ export function PlayheadLine({ instance, xAxisIndex = 0 }: PlayheadLineProps) {
         }
       });
     },
-    [applyClientX]
+    [applyClientX, draggable]
   );
 
   const handlePointerEnd = useCallback(
     (event: React.PointerEvent<HTMLDivElement>) => {
-      if (!isDraggingRef.current) {
+      if (!draggable || !isDraggingRef.current) {
         return;
       }
       event.stopPropagation();
@@ -115,7 +128,7 @@ export function PlayheadLine({ instance, xAxisIndex = 0 }: PlayheadLineProps) {
         event.currentTarget.releasePointerCapture(event.pointerId);
       }
     },
-    [flushPendingClientX]
+    [draggable, flushPendingClientX]
   );
 
   useEffect(
@@ -135,14 +148,15 @@ export function PlayheadLine({ instance, xAxisIndex = 0 }: PlayheadLineProps) {
     <div
       aria-hidden
       className={cn(
-        'absolute bottom-0 top-0 z-[10] -translate-x-1/2 cursor-col-resize touch-none',
+        'absolute bottom-0 top-0 z-[10] -translate-x-1/2',
+        draggable ? 'cursor-col-resize touch-none' : 'pointer-events-none',
         isPlaying && 'transition-[left] duration-100 ease-linear motion-reduce:transition-none'
       )}
       style={{ left: pixelX, width: PLAYHEAD_HIT_AREA_PX }}
-      onPointerDown={handlePointerDown}
-      onPointerMove={handlePointerMove}
-      onPointerUp={handlePointerEnd}
-      onPointerCancel={handlePointerEnd}
+      onPointerDown={draggable ? handlePointerDown : undefined}
+      onPointerMove={draggable ? handlePointerMove : undefined}
+      onPointerUp={draggable ? handlePointerEnd : undefined}
+      onPointerCancel={draggable ? handlePointerEnd : undefined}
     >
       <div className="pointer-events-none absolute bottom-0 left-1/2 top-0 w-px -translate-x-1/2 bg-primary/70" />
     </div>

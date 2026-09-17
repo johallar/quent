@@ -13,6 +13,7 @@ const mocks = vi.hoisted(() => ({
   setIsPlaying: vi.fn(),
   setPlayheadLineTimeMs: vi.fn(),
   setPlayheadTimeS: vi.fn(),
+  zoomRange: { start: 0, end: 100 },
 }));
 
 vi.mock('@quent/hooks', () => ({
@@ -20,6 +21,7 @@ vi.mock('@quent/hooks', () => ({
   useSetDataFlowIsPlaying: () => mocks.setIsPlaying,
   useSetPlayheadLineTimeMs: () => mocks.setPlayheadLineTimeMs,
   useSetPlayheadTimeS: () => mocks.setPlayheadTimeS,
+  useZoomRange: () => mocks.zoomRange,
 }));
 
 vi.mock('../lib/usePlayheadLinePixel', () => ({
@@ -33,6 +35,7 @@ describe('PlayheadLine', () => {
     mocks.setIsPlaying.mockReset();
     mocks.setPlayheadLineTimeMs.mockReset();
     mocks.setPlayheadTimeS.mockReset();
+    mocks.zoomRange = { start: 0, end: 100 };
     vi.mocked(usePlayheadLinePixel).mockClear();
     vi.unstubAllGlobals();
   });
@@ -94,7 +97,7 @@ describe('PlayheadLine', () => {
       getDom: () => chartDom,
       isDisposed: () => false,
     } as unknown as EChartsInstance;
-    const { container } = render(<PlayheadLine instance={instance} xAxisIndex={2} />);
+    const { container } = render(<PlayheadLine instance={instance} xAxisIndex={2} draggable />);
     const dragArea = container.firstElementChild as HTMLDivElement;
     dragArea.setPointerCapture = vi.fn();
     dragArea.hasPointerCapture = vi.fn(() => true);
@@ -130,7 +133,7 @@ describe('PlayheadLine', () => {
       getDom: () => chartDom,
       isDisposed: () => false,
     } as unknown as EChartsInstance;
-    const { container } = render(<PlayheadLine instance={instance} />);
+    const { container } = render(<PlayheadLine instance={instance} draggable />);
     const dragArea = container.firstElementChild as HTMLDivElement;
     dragArea.setPointerCapture = vi.fn();
     dragArea.hasPointerCapture = vi.fn(() => true);
@@ -150,5 +153,48 @@ describe('PlayheadLine', () => {
 
     expect(mocks.setPlayheadLineTimeMs).toHaveBeenLastCalledWith(800);
     expect(dragArea.releasePointerCapture).toHaveBeenCalledWith(3);
+  });
+
+  it('constrains dragging to the current timeline viewport', () => {
+    mocks.zoomRange = { start: 2, end: 5 };
+    const chartDom = document.createElement('div');
+    vi.spyOn(chartDom, 'getBoundingClientRect').mockReturnValue({
+      left: 0,
+      width: 100,
+    } as DOMRect);
+    const instance = {
+      convertFromPixel: vi.fn((_finder: unknown, offsetX: number) => offsetX * 100),
+      getDom: () => chartDom,
+      isDisposed: () => false,
+    } as unknown as EChartsInstance;
+    const { container } = render(<PlayheadLine instance={instance} draggable />);
+    const dragArea = container.firstElementChild as HTMLDivElement;
+    dragArea.setPointerCapture = vi.fn();
+    dragArea.hasPointerCapture = vi.fn(() => true);
+    dragArea.releasePointerCapture = vi.fn();
+
+    fireEvent.pointerDown(dragArea, { clientX: 10, pointerId: 5 });
+    expect(mocks.setPlayheadLineTimeMs).toHaveBeenLastCalledWith(2000);
+    expect(mocks.setPlayheadTimeS).toHaveBeenLastCalledWith(2);
+
+    fireEvent.pointerUp(dragArea, { clientX: 90, pointerId: 5 });
+    expect(mocks.setPlayheadLineTimeMs).toHaveBeenLastCalledWith(5000);
+    expect(mocks.setPlayheadTimeS).toHaveBeenLastCalledWith(5);
+  });
+
+  it('remains display-only when dragging is disabled', () => {
+    const convertFromPixel = vi.fn();
+    const instance = {
+      convertFromPixel,
+      getDom: () => document.createElement('div'),
+      isDisposed: () => false,
+    } as unknown as EChartsInstance;
+    const { container } = render(<PlayheadLine instance={instance} draggable={false} />);
+
+    fireEvent.pointerDown(container.firstElementChild as Element, { clientX: 20, pointerId: 1 });
+
+    expect(convertFromPixel).not.toHaveBeenCalled();
+    expect(mocks.setIsPlaying).not.toHaveBeenCalled();
+    expect(mocks.setPlayheadLineTimeMs).not.toHaveBeenCalled();
   });
 });

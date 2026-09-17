@@ -375,7 +375,7 @@ export function TimelineController({
         opts={opts}
         autoResize={false}
       />
-      <PlayheadLine instance={chartInstance} />
+      <PlayheadLine instance={chartInstance} draggable />
     </TimelinePointerArea>
   );
 }

@@ -310,7 +310,7 @@ export function ResourceTimeline({
           <TimelineTooltipPortal ownerId={ownerId} series={series} timestamps={timestamps ?? []} />
         )}
       </Suspense>
-      <PlayheadLine instance={chartInstance} />
+      <PlayheadLine instance={chartInstance} draggable />
     </div>
   );
 }
