@@ -13,6 +13,8 @@ export interface TreeSelectProps<T extends TreeDataItem> {
   value?: string;
   onValueChange: (item: T) => void;
   ariaLabel: string;
+  title?: string;
+  getItemTitle?: (item: T) => string;
   placeholder?: ReactNode;
   renderItem?: (params: TreeRenderItemParams<T>) => ReactNode;
   renderValue?: (item: T) => ReactNode;
@@ -48,6 +50,8 @@ export function TreeSelect<T extends TreeDataItem>({
   value,
   onValueChange,
   ariaLabel,
+  title,
+  getItemTitle,
   placeholder = 'Select an item',
   renderItem,
   renderValue,
@@ -82,7 +86,10 @@ export function TreeSelect<T extends TreeDataItem>({
   };
 
   const renderTreeItem = (params: TreeRenderItemParams<T>) => (
-    <div className="flex min-w-0 flex-1 items-center gap-2">
+    <div
+      className="flex min-w-0 flex-1 items-center gap-2"
+      title={getItemTitle?.(params.item) ?? params.item.name}
+    >
       <div className="min-w-0 flex-1">
         {renderItem?.(params) ?? <span className="block truncate text-xs">{params.item.name}</span>}
       </div>
@@ -102,6 +109,7 @@ export function TreeSelect<T extends TreeDataItem>({
           aria-label={ariaLabel}
           aria-haspopup="tree"
           aria-expanded={open}
+          title={selectedItem ? (getItemTitle?.(selectedItem) ?? selectedItem.name) : title}
           disabled={disabled}
           className={cn(
             'h-auto min-h-9 min-w-0 flex-1 justify-between gap-2 px-2 py-1 font-normal whitespace-normal',

@@ -45,8 +45,8 @@ describe('DAGSettingsPopover', () => {
       </>
     );
 
-    const trigger = screen.getByRole('button', { name: 'DAG settings' });
-    expect(trigger).toHaveAttribute('title', 'DAG settings');
+    const trigger = screen.getByRole('button', { name: 'Settings' });
+    expect(trigger).toHaveAttribute('title', 'Settings');
     expect(screen.queryByText('DAG controls')).not.toBeInTheDocument();
 
     await user.click(trigger);

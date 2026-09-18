@@ -189,15 +189,36 @@ export function QueryPlan({ queryId, engineId }: { queryId: string; engineId: st
 
   const singleQueryPlan = treeData.length === 1 && !treeData[0]?.children;
 
+  const getPlanItemTitle = (item: QueryPlanDataItem) => {
+    const hasChildren = !!item.children?.length;
+    const primary = singleQueryPlan
+      ? `Query: ${item.queryId ?? item.id}`
+      : hasChildren
+        ? (item.planType ?? item.name)
+        : [item.planType, item.id].filter(Boolean).join(': ');
+    const lines = [primary];
+    if (item.workerId) {
+      lines.push(`Worker: ${item.workerId}`);
+    }
+    if (hasChildren) {
+      lines.push(`ID: ${item.id}`);
+    }
+    return lines.join('\n');
+  };
+
   const renderPlanItem = (item: QueryPlanDataItem, hasChildren: boolean, compact = false) => {
     return (
-      <div className={`flex flex-col items-start pl-1 ${compact ? '' : 'py-0.5'}`}>
+      <div
+        className={`flex w-full min-w-0 flex-col items-start overflow-hidden pl-1 ${
+          compact ? '' : 'py-0.5'
+        }`}
+      >
         {singleQueryPlan ? (
-          <span className="text-xs">
+          <span className="block w-full truncate text-xs">
             Query: <DataText>{item.queryId}</DataText>
           </span>
         ) : (
-          <span className="text-xs">
+          <span className="block w-full truncate text-xs">
             <DataText className="capitalize">{item.planType}</DataText>
             {!hasChildren && (
               <span>
@@ -207,12 +228,12 @@ export function QueryPlan({ queryId, engineId }: { queryId: string; engineId: st
           </span>
         )}
         {item.workerId && (
-          <span className="text-xs text-muted-foreground">
+          <span className="block w-full truncate text-xs text-muted-foreground">
             <DataText>Worker: {item.workerId}</DataText>
           </span>
         )}
         {hasChildren && (
-          <span className="text-xs text-muted-foreground capitalize text-left">
+          <span className="block w-full truncate text-left text-xs text-muted-foreground capitalize">
             <DataText>{`ID: ${item.id}`}</DataText>
           </span>
         )}
@@ -223,18 +244,20 @@ export function QueryPlan({ queryId, engineId }: { queryId: string; engineId: st
   return (
     <div className="w-full flex flex-col h-[calc(100vh-4rem)]">
       {/* my-2px lines it up with timeline rows */}
-      <section className="flex shrink-0 items-center gap-1.5 border-b px-1.5 py-2.5 my-[2px]">
-        <label className="text-sm font-medium text-muted-foreground">Query Plan:</label>
+      <section className="my-[2px] flex min-w-0 shrink-0 items-center gap-1.5 overflow-hidden border-b px-1.5 py-2.5">
         <TreeSelect<QueryPlanDataItem>
           data={treeData}
           value={planId}
           onValueChange={handlePlanSelect}
           onItemHover={item => setHoveredWorkerId(item?.workerId ?? null)}
           ariaLabel="Query plan"
+          title="Query Plan"
+          getItemTitle={getPlanItemTitle}
           collapsible={false}
           renderItem={({ item, hasChildren }) => renderPlanItem(item, hasChildren, true)}
           renderValue={item => renderPlanItem(item, !!item.children?.length)}
-          contentClassName={thinScrollbarClass}
+          triggerClassName="overflow-hidden"
+          contentClassName={`min-w-64 ${thinScrollbarClass}`}
         />
         <DAGSettingsPopover
           operatorStatFields={operatorStatFields}

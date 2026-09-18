@@ -36,6 +36,8 @@ describe('TreeSelect', () => {
         data={data}
         value="root"
         ariaLabel="Query plan"
+        title="Query Plan"
+        getItemTitle={item => `${item.name} — ${item.detail}`}
         onValueChange={onValueChange}
         collapsible={false}
         renderValue={item => (
@@ -54,11 +56,16 @@ describe('TreeSelect', () => {
     );
 
     const trigger = screen.getByRole('combobox', { name: 'Query plan' });
+    expect(trigger).toHaveAttribute('title', 'Root plan — Coordinator');
     expect(trigger).toHaveTextContent('Root plan');
     expect(trigger).toHaveTextContent('Coordinator');
 
     await user.click(trigger);
     expect(screen.getByText('Child plan')).toBeVisible();
+    expect(screen.getByText('Child plan').closest('[title]')).toHaveAttribute(
+      'title',
+      'Child plan — Worker 1'
+    );
     expect(screen.queryByRole('button', { name: /Root plan/ })).not.toBeInTheDocument();
     expect(screen.getByRole('img', { name: 'Selected item' }).parentElement).toHaveTextContent(
       'Root plan'
