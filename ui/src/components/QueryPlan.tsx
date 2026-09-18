@@ -35,7 +35,7 @@ import {
   useDebouncedZoomRange,
   resolveDataFlowWindow,
 } from '@quent/hooks';
-import { MAX_TIMELINE_BINS } from '@quent/utils';
+import { MAX_TIMELINE_BINS, cn } from '@quent/utils';
 import {
   computeNodeColoring,
   computeEdgeWidthConfig,
@@ -110,7 +110,6 @@ export function QueryPlan({ queryId, engineId }: { queryId: string; engineId: st
   const handlePlanSelect = (item: QueryPlanDataItem) => setPlanId(item.id);
   const closeDagSettings = useCallback(() => setDagSettingsOpen(false), []);
 
-  // TODO: Currently fetching root plan when bundle loads - is this correct?
   useEffect(() => {
     if (queryBundle && !planId) {
       setPlanId(queryBundle.plan_tree.id);
@@ -209,9 +208,9 @@ export function QueryPlan({ queryId, engineId }: { queryId: string; engineId: st
   const renderPlanItem = (item: QueryPlanDataItem, hasChildren: boolean, compact = false) => {
     return (
       <div
-        className={`flex w-full min-w-0 flex-col items-start overflow-hidden pl-1 ${
-          compact ? '' : 'py-0.5'
-        }`}
+        className={cn('flex w-full min-w-0 flex-col items-start overflow-hidden pl-1', {
+          'py-0.5': !compact,
+        })}
       >
         {singleQueryPlan ? (
           <span className="block w-full truncate text-xs">
