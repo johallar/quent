@@ -111,6 +111,8 @@ export { RangeSliderField } from './ui/range-slider-field';
 export type { RangeSliderFieldProps } from './ui/range-slider-field';
 export { TreeView } from './ui/tree-view';
 export type { TreeDataItem } from './ui/tree-view';
+export { TreeSelect } from './ui/tree-select';
+export type { TreeSelectProps } from './ui/tree-select';
 export { TreeTable } from './ui/tree-table';
 export type { Column, ColumnComponent, IconComponent } from './ui/tree-table';
 export { Badge, badgeVariants } from './ui/badge';

@@ -1,14 +1,21 @@
 // SPDX-FileCopyrightText: Copyright (c) 2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-import { useEffect, useMemo, lazy, Suspense } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, lazy, Suspense } from 'react';
+import type { PanelImperativeHandle } from 'react-resizable-panels';
 import { useQueryBundle, useDataFlow } from '@quent/client';
 import { useQueryPlanVisualization } from '@/hooks/useQueryPlanVisualization';
-import { TreeView } from '@quent/components';
+import { TreeSelect } from '@quent/components';
 import { thinScrollbarClass, type QueryPlanDataItem } from '@quent/components';
 import { useSelectedPlanId, useSetSelectedPlanId, useSetHoveredWorkerId } from '@quent/hooks';
-import { DAGNodeInfoPanel, DAGSettingsPopover, DagPlayhead } from '@quent/components';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@quent/components';
+import {
+  DAGNodeInfoPanel,
+  DAGSettingsPopover,
+  DagPlayhead,
+  ResizableHandle,
+  ResizablePanel,
+  ResizablePanelGroup,
+} from '@quent/components';
 import {
   useDagNodeColoring,
   useDagEdgeWidthConfig,
@@ -32,9 +39,8 @@ import { useTheme, THEME_DARK } from '@/contexts/ThemeContext';
 // Lazy load DAGChart to split elkjs (~1.6MB) into a separate chunk
 const DAGChart = lazy(() => import('@quent/components').then(mod => ({ default: mod.DAGChart })));
 
-const TABS = {
-  PLAN: 'plan',
-} as const;
+const OPERATOR_DETAILS_COLLAPSED_HEIGHT = 32;
+const OPERATOR_DETAILS_DEFAULT_HEIGHT = 224;
 
 export function QueryPlan({ queryId, engineId }: { queryId: string; engineId: string }) {
   const { theme } = useTheme();
@@ -42,6 +48,16 @@ export function QueryPlan({ queryId, engineId }: { queryId: string; engineId: st
   const planId = useSelectedPlanId();
   const setPlanId = useSetSelectedPlanId();
   const setHoveredWorkerId = useSetHoveredWorkerId();
+  const [operatorDetailsExpanded, setOperatorDetailsExpanded] = useState(false);
+  const [operatorDetailsPreferredHeight, setOperatorDetailsPreferredHeight] = useState(
+    OPERATOR_DETAILS_DEFAULT_HEIGHT
+  );
+  const [operatorDetailsMaxHeight, setOperatorDetailsMaxHeight] = useState(
+    OPERATOR_DETAILS_DEFAULT_HEIGHT
+  );
+  const operatorDetailsGroupRef = useRef<HTMLDivElement | null>(null);
+  const operatorDetailsPanelRef = useRef<PanelImperativeHandle | null>(null);
+  const operatorDetailsExpandedHeightRef = useRef(OPERATOR_DETAILS_DEFAULT_HEIGHT);
   const {
     data: queryBundle,
     isLoading: queryBundleLoading,
@@ -81,11 +97,7 @@ export function QueryPlan({ queryId, engineId }: { queryId: string; engineId: st
   const operatorStatFields = useOperatorStatFields(dagData.nodes, parseCustomStatistics);
   const portStatFields = usePortStatFields(dagData.edges);
 
-  const handlePlanSelect = (item: QueryPlanDataItem | undefined) => {
-    if (item) {
-      setPlanId(item.id);
-    }
-  };
+  const handlePlanSelect = (item: QueryPlanDataItem) => setPlanId(item.id);
 
   // TODO: Currently fetching root plan when bundle loads - is this correct?
   useEffect(() => {
@@ -93,6 +105,45 @@ export function QueryPlan({ queryId, engineId }: { queryId: string; engineId: st
       setPlanId(queryBundle.plan_tree.id);
     }
   }, [queryBundle, planId, setPlanId]);
+
+  useEffect(() => {
+    const panel = operatorDetailsPanelRef.current;
+    if (operatorDetailsExpanded) {
+      panel?.expand();
+      panel?.resize(Math.min(operatorDetailsExpandedHeightRef.current, operatorDetailsMaxHeight));
+    } else {
+      panel?.collapse();
+    }
+  }, [operatorDetailsExpanded, operatorDetailsMaxHeight]);
+
+  useLayoutEffect(() => {
+    const group = operatorDetailsGroupRef.current;
+    if (!group) {
+      return;
+    }
+    const updateMaxHeight = () => {
+      if (group.clientHeight === 0) {
+        return;
+      }
+      setOperatorDetailsMaxHeight(
+        Math.max(96, Math.min(operatorDetailsPreferredHeight, group.clientHeight * 0.5))
+      );
+    };
+    updateMaxHeight();
+    if (typeof ResizeObserver === 'undefined') {
+      return;
+    }
+    const observer = new ResizeObserver(updateMaxHeight);
+    observer.observe(group);
+    return () => observer.disconnect();
+  }, [operatorDetailsPreferredHeight]);
+
+  useEffect(() => {
+    const panel = operatorDetailsPanelRef.current;
+    if (operatorDetailsExpanded && panel && panel.getSize().inPixels > operatorDetailsMaxHeight) {
+      panel.resize(operatorDetailsMaxHeight);
+    }
+  }, [operatorDetailsExpanded, operatorDetailsMaxHeight]);
 
   // handle loading and error states
   if (queryBundleLoading) {
@@ -127,9 +178,9 @@ export function QueryPlan({ queryId, engineId }: { queryId: string; engineId: st
 
   const singleQueryPlan = treeData.length === 1 && !treeData[0]?.children;
 
-  const renderItem = ({ item, hasChildren }: { item: QueryPlanDataItem; hasChildren: boolean }) => {
+  const renderPlanItem = (item: QueryPlanDataItem, hasChildren: boolean, compact = false) => {
     return (
-      <div className="flex flex-col items-start py-0.5 pl-1">
+      <div className={`flex flex-col items-start pl-1 ${compact ? '' : 'py-0.5'}`}>
         {singleQueryPlan ? (
           <span className="text-xs">
             Query: <DataText>{item.queryId}</DataText>
@@ -160,49 +211,76 @@ export function QueryPlan({ queryId, engineId }: { queryId: string; engineId: st
 
   return (
     <div className="w-full flex flex-col h-[calc(100vh-4rem)]">
-      <section className="max-h-[200px] shrink-0 overflow-hidden border-b">
-        <Tabs defaultValue={TABS.PLAN} className="h-auto flex-none">
-          <div className="flex shrink-0 items-center border-b">
-            <TabsList className="min-w-0 flex-1 border-b-0">
-              <TabsTrigger value={TABS.PLAN}>Query Plan</TabsTrigger>
-            </TabsList>
-            <DAGSettingsPopover
-              operatorStatFields={operatorStatFields}
-              portStatFields={portStatFields}
-              isDark={isDark}
-            />
-          </div>
-          <TabsContent
-            value={TABS.PLAN}
-            className={`max-h-[264px] overflow-y-auto ${thinScrollbarClass}`}
-          >
-            <TreeView<QueryPlanDataItem>
-              data={treeData}
-              initialSelectedItemId={planId}
-              selectedItemId={planId}
-              onSelectChange={handlePlanSelect}
-              onItemHover={item => setHoveredWorkerId(item?.workerId ?? null)}
-              renderItem={renderItem}
-            />
-          </TabsContent>
-        </Tabs>
+      <section className="flex shrink-0 items-center gap-1.5 border-b p-1.5">
+        <TreeSelect<QueryPlanDataItem>
+          data={treeData}
+          value={planId}
+          onValueChange={handlePlanSelect}
+          onItemHover={item => setHoveredWorkerId(item?.workerId ?? null)}
+          ariaLabel="Query plan"
+          collapsible={false}
+          renderItem={({ item, hasChildren }) => renderPlanItem(item, hasChildren, true)}
+          renderValue={item => renderPlanItem(item, !!item.children?.length)}
+          contentClassName={thinScrollbarClass}
+        />
+        <DAGSettingsPopover
+          operatorStatFields={operatorStatFields}
+          portStatFields={portStatFields}
+          isDark={isDark}
+        />
       </section>
 
-      <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-        <div className="flex-1 min-h-0">
-          <Suspense
-            fallback={
-              <div className="flex items-center justify-center h-full text-muted-foreground">
-                Loading visualization...
-              </div>
+      <ResizablePanelGroup
+        orientation="vertical"
+        className="min-h-0 flex-1"
+        elementRef={operatorDetailsGroupRef}
+      >
+        <ResizablePanel id="query-plan-dag" minSize="25%">
+          <div className="flex h-full min-h-0 flex-col overflow-hidden">
+            <div className="flex-1 min-h-0">
+              <Suspense
+                fallback={
+                  <div className="flex items-center justify-center h-full text-muted-foreground">
+                    Loading visualization...
+                  </div>
+                }
+              >
+                <DAGChart data={dagData} height="100%" isDark={isDark} operators={operators} />
+              </Suspense>
+            </div>
+            <DagPlayhead />
+          </div>
+        </ResizablePanel>
+        <ResizableHandle
+          withHandle={operatorDetailsExpanded}
+          disabled={!operatorDetailsExpanded}
+          className={operatorDetailsExpanded ? undefined : 'opacity-0'}
+        />
+        <ResizablePanel
+          id="operator-details"
+          panelRef={operatorDetailsPanelRef}
+          defaultSize={OPERATOR_DETAILS_COLLAPSED_HEIGHT}
+          minSize={96}
+          maxSize={operatorDetailsMaxHeight}
+          collapsible
+          collapsedSize={OPERATOR_DETAILS_COLLAPSED_HEIGHT}
+          groupResizeBehavior="preserve-pixel-size"
+          className="min-h-0 overflow-hidden"
+          onResize={size => {
+            if (operatorDetailsExpanded && size.inPixels > OPERATOR_DETAILS_COLLAPSED_HEIGHT) {
+              operatorDetailsExpandedHeightRef.current = size.inPixels;
             }
-          >
-            <DAGChart data={dagData} height="100%" isDark={isDark} operators={operators} />
-          </Suspense>
-        </div>
-        <DagPlayhead />
-        <DAGNodeInfoPanel isDark={isDark} quantitySpecs={queryBundle.quantity_specs} />
-      </div>
+          }}
+        >
+          <DAGNodeInfoPanel
+            isDark={isDark}
+            quantitySpecs={queryBundle.quantity_specs}
+            fillHeight
+            onExpandedChange={setOperatorDetailsExpanded}
+            onPreferredHeightChange={setOperatorDetailsPreferredHeight}
+          />
+        </ResizablePanel>
+      </ResizablePanelGroup>
     </div>
   );
 }
