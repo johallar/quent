@@ -95,7 +95,7 @@ function QueryColorRegistry({
       ),
       createColorRegistryEntry(
         COLOR_REGISTRY_KEYS.DATA_FLOW_STATES,
-        fsmStates,
+        [],
         palettes[COLOR_REGISTRY_KEYS.DATA_FLOW_STATES]
       ),
       createColorRegistryEntry(

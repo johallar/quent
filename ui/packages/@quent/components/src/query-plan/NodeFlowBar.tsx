@@ -20,7 +20,6 @@ import {
 import { SegmentedBar } from '../segmented-bar/SegmentedBar';
 
 const BAR_TRANSITION = 'width 120ms linear';
-const EMPTY_COLOR_VALUES: readonly string[] = [];
 
 /**
  * Usable track width in pixels: the node is laid out at a fixed
@@ -51,18 +50,8 @@ const FLOW_TRACK_PX = NODE_LAYOUT_WIDTH - 32;
 export const NodeFlowBar = memo(({ operatorId }: { operatorId: string; isDark?: boolean }) => {
   const meta = useDataFlowMeta();
   const frame = useDataFlowFrame();
-  const dimensionColorKeys = useMemo(
-    () => meta?.decl.dimension_keys.map(dimension => dimension.key) ?? EMPTY_COLOR_VALUES,
-    [meta]
-  );
-  const stateColor = useColorResolver(
-    COLOR_REGISTRY_KEYS.DATA_FLOW_STATES,
-    meta?.stateNames ?? EMPTY_COLOR_VALUES
-  );
-  const dimensionColor = useColorResolver(
-    COLOR_REGISTRY_KEYS.DATA_FLOW_DIMENSIONS,
-    dimensionColorKeys
-  );
+  const stateColor = useColorResolver(COLOR_REGISTRY_KEYS.DATA_FLOW_STATES);
+  const dimensionColor = useColorResolver(COLOR_REGISTRY_KEYS.DATA_FLOW_DIMENSIONS);
 
   if (!meta || !frame) {
     return null;

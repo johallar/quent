@@ -40,15 +40,8 @@ export const DataFlowMatrix = ({
         .filter(({ key }) => meta.dimensionSelection.has(key.key)),
     [allDimensionKeys, meta.dimensionSelection]
   );
-  const dimensionColorKeys = useMemo(
-    () => allDimensionKeys.map(dimension => dimension.key),
-    [allDimensionKeys]
-  );
-  const stateColor = useColorResolver(COLOR_REGISTRY_KEYS.DATA_FLOW_STATES, meta.stateNames);
-  const dimensionColor = useColorResolver(
-    COLOR_REGISTRY_KEYS.DATA_FLOW_DIMENSIONS,
-    dimensionColorKeys
-  );
+  const stateColor = useColorResolver(COLOR_REGISTRY_KEYS.DATA_FLOW_STATES);
+  const dimensionColor = useColorResolver(COLOR_REGISTRY_KEYS.DATA_FLOW_DIMENSIONS);
 
   const fmt = (value: number) => formatDataFlowValue(value, frame.measure, meta);
   const measureDecl = meta.decl.measures.find(m => m.name === frame.measure);
