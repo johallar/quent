@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: Copyright (c) 2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-import { memo, useMemo } from 'react';
+import { memo } from 'react';
 import {
   COLOR_REGISTRY_KEYS,
   useDataFlowFrame,
