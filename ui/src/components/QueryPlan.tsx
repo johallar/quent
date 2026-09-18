@@ -1,7 +1,16 @@
 // SPDX-FileCopyrightText: Copyright (c) 2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-import { useEffect, useLayoutEffect, useMemo, useRef, useState, lazy, Suspense } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  lazy,
+  Suspense,
+} from 'react';
 import type { PanelImperativeHandle } from 'react-resizable-panels';
 import { useQueryBundle, useDataFlow } from '@quent/client';
 import { useQueryPlanVisualization } from '@/hooks/useQueryPlanVisualization';
@@ -48,6 +57,7 @@ export function QueryPlan({ queryId, engineId }: { queryId: string; engineId: st
   const planId = useSelectedPlanId();
   const setPlanId = useSetSelectedPlanId();
   const setHoveredWorkerId = useSetHoveredWorkerId();
+  const [dagSettingsOpen, setDagSettingsOpen] = useState(false);
   const [operatorDetailsExpanded, setOperatorDetailsExpanded] = useState(false);
   const [operatorDetailsPreferredHeight, setOperatorDetailsPreferredHeight] = useState(
     OPERATOR_DETAILS_DEFAULT_HEIGHT
@@ -98,6 +108,7 @@ export function QueryPlan({ queryId, engineId }: { queryId: string; engineId: st
   const portStatFields = usePortStatFields(dagData.edges);
 
   const handlePlanSelect = (item: QueryPlanDataItem) => setPlanId(item.id);
+  const closeDagSettings = useCallback(() => setDagSettingsOpen(false), []);
 
   // TODO: Currently fetching root plan when bundle loads - is this correct?
   useEffect(() => {
@@ -227,6 +238,8 @@ export function QueryPlan({ queryId, engineId }: { queryId: string; engineId: st
           operatorStatFields={operatorStatFields}
           portStatFields={portStatFields}
           isDark={isDark}
+          open={dagSettingsOpen}
+          onOpenChange={setDagSettingsOpen}
         />
       </section>
 
@@ -245,7 +258,13 @@ export function QueryPlan({ queryId, engineId }: { queryId: string; engineId: st
                   </div>
                 }
               >
-                <DAGChart data={dagData} height="100%" isDark={isDark} operators={operators} />
+                <DAGChart
+                  data={dagData}
+                  height="100%"
+                  isDark={isDark}
+                  operators={operators}
+                  onBackgroundClick={closeDagSettings}
+                />
               </Suspense>
             </div>
             <DagPlayhead />

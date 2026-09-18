@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: Copyright (c) 2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 // SPDX-License-Identifier: Apache-2.0
 
+import { useState } from 'react';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
@@ -21,12 +22,25 @@ vi.mock('./DAGControls', () => ({
   },
 }));
 
+function ControlledSettingsPopover() {
+  const [open, setOpen] = useState(false);
+  return (
+    <DAGSettingsPopover
+      operatorStatFields={['duration']}
+      portStatFields={['rows']}
+      isDark
+      open={open}
+      onOpenChange={setOpen}
+    />
+  );
+}
+
 describe('DAGSettingsPopover', () => {
   it('opens from the gear trigger and closes on an outside click', async () => {
     const user = userEvent.setup();
     render(
       <>
-        <DAGSettingsPopover operatorStatFields={['duration']} portStatFields={['rows']} isDark />
+        <ControlledSettingsPopover />
         <button type="button">Outside target</button>
       </>
     );

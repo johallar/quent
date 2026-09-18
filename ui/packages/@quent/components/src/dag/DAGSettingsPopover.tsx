@@ -10,14 +10,25 @@ interface DAGSettingsPopoverProps {
   operatorStatFields: string[];
   portStatFields: string[];
   isDark: boolean;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
 }
 
 export function DAGSettingsPopover({
   operatorStatFields,
   portStatFields,
   isDark,
+  open: controlledOpen,
+  onOpenChange,
 }: DAGSettingsPopoverProps) {
-  const [open, setOpen] = useState(false);
+  const [uncontrolledOpen, setUncontrolledOpen] = useState(false);
+  const open = controlledOpen ?? uncontrolledOpen;
+  const setOpen = (nextOpen: boolean) => {
+    if (controlledOpen === undefined) {
+      setUncontrolledOpen(nextOpen);
+    }
+    onOpenChange?.(nextOpen);
+  };
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
