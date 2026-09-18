@@ -101,4 +101,25 @@ describe('color registry', () => {
     expect(result.current('declared')).toBe('#3b82f6');
     expect(result.current('synthetic')).not.toBe('#3b82f6');
   });
+
+  it('assigns collision-aware colors lazily from an empty registry', () => {
+    const palette = ['#111111', '#222222'];
+    const registry: ColorRegistry = new Map([
+      [COLOR_REGISTRY_KEYS.DATA_FLOW_STATES, { colorMap: new Map(), palette }],
+    ]);
+    const { result } = renderHook(
+      () => ({
+        first: useColorResolver(COLOR_REGISTRY_KEYS.DATA_FLOW_STATES, []),
+        second: useColorResolver(COLOR_REGISTRY_KEYS.DATA_FLOW_STATES, []),
+      }),
+      { wrapper: createWrapper(registry) }
+    );
+
+    const firstColor = result.current.first('a');
+    const secondColor = result.current.second('c');
+
+    expect(firstColor).not.toBe(secondColor);
+    expect(result.current.second('a')).toBe(firstColor);
+    expect(result.current.first('c')).toBe(secondColor);
+  });
 });
