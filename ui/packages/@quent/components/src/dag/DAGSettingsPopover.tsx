@@ -35,9 +35,9 @@ export function DAGSettingsPopover({
       <PopoverTrigger asChild>
         <button
           type="button"
-          aria-label="DAG settings"
-          className="mr-1 inline-flex size-7 shrink-0 cursor-pointer items-center justify-center rounded-sm text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-          title="DAG settings"
+          aria-label="Settings"
+          className="mr-1 inline-flex aspect-square min-h-9 self-stretch shrink-0 cursor-pointer items-center justify-center rounded-sm text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+          title="Settings"
         >
           <Settings className="size-4" />
         </button>

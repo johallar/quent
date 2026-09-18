@@ -222,7 +222,9 @@ export function QueryPlan({ queryId, engineId }: { queryId: string; engineId: st
 
   return (
     <div className="w-full flex flex-col h-[calc(100vh-4rem)]">
-      <section className="flex shrink-0 items-center gap-1.5 border-b p-1.5">
+      {/* my-2px lines it up with timeline rows */}
+      <section className="flex shrink-0 items-center gap-1.5 border-b px-1.5 py-2.5 my-[2px]">
+        <label className="text-sm font-medium text-muted-foreground">Query Plan:</label>
         <TreeSelect<QueryPlanDataItem>
           data={treeData}
           value={planId}
