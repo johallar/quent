@@ -1,8 +1,8 @@
 // SPDX-FileCopyrightText: Copyright (c) 2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-import type { ReactNode } from 'react';
 import { render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import { DAGSettingsPopover } from './DAGSettingsPopover';
 
@@ -21,27 +21,31 @@ vi.mock('./DAGControls', () => ({
   },
 }));
 
-vi.mock('../ui/popover', () => ({
-  Popover: ({ children }: { children: ReactNode }) => <div>{children}</div>,
-  PopoverTrigger: ({ children }: { children: ReactNode }) => <>{children}</>,
-  PopoverContent: ({ children }: { children: ReactNode }) => <div>{children}</div>,
-}));
-
 describe('DAGSettingsPopover', () => {
-  it('renders an accessible gear trigger and the existing DAG controls', () => {
+  it('opens from the gear trigger and closes on an outside click', async () => {
+    const user = userEvent.setup();
     render(
-      <DAGSettingsPopover operatorStatFields={['duration']} portStatFields={['rows']} isDark />
+      <>
+        <DAGSettingsPopover operatorStatFields={['duration']} portStatFields={['rows']} isDark />
+        <button type="button">Outside target</button>
+      </>
     );
 
-    expect(screen.getByRole('button', { name: 'DAG settings' })).toHaveAttribute(
-      'title',
-      'DAG settings'
-    );
+    const trigger = screen.getByRole('button', { name: 'DAG settings' });
+    expect(trigger).toHaveAttribute('title', 'DAG settings');
+    expect(screen.queryByText('DAG controls')).not.toBeInTheDocument();
+
+    await user.click(trigger);
+
     expect(screen.getByText('DAG controls')).toBeInTheDocument();
     expect(mocks.dagControls).toHaveBeenCalledWith({
       operatorStatFields: ['duration'],
       portStatFields: ['rows'],
       isDark: true,
     });
+
+    await user.click(screen.getByRole('button', { name: 'Outside target' }));
+
+    expect(screen.queryByText('DAG controls')).not.toBeInTheDocument();
   });
 });

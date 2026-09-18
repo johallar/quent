@@ -160,7 +160,7 @@ export function QueryPlan({ queryId, engineId }: { queryId: string; engineId: st
 
   return (
     <div className="w-full flex flex-col h-[calc(100vh-4rem)]">
-      <section className="max-h-[300px] shrink-0 overflow-hidden border-b">
+      <section className="max-h-[200px] shrink-0 overflow-hidden border-b">
         <Tabs defaultValue={TABS.PLAN} className="h-auto flex-none">
           <div className="flex shrink-0 items-center border-b">
             <TabsList className="min-w-0 flex-1 border-b-0">

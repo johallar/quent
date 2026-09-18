@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: Copyright (c) 2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 // SPDX-License-Identifier: Apache-2.0
 
+import { useState } from 'react';
 import { Settings } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover';
 import { DAGControls } from './DAGControls';
@@ -16,8 +17,10 @@ export function DAGSettingsPopover({
   portStatFields,
   isDark,
 }: DAGSettingsPopoverProps) {
+  const [open, setOpen] = useState(false);
+
   return (
-    <Popover>
+    <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
         <button
           type="button"
@@ -28,8 +31,10 @@ export function DAGSettingsPopover({
           <Settings className="size-4" />
         </button>
       </PopoverTrigger>
-      <PopoverContent className="max-h-[min(70vh,36rem)] w-[min(36rem,calc(100vw-2rem))] overflow-y-auto p-0">
-        <div className="border-b px-3 py-2 text-sm font-semibold">DAG settings</div>
+      <PopoverContent
+        className="max-h-[min(70vh,36rem)] w-[min(36rem,calc(100vw-2rem))] overflow-y-auto p-0"
+        onPointerDownOutside={() => setOpen(false)}
+      >
         <DAGControls
           operatorStatFields={operatorStatFields}
           portStatFields={portStatFields}
