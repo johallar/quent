@@ -211,7 +211,9 @@ export function QueryPlan({ queryId, engineId }: { queryId: string; engineId: st
     const lines = [primary];
     const selectedOperatorCount = selectedOperatorCountsByPlan.get(item.id) ?? 0;
     if (selectedOperatorCount > 0) {
-      lines.push(`${selectedOperatorCount} operator${selectedOperatorCount === 1 ? '' : 's'} selected`);
+      lines.push(
+        `${selectedOperatorCount} operator${selectedOperatorCount === 1 ? '' : 's'} selected`
+      );
     }
     if (item.workerId) {
       lines.push(`Worker: ${item.workerId}`);
