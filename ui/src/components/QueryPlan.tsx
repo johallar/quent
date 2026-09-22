@@ -236,11 +236,11 @@ export function QueryPlan({ queryId, engineId }: { queryId: string; engineId: st
       >
         <div className="flex w-full min-w-0 items-center gap-1.5">
           {singleQueryPlan ? (
-            <span className="block min-w-0 flex-1 truncate text-xs">
+            <span className="block min-w-0 shrink truncate text-xs">
               Query: <DataText>{item.queryId}</DataText>
             </span>
           ) : (
-            <span className="block min-w-0 flex-1 truncate text-xs">
+            <span className="block min-w-0 shrink truncate text-xs">
               <DataText className="capitalize">{item.planType}</DataText>
               {!hasChildren && (
                 <span>
