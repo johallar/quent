@@ -4,55 +4,20 @@
 import { createContext, useContext, useMemo, useState, type ReactNode } from 'react';
 import type { SchemaFetcher } from '@quent/client';
 import {
-  fetchBoundedOccupancySchema,
   fetchEntitiesOnlySchema,
-  fetchMixedResourceSchema,
-  fetchNonFsmEntitiesSchema,
   fetchQueryPlanOnlySchema,
   fetchQueryPlanWithEntitiesSchema,
   fetchResourceDefinitionsOnlySchema,
   fetchResourceOnlySchema,
   fetchResourceWithQueryPlanSchema,
-  fetchUnboundedOccupancySchema,
-  fetchUnitResourceSchema,
 } from './resourceOnlySchema';
 
 export const SCHEMA_EXPERIMENTS = [
-  {
-    id: 'non-fsm-entities',
-    label: 'Non-FSM entities',
-    description: 'Reference-tree entities with ordinary events and no modeled lifecycle.',
-    fetcher: fetchNonFsmEntitiesSchema,
-  },
   {
     id: 'entities-only',
     label: 'FSM entities only',
     description: 'Reference-tree entities and lifecycle states without resources or plans.',
     fetcher: fetchEntitiesOnlySchema,
-  },
-  {
-    id: 'unit-resource',
-    label: 'Unit resource',
-    description: 'An indivisible thread resource claimed by a running task.',
-    fetcher: fetchUnitResourceSchema,
-  },
-  {
-    id: 'unbounded-occupancy',
-    label: 'Unbounded occupancy',
-    description: 'Memory usage in bytes without a declared capacity bound.',
-    fetcher: fetchUnboundedOccupancySchema,
-  },
-  {
-    id: 'bounded-occupancy',
-    label: 'Bounded occupancy',
-    description: 'Memory usage with dynamically reported byte bounds.',
-    fetcher: fetchBoundedOccupancySchema,
-  },
-  {
-    id: 'mixed-resources',
-    label: 'Mixed resources',
-    description: 'Unit thread, bounded memory occupancy, and unbounded network rate.',
-    fetcher: fetchMixedResourceSchema,
   },
   {
     id: 'resource-only',

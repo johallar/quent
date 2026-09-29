@@ -209,77 +209,7 @@ export const queryPlanOnlySchema = schema('QueryPlanOnlyExperiment', queryPlanEn
 
 const pipeline = entity('Pipeline', [event('created')]);
 
-export const nonFsmEntitiesSchema = schema('NonFsmEntitiesExperiment', [
-  pipeline,
-  entity('Task', [
-    event('started', [field('parent', entityReference('Pipeline', null, true))]),
-    event('progress', [field('completed_steps', 'U64')], 'Multi'),
-    event('ended'),
-  ]),
-]);
-
 export const entitiesOnlySchema = schema('EntitiesOnlyExperiment', [pipeline, taskFsm('Pipeline')]);
-
-const threadPool = entity('ThreadPool', [event('created')]);
-const thread = resourceEntity('Thread', 'ThreadPool', {});
-const threadUsage = resourceRecord('ThreadUsage', 'usage', 'Thread', []);
-
-export const unitResourceSchema = schema(
-  'UnitResourceExperiment',
-  [threadPool, thread, taskFsm('ThreadPool', [usageField('thread', 'Thread', 'ThreadUsage')])],
-  [threadUsage]
-);
-
-const system = entity('System', [event('created')]);
-const memory = resourceEntity('Memory', 'System', { bytes: { kind: 'occupancy', bounded: false } });
-const memoryUsage = resourceRecord('MemoryUsage', 'usage', 'Memory', ['bytes']);
-
-export const unboundedOccupancySchema = schema(
-  'UnboundedOccupancyExperiment',
-  [system, memory, taskFsm('System', [usageField('memory', 'Memory', 'MemoryUsage')])],
-  [memoryUsage]
-);
-
-const boundedMemory = resourceEntity(
-  'Memory',
-  'System',
-  { bytes: { kind: 'occupancy', bounded: true } },
-  'MemoryBounds'
-);
-const memoryBounds = resourceRecord('MemoryBounds', 'bounds', 'Memory', ['bytes']);
-
-export const boundedOccupancySchema = schema(
-  'BoundedOccupancyExperiment',
-  [system, boundedMemory, taskFsm('System', [usageField('memory', 'Memory', 'MemoryUsage')])],
-  [memoryUsage, memoryBounds]
-);
-
-const mixedThread = resourceEntity('Thread', 'System', {});
-const mixedThreadUsage = resourceRecord('ThreadUsage', 'usage', 'Thread', []);
-const mixedMemory = resourceEntity(
-  'Memory',
-  'System',
-  { bytes: { kind: 'occupancy', bounded: true } },
-  'MemoryBounds'
-);
-const network = resourceEntity('Network', 'System', { bytes: { kind: 'rate', bounded: false } });
-const networkUsage = resourceRecord('NetworkUsage', 'usage', 'Network', ['bytes']);
-
-export const mixedResourceSchema = schema(
-  'MixedResourceExperiment',
-  [
-    system,
-    mixedThread,
-    mixedMemory,
-    network,
-    taskFsm('System', [
-      usageField('thread', 'Thread', 'ThreadUsage'),
-      usageField('memory', 'Memory', 'MemoryUsage'),
-      usageField('network', 'Network', 'NetworkUsage'),
-    ]),
-  ],
-  [mixedThreadUsage, memoryUsage, memoryBounds, networkUsage]
-);
 
 export const queryPlanWithEntitiesSchema = withQueryPlan(
   entitiesOnlySchema,
@@ -288,8 +218,8 @@ export const queryPlanWithEntitiesSchema = withQueryPlan(
 
 export const resourceDefinitionsOnlySchema = schema(
   'ResourceDefinitionsOnlyExperiment',
-  [system, memory],
-  [memoryUsage]
+  [host, hostMemory],
+  [hostMemoryUsage]
 );
 
 export async function fetchResourceOnlySchema(): Promise<Schema> {
@@ -306,26 +236,6 @@ export async function fetchQueryPlanOnlySchema(): Promise<Schema> {
 
 export async function fetchEntitiesOnlySchema(): Promise<Schema> {
   return entitiesOnlySchema;
-}
-
-export async function fetchNonFsmEntitiesSchema(): Promise<Schema> {
-  return nonFsmEntitiesSchema;
-}
-
-export async function fetchUnitResourceSchema(): Promise<Schema> {
-  return unitResourceSchema;
-}
-
-export async function fetchUnboundedOccupancySchema(): Promise<Schema> {
-  return unboundedOccupancySchema;
-}
-
-export async function fetchBoundedOccupancySchema(): Promise<Schema> {
-  return boundedOccupancySchema;
-}
-
-export async function fetchMixedResourceSchema(): Promise<Schema> {
-  return mixedResourceSchema;
 }
 
 export async function fetchQueryPlanWithEntitiesSchema(): Promise<Schema> {

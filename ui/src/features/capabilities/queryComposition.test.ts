@@ -6,7 +6,6 @@ import { describe, expect, it } from 'vitest';
 import { simulatorFeatureSet } from '@/features/simulatorFeatureSet';
 import {
   entitiesOnlySchema,
-  nonFsmEntitiesSchema,
   queryPlanOnlySchema,
   queryPlanWithEntitiesSchema,
   resourceDefinitionsOnlySchema,
@@ -84,13 +83,6 @@ describe('resolveQueryComposition', () => {
 
     expect(composition.tabs).toEqual([]);
     expect(resolveAvailableQueryTab(composition, 'timeline')).toBeNull();
-  });
-
-  it('returns no surface for entities without an FSM model', () => {
-    const composition = compositionFor(nonFsmEntitiesSchema);
-
-    expect(composition.tabs).toEqual([]);
-    expect(resolveAvailableQueryTab(composition, 'entities')).toBeNull();
   });
 
   it('preserves all current simulator surfaces', () => {

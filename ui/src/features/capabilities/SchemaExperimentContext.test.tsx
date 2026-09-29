@@ -34,12 +34,7 @@ describe('SchemaExperimentProvider', () => {
 
   it('offers each configured schema variation once', () => {
     expect(SCHEMA_EXPERIMENTS.map(experiment => experiment.id)).toEqual([
-      'non-fsm-entities',
       'entities-only',
-      'unit-resource',
-      'unbounded-occupancy',
-      'bounded-occupancy',
-      'mixed-resources',
       'resource-only',
       'resource-query-plan',
       'query-plan-only',

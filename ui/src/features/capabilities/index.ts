@@ -18,26 +18,16 @@ export {
 } from './queryComposition';
 export type { QueryComposition, QueryTabId } from './queryComposition';
 export {
-  boundedOccupancySchema,
   entitiesOnlySchema,
-  fetchBoundedOccupancySchema,
   fetchEntitiesOnlySchema,
-  fetchMixedResourceSchema,
-  fetchNonFsmEntitiesSchema,
   fetchQueryPlanOnlySchema,
   fetchQueryPlanWithEntitiesSchema,
   fetchResourceDefinitionsOnlySchema,
   fetchResourceOnlySchema,
   fetchResourceWithQueryPlanSchema,
-  fetchUnboundedOccupancySchema,
-  fetchUnitResourceSchema,
-  mixedResourceSchema,
-  nonFsmEntitiesSchema,
   queryPlanOnlySchema,
   queryPlanWithEntitiesSchema,
   resourceDefinitionsOnlySchema,
   resourceOnlySchema,
   resourceWithQueryPlanSchema,
-  unboundedOccupancySchema,
-  unitResourceSchema,
 } from './resourceOnlySchema';
