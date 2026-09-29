@@ -1,14 +1,23 @@
 // SPDX-FileCopyrightText: Copyright (c) 2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-import { createFileRoute, redirect } from '@tanstack/react-router';
+import { createFileRoute, Navigate } from '@tanstack/react-router';
+import {
+  queryTabRoute,
+  resolveAvailableQueryTab,
+  resolveQueryComposition,
+  useFeatureRegistry,
+} from '@/features/capabilities';
 
 export const Route = createFileRoute('/profile/engine/$engineId/query/$queryId/')({
-  beforeLoad: ({ params, search }) => {
-    throw redirect({
-      to: '/profile/engine/$engineId/query/$queryId/timeline',
-      params,
-      search,
-    });
-  },
+  component: QueryIndex,
 });
+
+function QueryIndex() {
+  const params = Route.useParams();
+  const search = Route.useSearch();
+  const composition = resolveQueryComposition(useFeatureRegistry());
+  const defaultTab = resolveAvailableQueryTab(composition, 'timeline');
+
+  return <Navigate to={queryTabRoute(defaultTab)} params={params} search={search} replace />;
+}

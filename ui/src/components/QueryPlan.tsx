@@ -56,7 +56,15 @@ const DAGChart = lazy(() => import('@quent/components').then(mod => ({ default: 
 const OPERATOR_DETAILS_COLLAPSED_HEIGHT = 32;
 const OPERATOR_DETAILS_DEFAULT_HEIGHT = 224;
 
-export function QueryPlan({ queryId, engineId }: { queryId: string; engineId: string }) {
+export function QueryPlan({
+  queryId,
+  engineId,
+  enableDataFlow = true,
+}: {
+  queryId: string;
+  engineId: string;
+  enableDataFlow?: boolean;
+}) {
   const { theme } = useTheme();
   const isDark = theme === THEME_DARK;
   const planId = useSelectedPlanId();
@@ -93,11 +101,7 @@ export function QueryPlan({ queryId, engineId }: { queryId: string; engineId: st
     [queryBundle?.entities.operators]
   );
 
-  // Data-flow overlay: fetch the categorical timeline for the current zoom
-  // window (fallback: full query duration) and sync it into the data-flow
-  // atoms. The first response doubles as the feature probe — `null` (HTTP
-  // 501, analyzer without data-flow support) or an empty result hides the
-  // playhead, bars, controls, and legend entries.
+  // Responses drive overlay visibility; capabilities suppress unsupported requests.
   const debouncedZoomRange = useDebouncedZoomRange();
   const dataFlowWindow = resolveDataFlowWindow(debouncedZoomRange, queryBundle?.duration_s ?? 0);
   const { data: dataFlowResponse } = useDataFlow(
@@ -110,9 +114,12 @@ export function QueryPlan({ queryId, engineId }: { queryId: string; engineId: st
         end: dataFlowWindow.end,
       },
     },
-    { enabled: !!queryBundle && dataFlowWindow.end > dataFlowWindow.start }
+    { enabled: enableDataFlow && !!queryBundle && dataFlowWindow.end > dataFlowWindow.start }
   );
-  useDataFlowSync({ response: dataFlowResponse, queryBundle });
+  useDataFlowSync({
+    response: enableDataFlow ? dataFlowResponse : undefined,
+    queryBundle,
+  });
 
   useDagNodeColoring(dagData.nodes, computeNodeColoring, isDark);
   useDagEdgeWidthConfig(dagData.edges, computeEdgeWidthConfig);

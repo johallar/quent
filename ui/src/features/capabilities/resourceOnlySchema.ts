@@ -54,6 +54,27 @@ task.events.created = {
   annotations: annotations(),
 };
 
+const plan = entity('Plan');
+const operator = entity('Operator');
+operator.events.statistics = {
+  name: 'statistics',
+  cardinality: 'Once',
+  payload: {
+    custom_attributes: {
+      name: 'custom_attributes',
+      ty: 'DynamicRecord',
+      annotations: annotations(),
+    },
+  },
+  annotations: annotations(),
+};
+const port = entity('Port');
+const queryPlanEntities: Schema['entities'] = [
+  [path('Plan'), plan],
+  [path('Operator'), operator],
+  [path('Port'), port],
+];
+
 export const resourceOnlySchema: Schema = {
   name: 'ResourceOnlyExperiment',
   entities: [
@@ -64,6 +85,27 @@ export const resourceOnlySchema: Schema = {
   annotations: annotations(),
 };
 
+export const resourceWithQueryPlanSchema: Schema = {
+  ...resourceOnlySchema,
+  name: 'ResourceWithQueryPlanExperiment',
+  entities: [...resourceOnlySchema.entities, ...queryPlanEntities],
+};
+
+export const queryPlanOnlySchema: Schema = {
+  name: 'QueryPlanOnlyExperiment',
+  entities: queryPlanEntities,
+  records: [],
+  annotations: annotations(),
+};
+
 export async function fetchResourceOnlySchema(): Promise<Schema> {
   return resourceOnlySchema;
+}
+
+export async function fetchResourceWithQueryPlanSchema(): Promise<Schema> {
+  return resourceWithQueryPlanSchema;
+}
+
+export async function fetchQueryPlanOnlySchema(): Promise<Schema> {
+  return queryPlanOnlySchema;
 }

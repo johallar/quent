@@ -15,7 +15,7 @@ import { QueryLoading } from '@/components/QueryLoading';
 import { RouteError } from '@/components/RouteError';
 import { CopyLinkButton, validateDeepLinkSearch } from '@/features/deep-link';
 import {
-  fetchResourceOnlySchema,
+  fetchResourceWithQueryPlanSchema,
   resolveQueryComposition,
   useFeatureRegistry,
 } from '@/features/capabilities';
@@ -37,7 +37,7 @@ export const Route = createFileRoute('/profile/engine/$engineId/query/$queryId')
     const [queryBundle, schema] = await Promise.all([
       queryClient.ensureQueryData(queryBundleQueryOptions({ engineId, queryId })),
       queryClient.ensureQueryData(
-        schemaQueryOptions({ engineId, fetcher: fetchResourceOnlySchema })
+        schemaQueryOptions({ engineId, fetcher: fetchResourceWithQueryPlanSchema })
       ),
     ]);
     return {

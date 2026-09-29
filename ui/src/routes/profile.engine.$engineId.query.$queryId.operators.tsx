@@ -5,6 +5,7 @@ import { createFileRoute, Navigate } from '@tanstack/react-router';
 import { OperatorTable } from '@/components/operator-table/OperatorTable';
 import { Route as QueryRoute } from './profile.engine.$engineId.query.$queryId';
 import {
+  queryTabRoute,
   resolveAvailableQueryTab,
   resolveQueryComposition,
   useFeatureRegistry,
@@ -19,10 +20,11 @@ function OperatorsTab() {
   const features = useFeatureRegistry();
   const { queryBundle } = QueryRoute.useLoaderData();
   const composition = resolveQueryComposition(features);
-  if (resolveAvailableQueryTab(composition, 'operators') !== 'operators') {
+  const availableTab = resolveAvailableQueryTab(composition, 'operators');
+  if (availableTab !== 'operators') {
     return (
       <Navigate
-        to="/profile/engine/$engineId/query/$queryId/timeline"
+        to={queryTabRoute(availableTab)}
         params={{ engineId, queryId }}
         search={{}}
         replace

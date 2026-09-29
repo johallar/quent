@@ -6,12 +6,7 @@ import { Provider } from 'jotai';
 import { useMemo, useState, type ReactNode } from 'react';
 import { QueryPlan } from '@/components/QueryPlan';
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@quent/components';
-import {
-  FEATURE_IDS,
-  createFeatureRegistry,
-  defineFeatureSet,
-  type FeatureSet,
-} from '@quent/features';
+import { createFeatureRegistry, defineFeatureSet, type FeatureSet } from '@quent/features';
 import { COLOR_REGISTRY_KEYS, useHydrateColorRegistry, type ColorRegistry } from '@quent/hooks';
 import { DeepLinkBoundary } from '@/features/deep-link';
 import { FeatureRegistryProvider, resolveQueryComposition } from '@/features/capabilities';
@@ -91,9 +86,9 @@ function ProfileLayout() {
   const deepLinkFeatures = useMemo(
     () => ({
       queryPlan: queryComposition.showQueryPlan,
-      dataFlow: featureRegistry.has(FEATURE_IDS.queryEngineDataFlow),
+      dataFlow: queryComposition.showDataFlow,
     }),
-    [featureRegistry, queryComposition.showQueryPlan]
+    [queryComposition.showDataFlow, queryComposition.showQueryPlan]
   );
   const operators = useMemo(
     () => (queryBundle ? Object.values(queryBundle.entities.operators) : []),
@@ -134,7 +129,11 @@ function ProfileLayout() {
     <ResizablePanelGroup orientation="horizontal" className="h-full min-w-0">
       <ResizablePanel defaultSize="33%" minSize="15%" collapsible collapsedSize="0%">
         {queryId && queryId !== '' ? (
-          <QueryPlan queryId={queryId} engineId={engineId} />
+          <QueryPlan
+            queryId={queryId}
+            engineId={engineId}
+            enableDataFlow={queryComposition.showDataFlow}
+          />
         ) : (
           <div className="flex items-center justify-center h-full text-muted-foreground">
             Select a query to view the execution plan

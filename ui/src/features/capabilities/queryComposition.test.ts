@@ -4,19 +4,27 @@
 import { FEATURE_IDS, createFeatureRegistry, resolveFeatureSetFromSchema } from '@quent/features';
 import { describe, expect, it } from 'vitest';
 import { simulatorFeatureSet } from '@/features/simulatorFeatureSet';
-import { resourceOnlySchema } from './resourceOnlySchema';
+import {
+  queryPlanOnlySchema,
+  resourceOnlySchema,
+  resourceWithQueryPlanSchema,
+} from './resourceOnlySchema';
 import { resolveAvailableQueryTab, resolveQueryComposition } from './queryComposition';
+
+function compositionFor(schema: typeof resourceOnlySchema) {
+  const resolution = resolveFeatureSetFromSchema(schema, {
+    hostFeatures: [FEATURE_IDS.queryEngineCore],
+  });
+  return resolveQueryComposition(createFeatureRegistry(resolution.featureSet));
+}
 
 describe('resolveQueryComposition', () => {
   it('returns resource and entity surfaces for the resource-only schema', () => {
-    const resolution = resolveFeatureSetFromSchema(resourceOnlySchema, {
-      hostFeatures: [FEATURE_IDS.queryEngineCore],
-    });
-
-    const composition = resolveQueryComposition(createFeatureRegistry(resolution.featureSet));
+    const composition = compositionFor(resourceOnlySchema);
     expect(composition).toMatchObject({
       showQueryPlan: false,
       showOperatorGantt: false,
+      showDataFlow: false,
       showNvtx: false,
       tabs: [
         { id: 'timeline', label: 'Timeline' },
@@ -26,10 +34,35 @@ describe('resolveQueryComposition', () => {
     expect(resolveAvailableQueryTab(composition, 'operators')).toBe('timeline');
   });
 
+  it('adds plan surfaces to the resource composition', () => {
+    expect(compositionFor(resourceWithQueryPlanSchema)).toMatchObject({
+      showQueryPlan: true,
+      showOperatorGantt: true,
+      showDataFlow: false,
+      showNvtx: false,
+      tabs: [{ id: 'timeline' }, { id: 'operators' }, { id: 'entities' }],
+    });
+  });
+
+  it('returns only the operators surface for a query-plan-only schema', () => {
+    const composition = compositionFor(queryPlanOnlySchema);
+
+    expect(composition).toMatchObject({
+      showQueryPlan: true,
+      showOperatorGantt: false,
+      showDataFlow: false,
+      showNvtx: false,
+      tabs: [{ id: 'operators' }],
+    });
+    expect(resolveAvailableQueryTab(composition, 'timeline')).toBe('operators');
+    expect(resolveAvailableQueryTab(composition, 'entities')).toBe('operators');
+  });
+
   it('preserves all current simulator surfaces', () => {
     expect(resolveQueryComposition(createFeatureRegistry(simulatorFeatureSet))).toMatchObject({
       showQueryPlan: true,
       showOperatorGantt: true,
+      showDataFlow: true,
       showNvtx: true,
       tabs: [{ id: 'timeline' }, { id: 'operators' }, { id: 'entities' }],
     });

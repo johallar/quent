@@ -2,6 +2,17 @@
 // SPDX-License-Identifier: Apache-2.0
 
 export { FeatureRegistryProvider, useFeatureRegistry } from './FeatureRegistryContext';
-export { resolveAvailableQueryTab, resolveQueryComposition } from './queryComposition';
+export {
+  queryTabRoute,
+  resolveAvailableQueryTab,
+  resolveQueryComposition,
+} from './queryComposition';
 export type { QueryComposition, QueryTabId } from './queryComposition';
-export { fetchResourceOnlySchema, resourceOnlySchema } from './resourceOnlySchema';
+export {
+  fetchQueryPlanOnlySchema,
+  fetchResourceOnlySchema,
+  fetchResourceWithQueryPlanSchema,
+  queryPlanOnlySchema,
+  resourceOnlySchema,
+  resourceWithQueryPlanSchema,
+} from './resourceOnlySchema';
