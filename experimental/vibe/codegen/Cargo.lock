@@ -544,6 +544,7 @@ dependencies = [
  "petgraph",
  "quent-schema",
  "rustc-hash",
+ "thiserror",
 ]
 
 [[package]]
@@ -698,6 +699,29 @@ dependencies = [
  "thiserror",
  "tracing",
  "uuid",
+]
+
+[[package]]
+name = "quent-log"
+version = "0.1.0"
+dependencies = [
+ "quent-constraints",
+ "quent-schema",
+ "serde",
+ "serde_json",
+ "thiserror",
+]
+
+[[package]]
+name = "quent-os"
+version = "0.1.0"
+dependencies = [
+ "quent-constraints",
+ "quent-ref-target",
+ "quent-ref-tree",
+ "quent-schema",
+ "rustc-hash",
+ "thiserror",
 ]
 
 [[package]]
@@ -898,6 +922,26 @@ dependencies = [
 ]
 
 [[package]]
+name = "quent-tutorial-fsm-dynamic-state-cpp-bridge"
+version = "0.0.0"
+dependencies = [
+ "cxx",
+ "quent-codegen-tutorial-build",
+ "quent-dynamic-attributes",
+ "quent-instrumentation",
+]
+
+[[package]]
+name = "quent-tutorial-fsm-dynamic-state-python-bridge"
+version = "0.0.0"
+dependencies = [
+ "pyo3",
+ "quent-codegen-tutorial-build",
+ "quent-dynamic-attributes",
+ "quent-instrumentation",
+]
+
+[[package]]
 name = "quent-tutorial-fsm-self-loop-cpp-bridge"
 version = "0.0.0"
 dependencies = [
@@ -938,6 +982,26 @@ dependencies = [
 ]
 
 [[package]]
+name = "quent-tutorial-log-sink-cpp-bridge"
+version = "0.0.0"
+dependencies = [
+ "cxx",
+ "quent-codegen-tutorial-build",
+ "quent-dynamic-attributes",
+ "quent-instrumentation",
+]
+
+[[package]]
+name = "quent-tutorial-log-sink-python-bridge"
+version = "0.0.0"
+dependencies = [
+ "pyo3",
+ "quent-codegen-tutorial-build",
+ "quent-dynamic-attributes",
+ "quent-instrumentation",
+]
+
+[[package]]
 name = "quent-tutorial-minimal-model-cpp-bridge"
 version = "0.0.0"
 dependencies = [
@@ -949,6 +1013,26 @@ dependencies = [
 
 [[package]]
 name = "quent-tutorial-minimal-model-python-bridge"
+version = "0.0.0"
+dependencies = [
+ "pyo3",
+ "quent-codegen-tutorial-build",
+ "quent-dynamic-attributes",
+ "quent-instrumentation",
+]
+
+[[package]]
+name = "quent-tutorial-operating-system-cpp-bridge"
+version = "0.0.0"
+dependencies = [
+ "cxx",
+ "quent-codegen-tutorial-build",
+ "quent-dynamic-attributes",
+ "quent-instrumentation",
+]
+
+[[package]]
+name = "quent-tutorial-operating-system-python-bridge"
 version = "0.0.0"
 dependencies = [
  "pyo3",
@@ -1084,6 +1168,8 @@ dependencies = [
  "indexmap",
  "quent-constraints",
  "quent-fsm",
+ "quent-log",
+ "quent-os",
  "quent-ref-target",
  "quent-ref-tree",
  "quent-resource",

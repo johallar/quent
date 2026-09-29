@@ -39,6 +39,12 @@
 //! ([`Cardinality::Once`](quent_schema::Cardinality::Once)) events at 64 per
 //! entity; beyond that, generation fails with
 //! [`GenerateError::TooManyOnceEvents`].
+//! FSM instrumentation supports up to 255 declared states per entity because
+//! dynamic handles use a `u8` state index and reserve zero for a handle that
+//! has not entered its initial state. An FSM with 256 or more states fails with
+//! [`GenerateError::TooManyFsmStates`].
+//! FSM state names that generate methods already provided by an FSM handle,
+//! such as `state`, `try_into`, `uuid`, or `as_entity_ref`, are rejected.
 //!
 //! Serde derives are opt-in through [`Options::serde`]. The generated crate
 //! must also depend on `serde` with its derive feature and enable the matching
@@ -57,7 +63,7 @@ use std::path::PathBuf;
 use convert_case::Case;
 use quent_constraints::{BaseConstraintsError, Report};
 use quent_fsm::{FsmConstraint, FsmError};
-use quent_schema::{Entity, Path, Schema};
+use quent_schema::{Entity, Identifier, Path, Schema};
 use quote::quote;
 
 /// Options controlling event and instrumentation source generation.
@@ -90,11 +96,11 @@ pub struct Options {
     /// `None`.
     pub file_name: Option<String>,
 
-    /// Emit model-wide umbrella event enums and implement the umbrella
+    /// Emit model-wide combined event enums and implement the combined
     /// capability for the generated model.
     ///
     /// No namespace enum is emitted without entity events, except at the root.
-    pub umbrella_event: bool,
+    pub combined_event: bool,
 
     /// Cargo package providing the analyzer for this model.
     pub analyzer_package: Option<String>,
@@ -116,7 +122,7 @@ impl Default for Options {
             record_derives: Default::default(),
             out_dir: PathBuf::from(std::env::var("OUT_DIR").unwrap_or_default()),
             file_name: None,
-            umbrella_event: false,
+            combined_event: false,
             analyzer_package: None,
             collector_sink: false,
         }
@@ -159,6 +165,25 @@ pub enum GenerateError {
         /// The number of once-cardinality events the entity declares.
         count: usize,
     },
+    #[error(
+        "FSM entity `{entity}` declares {count} states, exceeding the maximum of {max}",
+        max = crate::runtime::MAX_FSM_STATES
+    )]
+    TooManyFsmStates {
+        /// The offending entity.
+        entity: Path,
+        /// The number of states the entity declares.
+        count: usize,
+    },
+    #[error("FSM entity `{entity}` state `{state}` generates reserved handle method `{method}`")]
+    ReservedFsmHandleMethod {
+        /// The offending entity.
+        entity: Path,
+        /// The state whose generated method conflicts.
+        state: Identifier,
+        /// The method name reserved by generated FSM handles.
+        method: &'static str,
+    },
     #[error("generated observer type `{generated}` conflicts with schema type `{schema_path}`")]
     GeneratedTypeCollision {
         /// The generated Rust type name.
@@ -166,6 +191,8 @@ pub enum GenerateError {
         /// The schema type whose generated name conflicts.
         schema_path: Path,
     },
+    #[error("generated handle method `id` conflicts with an event on entity `{entity}`")]
+    HandleIdCollision { entity: Path },
     #[error("`collector_sink` requires serde generation")]
     CollectorSinkRequiresSerde,
     #[error("field type nesting exceeds the maximum depth of {max}")]
@@ -228,10 +255,10 @@ pub fn generate(schema: &Schema, opts: &Options) -> Result<GenerateInfo, Generat
 ///
 /// # Errors
 ///
-/// Returns [`GenerateError`] if schema validation fails, a generated observer
-/// type conflicts with a schema type, a field type exceeds the supported
-/// nesting depth, a derive entry is not a parseable Rust path, or the generated
-/// code is not valid Rust.
+/// Returns [`GenerateError`] if schema validation fails, generated names
+/// conflict, a field type exceeds the supported nesting depth, an entity
+/// exceeds an instrumentation event or state limit, a derive entry is not a
+/// parseable Rust path, or the generated code is not valid Rust.
 pub fn generate_str(schema: &Schema, opts: &Options) -> Result<String, GenerateError> {
     validate_schema(schema)?;
     generate_str_unvalidated(schema, opts)
@@ -347,7 +374,7 @@ mod path_tests {
     }
 
     #[test]
-    fn generates_event_only_umbrella_without_instrumentation() {
+    fn generates_event_only_combined_without_instrumentation() {
         let schema = SchemaBuilder::try_new("Demo")
             .unwrap()
             .with_entity(entity("Query", [event("created", [])]))
@@ -355,7 +382,7 @@ mod path_tests {
             .unwrap();
         let opts = Options {
             instrumentation: false,
-            umbrella_event: true,
+            combined_event: true,
             ..Options::default()
         };
 
@@ -510,7 +537,7 @@ mod path_tests {
     }
 
     #[test]
-    fn rejects_observer_type_collisions() {
+    fn rejects_generated_name_collisions() {
         let conflicting_path = path("Foo::FooObservers");
         let schema = SchemaBuilder::try_new("Demo")
             .unwrap()
@@ -526,6 +553,26 @@ mod path_tests {
                 schema_path,
             }) if generated == "FooObservers" && schema_path == conflicting_path
         ));
+
+        let schema = SchemaBuilder::try_new("Demo")
+            .unwrap()
+            .with_entity(entity("Task", [event("id", [])]))
+            .build()
+            .unwrap();
+        assert!(matches!(
+            generate_str(&schema, &Options::default()),
+            Err(GenerateError::HandleIdCollision { .. })
+        ));
+        assert!(
+            generate_str(
+                &schema,
+                &Options {
+                    instrumentation: false,
+                    ..Options::default()
+                }
+            )
+            .is_ok()
+        );
     }
 
     #[test]

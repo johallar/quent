@@ -27,6 +27,7 @@ fn generates_schema_driven_bridge() {
     assert!(worker.content.contains("pub struct WorkerHandle"));
     assert!(worker.content.contains("pub fn handle(&self)"));
     assert!(worker.content.contains("pub fn handle_with_id(&self"));
+    assert!(worker.content.contains("pub fn id(&self) -> ffi::UUID"));
     assert!(worker.content.contains("pub struct BridgeRecordDetails"));
     assert!(worker.content.contains("pub fn declaration"));
     let facade = files.iter().find(|file| file.name == "quent.hpp").unwrap();
@@ -67,6 +68,27 @@ fn generates_schema_driven_bridge() {
     assert!(facade.content.contains(
         "::quent::FsmHandle<::quent::Thread, ::quent::thread_state::Active> active() &&"
     ));
+    assert!(
+        facade
+            .content
+            .contains("class DynamicFsmHandle<::quent::Thread> final")
+    );
+    assert!(facade.content.contains("ThreadId id() const"));
+    assert!(
+        facade
+            .content
+            .contains("DynamicFsmHandle<::quent::Thread> into_dynamic() &&")
+    );
+    assert!(
+        facade
+            .content
+            .contains("std::optional<FsmHandle<::quent::Thread, State>> try_into() &&")
+    );
+    assert!(
+        facade
+            .content
+            .contains("struct FsmStateIndex<::quent::Thread, ::quent::thread_state::Active>")
+    );
     assert!(!facade.content.contains("ThreadActiveHandle"));
     assert!(!facade.content.contains("friend class ThreadHandle"));
     assert!(!facade.content.contains("struct Active {"));
@@ -200,7 +222,7 @@ entities:
 quent: alpha
 model: collision
 entities:
-  Server: { events: { uuid: {} } }
+  Server: { events: { id: {} } }
 "#,
         r#"
 quent: alpha

@@ -271,6 +271,78 @@ Run the example from the repository root:
 cargo run --manifest-path crates/yaml/examples/Cargo.toml --bin job-workload
 ```
 
+## Log sinks
+
+A `logs:` entry declares an entity-scoped logging sink. Its ordered levels
+become repeatable events with an implicit `message: string` attribute:
+
+```yaml
+logs:
+  AppLog:
+    levels:
+      - name: trace
+      - name: debug
+      - name: info
+      - name: warning
+      - name: error
+```
+
+Common and level-specific attributes use the ordinary field syntax. A sink can
+use common attributes to preserve information supplied by a logging facade:
+
+```yaml
+logs:
+  AppLog:
+    doc: Application logging sink.
+    attributes:
+      target: string
+      file: string
+      line: u32
+      module: string
+      thread_name: string
+    levels:
+      - name: info
+        doc: Informational messages.
+      - name: error
+        attributes:
+          error_code: u32
+```
+
+Only `message` has built-in meaning. Names such as `target`, `file`, `line`, and
+`module` are ordinary attributes. This example requires every call to provide
+them; another model may leave them out, rename them, or change their types.
+
+A log declaration may contain ordinary events when another constraint needs
+them. These events are not log levels and do not receive an implicit `message`
+attribute. For example, a one-time event can attach each log instance to a
+reference tree without repeating the parent reference on every message:
+
+```yaml
+entities:
+  Application:
+    events:
+      started: {}
+
+logs:
+  AppLog:
+    events:
+      initialized:
+        attributes:
+          application: { scope-ref: Application }
+    levels:
+      - name: info
+      - name: error
+```
+
+- [YAML model](examples/log-sink/model.yaml)
+- [Instrumentation API usage](examples/log-sink/src/main.rs)
+
+Run the example from the repository root:
+
+```console
+cargo run --manifest-path crates/yaml/examples/Cargo.toml --bin log-sink
+```
+
 ## Type reference
 
 Scalar attributes support `bool`, `string`, `uuid`, `dynamic`, `u8`, `u16`,
@@ -279,18 +351,37 @@ name can also be used as a type.
 
 Composite types use mapping forms:
 
-| YAML | Meaning |
-| --- | --- |
-| `{ list: string }` | List of strings |
-| `{ option: u64 }` | Optional `u64` |
-| `ref` | Reference to any entity |
-| `{ ref: Worker }` | Reference to a `Worker` |
+| YAML                         | Meaning                          |
+| ---------------------------- | -------------------------------- |
+| `{ list: string }`           | List of strings                  |
+| `{ option: u64 }`            | Optional `u64`                   |
+| `ref`                        | Reference to any entity          |
+| `{ ref: Worker }`            | Reference to a `Worker`          |
 | `{ ref: Worker, data: u64 }` | `Worker` reference carrying data |
-| `{ scope-ref: Pipeline }` | Tree-forming entity reference |
-| `{ uses: Memory }` | Resource usage reference |
 
 Composite forms can nest. For example, `{ option: { list: string } }` is an
 optional list of strings.
+
+Semantic modules add these type forms:
+
+### Reference tree
+
+| YAML                      | Meaning                       |
+| ------------------------- | ----------------------------- |
+| `{ scope-ref: Pipeline }` | Tree-forming entity reference |
+
+### Resource
+
+| YAML               | Meaning                  |
+| ------------------ | ------------------------ |
+| `{ uses: Memory }` | Resource usage reference |
+
+### Operating system
+
+| YAML              | Meaning                           |
+| ----------------- | --------------------------------- |
+| `{ os: process }` | Operating-system process identity |
+| `{ os: thread }`  | Operating-system thread identity  |
 
 ## Complete model
 

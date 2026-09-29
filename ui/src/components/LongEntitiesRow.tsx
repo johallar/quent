@@ -67,7 +67,6 @@ export function LongEntitiesRow({
   const previousHasNoUsagesInWindow = useRef(false);
   const previousMinUsageSeconds = useRef<number | null>(null);
   const [maxEntities, setMaxEntities] = useState(ENTITIES_PER_PAGE);
-  const operatorIds = useMemo(() => [...selectedOperatorIds], [selectedOperatorIds]);
   const zoomWindow =
     debouncedZoomRange.end > debouncedZoomRange.start
       ? debouncedZoomRange
@@ -77,7 +76,9 @@ export function LongEntitiesRow({
   const initializedAndNoBins = !returnedTimelineIsStale && bulkInitialized;
   const numBins = returnedNumBins ?? (initializedAndNoBins ? defaultNumBins : undefined);
 
-  // Retain the rendered threshold while the next viewport loads.
+  // Retain the rendered threshold while the next viewport loads, so the UI
+  // doesn't flash empty between the old and new values.
+  /* eslint-disable react-hooks/refs */
   const minUsageSeconds =
     numBins == null
       ? null
@@ -86,13 +87,16 @@ export function LongEntitiesRow({
     previousMinUsageSeconds.current = minUsageSeconds;
   }
   const displayedMinUsageSeconds = minUsageSeconds ?? previousMinUsageSeconds.current;
+  /* eslint-enable react-hooks/refs */
 
+  // Entities aren't filtered by operator server-side: unrelated entities are
+  // dimmed below, mirroring how the resource timeline dims rather than
+  // removes unrelated data when an operator filter is active.
   const { data, isFetching, isPlaceholderData } = useEntityList(
     {
       engineId,
       queryId,
       window: zoomWindow,
-      operatorIds,
       minUsageSeconds,
       sortDir: 'Desc',
       maxItems: maxEntities,
@@ -105,10 +109,14 @@ export function LongEntitiesRow({
   // itself have caught up to the active zoom window. Bins and entities resolve at different
   // times while panning/zooming (entities keep showing the previous window's data in the
   // meantime), and updating from just one of them flashes the wrong empty-state message.
+  // Reads and writes this ref in the same render on purpose, to hold the last
+  // known answer steady while the timeline/entity list catch up.
+  /* eslint-disable react-hooks/refs */
   if (!returnedTimelineIsStale && !isFetching) {
     previousHasNoUsagesInWindow.current = zeroUtilizationResourceIds.has(resourceId);
   }
   const hasNoUsagesInWindow = previousHasNoUsagesInWindow.current;
+  /* eslint-enable react-hooks/refs */
 
   const entities = useMemo(() => (data?.items ?? []).map(item => item.entity), [data]);
   const entries = useMemo(
@@ -117,9 +125,10 @@ export function LongEntitiesRow({
         entities,
         fsmTypes,
         isDark ? 'dark' : 'light',
-        fsmStateScope === 'resource' ? new Set([resourceId]) : null
+        fsmStateScope === 'resource' ? new Set([resourceId]) : null,
+        selectedOperatorIds
       ),
-    [entities, fsmStateScope, fsmTypes, isDark, resourceId]
+    [entities, fsmStateScope, fsmTypes, isDark, resourceId, selectedOperatorIds]
   );
   const totalEntities = data?.total ?? entities.length;
   const hasMoreEntities = entities.length < totalEntities;
@@ -139,6 +148,7 @@ export function LongEntitiesRow({
     [entities, onEntitySelect]
   );
 
+  // eslint-disable-next-line react-hooks/refs -- displayedMinUsageSeconds derives from a ref retained across renders on purpose
   if (displayedMinUsageSeconds == null || (!data && isFetching)) {
     return (
       <div

@@ -24,6 +24,15 @@ fn generates_schema_driven_bridge_and_stubs() {
     assert!(bridge.content.contains("pub fn handle("));
     assert!(bridge.content.contains("pub struct PyThreadIdleHandle"));
     assert!(bridge.content.contains("pub struct PyThreadActiveHandle"));
+    assert!(
+        bridge
+            .content
+            .contains("pub struct PyThreadDynamicFsmHandle")
+    );
+    assert!(bridge.content.contains("pub fn into_dynamic("));
+    assert!(bridge.content.contains("InvalidFsmTransitionError"));
+    assert!(bridge.content.contains("InvalidFsmStateError"));
+    assert!(bridge.content.contains("pub fn try_into_active("));
     assert!(bridge.content.contains("-> PyResult<PyThreadActiveHandle>"));
     assert!(!bridge.content.contains("enum PyThreadState"));
     assert!(!bridge.content.contains("struct PyUuid"));
@@ -68,7 +77,9 @@ fn generates_schema_driven_bridge_and_stubs() {
     }
 
     let stubs = emit_stubs(&schema, &options).unwrap();
-    assert!(stubs[0].content.contains("def now_v7() -> uuid.UUID"));
+    assert!(stubs[0].content.contains("import uuid as _uuid\n"));
+    assert!(stubs[0].content.contains("def now_v7() -> _uuid.UUID"));
+    assert!(!stubs[0].content.contains("import uuid\n"));
     assert!(!stubs[0].content.contains("class Uuid:"));
     assert!(stubs[0].content.contains("class QuentError(Exception):"));
     assert!(
@@ -82,13 +93,37 @@ fn generates_schema_driven_bridge_and_stubs() {
             .contains("def ndjson(output_dir: str | PathLike[str]) -> ExporterOptions")
     );
     assert!(stubs[0].content.contains("class WorkerHandle:"));
+    assert!(class_body(&stubs[0].content, "WorkerHandle").contains("def id(self) -> _uuid.UUID"));
     assert!(stubs[0].content.contains("class WorkerObserver:"));
     assert!(
         stubs[0]
             .content
-            .contains("def handle(self, id: uuid.UUID | None = None) -> WorkerHandle")
+            .contains("def handle(self, id: _uuid.UUID | None = None) -> WorkerHandle")
     );
     assert!(stubs[0].content.contains("class ThreadIdleHandle:"));
+    assert!(stubs[0].content.contains("class ThreadDynamicFsmHandle:"));
+    assert!(
+        class_body(&stubs[0].content, "ThreadDynamicFsmHandle")
+            .contains("def id(self) -> _uuid.UUID")
+    );
+    assert!(
+        stubs[0]
+            .content
+            .contains("class InvalidFsmStateError(QuentError):")
+    );
+    assert!(
+        stubs[0]
+            .content
+            .contains("def try_into_active(self) -> ThreadActiveHandle")
+    );
+    assert!(
+        stubs[0]
+            .content
+            .contains("def into_dynamic(self) -> ThreadDynamicFsmHandle")
+    );
+    assert!(
+        class_body(&stubs[0].content, "ThreadIdleHandle").contains("def id(self) -> _uuid.UUID")
+    );
     assert!(
         stubs[0]
             .content
@@ -103,7 +138,7 @@ fn generates_schema_driven_bridge_and_stubs() {
     assert!(
         stubs[0]
             .content
-            .contains("cluster: ClusterHandle | uuid.UUID")
+            .contains("cluster: ClusterHandle | _uuid.UUID")
     );
     assert!(
         stubs[0]
@@ -113,13 +148,11 @@ fn generates_schema_driven_bridge_and_stubs() {
     assert!(
         stubs[0]
             .content
-            .contains("use_queue: QueueUsageRefInput | None")
+            .contains("use_queue: QueueUsageRefDict | None")
     );
-    assert!(
-        stubs[0]
-            .content
-            .contains("QueueUsageRefInput: TypeAlias = QueueUsageRefDict | Mapping[str, object]")
-    );
+    assert!(stubs[0].content.contains("details: ChecksumDict"));
+    assert!(stubs[0].content.contains("data: QueueUsageDict"));
+    assert!(!stubs[0].content.contains("Mapping[str, object]"));
     assert!(stubs[0].content.contains("class DynamicValue:"));
     assert!(
         stubs[0]
@@ -205,7 +238,7 @@ entities:
 quent: alpha
 model: collision
 entities:
-  Server: { events: { uuid: {} } }
+  Server: { events: { id: {} } }
 "#,
         r#"
 quent: alpha

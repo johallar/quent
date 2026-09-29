@@ -17,6 +17,7 @@ import {
   TIMELINE_X_AXIS_ANIMATION,
 } from './types';
 import {
+  DIMMED_OPACITY,
   MARK_AREA_BORDER_OPACITY,
   MARK_AREA_FILL_OPACITY,
   MARK_LABEL_TEXT_COLOR,
@@ -31,8 +32,6 @@ import { useMinZoomSpanPct } from '../lib/useMinZoomSpanPct';
 import { useTimelineWheelNavigation } from '../lib/useTimelineWheelNavigation';
 import { Opts } from 'echarts-for-react/lib/types';
 import { TimelinePointerArea } from './TimelinePointerArea';
-
-const DIMMED_OPACITY = 0.25;
 
 /**
  * Pointer position over the chart, expressed in coordinates the parent can
@@ -115,9 +114,13 @@ export function Timeline({
     });
 
     const markCount = marks?.length ?? 0;
+    // Keep the highest mark count we've seen, so the chart always renders the
+    // same number of series and doesn't flicker when marks are added/removed.
+    /* eslint-disable react-hooks/refs */
     maxMarkCountRef.current = Math.max(maxMarkCountRef.current, markCount);
 
     for (let i = 0; i < maxMarkCountRef.current; i++) {
+      /* eslint-enable react-hooks/refs */
       const m = marks?.[i];
       if (m) {
         const stateColor = m.color;
@@ -275,13 +278,16 @@ export function Timeline({
   // those closures read the current values on every event without re-binding
   // listeners or making `onChartReady` re-run.
   const showTooltipRef = useRef(showTooltip);
+  // eslint-disable-next-line react-hooks/refs -- latest-value mirror, only read from callbacks/effects
   showTooltipRef.current = showTooltip;
   const onHoverChangeRef = useRef(onHoverChange);
+  // eslint-disable-next-line react-hooks/refs -- latest-value mirror, only read from callbacks/effects
   onHoverChangeRef.current = onHoverChange;
   // The listeners attached in `onChartReady` close over `timestamps` for
   // bin snapping; mirror it into a ref so they always see the current array
   // (zoom changes can replace it) without re-binding.
   const timestampsRef = useRef(timestamps);
+  // eslint-disable-next-line react-hooks/refs -- latest-value mirror, only read from callbacks/effects
   timestampsRef.current = timestamps;
 
   const onChartReady = (instance: EChartsInstance) => {

@@ -17,7 +17,7 @@ use crate::common::{path_name_pascal, raw_ident, relative_root_type, to_case};
 mod context;
 mod handle;
 
-pub(crate) use handle::MAX_ONCE_EVENTS;
+pub(crate) use handle::{MAX_FSM_STATES, MAX_ONCE_EVENTS};
 
 pub(crate) fn entity_runtime_types(
     schema: &Schema,
@@ -25,6 +25,14 @@ pub(crate) fn entity_runtime_types(
     opts: &Options,
 ) -> Result<TokenStream, GenerateError> {
     let handle = handle::entity_handle(entity, opts)?;
+    if entity
+        .events()
+        .any(|event| to_case(event.name(), Case::Snake) == "id")
+    {
+        return Err(GenerateError::HandleIdCollision {
+            entity: entity.path().clone(),
+        });
+    }
     let entity_impl = entity_impl(schema, entity, &handle.associated_type);
     let handle = handle.tokens;
     Ok(quote! {
@@ -71,8 +79,8 @@ pub(crate) fn entity_types(schema: &Schema) -> TokenStream {
         impl<E: ::quent_instrumentation::InstrumentedEntity<Context = Context<#model>>> Handle<E>
         {
             /// Returns the entity instance ID.
-            pub fn uuid(&self) -> ::quent_instrumentation::Uuid {
-                self.inner.uuid()
+            pub fn id(&self) -> ::quent_instrumentation::Uuid {
+                self.inner.id()
             }
 
             /// Returns a typed reference to this instance carrying no data.
@@ -112,6 +120,8 @@ pub(crate) fn reexports() -> TokenStream {
         pub use ::quent_instrumentation::{
             AnyEntity, Context, DynamicAttribute, DynamicAttributes, DynamicList, DynamicStruct,
             DynamicNull, DynamicValue, EntityRef, Event, HandleError, Noop, Observer, Uuid,
+            FsmTransitionError,
+            FsmStateMismatch,
         };
     }
 }
@@ -148,6 +158,7 @@ fn entity_impl(schema: &Schema, entity: &Entity, handle_type: &TokenStream) -> T
 mod tests {
     use super::*;
     use crate::common::pretty;
+
     use quent_fsm::{FsmEntityBuilder, StateDecl};
     use quent_schema::Cardinality;
     use quent_schema::DataType;

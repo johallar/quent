@@ -164,11 +164,15 @@ of applications.
     that checks whether resources were saturated above some threshold for a
     certain duration, or it can generate data for a resource utilization
     timeline visualization.
+- [`quent-log`](crates/log/): defines entity-scoped logging sinks with ordered
+  severity levels and arbitrary event attributes.
 - [`quent-ref-target`](crates/ref-target/): constrains references to other
   entities to be of a certain type.
 - [`quent-ref-tree`](crates/ref-tree/): allows forming hierarchies of
   event-emitting entities to, e.g., provide the canonical path of performance
   analysis exploration through all event data from a UI.
+- [`quent-os`](crates/os/): identifies entities as operating-system processes
+  and threads so their events can be correlated with external event streams.
 
 Semantic modules can address application- or domain-specific concerns. For
 example, applications like query engines often capture their computational path
