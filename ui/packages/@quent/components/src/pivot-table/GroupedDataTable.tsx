@@ -3,18 +3,14 @@
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { cn } from '@quent/utils';
-import {
-  createSortedRowModel,
-  rowSortingFeature,
-  tableFeatures,
-  useTable,
-  type ColumnDef,
-  type OnChangeFn,
-  type SortFn,
-  type SortingState,
-} from '@tanstack/react-table';
+import { useTable, type OnChangeFn, type SortingState } from '@tanstack/react-table';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { computeRowSpans } from './utils';
+import {
+  groupedDataTableFeatures,
+  type GroupedDataTableColumnDef,
+  type GroupedDataTableSortFn,
+} from './groupedDataTableFeatures';
 import type {
   GroupedDataTableRowBase,
   GroupedDataTableSortInfo,
@@ -24,19 +20,7 @@ import type {
   DataCellProps,
 } from './types';
 
-const groupedDataTableFeatures = tableFeatures({
-  rowSortingFeature,
-  sortedRowModel: createSortedRowModel(),
-});
-
-export type GroupedDataTableColumnDef<TRow extends GroupedDataTableRowBase> = ColumnDef<
-  typeof groupedDataTableFeatures,
-  TRow
->;
-export type GroupedDataTableSortFn<TRow extends GroupedDataTableRowBase> = SortFn<
-  typeof groupedDataTableFeatures,
-  TRow
->;
+export type { GroupedDataTableColumnDef, GroupedDataTableSortFn };
 
 export interface GroupedDataTableVirtualizationOptions {
   enabled: boolean;

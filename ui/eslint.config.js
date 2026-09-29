@@ -7,6 +7,47 @@ import reactHooks from 'eslint-plugin-react-hooks';
 import reactRefresh from 'eslint-plugin-react-refresh';
 import tseslint from 'typescript-eslint';
 import prettier from 'eslint-plugin-prettier/recommended';
+import {
+  allowedWorkspaceDependencies,
+  featurePackages,
+  knownPackages,
+} from './scripts/dependency-policy.mjs';
+
+const workspacePackages = knownPackages;
+const privatePackageImportRestriction = {
+  group: ['@quent/*/src', '@quent/*/src/**'],
+  message: 'Import another package through its public exports.',
+};
+
+const packageBoundaryConfigs = workspacePackages.map(packageName => {
+  const allowedDependencies = new Set(allowedWorkspaceDependencies[packageName] ?? []);
+  const disallowedImports = workspacePackages
+    .filter(
+      dependencyName => dependencyName !== packageName && !allowedDependencies.has(dependencyName)
+    )
+    .flatMap(dependencyName => [`@quent/${dependencyName}`, `@quent/${dependencyName}/**`]);
+  const patterns = [
+    privatePackageImportRestriction,
+    {
+      group: disallowedImports,
+      message: `@quent/${packageName} cannot depend on this workspace package.`,
+    },
+  ];
+
+  if (featurePackages.includes(packageName) || packageName === 'viz') {
+    patterns.push({
+      group: ['@/*', '../../../../src/*', '../../../../src/**', '../../../../../src/**'],
+      message: 'Feature packages cannot import from the application shell.',
+    });
+  }
+
+  return {
+    files: [`packages/@quent/${packageName}/**/*.{ts,tsx}`],
+    rules: {
+      'no-restricted-imports': ['error', { patterns }],
+    },
+  };
+});
 
 export default tseslint.config(
   {
@@ -52,6 +93,18 @@ export default tseslint.config(
       ],
     },
   },
+  {
+    files: ['src/**/*.{ts,tsx}'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          patterns: [privatePackageImportRestriction],
+        },
+      ],
+    },
+  },
+  ...packageBoundaryConfigs,
   {
     ...prettier,
     rules: {
