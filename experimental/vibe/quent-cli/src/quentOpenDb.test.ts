@@ -68,7 +68,11 @@ describe('quent-open database launcher', () => {
     const stop = vi.fn().mockResolvedValue(undefined);
     const launch = vi
       .fn()
-      .mockResolvedValueOnce({ run: '6647', apiBaseUrl: 'http://6647/api', stop })
+      .mockResolvedValueOnce({
+        run: '6647',
+        apiBaseUrl: 'http://6647/api',
+        stop,
+      })
       .mockRejectedValueOnce(new Error('startup failed'));
 
     await expect(launchQuentOpenDbRuns(['6647', '6650'], options, launch)).rejects.toThrow(

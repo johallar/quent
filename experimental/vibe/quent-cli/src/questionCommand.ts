@@ -11,7 +11,7 @@ import {
   setApiBaseUrl,
   type ApiClient,
 } from '@quent/client';
-import type { RegisteredQuestion } from '../src/features/question-cli/question.types';
+import type { RegisteredQuestion } from './questions/question.types';
 import type { AskCommand } from './askCommand.types';
 import {
   createNonInteractiveSelector,

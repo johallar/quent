@@ -156,7 +156,10 @@ function aggregateBundle(bundle: QueryBundle<EntityRef>): Map<string, Aggregated
         ),
       ].sort();
       if (logicalParentTypes.length > 0) {
-        groups.push({ scope: 'logical', operatorType: logicalParentTypes.join(', ') });
+        groups.push({
+          scope: 'logical',
+          operatorType: logicalParentTypes.join(', '),
+        });
       }
     }
     const addForGroups = (metric: string, quantity: string | null, value: NumericValue) => {

@@ -84,7 +84,7 @@ directly.
 Initial resource question:
 
 ```sh
-pixi run pnpm --dir ui ask longest-resource-users \
+pixi run pnpm --dir experimental/vibe/quent-cli ask longest-resource-users \
   [--engine ENGINE] \
   [--query QUERY] \
   [--resource RESOURCE] \

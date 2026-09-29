@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: Copyright (c) 2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-import { questionRegistry } from '../src/features/question-cli/questionRegistry';
+import { questionRegistry } from './questions/questionRegistry';
 import type { AskCommand } from './askCommand.types';
 import { discoveryCommands } from './discoveryCommands';
 import { createQuestionCommand } from './questionCommand';

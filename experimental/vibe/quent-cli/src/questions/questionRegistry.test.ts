@@ -2,11 +2,27 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { describe, expect, it, vi } from 'vitest';
+import { gunzipSync } from 'node:zlib';
 import type { EntityRef, QueryBundle } from '@quent/utils';
-import { decodeDeepLinkState } from '@/features/deep-link/deepLink.codec';
-import type { DeepLinkStateV3 } from '@/features/deep-link/deepLink.schema';
+import type { EvidenceDeepLinkState } from '../deepLink';
 import type { LongestResourceUsersResult } from './longestResourceUsers';
 import { getQuestion, questionRegistry } from './questionRegistry';
+
+function decodeDeepLinkState(encoded: string): {
+  version: string;
+  data: EvidenceDeepLinkState;
+} {
+  const [version, payload] = encoded.split('.', 2);
+  if (!version || !payload) {
+    throw new Error('Invalid deep link');
+  }
+  return {
+    version,
+    data: JSON.parse(
+      gunzipSync(Buffer.from(payload, 'base64url')).toString('utf8')
+    ) as EvidenceDeepLinkState,
+  };
+}
 
 const bundle = {
   query_id: 'query-1',
@@ -144,21 +160,18 @@ describe('question registry', () => {
     const encoded = new URL(result.deepLink).searchParams.get('s');
     expect(encoded).not.toBeNull();
     expect(decodeDeepLinkState(encoded!)).toEqual({
-      ok: true,
-      value: {
-        version: 'v3',
-        data: {
-          route: { engineId: 'engine-1', queryId: 'query-1', tab: 'entities' },
-          selection: { operatorNodeIds: ['operator-1'] },
-          entities: {
-            entityType: 'Task',
-            resourceId: 'resource-1',
-            window: { start: 1, end: 9 },
-            sortDir: 'Desc',
-            pageSize: 5,
-            page: 0,
-            selectedEntityId: 'task-1',
-          },
+      version: 'v3',
+      data: {
+        route: { engineId: 'engine-1', queryId: 'query-1', tab: 'entities' },
+        selection: { operatorNodeIds: ['operator-1'] },
+        entities: {
+          entityType: 'Task',
+          resourceId: 'resource-1',
+          window: { start: 1, end: 9 },
+          sortDir: 'Desc',
+          pageSize: 5,
+          page: 0,
+          selectedEntityId: 'task-1',
         },
       },
     });
@@ -180,9 +193,8 @@ describe('question registry', () => {
     expect(question.formatHuman(result)).toContain('no matching FSM entities');
     const encoded = new URL(result.deepLink).searchParams.get('s');
     const decoded = decodeDeepLinkState(encoded!);
-    expect(decoded.ok && decoded.value.version).toBe('v3');
-    const state = decoded.ok ? (decoded.value.data as DeepLinkStateV3) : null;
-    expect(state?.entities?.selectedEntityId).toBeUndefined();
+    expect(decoded.version).toBe('v3');
+    expect(decoded.data.entities.selectedEntityId).toBeUndefined();
   });
 
   it('rejects inputs not supported by the discovered query model', async () => {

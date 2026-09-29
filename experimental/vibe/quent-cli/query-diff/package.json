@@ -1,5 +1,5 @@
 {
-  "name": "@quent/query-diff",
+  "name": "@quent-experimental/query-diff",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -9,10 +9,8 @@
   },
   "sideEffects": false,
   "scripts": {
-    "prebuild": "pnpm --workspace-root bindings",
     "build": "tsdown",
     "build:ci": "tsdown",
-    "pretypecheck": "pnpm --workspace-root bindings",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

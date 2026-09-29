@@ -8,7 +8,7 @@ import {
   type QueryDiffRow,
   type QueryDiffSummary,
   type SerializedNumericValue,
-} from '@quent/query-diff';
+} from '@quent-experimental/query-diff';
 
 interface QueryDiffFormatOptions {
   color?: boolean;
