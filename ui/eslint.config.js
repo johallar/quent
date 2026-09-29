@@ -64,6 +64,7 @@ export default tseslint.config(
       '**/dist/**',
       '**/node_modules/**',
       'generated/ts-bindings/**',
+      'generated/simulator-wasm/**',
       '.e2e-data/**',
       'playwright-report/**',
       'test-results/**',
