@@ -263,6 +263,7 @@ beforeEach(() => {
   capturedExpandedIds = new Set();
   capturedOnExpandChange = undefined;
   capturedLongEntityProps = undefined;
+  vi.mocked(clientApi.useNvtxStream).mockClear();
   vi.mocked(clientApi.useNvtxStream).mockReturnValue({
     contextId: undefined,
     catalog: null,
@@ -588,6 +589,30 @@ describe('QueryResourceTree — configurable resource subrows', () => {
     const rowTypes = collectRowTypes(capturedTreeData);
     expect(rowTypes).toContain(OPERATOR_TIMELINE_ROW_TYPE);
     expect(rowTypes).toContain(LONG_ENTITIES_ROW_TYPE);
+  });
+
+  it('renders only resource and entity rows when optional features are disabled', () => {
+    renderWithQuery(
+      <JotaiProvider store={createStore()}>
+        <QueryResourceTree
+          engineId="engine-1"
+          queryBundle={makeBundle(RESOURCE_ID)}
+          showOperatorGantt={false}
+          showNvtx={false}
+        />
+      </JotaiProvider>
+    );
+
+    const rowTypes = collectRowTypes(capturedTreeData);
+    expect(rowTypes).toContain(LONG_ENTITIES_ROW_TYPE);
+    expect(rowTypes).not.toContain(OPERATOR_TIMELINE_ROW_TYPE);
+    expect(rowTypes).not.toContain(NVTX_SECTION_ROW_TYPE);
+    expect(clientApi.useNvtxStream).toHaveBeenCalledWith(
+      expect.any(String),
+      0n,
+      expect.any(Object),
+      expect.objectContaining({ enabled: false })
+    );
   });
 
   it('can render without any subrows', () => {

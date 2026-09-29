@@ -44,6 +44,7 @@ const BOUNDARY_PROPS = {
   durationSeconds: 100,
   isQueryReady: true,
   operators: [],
+  features: { queryPlan: true, dataFlow: true },
 };
 
 const RESOURCE_A_ID = '01a025ff-ea8b-7881-9d31-72a275872c9d';

@@ -11,6 +11,6 @@ export const Route = createFileRoute('/profile/engine/$engineId/query/$queryId/e
 
 function EntitiesTab() {
   const { engineId, queryId } = Route.useParams();
-  const queryBundle = QueryRoute.useLoaderData();
+  const { queryBundle } = QueryRoute.useLoaderData();
   return <EntitiesTable engineId={engineId} queryId={queryId} queryBundle={queryBundle} />;
 }

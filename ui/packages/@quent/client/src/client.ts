@@ -22,9 +22,11 @@ import type {
   SingleTimelineResponse,
   TimelineConfig,
 } from '@quent/utils';
+import type { Schema } from '@quent/schema';
 
 /** Typed operations consumed by the UI, independent of their transport. */
 export interface ApiClient {
+  fetchSchema(engineId: string): Promise<Schema>;
   fetchQueryBundle(engineId: string, queryId: string): Promise<QueryBundle<EntityRef>>;
   fetchListEngines(): Promise<Engine[]>;
   fetchEngineContexts(engineId: string): Promise<EngineContexts>;

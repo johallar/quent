@@ -74,21 +74,27 @@ export function selectNvtxDomains(
     });
 }
 
-export const engineContextsQueryOptions = (engineId: string) =>
+export const engineContextsQueryOptions = (engineId: string, options?: { enabled?: boolean }) =>
   queryOptions({
     queryKey: ['engineContexts', engineId],
     queryFn: () => fetchEngineContexts(engineId),
+    enabled: options?.enabled ?? true,
     staleTime: DEFAULT_STALE_TIME,
   });
 
 export const nvtxCatalogStaleTime = (catalog: NvtxCatalog | null | undefined) =>
   catalog === null ? 0 : Infinity;
 
-export const nvtxCatalogQueryOptions = (contextId: string, queryStartUnixNs: bigint) => {
+export const nvtxCatalogQueryOptions = (
+  contextId: string,
+  queryStartUnixNs: bigint,
+  options?: { enabled?: boolean }
+) => {
   const queryStartKey = queryStartUnixNs.toString(10);
   return queryOptions({
     queryKey: ['nvtxCatalog', contextId, queryStartKey],
     queryFn: () => fetchNvtxCatalog(contextId, queryStartUnixNs),
+    enabled: options?.enabled ?? true,
     // A present catalog is immutable, but the server deliberately leaves an absent
     // stream retryable so telemetry that appears later can be discovered on remount.
     staleTime: query => nvtxCatalogStaleTime(query.state.data),
@@ -125,8 +131,8 @@ export const nvtxViewportQueryOptions = (
   });
 };
 
-export const useEngineContexts = (engineId: string) =>
-  useQuery(engineContextsQueryOptions(engineId));
+export const useEngineContexts = (engineId: string, options?: { enabled?: boolean }) =>
+  useQuery(engineContextsQueryOptions(engineId, options));
 
 export const useNvtxCatalog = (contextId: string, queryStartUnixNs: bigint) =>
   useQuery(nvtxCatalogQueryOptions(contextId, queryStartUnixNs));
@@ -164,10 +170,13 @@ export function useNvtxStream(
     categoryFilters?: ReadonlyMap<string, NvtxCategoryFilter>;
   }
 ) {
-  const contextsQuery = useEngineContexts(engineId);
+  const enabled = options?.enabled ?? true;
+  const contextsQuery = useEngineContexts(engineId, { enabled });
   const contextIds = contextsQuery.data?.context_ids ?? [];
   const catalogQueries = useQueries({
-    queries: contextIds.map(contextId => nvtxCatalogQueryOptions(contextId, queryStartUnixNs)),
+    queries: contextIds.map(contextId =>
+      nvtxCatalogQueryOptions(contextId, queryStartUnixNs, { enabled })
+    ),
   });
   const matched = firstNvtxCatalog(
     contextIds,
@@ -187,7 +196,7 @@ export function useNvtxStream(
     [viewport, selections]
   );
   const viewportQuery = useNvtxViewport(contextId ?? '', queryStartUnixNs, request, {
-    enabled: !!contextId && selections.length > 0 && (options?.enabled ?? true),
+    enabled: !!contextId && selections.length > 0 && enabled,
     staleTime: options?.staleTime,
   });
   const catalogsPending = contextIds.length > 0 && catalogQueries.some(query => query.isPending);

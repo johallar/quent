@@ -2,13 +2,28 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { createFileRoute, Link, Outlet } from '@tanstack/react-router';
-import { queryBundleQueryOptions } from '@quent/client';
+import { queryBundleQueryOptions, schemaQueryOptions } from '@quent/client';
+import {
+  FEATURE_IDS,
+  resolveFeatureSetFromSchema,
+  type SchemaFeatureResolution,
+} from '@quent/features';
 import { queryClient } from '@/lib/queryClient';
 import type { QueryBundle, EntityRef } from '@quent/utils';
 import { cn } from '@quent/utils';
 import { QueryLoading } from '@/components/QueryLoading';
 import { RouteError } from '@/components/RouteError';
 import { CopyLinkButton, validateDeepLinkSearch } from '@/features/deep-link';
+import {
+  fetchResourceOnlySchema,
+  resolveQueryComposition,
+  useFeatureRegistry,
+} from '@/features/capabilities';
+
+export interface QueryAnalysisData {
+  queryBundle: QueryBundle<EntityRef>;
+  featureResolution: SchemaFeatureResolution;
+}
 
 export const Route = createFileRoute('/profile/engine/$engineId/query/$queryId')({
   component: QueryLayout,
@@ -17,9 +32,20 @@ export const Route = createFileRoute('/profile/engine/$engineId/query/$queryId')
   pendingMs: 200,
   pendingMinMs: 300,
   validateSearch: validateDeepLinkSearch,
-  loader: async ({ params }): Promise<QueryBundle<EntityRef>> => {
+  loader: async ({ params }): Promise<QueryAnalysisData> => {
     const { engineId, queryId } = params;
-    return await queryClient.ensureQueryData(queryBundleQueryOptions({ engineId, queryId }));
+    const [queryBundle, schema] = await Promise.all([
+      queryClient.ensureQueryData(queryBundleQueryOptions({ engineId, queryId })),
+      queryClient.ensureQueryData(
+        schemaQueryOptions({ engineId, fetcher: fetchResourceOnlySchema })
+      ),
+    ]);
+    return {
+      queryBundle,
+      featureResolution: resolveFeatureSetFromSchema(schema, {
+        hostFeatures: [FEATURE_IDS.queryEngineCore],
+      }),
+    };
   },
 });
 
@@ -33,34 +59,23 @@ const activeTabClass = cn(tabClass, 'text-foreground font-semibold bg-muted shad
 
 function QueryLayout() {
   const { engineId, queryId } = Route.useParams();
+  const features = useFeatureRegistry();
+  const composition = resolveQueryComposition(features);
   return (
     <div className="flex min-w-0 flex-col h-full w-full">
       <div className="shrink-0 border-b">
         <div className="inline-flex h-9 w-full items-center justify-center gap-0 p-1 text-muted-foreground">
-          <Link
-            to="/profile/engine/$engineId/query/$queryId/timeline"
-            params={{ engineId, queryId }}
-            className={tabClass}
-            activeProps={{ className: activeTabClass }}
-          >
-            Timeline
-          </Link>
-          <Link
-            to="/profile/engine/$engineId/query/$queryId/operators"
-            params={{ engineId, queryId }}
-            className={tabClass}
-            activeProps={{ className: activeTabClass }}
-          >
-            Operators
-          </Link>
-          <Link
-            to="/profile/engine/$engineId/query/$queryId/entities"
-            params={{ engineId, queryId }}
-            className={tabClass}
-            activeProps={{ className: activeTabClass }}
-          >
-            Entities
-          </Link>
+          {composition.tabs.map(tab => (
+            <Link
+              key={tab.id}
+              to={tab.to}
+              params={{ engineId, queryId }}
+              className={tabClass}
+              activeProps={{ className: activeTabClass }}
+            >
+              {tab.label}
+            </Link>
+          ))}
           <CopyLinkButton />
         </div>
       </div>

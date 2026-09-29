@@ -56,6 +56,11 @@ import {
   type DeepLinkIntakeStatus,
 } from './deepLink.context';
 import { readDeepLinkFields, type DeepLinkFields } from './deepLink.fields';
+import {
+  filterDeepLinkFieldsForFeatures,
+  filterDeepLinkStateForFeatures,
+  type DeepLinkFeatureAvailability,
+} from './deepLink.features';
 import { normalizeZoomRange, resolveCapturedZoomRange } from './deepLink.normalize';
 import {
   OperatorGroupSchema,
@@ -74,6 +79,7 @@ interface DeepLinkBoundaryProps {
   operators: readonly Operator[];
   encodedState?: string;
   isQueryReady: boolean;
+  features: DeepLinkFeatureAvailability;
 }
 
 type IntakeState = {
@@ -167,6 +173,7 @@ export function DeepLinkBoundary({
   operators,
   encodedState,
   isQueryReady,
+  features,
 }: DeepLinkBoundaryProps) {
   const store = useStore();
   const readZoomRange = useReadZoomRange();
@@ -212,7 +219,7 @@ export function DeepLinkBoundary({
       };
     }
 
-    const fields = readDeepLinkFields(decoded.value);
+    const fields = filterDeepLinkFieldsForFeatures(readDeepLinkFields(decoded.value), features);
     // intakeRoute is captured once via useRef(...).current at mount and never
     // reassigned, so reading it during render carries no tearing risk.
     /* eslint-disable react-hooks/refs */
@@ -264,7 +271,7 @@ export function DeepLinkBoundary({
           } satisfies DeepLinkIntakeStatus)
         : ({ kind: 'ready' } satisfies DeepLinkIntakeStatus),
     };
-  }, [durationSeconds, encodedState, intakeRoute, isQueryReady]);
+  }, [durationSeconds, encodedState, features, intakeRoute, isQueryReady]);
 
   useEffect(() => {
     if (intake.status.kind !== 'error' && intake.status.kind !== 'warning') {
@@ -544,7 +551,8 @@ export function DeepLinkBoundary({
     }
 
     const canonicalPageUrl = `${window.location.origin}${window.location.pathname}`;
-    const result = buildDeepLinkUrl(canonicalPageUrl, state);
+    const filteredState = filterDeepLinkStateForFeatures(state, features);
+    const result = buildDeepLinkUrl(canonicalPageUrl, filteredState);
     if (!result.ok) {
       return { ok: false, message: result.message };
     }
@@ -563,6 +571,7 @@ export function DeepLinkBoundary({
     defaultRootResourceType,
     durationSeconds,
     engineId,
+    features,
     queryId,
     readSerializableViewState,
     readZoomRange,

@@ -20,7 +20,7 @@ export const futurePackages = ['viz'];
 const generic = genericPackages;
 
 export const allowedWorkspaceDependencies = {
-  client: ['utils'],
+  client: ['schema', 'utils'],
   components: ['client', 'hooks', 'utils'],
   hooks: ['client', 'utils'],
   utils: [],

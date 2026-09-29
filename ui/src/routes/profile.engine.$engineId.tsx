@@ -6,8 +6,15 @@ import { Provider } from 'jotai';
 import { useMemo, useState, type ReactNode } from 'react';
 import { QueryPlan } from '@/components/QueryPlan';
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@quent/components';
+import {
+  FEATURE_IDS,
+  createFeatureRegistry,
+  defineFeatureSet,
+  type FeatureSet,
+} from '@quent/features';
 import { COLOR_REGISTRY_KEYS, useHydrateColorRegistry, type ColorRegistry } from '@quent/hooks';
 import { DeepLinkBoundary } from '@/features/deep-link';
+import { FeatureRegistryProvider, resolveQueryComposition } from '@/features/capabilities';
 import {
   buildDeterministicColorMap,
   unpackEntityRef,
@@ -19,6 +26,8 @@ import {
 export const Route = createFileRoute('/profile/engine/$engineId')({
   component: ProfileLayout,
 });
+
+const EMPTY_FEATURE_SET: FeatureSet = defineFeatureSet([]);
 
 function entityRefId(ref: EntityRef): string {
   return unpackEntityRef(ref).id;
@@ -71,7 +80,21 @@ function ProfileLayout() {
   });
   const queryId = queryMatch?.params?.queryId;
   const encodedState = queryMatch?.search?.s;
-  const queryBundle = queryMatch?.loaderData;
+  const queryData = queryMatch?.loaderData;
+  const queryBundle = queryData?.queryBundle;
+  const featureSet = queryData?.featureResolution.featureSet ?? EMPTY_FEATURE_SET;
+  const featureRegistry = useMemo(() => createFeatureRegistry(featureSet), [featureSet]);
+  const queryComposition = useMemo(
+    () => resolveQueryComposition(featureRegistry),
+    [featureRegistry]
+  );
+  const deepLinkFeatures = useMemo(
+    () => ({
+      queryPlan: queryComposition.showQueryPlan,
+      dataFlow: featureRegistry.has(FEATURE_IDS.queryEngineDataFlow),
+    }),
+    [featureRegistry, queryComposition.showQueryPlan]
+  );
   const operators = useMemo(
     () => (queryBundle ? Object.values(queryBundle.entities.operators) : []),
     [queryBundle]
@@ -107,6 +130,34 @@ function ProfileLayout() {
     return <Outlet />;
   }
 
+  const workspace = queryComposition.showQueryPlan ? (
+    <ResizablePanelGroup orientation="horizontal" className="h-full min-w-0">
+      <ResizablePanel defaultSize="33%" minSize="15%" collapsible collapsedSize="0%">
+        {queryId && queryId !== '' ? (
+          <QueryPlan queryId={queryId} engineId={engineId} />
+        ) : (
+          <div className="flex items-center justify-center h-full text-muted-foreground">
+            Select a query to view the execution plan
+          </div>
+        )}
+      </ResizablePanel>
+      <ResizableHandle withHandle />
+      <ResizablePanel
+        defaultSize="67%"
+        minSize="20%"
+        collapsible
+        collapsedSize="0%"
+        className="min-w-0 overflow-x-hidden overflow-y-auto h-[calc(100vh-4rem)]"
+      >
+        <Outlet />
+      </ResizablePanel>
+    </ResizablePanelGroup>
+  ) : (
+    <div className="h-full min-w-0 overflow-x-hidden overflow-y-auto">
+      <Outlet />
+    </div>
+  );
+
   const content = (
     <DeepLinkBoundary
       engineId={engineId}
@@ -117,40 +168,23 @@ function ProfileLayout() {
       operators={operators}
       encodedState={encodedState}
       isQueryReady={isQueryReady}
+      features={deepLinkFeatures}
     >
-      <ResizablePanelGroup orientation="horizontal" className="h-full min-w-0">
-        <ResizablePanel defaultSize="33%" minSize="15%" collapsible collapsedSize="0%">
-          {queryId && queryId !== '' ? (
-            <QueryPlan queryId={queryId} engineId={engineId} />
-          ) : (
-            <div className="flex items-center justify-center h-full text-muted-foreground">
-              Select a query to view the execution plan
-            </div>
-          )}
-        </ResizablePanel>
-        <ResizableHandle withHandle />
-        <ResizablePanel
-          defaultSize="67%"
-          minSize="20%"
-          collapsible
-          collapsedSize="0%"
-          className="min-w-0 overflow-x-hidden overflow-y-auto h-[calc(100vh-4rem)]"
-        >
-          <Outlet />
-        </ResizablePanel>
-      </ResizablePanelGroup>
+      {workspace}
     </DeepLinkBoundary>
   );
 
   return (
     <Provider key={`${engineId}:${queryId ?? ''}:${providerPayload ?? ''}`}>
-      {queryBundle ? (
-        <QueryColorRegistry operatorTypes={queryBundle.unique_operator_names}>
-          {content}
-        </QueryColorRegistry>
-      ) : (
-        content
-      )}
+      <FeatureRegistryProvider registry={featureRegistry}>
+        {queryBundle && queryComposition.showQueryPlan ? (
+          <QueryColorRegistry operatorTypes={queryBundle.unique_operator_names}>
+            {content}
+          </QueryColorRegistry>
+        ) : (
+          content
+        )}
+      </FeatureRegistryProvider>
     </Provider>
   );
 }

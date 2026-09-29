@@ -9,6 +9,7 @@ export type { ApiClient } from './client';
 
 // Fetch functions
 export {
+  fetchSchema,
   fetchQueryBundle,
   fetchListEngines,
   fetchListCoordinators,
@@ -23,6 +24,8 @@ export {
 } from './api';
 
 // queryOptions factories
+export { schemaQueryOptions } from './schema';
+export type { SchemaFetcher } from './schema';
 export { queryBundleQueryOptions } from './queryBundle';
 export { enginesQueryOptions } from './engines';
 export { queryGroupsQueryOptions } from './queryGroups';

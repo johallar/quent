@@ -5,6 +5,7 @@ import { parseJsonWithBigInt } from '@quent/utils';
 import type { ApiClient } from './client';
 import { getApiBaseUrl } from './config';
 import { canonicalizeNvtxRequest } from './nvtxCanonical';
+import type { Schema } from '@quent/schema';
 import type {
   QueryBundle,
   QueryGroup,
@@ -86,6 +87,10 @@ async function httpFetchQueryBundle(
   queryId: string
 ): Promise<QueryBundle<EntityRef>> {
   return apiFetch<QueryBundle<EntityRef>>(`/engines/${engineId}/query/${queryId}`);
+}
+
+async function httpFetchSchema(engineId: string): Promise<Schema> {
+  return apiFetch<Schema>(`/engines/${engineId}/schema`);
 }
 
 async function httpFetchListEngines(): Promise<Engine[]> {
@@ -234,6 +239,7 @@ async function httpFetchDataFlow(
 }
 
 const httpClient: ApiClient = {
+  fetchSchema: httpFetchSchema,
   fetchQueryBundle: httpFetchQueryBundle,
   fetchListEngines: httpFetchListEngines,
   fetchEngineContexts: httpFetchEngineContexts,
@@ -258,6 +264,8 @@ export const { getApiClient, setApiClient } = (() => {
   };
 })();
 
+export const fetchSchema = (...args: Parameters<ApiClient['fetchSchema']>) =>
+  getApiClient().fetchSchema(...args);
 export const fetchQueryBundle = (...args: Parameters<ApiClient['fetchQueryBundle']>) =>
   getApiClient().fetchQueryBundle(...args);
 export const fetchListEngines = (...args: Parameters<ApiClient['fetchListEngines']>) =>

@@ -149,6 +149,7 @@ interface NvtxTreeProps {
 
 interface UseNvtxTreeModelProps extends NvtxTreeProps {
   isDark: boolean;
+  enabled?: boolean;
 }
 
 // QueryResourceTree reuses the model to combine multiple trees in one table.
@@ -157,6 +158,7 @@ export function useNvtxTreeModel({
   engineId,
   queryBundle,
   isDark,
+  enabled = true,
 }: UseNvtxTreeModelProps): NvtxTreeModel {
   const durationSeconds = queryBundle.duration_s;
   const [selectedNvtxDomain, setSelectedNvtxDomain] = useAtom(selectedNvtxDomainAtom);
@@ -189,6 +191,7 @@ export function useNvtxTreeModel({
     queryBundle.start_time_unix_ns,
     nvtxWindow,
     {
+      enabled,
       domainId: selectedNvtxDomain,
       categoryFilters: nvtxCategoryFilters,
     }
@@ -198,7 +201,7 @@ export function useNvtxTreeModel({
     engineId,
     queryBundle.start_time_unix_ns,
     fullDurationWindow,
-    { staleTime: Infinity }
+    { enabled, staleTime: Infinity }
   );
 
   useEffect(() => {

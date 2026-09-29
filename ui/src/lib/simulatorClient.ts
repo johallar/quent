@@ -20,6 +20,7 @@ import type {
   SimulatorWorkerReply,
   SimulatorWorkerMessage,
 } from './simulatorProtocol';
+import { fetchResourceOnlySchema } from '@/features/capabilities';
 
 /** Start the simulator worker and install its typed operations as the UI API client. */
 export async function installSimulatorClient(): Promise<void> {
@@ -70,6 +71,7 @@ export async function installSimulatorClient(): Promise<void> {
   await send({ type: 'init', dataUrl });
 
   const client: ApiClient = {
+    fetchSchema: fetchResourceOnlySchema,
     fetchListEngines: () => call<Engine[]>({ operation: 'listEngines' }),
     fetchEngineContexts: engineId =>
       call<EngineContexts>({ operation: 'engineContexts', engineId }),

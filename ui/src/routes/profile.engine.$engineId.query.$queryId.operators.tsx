@@ -1,15 +1,33 @@
 // SPDX-FileCopyrightText: Copyright (c) 2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-import { createFileRoute } from '@tanstack/react-router';
+import { createFileRoute, Navigate } from '@tanstack/react-router';
 import { OperatorTable } from '@/components/operator-table/OperatorTable';
 import { Route as QueryRoute } from './profile.engine.$engineId.query.$queryId';
+import {
+  resolveAvailableQueryTab,
+  resolveQueryComposition,
+  useFeatureRegistry,
+} from '@/features/capabilities';
 
 export const Route = createFileRoute('/profile/engine/$engineId/query/$queryId/operators')({
   component: OperatorsTab,
 });
 
 function OperatorsTab() {
-  const queryBundle = QueryRoute.useLoaderData();
+  const { engineId, queryId } = Route.useParams();
+  const features = useFeatureRegistry();
+  const { queryBundle } = QueryRoute.useLoaderData();
+  const composition = resolveQueryComposition(features);
+  if (resolveAvailableQueryTab(composition, 'operators') !== 'operators') {
+    return (
+      <Navigate
+        to="/profile/engine/$engineId/query/$queryId/timeline"
+        params={{ engineId, queryId }}
+        search={{}}
+        replace
+      />
+    );
+  }
   return <OperatorTable queryBundle={queryBundle} />;
 }

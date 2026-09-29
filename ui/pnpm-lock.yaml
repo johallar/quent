@@ -74,6 +74,9 @@ importers:
       '@quent/hooks':
         specifier: workspace:*
         version: link:packages/@quent/hooks
+      '@quent/schema':
+        specifier: workspace:*
+        version: link:../crates/schema/ts
       '@quent/utils':
         specifier: workspace:*
         version: link:packages/@quent/utils
@@ -268,8 +271,13 @@ importers:
         specifier: ^4.1.11
         version: 4.1.11(@types/node@26.4.0)(@vitest/coverage-v8@4.1.11)(jsdom@30.0.1)(msw@2.15.0(@types/node@26.4.0)(typescript@6.0.3))(vite@8.2.2(@types/node@26.4.0)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.13))
 
+  ../crates/schema/ts: {}
+
   packages/@quent/client:
     dependencies:
+      '@quent/schema':
+        specifier: workspace:*
+        version: link:../../../../crates/schema/ts
       '@quent/utils':
         specifier: workspace:*
         version: link:../utils
@@ -355,6 +363,10 @@ importers:
         version: 6.0.3
 
   packages/@quent/features:
+    dependencies:
+      '@quent/schema':
+        specifier: workspace:*
+        version: link:../../../../crates/schema/ts
     devDependencies:
       tsdown:
         specifier: 'catalog:'

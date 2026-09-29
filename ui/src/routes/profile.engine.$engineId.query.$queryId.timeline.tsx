@@ -5,6 +5,7 @@ import { createFileRoute } from '@tanstack/react-router';
 import { QueryResourceTree } from '@/components/timeline-tree';
 import { Route as QueryRoute } from './profile.engine.$engineId.query.$queryId';
 import { useDeepLink } from '@/features/deep-link';
+import { resolveQueryComposition, useFeatureRegistry } from '@/features/capabilities';
 
 export const Route = createFileRoute('/profile/engine/$engineId/query/$queryId/timeline')({
   component: TimelineTab,
@@ -12,7 +13,9 @@ export const Route = createFileRoute('/profile/engine/$engineId/query/$queryId/t
 
 function TimelineTab() {
   const { engineId } = Route.useParams();
-  const queryBundle = QueryRoute.useLoaderData();
+  const { queryBundle } = QueryRoute.useLoaderData();
+  const features = useFeatureRegistry();
+  const composition = resolveQueryComposition(features);
   const deepLink = useDeepLink();
   return (
     <div className="flex min-w-0 w-full h-full min-h-[200px]">
@@ -21,6 +24,8 @@ function TimelineTab() {
         queryBundle={queryBundle}
         initialZoomRange={deepLink?.initialZoomRange ?? undefined}
         seedRootExpanded={deepLink?.initialExpandedResourceIds === null}
+        showOperatorGantt={composition.showOperatorGantt}
+        showNvtx={composition.showNvtx}
       />
     </div>
   );

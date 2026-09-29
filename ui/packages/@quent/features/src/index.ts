@@ -19,3 +19,10 @@ export type {
   FeatureSet,
   RegisteredContribution,
 } from './registry';
+export { resolveFeatureSetFromSchema } from './schemaCapabilities';
+export type {
+  FeatureResolutionDecision,
+  FeatureResolutionSource,
+  SchemaFeatureResolution,
+  SchemaFeatureResolutionOptions,
+} from './schemaCapabilities';

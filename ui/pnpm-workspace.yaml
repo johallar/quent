@@ -1,5 +1,6 @@
 packages:
   - 'packages/@quent/*'
+  - '../crates/schema/ts'
   # Examples (under ui/examples/) are intentionally NOT part of this
   # workspace. They are opt-in: their dependencies are not installed by
   # `pnpm install` here and they are not built by `pnpm ci:check`. To work

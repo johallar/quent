@@ -21,6 +21,8 @@ export interface QueryResourceTreeProps {
   resourceSubRows?: readonly ResourceTimelineSubRow[];
   initialZoomRange?: ZoomRange;
   seedRootExpanded?: boolean;
+  showOperatorGantt?: boolean;
+  showNvtx?: boolean;
 }
 
 export function QueryResourceTree({
@@ -29,6 +31,8 @@ export function QueryResourceTree({
   resourceSubRows,
   initialZoomRange,
   seedRootExpanded = true,
+  showOperatorGantt = true,
+  showNvtx = true,
 }: QueryResourceTreeProps) {
   const { durationSeconds, isDark } = useTimelineTreeSetup(queryBundle, initialZoomRange);
   const { entities } = queryBundle;
@@ -61,8 +65,8 @@ export function QueryResourceTree({
   );
 
   const operatorGanttSubRow = useMemo(
-    () => createOperatorGanttTimelineSubRow({ queryBundle, isDark }),
-    [isDark, queryBundle]
+    () => (showOperatorGantt ? createOperatorGanttTimelineSubRow({ queryBundle, isDark }) : null),
+    [isDark, queryBundle, showOperatorGantt]
   );
   const zeroUtilizationResourceIds = useFullDurationZeroUtilizationResourceIds(
     engineId,
@@ -93,7 +97,10 @@ export function QueryResourceTree({
     ]
   );
   const defaultResourceSubRows = useMemo(
-    () => [operatorGanttSubRow, longEntitiesSubRow],
+    () =>
+      [operatorGanttSubRow, longEntitiesSubRow].filter(
+        (subRow): subRow is ResourceTimelineSubRow => subRow !== null
+      ),
     [longEntitiesSubRow, operatorGanttSubRow]
   );
   const resourceTree = useResourceTimelinesTreeModel({
@@ -103,16 +110,17 @@ export function QueryResourceTree({
     subRows: resourceSubRows ?? defaultResourceSubRows,
     seedRootExpanded,
   });
-  const nvtxTree = useNvtxTreeModel({ engineId, queryBundle, isDark });
+  const nvtxTree = useNvtxTreeModel({ engineId, queryBundle, isDark, enabled: showNvtx });
   const highlightedItemIds = new Set([
     ...(resourceTree.highlightedItemIds ?? []),
-    ...(nvtxTree.highlightedItemIds ?? []),
+    ...(showNvtx ? (nvtxTree.highlightedItemIds ?? []) : []),
   ]);
-  const hasFilterMatches = resourceTree.filterMatchCount + nvtxTree.filterMatchCount > 0;
+  const hasFilterMatches =
+    resourceTree.filterMatchCount + (showNvtx ? nvtxTree.filterMatchCount : 0) > 0;
   const trees =
     resourceTree.isFilterActive && resourceTree.showOthers && !hasFilterMatches
       ? []
-      : [resourceTree, nvtxTree];
+      : [resourceTree, ...(showNvtx ? [nvtxTree] : [])];
 
   return (
     <TimelineTreeTable
