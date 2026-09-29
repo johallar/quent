@@ -3,7 +3,7 @@
 ## Command
 
 ```sh
-pixi run pnpm --dir ui ask query-diff \
+pixi run pnpm --dir experimental/vibe/quent-cli ask query-diff \
   [--engine ENGINE] \
   [--baseline-query QUERY] \
   [--baseline-engine ENGINE] \
@@ -35,7 +35,7 @@ After fetching the bundles, the CLI offers a metric multiselect containing only
 numeric metrics present in every selected query. Choose individual metrics or
 the **All metrics** option.
 
-The comparison algorithm is the pure TypeScript `@quent/query-diff` workspace
+The comparison algorithm is the pure TypeScript `@quent-experimental/query-diff` workspace
 package. It has no terminal, React, transport, or Node.js dependency, so the
 browser app can consume the same result model. The CLI owns API orchestration,
 Ink interaction, and terminal formatting.
@@ -61,14 +61,14 @@ localhost default for local-only commands.
 Local-only:
 
 ```sh
-pixi run pnpm --dir ui ask query-diff \
+pixi run pnpm --dir experimental/vibe/quent-cli ask query-diff \
   --api-base http://localhost:8080/api
 ```
 
 DB-only, comparing queries within one run:
 
 ```sh
-pixi run pnpm --dir ui ask query-diff \
+pixi run pnpm --dir experimental/vibe/quent-cli ask query-diff \
   --db-run 6647 \
   --db-api-base-url https://accel-etl.nvidia.com \
   --db-token "$QUENT_OPEN_TOKEN"
@@ -77,7 +77,7 @@ pixi run pnpm --dir ui ask query-diff \
 Local vs DB:
 
 ```sh
-pixi run pnpm --dir ui ask query-diff \
+pixi run pnpm --dir experimental/vibe/quent-cli ask query-diff \
   --api-base http://localhost:8080/api \
   --db-run 6647 \
   --db-api-base-url https://accel-etl.nvidia.com \
@@ -87,7 +87,7 @@ pixi run pnpm --dir ui ask query-diff \
 DB vs DB:
 
 ```sh
-pixi run pnpm --dir ui ask query-diff \
+pixi run pnpm --dir experimental/vibe/quent-cli ask query-diff \
   --db-run 6647 \
   --db-run 6650 \
   --db-api-base-url https://accel-etl.nvidia.com \
@@ -98,7 +98,7 @@ The combined query tree labels sources as `local` and `db RUN`. For JSON,
 identify sources explicitly when more than one is registered:
 
 ```sh
-pixi run pnpm --silent --dir ui ask query-diff \
+pixi run pnpm --silent --dir experimental/vibe/quent-cli ask query-diff \
   --db-run 6647 \
   --db-run 6650 \
   --db-api-base-url https://accel-etl.nvidia.com \
@@ -120,7 +120,7 @@ pixi run pnpm --silent --dir ui ask query-diff \
 query, metric, and any ambiguous source IDs:
 
 ```sh
-pixi run pnpm --silent --dir ui ask query-diff \
+pixi run pnpm --silent --dir experimental/vibe/quent-cli ask query-diff \
   --engine ENGINE \
   --baseline-query QUERY \
   --candidate-query QUERY \
@@ -132,7 +132,7 @@ pixi run pnpm --silent --dir ui ask query-diff \
 Candidates can also span engines:
 
 ```sh
-pixi run pnpm --silent --dir ui ask query-diff \
+pixi run pnpm --silent --dir experimental/vibe/quent-cli ask query-diff \
   --baseline-engine ENGINE \
   --baseline-query QUERY \
   --candidate ENGINE:QUERY \

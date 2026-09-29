@@ -9,9 +9,7 @@ import type {
   QueryFilter,
   Resource,
 } from '@quent/utils';
-import { MAX_PAGE_SIZE } from '@/components/entities-table/utils';
-import { buildDeepLinkUrl } from '@/features/deep-link/deepLink.codec';
-import type { DeepLinkStateV3 } from '@/features/deep-link/deepLink.schema';
+import { buildEvidenceDeepLink, type EvidenceDeepLinkState } from '../deepLink';
 import type {
   QuestionCliValues,
   QuestionContext,
@@ -21,6 +19,7 @@ import type {
 } from './question.types';
 
 const DEFAULT_LIMIT = 10;
+const MAX_PAGE_SIZE = 500;
 
 interface LongestResourceUsersInput {
   resourceId: string;
@@ -78,11 +77,31 @@ export const longestResourceUsersMetadata: QuestionMetadata = {
   },
   parameters: [
     { name: 'resource', required: true, description: 'Leaf resource ID.' },
-    { name: 'entity-type', required: false, description: 'FSM entity type name.' },
-    { name: 'operator', required: false, description: 'Comma-separated operator IDs.' },
-    { name: 'start', required: false, description: 'Query-relative window start in seconds.' },
-    { name: 'end', required: false, description: 'Query-relative window end in seconds.' },
-    { name: 'limit', required: false, description: 'Maximum ranked entities to return.' },
+    {
+      name: 'entity-type',
+      required: false,
+      description: 'FSM entity type name.',
+    },
+    {
+      name: 'operator',
+      required: false,
+      description: 'Comma-separated operator IDs.',
+    },
+    {
+      name: 'start',
+      required: false,
+      description: 'Query-relative window start in seconds.',
+    },
+    {
+      name: 'end',
+      required: false,
+      description: 'Query-relative window end in seconds.',
+    },
+    {
+      name: 'limit',
+      required: false,
+      description: 'Maximum ranked entities to return.',
+    },
   ],
   limitations: [
     'The duration is the longest single matching usage span, not total usage or entity lifetime.',
@@ -236,8 +255,12 @@ function evidenceUrl(
   entityType: string | null,
   selectedEntityId: string | undefined
 ): string {
-  const state: DeepLinkStateV3 = {
-    route: { engineId: context.engineId, queryId: context.queryId, tab: 'entities' },
+  const state: EvidenceDeepLinkState = {
+    route: {
+      engineId: context.engineId,
+      queryId: context.queryId,
+      tab: 'entities',
+    },
     ...(input.operatorIds.length > 0 ? { selection: { operatorNodeIds: input.operatorIds } } : {}),
     entities: {
       resourceId: input.resourceId,
@@ -253,11 +276,7 @@ function evidenceUrl(
     context.queryId
   )}/entities`;
   const currentUrl = context.appBaseUrl ? new URL(route, context.appBaseUrl).toString() : route;
-  const result = buildDeepLinkUrl(currentUrl, state);
-  if (!result.ok) {
-    throw new Error(`Could not build evidence link: ${result.message}`);
-  }
-  return result.value;
+  return buildEvidenceDeepLink(currentUrl, state);
 }
 
 async function run(

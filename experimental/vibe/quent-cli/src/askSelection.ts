@@ -4,7 +4,7 @@
 import type { Readable, Writable } from 'node:stream';
 import type { ApiClient } from '@quent/client';
 import type { EntityRef, QueryBundle } from '@quent/utils';
-import type { QuestionCliValues } from '../src/features/question-cli/question.types';
+import type { QuestionCliValues } from './questions/question.types';
 import { selectWithInk } from './inkSelectorRunner';
 
 type TerminalReadable = Readable & { isTTY?: boolean };

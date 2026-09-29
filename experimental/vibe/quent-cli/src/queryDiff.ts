@@ -10,7 +10,7 @@ import {
   fetchQueryBundle,
   setApiBaseUrl,
 } from '@quent/client';
-import { commonQueryMetrics, diffQueryBundles } from '@quent/query-diff';
+import { commonQueryMetrics, diffQueryBundles } from '@quent-experimental/query-diff';
 import type { EntityRef, QueryBundle } from '@quent/utils';
 import {
   createNonInteractiveSelector,
@@ -231,7 +231,10 @@ async function discoverSourcedQueryTreeChoices(
 
 function selectedFromTree(
   selected: readonly string[],
-  choices: readonly (QueryTreeChoice & { sourceId: string; sourceLabel: string })[]
+  choices: readonly (QueryTreeChoice & {
+    sourceId: string;
+    sourceLabel: string;
+  })[]
 ): SourcedQuerySelection[] {
   const byValue = new Map(choices.map(choice => [choice.value, choice]));
   return selected.map(value => {

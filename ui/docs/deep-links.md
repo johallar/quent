@@ -133,7 +133,7 @@ Agents should use these commands rather than recreating the compression format.
 For a computed answer plus its evidence link, run a registered question:
 
 ```sh
-pixi run pnpm --dir ui ask longest-resource-users \
+pixi run pnpm --dir experimental/vibe/quent-cli ask longest-resource-users \
   --engine ENGINE \
   --query QUERY \
   --resource RESOURCE \

@@ -117,10 +117,18 @@ describe('query bundle diff', () => {
     ]);
 
     expect(result).toMatchObject({
-      baseline: { engineId: 'engine-old', queryId: 'baseline', durationSeconds: 10 },
+      baseline: {
+        engineId: 'engine-old',
+        queryId: 'baseline',
+        durationSeconds: 10,
+      },
       comparisons: [
         {
-          candidate: { engineId: 'engine-new', queryId: 'candidate', durationSeconds: 12 },
+          candidate: {
+            engineId: 'engine-new',
+            queryId: 'candidate',
+            durationSeconds: 12,
+          },
         },
       ],
     });
@@ -264,8 +272,18 @@ describe('query bundle diff', () => {
 
   it('preserves optional source provenance', () => {
     const result = diffQueryBundles(
-      { source: 'local', engineId: 'engine', bundle: bundle('baseline', 1, []) },
-      [{ source: 'db 6647', engineId: 'engine', bundle: bundle('candidate', 1, []) }]
+      {
+        source: 'local',
+        engineId: 'engine',
+        bundle: bundle('baseline', 1, []),
+      },
+      [
+        {
+          source: 'db 6647',
+          engineId: 'engine',
+          bundle: bundle('candidate', 1, []),
+        },
+      ]
     );
 
     expect(result.baseline.source).toBe('local');

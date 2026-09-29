@@ -112,67 +112,8 @@ view snapshots through the **Copy Link** action. See
 [Deep links](./docs/deep-links.md) for the stored state, compatibility policy,
 and command-line creation and decoding examples.
 
-The question CLI answers registered analysis questions and emits a supporting
-deep link. Omit engine, query, or required resource IDs to use the searchable
-Ink interface. Query selection walks through engine, query group, and query:
-
-```bash
-pixi run pnpm --dir ui ask longest-resource-users
-```
-
-Pass all IDs explicitly for scripts and other non-interactive callers.
-
-Agent and automation callers should discover IDs through versioned JSON:
-
-```bash
-pixi run pnpm --silent --dir ui ask engines --json
-pixi run pnpm --silent --dir ui ask query-groups --engine ENGINE_ID --json
-pixi run pnpm --silent --dir ui ask queries \
-  --engine ENGINE_ID --query-group QUERY_GROUP_ID --json
-```
-
-`--json` never opens Ink, even when the process owns a pseudo-terminal. It
-requires every selection explicitly, writes only its versioned result envelope
-to stdout, and reports a versioned error envelope on stderr with a nonzero exit
-code. `--silent` prevents pnpm's lifecycle messages from contaminating those
-streams.
-
-The query-diff CLI compares two query bundles and prints numeric operator
-statistics and active-span deltas aggregated by logical or physical operator
-type:
-
-```bash
-pixi run pnpm --dir ui ask query-diff
-```
-
-Query and engine IDs can also be supplied with `--baseline-query`,
-`--baseline-engine`, and repeated `--candidate-query` options. Use repeated
-`--candidate ENGINE:QUERY` options when candidates span engines. Without
-explicit IDs, the Ink query tree selects one baseline and any number of
-candidates across all engines. A second multiselect offers only metrics present
-in every selected query, including an **All metrics** option. Automation can
-repeat `--metric` or pass `--metric all`. Every comparison reports
-candidate-minus-baseline deltas, summary totals by plan type, and a combined
-operator table with Plan and Operator columns. Pass `--no-combined-table` for
-separate per-operator tables. The renderer-independent comparison logic is
-exported by `@quent/query-diff` for CLI and browser use.
-
-Database telemetry is an optional source:
-
-```bash
-pixi run pnpm --dir ui ask query-diff \
-  --db-run 6647 \
-  --db-run 6650 \
-  --db-api-base-url https://accel-etl.nvidia.com \
-  --db-token "$QUENT_OPEN_TOKEN"
-```
-
-Each run starts a temporary `quent-open` API and appears in the query tree as
-`db RUN`. Add `--api-base http://localhost:8080/api` to compare those runs with
-an existing local API. Use `--db` without `--db-run` to enter run IDs
-interactively; automation can pair explicit queries with `--baseline-source`
-and repeated `--candidate-source`. Database processes are stopped when the
-command exits.
+The agent-authored question and query-diff CLI is maintained separately under
+[`experimental/vibe/quent-cli`](../experimental/vibe/quent-cli/).
 
 ## API Integration
 

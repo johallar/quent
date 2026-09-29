@@ -8,3 +8,4 @@ own risk.
 ## Experiments
 
 - [Intricate query-engine simulator](simulator/)
+- [Question and query-diff CLI](quent-cli/)
