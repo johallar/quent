@@ -55,10 +55,10 @@ export function resolveQueryComposition(features: FeatureRegistry): QueryComposi
 export function resolveAvailableQueryTab(
   composition: QueryComposition,
   requestedTab: QueryTabId
-): QueryTabId {
+): QueryTabId | null {
   return composition.tabs.some(tab => tab.id === requestedTab)
     ? requestedTab
-    : (composition.tabs[0]?.id ?? 'timeline');
+    : (composition.tabs[0]?.id ?? null);
 }
 
 export function queryTabRoute(tab: QueryTabId): (typeof QUERY_TABS)[number]['to'] {

@@ -6,6 +6,7 @@ import { QueryResourceTree } from '@/components/timeline-tree';
 import { Route as QueryRoute } from './profile.engine.$engineId.query.$queryId';
 import { useDeepLink } from '@/features/deep-link';
 import {
+  NoAvailableQuerySurface,
   queryTabRoute,
   resolveAvailableQueryTab,
   resolveQueryComposition,
@@ -23,6 +24,9 @@ function TimelineTab() {
   const composition = resolveQueryComposition(features);
   const deepLink = useDeepLink();
   const availableTab = resolveAvailableQueryTab(composition, 'timeline');
+  if (!availableTab) {
+    return <NoAvailableQuerySurface />;
+  }
   if (availableTab !== 'timeline') {
     return (
       <Navigate

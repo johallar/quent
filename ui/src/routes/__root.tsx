@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: Copyright (c) 2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-import { createRootRoute, Link, Outlet, useRouterState } from '@tanstack/react-router';
+import { createRootRouteWithContext, Link, Outlet, useRouterState } from '@tanstack/react-router';
 import { TanStackRouterDevtools } from '@tanstack/react-router-devtools';
 import { ThemeProvider } from '@/contexts/ThemeContext';
 import { ThemeToggle } from '@/components/ThemeToggle';
@@ -15,6 +15,11 @@ import {
 } from '@quent/components';
 import { cn } from '@quent/utils';
 import { DeepLinkNavSlot } from '@/features/deep-link';
+import { SchemaExperimentSelector, type SchemaExperiment } from '@/features/capabilities';
+
+export interface AppRouterContext {
+  schemaExperiment: SchemaExperiment;
+}
 
 function AppNav({ highlightProfile }: { highlightProfile?: boolean }) {
   const logoUrl = `${import.meta.env.BASE_URL}logo.svg`;
@@ -41,6 +46,7 @@ function AppNav({ highlightProfile }: { highlightProfile?: boolean }) {
           <NavBarNavigator />
         </div>
         <div className="flex shrink-0 items-center gap-2">
+          <SchemaExperimentSelector />
           <NavigationMenu>
             <NavigationMenuList>
               <NavigationMenuItem>
@@ -118,7 +124,7 @@ function RootComponent() {
   );
 }
 
-export const Route = createRootRoute({
+export const Route = createRootRouteWithContext<AppRouterContext>()({
   component: RootComponent,
   errorComponent: RootErrorComponent,
   notFoundComponent: RootNotFoundComponent,

@@ -5,7 +5,11 @@ import { FEATURE_IDS, createFeatureRegistry, resolveFeatureSetFromSchema } from 
 import { describe, expect, it } from 'vitest';
 import { simulatorFeatureSet } from '@/features/simulatorFeatureSet';
 import {
+  entitiesOnlySchema,
+  nonFsmEntitiesSchema,
   queryPlanOnlySchema,
+  queryPlanWithEntitiesSchema,
+  resourceDefinitionsOnlySchema,
   resourceOnlySchema,
   resourceWithQueryPlanSchema,
 } from './resourceOnlySchema';
@@ -56,6 +60,37 @@ describe('resolveQueryComposition', () => {
     });
     expect(resolveAvailableQueryTab(composition, 'timeline')).toBe('operators');
     expect(resolveAvailableQueryTab(composition, 'entities')).toBe('operators');
+  });
+
+  it('returns only entities for an FSM/reference-tree schema', () => {
+    const composition = compositionFor(entitiesOnlySchema);
+
+    expect(composition.tabs).toEqual([
+      expect.objectContaining({ id: 'entities', label: 'Entities' }),
+    ]);
+    expect(resolveAvailableQueryTab(composition, 'timeline')).toBe('entities');
+  });
+
+  it('combines query-plan and entity surfaces without a timeline', () => {
+    expect(compositionFor(queryPlanWithEntitiesSchema)).toMatchObject({
+      showQueryPlan: true,
+      showOperatorGantt: false,
+      tabs: [{ id: 'operators' }, { id: 'entities' }],
+    });
+  });
+
+  it('returns no surface for resource definitions without an FSM consumer', () => {
+    const composition = compositionFor(resourceDefinitionsOnlySchema);
+
+    expect(composition.tabs).toEqual([]);
+    expect(resolveAvailableQueryTab(composition, 'timeline')).toBeNull();
+  });
+
+  it('returns no surface for entities without an FSM model', () => {
+    const composition = compositionFor(nonFsmEntitiesSchema);
+
+    expect(composition.tabs).toEqual([]);
+    expect(resolveAvailableQueryTab(composition, 'entities')).toBeNull();
   });
 
   it('preserves all current simulator surfaces', () => {

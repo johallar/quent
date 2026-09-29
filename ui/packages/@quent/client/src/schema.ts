@@ -11,11 +11,16 @@ export type SchemaFetcher = (engineId: string) => Promise<Schema>;
 interface SchemaQueryParams {
   engineId: string;
   fetcher?: SchemaFetcher;
+  cacheKey?: string;
 }
 
-export const schemaQueryOptions = ({ engineId, fetcher = fetchSchema }: SchemaQueryParams) =>
+export const schemaQueryOptions = ({
+  engineId,
+  fetcher = fetchSchema,
+  cacheKey = 'default',
+}: SchemaQueryParams) =>
   queryOptions({
-    queryKey: ['schema', engineId],
+    queryKey: ['schema', engineId, cacheKey],
     queryFn: (): Promise<Schema> => fetcher(engineId),
     staleTime: DEFAULT_STALE_TIME,
     retry: 2,

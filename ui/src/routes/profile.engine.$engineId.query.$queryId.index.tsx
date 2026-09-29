@@ -3,6 +3,7 @@
 
 import { createFileRoute, Navigate } from '@tanstack/react-router';
 import {
+  NoAvailableQuerySurface,
   queryTabRoute,
   resolveAvailableQueryTab,
   resolveQueryComposition,
@@ -19,5 +20,8 @@ function QueryIndex() {
   const composition = resolveQueryComposition(useFeatureRegistry());
   const defaultTab = resolveAvailableQueryTab(composition, 'timeline');
 
+  if (!defaultTab) {
+    return <NoAvailableQuerySurface />;
+  }
   return <Navigate to={queryTabRoute(defaultTab)} params={params} search={search} replace />;
 }

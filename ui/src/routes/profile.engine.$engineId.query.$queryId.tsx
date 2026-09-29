@@ -14,15 +14,12 @@ import { cn } from '@quent/utils';
 import { QueryLoading } from '@/components/QueryLoading';
 import { RouteError } from '@/components/RouteError';
 import { CopyLinkButton, validateDeepLinkSearch } from '@/features/deep-link';
-import {
-  fetchResourceWithQueryPlanSchema,
-  resolveQueryComposition,
-  useFeatureRegistry,
-} from '@/features/capabilities';
+import { resolveQueryComposition, useFeatureRegistry } from '@/features/capabilities';
 
 export interface QueryAnalysisData {
   queryBundle: QueryBundle<EntityRef>;
   featureResolution: SchemaFeatureResolution;
+  schemaExperimentId: string;
 }
 
 export const Route = createFileRoute('/profile/engine/$engineId/query/$queryId')({
@@ -32,16 +29,22 @@ export const Route = createFileRoute('/profile/engine/$engineId/query/$queryId')
   pendingMs: 200,
   pendingMinMs: 300,
   validateSearch: validateDeepLinkSearch,
-  loader: async ({ params }): Promise<QueryAnalysisData> => {
+  loader: async ({ context, params }): Promise<QueryAnalysisData> => {
     const { engineId, queryId } = params;
+    const { schemaExperiment } = context;
     const [queryBundle, schema] = await Promise.all([
       queryClient.ensureQueryData(queryBundleQueryOptions({ engineId, queryId })),
       queryClient.ensureQueryData(
-        schemaQueryOptions({ engineId, fetcher: fetchResourceWithQueryPlanSchema })
+        schemaQueryOptions({
+          engineId,
+          fetcher: schemaExperiment.fetcher,
+          cacheKey: schemaExperiment.id,
+        })
       ),
     ]);
     return {
       queryBundle,
+      schemaExperimentId: schemaExperiment.id,
       featureResolution: resolveFeatureSetFromSchema(schema, {
         hostFeatures: [FEATURE_IDS.queryEngineCore],
       }),

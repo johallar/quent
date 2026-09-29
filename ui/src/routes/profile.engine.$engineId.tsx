@@ -77,6 +77,7 @@ function ProfileLayout() {
   const encodedState = queryMatch?.search?.s;
   const queryData = queryMatch?.loaderData;
   const queryBundle = queryData?.queryBundle;
+  const schemaExperimentId = queryData?.schemaExperimentId ?? '';
   const featureSet = queryData?.featureResolution.featureSet ?? EMPTY_FEATURE_SET;
   const featureRegistry = useMemo(() => createFeatureRegistry(featureSet), [featureSet]);
   const queryComposition = useMemo(
@@ -174,7 +175,7 @@ function ProfileLayout() {
   );
 
   return (
-    <Provider key={`${engineId}:${queryId ?? ''}:${providerPayload ?? ''}`}>
+    <Provider key={`${engineId}:${queryId ?? ''}:${schemaExperimentId}:${providerPayload ?? ''}`}>
       <FeatureRegistryProvider registry={featureRegistry}>
         {queryBundle && queryComposition.showQueryPlan ? (
           <QueryColorRegistry operatorTypes={queryBundle.unique_operator_names}>

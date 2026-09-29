@@ -6,6 +6,7 @@ import { render, RenderOptions, renderHook } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { RouterProvider, createMemoryHistory, createRouter } from '@tanstack/react-router';
 import { routeTree } from '@/routeTree.gen';
+import { DEFAULT_SCHEMA_EXPERIMENT, SchemaExperimentProvider } from '@/features/capabilities';
 
 /**
  * Create a fresh QueryClient for each test to prevent state leakage
@@ -84,6 +85,7 @@ export function renderWithRouter(options: RenderWithRouterOptions = {}) {
   const router = createRouter({
     routeTree,
     history: memoryHistory,
+    context: { schemaExperiment: DEFAULT_SCHEMA_EXPERIMENT },
   });
 
   // Need to cast due to TanStack Router's strict typing
@@ -92,7 +94,12 @@ export function renderWithRouter(options: RenderWithRouterOptions = {}) {
   return {
     ...render(
       <QueryClientProvider client={queryClient}>
-        <RouterProvider router={typedRouter} />
+        <SchemaExperimentProvider>
+          <RouterProvider
+            router={typedRouter}
+            context={{ schemaExperiment: DEFAULT_SCHEMA_EXPERIMENT }}
+          />
+        </SchemaExperimentProvider>
       </QueryClientProvider>,
       renderOptions
     ),

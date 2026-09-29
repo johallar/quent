@@ -10,12 +10,35 @@ import { RouterProvider, createHashHistory, createRouter } from '@tanstack/react
 import { installSimulatorClient } from '../src/lib/simulatorClient';
 import { queryClient } from '../src/lib/queryClient';
 import { routeTree } from '../src/routeTree.gen';
+import {
+  DEFAULT_SCHEMA_EXPERIMENT,
+  SchemaExperimentProvider,
+  useSchemaExperiment,
+} from '../src/features/capabilities';
 
 import '../src/index.css';
 
 // Static hosts cannot serve arbitrary SPA paths. Hash history keeps copied
 // profiler links reloadable without requiring a Pages 404 redirect shim.
-const router = createRouter({ routeTree, history: createHashHistory() });
+const router = createRouter({
+  routeTree,
+  history: createHashHistory(),
+  context: { schemaExperiment: DEFAULT_SCHEMA_EXPERIMENT },
+});
+
+function SchemaExperimentRouter() {
+  const { experiment } = useSchemaExperiment();
+  const previousExperimentId = React.useRef(experiment.id);
+
+  React.useEffect(() => {
+    if (previousExperimentId.current !== experiment.id) {
+      previousExperimentId.current = experiment.id;
+      void router.invalidate();
+    }
+  }, [experiment.id]);
+
+  return <RouterProvider router={router} context={{ schemaExperiment: experiment }} />;
+}
 
 async function start() {
   await installSimulatorClient();
@@ -23,7 +46,9 @@ async function start() {
   ReactDOM.createRoot(document.getElementById('root')!).render(
     <React.StrictMode>
       <QueryClientProvider client={queryClient}>
-        <RouterProvider router={router} />
+        <SchemaExperimentProvider>
+          <SchemaExperimentRouter />
+        </SchemaExperimentProvider>
         {import.meta.env.VITE_DEBUG && !import.meta.env.TEST && (
           <ReactQueryDevtools initialIsOpen={false} />
         )}

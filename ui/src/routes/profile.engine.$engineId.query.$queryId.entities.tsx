@@ -5,6 +5,7 @@ import { createFileRoute, Navigate } from '@tanstack/react-router';
 import { EntitiesTable } from '@/components/entities-table/EntitiesTable';
 import { Route as QueryRoute } from './profile.engine.$engineId.query.$queryId';
 import {
+  NoAvailableQuerySurface,
   queryTabRoute,
   resolveAvailableQueryTab,
   resolveQueryComposition,
@@ -20,6 +21,9 @@ function EntitiesTab() {
   const { queryBundle } = QueryRoute.useLoaderData();
   const composition = resolveQueryComposition(useFeatureRegistry());
   const availableTab = resolveAvailableQueryTab(composition, 'entities');
+  if (!availableTab) {
+    return <NoAvailableQuerySurface />;
+  }
   if (availableTab !== 'entities') {
     return (
       <Navigate

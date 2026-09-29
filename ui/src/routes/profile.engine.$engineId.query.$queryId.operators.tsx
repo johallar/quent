@@ -5,6 +5,7 @@ import { createFileRoute, Navigate } from '@tanstack/react-router';
 import { OperatorTable } from '@/components/operator-table/OperatorTable';
 import { Route as QueryRoute } from './profile.engine.$engineId.query.$queryId';
 import {
+  NoAvailableQuerySurface,
   queryTabRoute,
   resolveAvailableQueryTab,
   resolveQueryComposition,
@@ -21,6 +22,9 @@ function OperatorsTab() {
   const { queryBundle } = QueryRoute.useLoaderData();
   const composition = resolveQueryComposition(features);
   const availableTab = resolveAvailableQueryTab(composition, 'operators');
+  if (!availableTab) {
+    return <NoAvailableQuerySurface />;
+  }
   if (availableTab !== 'operators') {
     return (
       <Navigate

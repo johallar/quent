@@ -4,10 +4,21 @@
 import { FEATURE_IDS, createFeatureRegistry, resolveFeatureSetFromSchema } from '@quent/features';
 import { describe, expect, it } from 'vitest';
 import {
+  boundedOccupancySchema,
+  entitiesOnlySchema,
+  mixedResourceSchema,
+  nonFsmEntitiesSchema,
   queryPlanOnlySchema,
+  queryPlanWithEntitiesSchema,
+  resourceDefinitionsOnlySchema,
   resourceOnlySchema,
   resourceWithQueryPlanSchema,
+  unboundedOccupancySchema,
+  unitResourceSchema,
 } from './resourceOnlySchema';
+
+const RESOURCE_CONSTRAINT = 'quent.resource.v0.1.0';
+const FSM_CONSTRAINT = 'quent.fsm.v0.1.0';
 
 function resolve(schema: typeof resourceOnlySchema) {
   const resolution = resolveFeatureSetFromSchema(schema, {
@@ -63,5 +74,69 @@ describe('schema capability fixtures', () => {
       enabled: false,
       source: 'unavailable',
     });
+  });
+
+  it.each([
+    ['entities only', entitiesOnlySchema],
+    ['query plan with entities', queryPlanWithEntitiesSchema],
+  ])('resolves the %s fixture without resource analysis', (_name, fixture) => {
+    const { registry } = resolve(fixture);
+
+    expect(registry.has(FEATURE_IDS.fsm)).toBe(true);
+    expect(registry.has(FEATURE_IDS.referenceTree)).toBe(true);
+    expect(registry.has(FEATURE_IDS.resource)).toBe(false);
+    expect(registry.has(FEATURE_IDS.queryEngineResource)).toBe(false);
+  });
+
+  it.each([
+    ['unit', unitResourceSchema],
+    ['unbounded occupancy', unboundedOccupancySchema],
+    ['bounded occupancy', boundedOccupancySchema],
+    ['mixed', mixedResourceSchema],
+  ])('enables resource analysis for the %s fixture', (_name, fixture) => {
+    const { registry } = resolve(fixture);
+
+    expect(registry.has(FEATURE_IDS.fsm)).toBe(true);
+    expect(registry.has(FEATURE_IDS.referenceTree)).toBe(true);
+    expect(registry.has(FEATURE_IDS.resource)).toBe(true);
+    expect(registry.has(FEATURE_IDS.queryEngineResource)).toBe(true);
+  });
+
+  it('models unit, unbounded, bounded, and rate capacity shapes', () => {
+    const unitUsage = unitResourceSchema.records.find(([path]) => path.name === 'ThreadUsage')?.[1];
+    const unboundedMemory = unboundedOccupancySchema.entities.find(
+      ([path]) => path.name === 'Memory'
+    )?.[1];
+    const boundedMemory = boundedOccupancySchema.entities.find(
+      ([path]) => path.name === 'Memory'
+    )?.[1];
+    const network = mixedResourceSchema.entities.find(([path]) => path.name === 'Network')?.[1];
+
+    expect(unitUsage?.fields).toEqual({});
+    expect(unboundedMemory?.annotations.constraints[RESOURCE_CONSTRAINT]?.data).toContain(
+      '"bounded":false'
+    );
+    expect(boundedMemory?.annotations.constraints[RESOURCE_CONSTRAINT]?.data).toContain(
+      '"bounded":true'
+    );
+    expect(network?.annotations.constraints[RESOURCE_CONSTRAINT]?.data).toContain('"kind":"rate"');
+    expect(boundedOccupancySchema.records.some(([path]) => path.name === 'MemoryBounds')).toBe(
+      true
+    );
+  });
+
+  it('keeps resource definitions disabled without an FSM consumer', () => {
+    const { registry } = resolve(resourceDefinitionsOnlySchema);
+
+    expect(registry.featureIds).toEqual([FEATURE_IDS.queryEngineCore, FEATURE_IDS.referenceTree]);
+  });
+
+  it('models ordinary entities without enabling FSM analysis', () => {
+    const { registry } = resolve(nonFsmEntitiesSchema);
+    const task = nonFsmEntitiesSchema.entities.find(([path]) => path.name === 'Task')?.[1];
+
+    expect(registry.featureIds).toEqual([FEATURE_IDS.queryEngineCore, FEATURE_IDS.referenceTree]);
+    expect(task?.annotations.constraints[FSM_CONSTRAINT]).toBeUndefined();
+    expect(task?.events.progress?.cardinality).toBe('Multi');
   });
 });
