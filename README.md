@@ -48,6 +48,13 @@ also include curated visualizations for user interfaces, querying events through
 CLIs or MCP endpoints to support agent-in-the-loop optimization efforts, and
 more.
 
+The UI is adopting capability-driven composition: schema semantics and explicit
+runtime service metadata determine which built-in UI features can activate.
+Instrumentation authors provide those schema and service facts rather than a
+TypeScript UI configuration. See the
+[Quent UI architecture](ui/docs/architecture.md) for the feature, contribution,
+and package model.
+
 Quent is currently developed around the use case of accelerated data-processing
 engines. An elaborate example of how Quent is used to produce a domain-specific
 analysis toolchain with a user interface in this domain is shown below:

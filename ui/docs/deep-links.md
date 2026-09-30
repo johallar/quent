@@ -80,6 +80,12 @@ synthetic row IDs.
 Default DAG, resource, data-flow, and table controls are omitted. Hover,
 playback, open popovers, and other transient state are not shared.
 
+As capability-driven composition is adopted, each UI feature will own its
+state-codec contribution. The shell must hydrate and serialize codecs only for
+enabled features, while the versioned envelope and compatibility decoding remain
+generic. Until that migration is complete, the app-shell schema remains the
+source of truth.
+
 Resource filters store the name/label search and the selected resource and FSM
 types. Active fields are combined with AND. `showOthers` restores the complete
 tree and highlights matching rows; otherwise only matching rows are shown.

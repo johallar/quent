@@ -18,6 +18,9 @@ and package boundaries over new dependencies or one-off app-shell code.
    matching `fetch*` in `@quent/client`, typed against generated bindings.
 4. **Server-serialized types come from ts-bindings** — Never duplicate Rust
    request/response shapes as hand-written TypeScript interfaces.
+5. **Compose behavior from capabilities** — Keep schema/service facts, UI
+   features, and typed contributions distinct. Package presence must not enable
+   behavior.
 
 ## Foundational stack (prefer these)
 
@@ -64,18 +67,25 @@ ui/
 │   ├── utils/                # Foundation: cn, BigInt JSON, types re-exports
 │   ├── client/               # fetch* + queryOptions + thin Query hooks
 │   ├── hooks/                # Jotai atoms, QuentProvider orchestration
-│   └── components/           # Visualizations + shadcn primitives
+│   ├── components/           # Visualizations + shadcn primitives
+│   ├── features/             # Capability, feature, and contribution contracts
+│   └── <feature>/            # User-facing or integration feature packages
 └── examples/                 # Opt-in consumers; NOT root workspace members
 ```
 
-Dependency direction (do not invert):
+Dependency layers (do not invert):
 
 ```text
-@quent/utils → @quent/client → @quent/hooks → @quent/components
+generic foundations and neutral visualization ports
+  → base UI features
+  → integration features
+  → app-shell composition
 ```
 
 - Put reusable code in the lowest package that fits; keep app-specific wiring in
   `ui/src/`.
+- Generic foundations never import UI feature packages. Base features never
+  import their integration features.
 - Import from package roots only (`@quent/components`), never deep paths.
 - Cross-package imports use package roots; inside a package, use relative
   sibling imports.
@@ -88,6 +98,43 @@ Dependency direction (do not invert):
   unless it is truly app-shell-only (nav chrome, route layout).
 - Search before adding helpers; consolidate duplicate utilities and tests into
   the lowest reusable package, usually `@quent/utils`.
+
+See [UI architecture](docs/architecture.md) for the package model and current
+migration boundary.
+
+## Capability-driven feature composition
+
+Keep these concepts separate:
+
+1. **Capabilities** are facts about the active target. `schema.*` values come
+   from canonical schema metadata; `service.*` values come from explicit
+   runtime service metadata.
+2. **UI features** own cohesive user-facing behavior. They declare
+   `requiresCapabilities`, `dependsOnFeatures`, and typed contributions.
+3. **Contributions** are extension points for navigation, panels, timelines,
+   details, providers, data loaders, state codecs, and feature-local behavior.
+
+When reviewing:
+
+- Do not map every schema module to a UI package. Package boundaries follow
+  user-facing ownership.
+- Do not infer feature support from installed packages, failed requests, or
+  compiler errors.
+- Keep capability requirements separate from feature dependencies. An
+  integration may depend on multiple base features without either base
+  importing it.
+- Disabled features must not fetch, hydrate state, or serialize deep-link
+  fields.
+- Feature-owned state and deep-link codecs move with the feature; routes remain
+  thin adapters.
+- Require coverage for full, partial, incompatible, and unavailable capability
+  combinations when changing resolution or dependencies.
+
+`src/features/simulatorFeatureSet.ts` is a compatibility fixture. Its feature
+set describes the current built-in UI catalog, while its capability set models
+the simulator as supporting every known capability. Instrumentation and
+query-engine authors provide schema and service metadata; they do not author a
+TypeScript feature-set file.
 
 ## Client API ↔ server API
 

@@ -8,49 +8,74 @@ import {
   defineFeatureSet,
 } from '@quent/features';
 
+const {
+  schemaFsm,
+  schemaQueryPlan,
+  schemaReferenceTree,
+  schemaResource,
+  serviceDataFlow,
+  serviceEntityList,
+  serviceNvtx,
+  serviceQueryEngine,
+  serviceResourceTimeline,
+} = CAPABILITY_IDS;
+
+const {
+  entities,
+  entitiesQueryPlan,
+  entitiesResource,
+  nvtx,
+  queryEngineCore,
+  queryEngineDataFlow,
+  queryEngineResource,
+  queryPlan,
+  referenceTree,
+  resource,
+} = FEATURE_IDS;
+
 export const simulatorFeatureSet = defineFeatureSet([
   {
-    id: FEATURE_IDS.entities,
-    requiresCapabilities: [CAPABILITY_IDS.schemaFsm, CAPABILITY_IDS.serviceEntityList],
+    id: entities,
+    requiresCapabilities: [schemaFsm, serviceEntityList],
   },
   {
-    id: FEATURE_IDS.referenceTree,
-    requiresCapabilities: [CAPABILITY_IDS.schemaReferenceTree],
+    id: referenceTree,
+    requiresCapabilities: [schemaReferenceTree],
   },
   {
-    id: FEATURE_IDS.resource,
-    requiresCapabilities: [CAPABILITY_IDS.schemaResource, CAPABILITY_IDS.serviceResourceTimeline],
-    dependsOnFeatures: [FEATURE_IDS.referenceTree],
+    id: resource,
+    requiresCapabilities: [schemaResource, serviceResourceTimeline],
+    dependsOnFeatures: [referenceTree],
   },
   {
-    id: FEATURE_IDS.entitiesResource,
-    dependsOnFeatures: [FEATURE_IDS.entities, FEATURE_IDS.resource],
+    id: entitiesResource,
+    dependsOnFeatures: [entities, resource],
   },
   {
-    id: FEATURE_IDS.queryEngineCore,
-    requiresCapabilities: [CAPABILITY_IDS.serviceQueryEngine],
+    id: queryEngineCore,
+    requiresCapabilities: [serviceQueryEngine],
   },
   {
-    id: FEATURE_IDS.queryEngineResource,
-    dependsOnFeatures: [FEATURE_IDS.queryEngineCore, FEATURE_IDS.resource],
+    id: queryEngineResource,
+    dependsOnFeatures: [queryEngineCore, resource],
   },
   {
-    id: FEATURE_IDS.queryPlan,
-    requiresCapabilities: [CAPABILITY_IDS.schemaQueryPlan],
-    dependsOnFeatures: [FEATURE_IDS.queryEngineCore],
+    id: queryPlan,
+    requiresCapabilities: [schemaQueryPlan],
+    dependsOnFeatures: [queryEngineCore],
   },
   {
-    id: FEATURE_IDS.entitiesQueryPlan,
-    dependsOnFeatures: [FEATURE_IDS.entities, FEATURE_IDS.queryPlan],
+    id: entitiesQueryPlan,
+    dependsOnFeatures: [entities, queryPlan],
   },
   {
-    id: FEATURE_IDS.queryEngineDataFlow,
-    requiresCapabilities: [CAPABILITY_IDS.serviceDataFlow],
-    dependsOnFeatures: [FEATURE_IDS.queryPlan],
+    id: queryEngineDataFlow,
+    requiresCapabilities: [serviceDataFlow],
+    dependsOnFeatures: [queryPlan],
   },
   {
-    id: FEATURE_IDS.nvtx,
-    requiresCapabilities: [CAPABILITY_IDS.serviceNvtx],
+    id: nvtx,
+    requiresCapabilities: [serviceNvtx],
   },
 ]);
 

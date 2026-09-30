@@ -18,6 +18,25 @@ A front end for query profiling instrumentation
 - **Radix UI** - Unstyled, accessible component primitives
 - **Lucide React** - Beautiful icon library
 
+## Architecture
+
+The UI is moving toward capability-driven composition:
+
+1. Canonical schema metadata provides `schema.*` capabilities.
+2. Runtime service metadata provides `service.*` capabilities.
+3. Built-in UI features declare required capabilities, dependencies on other
+   UI features, and typed contributions.
+4. The app shell resolves eligible features and composes navigation, panels,
+   timelines, details, providers, loaders, and deep-link state.
+
+Instrumentation and query-engine authors provide schema and service metadata;
+they do not create TypeScript feature-set files. The simulator's feature and
+capability sets are compatibility fixtures for the current built-in UI.
+
+See [UI architecture](./docs/architecture.md) for the package model, ownership
+rules, simulator fixture, and current migration boundary. Reviewer expectations
+are documented in [REVIEW.md](./REVIEW.md).
+
 ## Getting Started
 
 ### Prerequisites
