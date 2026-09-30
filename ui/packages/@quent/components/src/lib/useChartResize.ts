@@ -21,18 +21,27 @@ export function useChartResize() {
     resizeCleanupRef.current = null;
     const dom = instance.getDom?.() as HTMLElement | null | undefined;
     if (dom && typeof ResizeObserver !== 'undefined') {
-      // Skip first fire to preserve entrance animations (mirrors useChartConnect).
-      let initial = true;
-      const observer = new ResizeObserver(() => {
-        if (initial) {
-          initial = false;
-          return;
-        }
+      const resizeIfNeeded = () => {
         try {
+          const width = dom.clientWidth;
+          const height = dom.clientHeight;
+          if (
+            width === 0 ||
+            height === 0 ||
+            (instance.getWidth() === width && instance.getHeight() === height)
+          ) {
+            return;
+          }
           instance.resize({ width: 'auto', height: 'auto' });
         } catch {
           // Instance disposed between layout and callback.
         }
+      };
+
+      // Correct fallback init dimensions before the browser's first paint.
+      resizeIfNeeded();
+      const observer = new ResizeObserver(() => {
+        resizeIfNeeded();
       });
       observer.observe(dom);
       resizeCleanupRef.current = () => observer.disconnect();
