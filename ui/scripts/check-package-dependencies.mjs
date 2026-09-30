@@ -6,8 +6,8 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
   allowedWorkspaceDependencies,
-  featurePackages,
   knownPackages,
+  requiredPackageSkeletons,
 } from './dependency-policy.mjs';
 
 const uiRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -97,11 +97,25 @@ for (const directory of packageDirectories) {
   if (manifest.name !== expectedName) {
     errors.push(`${manifestPath}: expected package name "${expectedName}"`);
   }
+  if (!knownPackages.includes(directory.name)) {
+    errors.push(`${manifestPath}: package is not declared in the dependency policy`);
+  }
   manifests.set(directory.name, manifest);
   validateExports(manifest.name, manifest.exports, errors);
 }
 
-for (const packageName of featurePackages) {
+for (const packageName of knownPackages) {
+  if (!(packageName in allowedWorkspaceDependencies)) {
+    errors.push(`Missing dependency policy for @quent/${packageName}`);
+  }
+  for (const dependency of allowedWorkspaceDependencies[packageName] ?? []) {
+    if (!knownPackages.includes(dependency) && dependency !== 'schema') {
+      errors.push(`@quent/${packageName}: policy allows unknown package @quent/${dependency}`);
+    }
+  }
+}
+
+for (const packageName of requiredPackageSkeletons) {
   if (!manifests.has(packageName)) {
     errors.push(`Missing package skeleton @quent/${packageName}`);
   }

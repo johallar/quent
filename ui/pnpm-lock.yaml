@@ -356,6 +356,12 @@ importers:
 
   packages/@quent/features:
     devDependencies:
+      '@types/react':
+        specifier: 'catalog:'
+        version: 19.2.18
+      react:
+        specifier: 'catalog:'
+        version: 19.2.8
       tsdown:
         specifier: 'catalog:'
         version: 0.22.14(tsx@4.23.13)(typescript@6.0.3)
