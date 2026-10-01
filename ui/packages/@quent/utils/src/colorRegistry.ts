@@ -74,8 +74,30 @@ export function createColorRegistryEntry<T>(
   return [registryKey, { colorMap, palette }];
 }
 
-export function createColorRegistry(entries: Iterable<ColorRegistryEntry> = []): ColorRegistry {
-  return new Map(entries);
+class LazyColorRegistry extends Map<ColorRegistryKey, ColorRegistryValue> {
+  constructor(
+    entries: Iterable<ColorRegistryEntry>,
+    private readonly palettes: ColorRegistryPalettes
+  ) {
+    super(entries);
+  }
+
+  override get(key: ColorRegistryKey): ColorRegistryValue {
+    let value = super.get(key);
+    if (!value) {
+      value = { colorMap: new Map(), palette: this.palettes[key] };
+      this.set(key, value);
+    }
+    return value;
+  }
+}
+
+/** Creates registry entries on first use, with palettes selected by theme. */
+export function createColorRegistry(
+  entries: Iterable<ColorRegistryEntry> = [],
+  theme: PaletteTheme = 'light'
+): ColorRegistry {
+  return new LazyColorRegistry(entries, getColorRegistryPalettes(theme));
 }
 
 export function createRegistryColorResolver(

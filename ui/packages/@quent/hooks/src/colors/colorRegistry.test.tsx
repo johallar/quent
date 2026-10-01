@@ -5,7 +5,7 @@ import type { PropsWithChildren } from 'react';
 import { renderHook } from '@testing-library/react';
 import { Provider } from 'jotai';
 import { describe, expect, it } from 'vitest';
-import { COLOR_PALETTES, getDeterministicColor } from '@quent/utils';
+import { COLOR_PALETTES, createColorRegistry, getDeterministicColor } from '@quent/utils';
 import {
   COLOR_REGISTRY_KEYS,
   useColorResolver,
@@ -100,6 +100,25 @@ describe('color registry', () => {
 
     expect(result.current('declared')).toBe('#3b82f6');
     expect(result.current('synthetic')).not.toBe('#3b82f6');
+  });
+
+  it('shares incremental assignments for omitted namespaces with theme palettes', () => {
+    const registry = createColorRegistry([], 'dark');
+    const { result } = renderHook(
+      () => ({
+        first: useColorResolver(COLOR_REGISTRY_KEYS.DATA_FLOW_STATES),
+        second: useColorResolver(COLOR_REGISTRY_KEYS.DATA_FLOW_STATES),
+      }),
+      { wrapper: createWrapper(registry) }
+    );
+
+    // These keys hash to the same slot in the nine-color timeline palette.
+    const firstColor = result.current.first('a');
+    const secondColor = result.current.second('j');
+    expect(COLOR_PALETTES.timeline.dark).toContain(firstColor);
+    expect(COLOR_PALETTES.timeline.dark).toContain(secondColor);
+    expect(secondColor).not.toBe(firstColor);
+    expect(result.current.second('a')).toBe(firstColor);
   });
 
   it('assigns collision-aware colors lazily from an empty registry', () => {

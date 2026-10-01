@@ -2,7 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { describe, expect, it } from 'vitest';
-import { COLOR_PALETTES, buildDeterministicColorMap, getDeterministicColor } from './colors';
+import {
+  COLOR_PALETTES,
+  buildDeterministicColorMap,
+  getDeterministicColor,
+  getDeterministicColorFromPalette,
+} from './colors';
 import {
   COLOR_REGISTRY_KEYS,
   createColorRegistry,
@@ -33,6 +38,15 @@ describe('color registry core', () => {
       expect(light[key]).toBe(COLOR_PALETTES.timeline.light);
       expect(dark[key]).toBe(COLOR_PALETTES.timeline.dark);
     }
+  });
+
+  it('initializes omitted keys only when read, using the selected theme', () => {
+    const registry = createColorRegistry([], 'dark');
+    expect(registry.size).toBe(0);
+    const value = registry.get(COLOR_REGISTRY_KEYS.DATA_FLOW_STATES);
+    expect(value?.palette).toBe(COLOR_PALETTES.timeline.dark);
+    expect(registry.size).toBe(1);
+    expect(registry.get(COLOR_REGISTRY_KEYS.DATA_FLOW_STATES)).toBe(value);
   });
 
   it('resolves colors within independent registry keys', () => {
@@ -73,7 +87,7 @@ describe('color registry core', () => {
 
     expect(resolveColor('unknown')).toBe(getDeterministicColor('unknown'));
     expect(createRegistryColorResolver(registry, COLOR_REGISTRY_KEYS.CAPACITIES)('unknown')).toBe(
-      getDeterministicColor('unknown')
+      getDeterministicColorFromPalette('unknown', COLOR_PALETTES.timeline.light)
     );
   });
 

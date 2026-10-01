@@ -6,7 +6,6 @@ import { useHydrateAtoms } from 'jotai/utils';
 import { useEffect, useMemo } from 'react';
 import {
   COLOR_PALETTES,
-  createColorRegistry,
   extendDeterministicColorMap,
   getDeterministicColorFromPalette,
   normalizeDeterministicColorKey,
@@ -20,7 +19,7 @@ import {
 export { COLOR_REGISTRY_KEYS } from '@quent/utils';
 export type { ColorRegistry, ColorRegistryKey } from '@quent/utils';
 
-const colorRegistryAtom = atom<ColorRegistry>(createColorRegistry());
+const colorRegistryAtom = atom<ColorRegistry>(new Map());
 const colorResolverCacheAtom = atom(
   () => new WeakMap<ColorRegistry, Map<ColorRegistryKey, IncrementalColorResolver>>()
 );
