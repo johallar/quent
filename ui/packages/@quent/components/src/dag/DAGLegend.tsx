@@ -221,7 +221,7 @@ export const DAGLegend = ({ isDark, statQuantitySpecs = {} }: DAGLegendProps) =>
   const [edgeField] = useSelectedEdgeColorField();
   const dataFlowEnabled = useDataFlowEnabled();
   const dataFlowMeta = useDataFlowMeta();
-  const dataFlowStateColor = useColorResolver(COLOR_REGISTRY_KEYS.DATA_FLOW_STATES);
+  const dataFlowStateColor = useColorResolver(COLOR_REGISTRY_KEYS.FSM_STATES);
   const dataFlowDimensionColor = useColorResolver(COLOR_REGISTRY_KEYS.DATA_FLOW_DIMENSIONS);
 
   // Data-flow overlay legends: FSM states (colored like the timeline view)

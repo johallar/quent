@@ -32,7 +32,6 @@ describe('color registry core', () => {
     for (const key of [
       COLOR_REGISTRY_KEYS.CAPACITIES,
       COLOR_REGISTRY_KEYS.FSM_STATES,
-      COLOR_REGISTRY_KEYS.DATA_FLOW_STATES,
       COLOR_REGISTRY_KEYS.DATA_FLOW_DIMENSIONS,
     ]) {
       expect(light[key]).toBe(COLOR_PALETTES.timeline.light);
@@ -43,10 +42,10 @@ describe('color registry core', () => {
   it('initializes omitted keys only when read, using the selected theme', () => {
     const registry = createColorRegistry([], 'dark');
     expect(registry.size).toBe(0);
-    const value = registry.get(COLOR_REGISTRY_KEYS.DATA_FLOW_STATES);
+    const value = registry.get(COLOR_REGISTRY_KEYS.DATA_FLOW_DIMENSIONS);
     expect(value?.palette).toBe(COLOR_PALETTES.timeline.dark);
     expect(registry.size).toBe(1);
-    expect(registry.get(COLOR_REGISTRY_KEYS.DATA_FLOW_STATES)).toBe(value);
+    expect(registry.get(COLOR_REGISTRY_KEYS.DATA_FLOW_DIMENSIONS)).toBe(value);
   });
 
   it('resolves colors within independent registry keys', () => {
@@ -92,21 +91,21 @@ describe('color registry core', () => {
   });
 
   it('adds runtime values without changing hydrated assignments', () => {
-    const stateColors = buildDeterministicColorMap(['declared-a', 'declared-b']);
+    const declaredColors = buildDeterministicColorMap(['declared-a', 'declared-b']);
     const registry = createColorRegistry([
       [
-        COLOR_REGISTRY_KEYS.DATA_FLOW_STATES,
-        { colorMap: stateColors, palette: COLOR_PALETTES.deterministic },
+        COLOR_REGISTRY_KEYS.DATA_FLOW_DIMENSIONS,
+        { colorMap: declaredColors, palette: COLOR_PALETTES.deterministic },
       ],
     ]);
     const resolveColor = createRegistryColorResolver(
       registry,
-      COLOR_REGISTRY_KEYS.DATA_FLOW_STATES,
+      COLOR_REGISTRY_KEYS.DATA_FLOW_DIMENSIONS,
       ['synthetic']
     );
 
-    expect(resolveColor('declared-a')).toBe(stateColors.get('declared-a'));
-    expect([...stateColors.values()]).not.toContain(resolveColor('synthetic'));
+    expect(resolveColor('declared-a')).toBe(declaredColors.get('declared-a'));
+    expect([...declaredColors.values()]).not.toContain(resolveColor('synthetic'));
   });
 
   it('uses each registry key palette for maps, extensions, and fallbacks', () => {

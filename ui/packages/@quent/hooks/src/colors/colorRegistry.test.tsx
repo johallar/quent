@@ -91,10 +91,10 @@ describe('color registry', () => {
 
   it('wraps runtime values in a collision-aware resolver', () => {
     const registry: ColorRegistry = new Map([
-      [COLOR_REGISTRY_KEYS.DATA_FLOW_STATES, registryValue([['declared', '#3b82f6']])],
+      [COLOR_REGISTRY_KEYS.DATA_FLOW_DIMENSIONS, registryValue([['declared', '#3b82f6']])],
     ]);
     const { result } = renderHook(
-      () => useColorResolver(COLOR_REGISTRY_KEYS.DATA_FLOW_STATES, ['synthetic']),
+      () => useColorResolver(COLOR_REGISTRY_KEYS.DATA_FLOW_DIMENSIONS, ['synthetic']),
       { wrapper: createWrapper(registry) }
     );
 
@@ -106,8 +106,8 @@ describe('color registry', () => {
     const registry = createColorRegistry([], 'dark');
     const { result } = renderHook(
       () => ({
-        first: useColorResolver(COLOR_REGISTRY_KEYS.DATA_FLOW_STATES),
-        second: useColorResolver(COLOR_REGISTRY_KEYS.DATA_FLOW_STATES),
+        first: useColorResolver(COLOR_REGISTRY_KEYS.DATA_FLOW_DIMENSIONS),
+        second: useColorResolver(COLOR_REGISTRY_KEYS.DATA_FLOW_DIMENSIONS),
       }),
       { wrapper: createWrapper(registry) }
     );
@@ -124,12 +124,12 @@ describe('color registry', () => {
   it('assigns collision-aware colors lazily from an empty registry', () => {
     const palette = ['#111111', '#222222'];
     const registry: ColorRegistry = new Map([
-      [COLOR_REGISTRY_KEYS.DATA_FLOW_STATES, { colorMap: new Map(), palette }],
+      [COLOR_REGISTRY_KEYS.DATA_FLOW_DIMENSIONS, { colorMap: new Map(), palette }],
     ]);
     const { result } = renderHook(
       () => ({
-        first: useColorResolver(COLOR_REGISTRY_KEYS.DATA_FLOW_STATES, []),
-        second: useColorResolver(COLOR_REGISTRY_KEYS.DATA_FLOW_STATES, []),
+        first: useColorResolver(COLOR_REGISTRY_KEYS.DATA_FLOW_DIMENSIONS, []),
+        second: useColorResolver(COLOR_REGISTRY_KEYS.DATA_FLOW_DIMENSIONS, []),
       }),
       { wrapper: createWrapper(registry) }
     );

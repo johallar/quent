@@ -18,7 +18,6 @@ export const COLOR_REGISTRY_KEYS = {
   FSM_TYPES: 'fsm-types',
   CAPACITIES: 'capacities',
   FSM_STATES: 'fsm-states',
-  DATA_FLOW_STATES: 'data-flow-states',
   DATA_FLOW_DIMENSIONS: 'data-flow-dimensions',
 } as const;
 
@@ -46,7 +45,6 @@ export function getColorRegistryPalettes(theme: PaletteTheme): ColorRegistryPale
     [COLOR_REGISTRY_KEYS.FSM_TYPES]: COLOR_PALETTES.deterministic,
     [COLOR_REGISTRY_KEYS.CAPACITIES]: timelinePalette,
     [COLOR_REGISTRY_KEYS.FSM_STATES]: timelinePalette,
-    [COLOR_REGISTRY_KEYS.DATA_FLOW_STATES]: timelinePalette,
     [COLOR_REGISTRY_KEYS.DATA_FLOW_DIMENSIONS]: timelinePalette,
   };
 }

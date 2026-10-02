@@ -50,7 +50,7 @@ const FLOW_TRACK_PX = NODE_LAYOUT_WIDTH - 32;
 export const NodeFlowBar = memo(({ operatorId }: { operatorId: string; isDark?: boolean }) => {
   const meta = useDataFlowMeta();
   const frame = useDataFlowFrame();
-  const stateColor = useColorResolver(COLOR_REGISTRY_KEYS.DATA_FLOW_STATES);
+  const stateColor = useColorResolver(COLOR_REGISTRY_KEYS.FSM_STATES);
   const dimensionColor = useColorResolver(COLOR_REGISTRY_KEYS.DATA_FLOW_DIMENSIONS);
 
   if (!meta || !frame) {
