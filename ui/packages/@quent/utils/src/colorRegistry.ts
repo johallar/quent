@@ -29,8 +29,12 @@ export type ColorRegistryValue = {
   palette: ColorPalette;
 };
 export type ColorRegistry = ReadonlyMap<ColorRegistryKey, ColorRegistryValue>;
-export type ColorRegistryEntry = readonly [ColorRegistryKey, ColorRegistryValue];
+export type ColorRegistryEntry = {
+  registryKey: ColorRegistryKey;
+  createColorMap: (palette: ColorPalette) => ColorMap;
+};
 export type ColorRegistryPalettes = Record<ColorRegistryKey, ColorPalette>;
+type HydratedColorRegistryEntry = readonly [ColorRegistryKey, ColorRegistryValue];
 
 const DEFAULT_REGISTRY_VALUE: ColorRegistryValue = {
   colorMap: new Map(),
@@ -51,30 +55,30 @@ export function getColorRegistryPalettes(theme: PaletteTheme): ColorRegistryPale
 
 export function createColorRegistryEntry(
   registryKey: ColorRegistryKey,
-  values: Iterable<DeterministicColorKey>,
-  palette: ColorPalette
+  values: Iterable<DeterministicColorKey>
 ): ColorRegistryEntry;
 export function createColorRegistryEntry<T>(
   registryKey: ColorRegistryKey,
   values: Iterable<T>,
-  palette: ColorPalette,
   keyOf: (value: T) => DeterministicColorKey
 ): ColorRegistryEntry;
 export function createColorRegistryEntry<T>(
   registryKey: ColorRegistryKey,
   values: Iterable<T>,
-  palette: ColorPalette,
   keyOf?: (value: T) => DeterministicColorKey
 ): ColorRegistryEntry {
-  const colorMap = keyOf
-    ? buildDeterministicColorMap(values, keyOf, palette)
-    : buildDeterministicColorMap(values as Iterable<DeterministicColorKey>, palette);
-  return [registryKey, { colorMap, palette }];
+  return {
+    registryKey,
+    createColorMap: palette =>
+      keyOf
+        ? buildDeterministicColorMap(values, keyOf, palette)
+        : buildDeterministicColorMap(values as Iterable<DeterministicColorKey>, palette),
+  };
 }
 
 class LazyColorRegistry extends Map<ColorRegistryKey, ColorRegistryValue> {
   constructor(
-    entries: Iterable<ColorRegistryEntry>,
+    entries: Iterable<HydratedColorRegistryEntry>,
     private readonly palettes: ColorRegistryPalettes
   ) {
     super(entries);
@@ -95,7 +99,12 @@ export function createColorRegistry(
   entries: Iterable<ColorRegistryEntry> = [],
   theme: PaletteTheme = 'light'
 ): ColorRegistry {
-  return new LazyColorRegistry(entries, getColorRegistryPalettes(theme));
+  const palettes = getColorRegistryPalettes(theme);
+  const hydratedEntries = [...entries].map(({ registryKey, createColorMap }) => {
+    const palette = palettes[registryKey];
+    return [registryKey, { colorMap: createColorMap(palette), palette }] as const;
+  });
+  return new LazyColorRegistry(hydratedEntries, palettes);
 }
 
 export function createRegistryColorResolver(

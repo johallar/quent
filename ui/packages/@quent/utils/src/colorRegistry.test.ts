@@ -2,18 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { describe, expect, it } from 'vitest';
-import {
-  COLOR_PALETTES,
-  buildDeterministicColorMap,
-  getDeterministicColor,
-  getDeterministicColorFromPalette,
-} from './colors';
+import { COLOR_PALETTES, getDeterministicColorFromPalette } from './colors';
 import {
   COLOR_REGISTRY_KEYS,
   createColorRegistry,
   createColorRegistryEntry,
   createRegistryColorResolver,
   getColorRegistryPalettes,
+  type ColorRegistry,
 } from './colorRegistry';
 
 describe('color registry core', () => {
@@ -49,7 +45,7 @@ describe('color registry core', () => {
   });
 
   it('resolves colors within independent registry keys', () => {
-    const registry = createColorRegistry([
+    const registry: ColorRegistry = new Map([
       [
         COLOR_REGISTRY_KEYS.OPERATOR_TYPES,
         {
@@ -74,30 +70,28 @@ describe('color registry core', () => {
     ).toBe('#222222');
   });
 
-  it('uses deterministic fallback colors for missing maps and values', () => {
+  it('uses the registry palette for missing values', () => {
     const registry = createColorRegistry([
-      createColorRegistryEntry(
-        COLOR_REGISTRY_KEYS.FSM_STATES,
-        ['running'],
-        COLOR_PALETTES.deterministic
-      ),
+      createColorRegistryEntry(COLOR_REGISTRY_KEYS.FSM_STATES, ['running']),
     ]);
     const resolveColor = createRegistryColorResolver(registry, COLOR_REGISTRY_KEYS.FSM_STATES);
 
-    expect(resolveColor('unknown')).toBe(getDeterministicColor('unknown'));
+    expect(resolveColor('unknown')).toBe(
+      getDeterministicColorFromPalette('unknown', COLOR_PALETTES.timeline.light)
+    );
     expect(createRegistryColorResolver(registry, COLOR_REGISTRY_KEYS.CAPACITIES)('unknown')).toBe(
       getDeterministicColorFromPalette('unknown', COLOR_PALETTES.timeline.light)
     );
   });
 
   it('adds runtime values without changing hydrated assignments', () => {
-    const declaredColors = buildDeterministicColorMap(['declared-a', 'declared-b']);
     const registry = createColorRegistry([
-      [
-        COLOR_REGISTRY_KEYS.DATA_FLOW_DIMENSIONS,
-        { colorMap: declaredColors, palette: COLOR_PALETTES.deterministic },
-      ],
+      createColorRegistryEntry(COLOR_REGISTRY_KEYS.DATA_FLOW_DIMENSIONS, [
+        'declared-a',
+        'declared-b',
+      ]),
     ]);
+    const declaredColors = registry.get(COLOR_REGISTRY_KEYS.DATA_FLOW_DIMENSIONS)!.colorMap;
     const resolveColor = createRegistryColorResolver(
       registry,
       COLOR_REGISTRY_KEYS.DATA_FLOW_DIMENSIONS,
@@ -109,12 +103,13 @@ describe('color registry core', () => {
   });
 
   it('uses each registry key palette for maps, extensions, and fallbacks', () => {
-    const operatorPalette = ['#111111', '#222222'];
-    const timelinePalette = ['#aaaaaa', '#bbbbbb'];
-    const registry = createColorRegistry([
-      createColorRegistryEntry(COLOR_REGISTRY_KEYS.OPERATOR_TYPES, ['scan'], operatorPalette),
-      createColorRegistryEntry(COLOR_REGISTRY_KEYS.FSM_STATES, ['running'], timelinePalette),
-    ]);
+    const registry = createColorRegistry(
+      [
+        createColorRegistryEntry(COLOR_REGISTRY_KEYS.OPERATOR_TYPES, ['scan']),
+        createColorRegistryEntry(COLOR_REGISTRY_KEYS.FSM_STATES, ['running']),
+      ],
+      'dark'
+    );
     const resolveOperator = createRegistryColorResolver(
       registry,
       COLOR_REGISTRY_KEYS.OPERATOR_TYPES,
@@ -124,11 +119,11 @@ describe('color registry core', () => {
       'waiting',
     ]);
 
-    expect(operatorPalette).toContain(resolveOperator('scan'));
-    expect(operatorPalette).toContain(resolveOperator('join'));
-    expect(operatorPalette).toContain(resolveOperator('unknown'));
-    expect(timelinePalette).toContain(resolveState('running'));
-    expect(timelinePalette).toContain(resolveState('waiting'));
-    expect(timelinePalette).toContain(resolveState('unknown'));
+    expect(COLOR_PALETTES.deterministic).toContain(resolveOperator('scan'));
+    expect(COLOR_PALETTES.deterministic).toContain(resolveOperator('join'));
+    expect(COLOR_PALETTES.deterministic).toContain(resolveOperator('unknown'));
+    expect(COLOR_PALETTES.timeline.dark).toContain(resolveState('running'));
+    expect(COLOR_PALETTES.timeline.dark).toContain(resolveState('waiting'));
+    expect(COLOR_PALETTES.timeline.dark).toContain(resolveState('unknown'));
   });
 });
