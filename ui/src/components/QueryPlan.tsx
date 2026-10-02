@@ -39,6 +39,8 @@ import {
   useDataFlowSync,
   useDebouncedZoomRange,
   resolveDataFlowWindow,
+  COLOR_REGISTRY_KEYS,
+  useColorResolver,
 } from '@quent/hooks';
 import { MAX_TIMELINE_BINS, cn } from '@quent/utils';
 import {
@@ -112,6 +114,11 @@ export function QueryPlan({ queryId, engineId }: { queryId: string; engineId: st
     },
     { enabled: !!queryBundle && dataFlowWindow.end > dataFlowWindow.start }
   );
+  const dataFlowDimensionKeys = useMemo(
+    () => dataFlowResponse?.decl.dimension_keys.map(({ key }) => key) ?? [],
+    [dataFlowResponse]
+  );
+  useColorResolver(COLOR_REGISTRY_KEYS.DATA_FLOW_DIMENSIONS, dataFlowDimensionKeys);
   useDataFlowSync({ response: dataFlowResponse, queryBundle });
 
   useDagNodeColoring(dagData.nodes, computeNodeColoring);
