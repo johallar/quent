@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { useMemo, type ReactNode } from 'react';
-import { COLOR_REGISTRY_KEYS, useHydrateColorRegistry } from '@quent/hooks';
+import { COLOR_REGISTRY_KEYS, ColorRegistryProvider } from '@quent/hooks';
 import {
   createColorRegistry,
   createColorRegistryEntry,
@@ -47,6 +47,5 @@ export function QueryColorRegistry({
       paletteTheme
     );
   }, [paletteTheme, queryBundle]);
-  useHydrateColorRegistry(registry);
-  return children;
+  return <ColorRegistryProvider registry={registry}>{children}</ColorRegistryProvider>;
 }

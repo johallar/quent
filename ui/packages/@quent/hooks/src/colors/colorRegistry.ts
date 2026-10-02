@@ -1,9 +1,7 @@
 // SPDX-FileCopyrightText: Copyright (c) 2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-import { atom, useAtomValue, useSetAtom } from 'jotai';
-import { useHydrateAtoms } from 'jotai/utils';
-import { useEffect, useMemo } from 'react';
+import { createContext, createElement, useContext, useMemo, useState, type ReactNode } from 'react';
 import {
   COLOR_PALETTES,
   extendDeterministicColorMap,
@@ -19,16 +17,45 @@ import {
 export { COLOR_REGISTRY_KEYS } from '@quent/utils';
 export type { ColorRegistry, ColorRegistryKey } from '@quent/utils';
 
-const colorRegistryAtom = atom<ColorRegistry>(new Map());
-const colorResolverCacheAtom = atom(
-  () => new WeakMap<ColorRegistry, Map<ColorRegistryKey, IncrementalColorResolver>>()
-);
 const EMPTY_ADDITIONAL_VALUES: readonly DeterministicColorKey[] = [];
+const EMPTY_COLOR_REGISTRY: ColorRegistry = new Map();
 
 type IncrementalColorResolver = {
   addValues: (values: Iterable<DeterministicColorKey>) => void;
   resolveColor: DeterministicColorResolver;
 };
+
+type ColorRegistryContextValue = {
+  registry: ColorRegistry;
+  resolverCache: Map<ColorRegistryKey, IncrementalColorResolver>;
+};
+
+const ColorRegistryContext = createContext<ColorRegistryContextValue>({
+  registry: EMPTY_COLOR_REGISTRY,
+  resolverCache: new Map(),
+});
+
+export function ColorRegistryProvider({
+  registry = EMPTY_COLOR_REGISTRY,
+  children,
+}: {
+  registry?: ColorRegistry;
+  children: ReactNode;
+}) {
+  const [resolverCaches] = useState(
+    () => new WeakMap<ColorRegistry, Map<ColorRegistryKey, IncrementalColorResolver>>()
+  );
+  let resolverCache = resolverCaches.get(registry);
+  if (!resolverCache) {
+    resolverCache = new Map();
+    resolverCaches.set(registry, resolverCache);
+  }
+  const value = useMemo<ColorRegistryContextValue>(
+    () => ({ registry, resolverCache }),
+    [registry, resolverCache]
+  );
+  return createElement(ColorRegistryContext.Provider, { value }, children);
+}
 
 function createIncrementalColorResolver(
   initialColorMap: ReadonlyMap<string, string>,
@@ -58,17 +85,11 @@ function createIncrementalColorResolver(
 }
 
 function getIncrementalColorResolver(
-  cache: WeakMap<ColorRegistry, Map<ColorRegistryKey, IncrementalColorResolver>>,
+  cache: Map<ColorRegistryKey, IncrementalColorResolver>,
   registry: ColorRegistry,
   registryKey: ColorRegistryKey
 ): IncrementalColorResolver {
-  let registryCache = cache.get(registry);
-  if (!registryCache) {
-    registryCache = new Map();
-    cache.set(registry, registryCache);
-  }
-
-  let resolver = registryCache.get(registryKey);
+  let resolver = cache.get(registryKey);
   if (!resolver) {
     const registryValue = registry.get(registryKey);
     resolver = createIncrementalColorResolver(
@@ -76,7 +97,7 @@ function getIncrementalColorResolver(
       registryValue?.palette ?? COLOR_PALETTES.deterministic,
       registryValue !== undefined
     );
-    registryCache.set(registryKey, resolver);
+    cache.set(registryKey, resolver);
   }
   return resolver;
 }
@@ -85,20 +106,10 @@ export function useColorResolver(
   registryKey: ColorRegistryKey,
   additionalValues: Iterable<DeterministicColorKey> = EMPTY_ADDITIONAL_VALUES
 ): DeterministicColorResolver {
-  const registry = useAtomValue(colorRegistryAtom);
-  const cache = useAtomValue(colorResolverCacheAtom);
+  const { registry, resolverCache } = useContext(ColorRegistryContext);
   return useMemo(() => {
-    const resolver = getIncrementalColorResolver(cache, registry, registryKey);
+    const resolver = getIncrementalColorResolver(resolverCache, registry, registryKey);
     resolver.addValues(additionalValues);
     return resolver.resolveColor;
-  }, [additionalValues, cache, registry, registryKey]);
-}
-
-/** Hydrates complete color maps before descendants read their resolvers. */
-export function useHydrateColorRegistry(registry: ColorRegistry): void {
-  useHydrateAtoms([[colorRegistryAtom, registry]]);
-  const setColorRegistry = useSetAtom(colorRegistryAtom);
-  useEffect(() => {
-    setColorRegistry(registry);
-  }, [registry, setColorRegistry]);
+  }, [additionalValues, registry, registryKey, resolverCache]);
 }

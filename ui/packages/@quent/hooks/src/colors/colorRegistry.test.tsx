@@ -2,14 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import type { PropsWithChildren } from 'react';
-import { renderHook } from '@testing-library/react';
-import { Provider } from 'jotai';
-import { describe, expect, it } from 'vitest';
+import { render, renderHook } from '@testing-library/react';
+import { describe, expect, it, vi } from 'vitest';
 import { COLOR_PALETTES, createColorRegistry, getDeterministicColor } from '@quent/utils';
 import {
   COLOR_REGISTRY_KEYS,
+  ColorRegistryProvider,
   useColorResolver,
-  useHydrateColorRegistry,
   type ColorRegistry,
 } from './colorRegistry';
 
@@ -21,16 +20,8 @@ function registryValue(entries: Iterable<readonly [string, string]>) {
 }
 
 function createWrapper(registry: ColorRegistry) {
-  function Hydrator({ children }: PropsWithChildren) {
-    useHydrateColorRegistry(registry);
-    return children;
-  }
   return function Wrapper({ children }: PropsWithChildren) {
-    return (
-      <Provider>
-        <Hydrator>{children}</Hydrator>
-      </Provider>
-    );
+    return <ColorRegistryProvider registry={registry}>{children}</ColorRegistryProvider>;
   };
 }
 
@@ -44,6 +35,38 @@ describe('color registry', () => {
     });
 
     expect(result.current('Project')).toBe('#123456');
+  });
+
+  it('updates descendants with a new registry in the same render', () => {
+    const first: ColorRegistry = new Map([
+      [COLOR_REGISTRY_KEYS.OPERATOR_TYPES, registryValue([['project', '#111111']])],
+    ]);
+    const second: ColorRegistry = new Map([
+      [COLOR_REGISTRY_KEYS.OPERATOR_TYPES, registryValue([['project', '#222222']])],
+    ]);
+    const onRender = vi.fn();
+
+    function Probe() {
+      const resolveColor = useColorResolver(COLOR_REGISTRY_KEYS.OPERATOR_TYPES);
+      onRender(resolveColor('project'));
+      return null;
+    }
+
+    const { rerender } = render(
+      <ColorRegistryProvider registry={first}>
+        <Probe />
+      </ColorRegistryProvider>
+    );
+    onRender.mockClear();
+
+    rerender(
+      <ColorRegistryProvider registry={second}>
+        <Probe />
+      </ColorRegistryProvider>
+    );
+
+    expect(onRender).toHaveBeenCalled();
+    expect(onRender.mock.calls.every(([color]) => color === '#222222')).toBe(true);
   });
 
   it('keeps assignments independent across registry keys', () => {
