@@ -14,7 +14,7 @@ import {
   COLOR_REGISTRY_KEYS,
   useColorResolver,
 } from '@quent/hooks';
-import { type FiniteStateMachine, type FsmTypeDecl, MAX_TIMELINE_BINS } from '@quent/utils';
+import { type FiniteStateMachine, MAX_TIMELINE_BINS } from '@quent/utils';
 import {
   Button,
   LONG_ENTITIES_TIMELINE_HEIGHT,
@@ -33,7 +33,6 @@ type LongEntitiesRowProps = {
   /** The resource this row's entities are scoped to. */
   resourceId: string;
   durationSeconds: number;
-  fsmTypes?: { [key in string]?: FsmTypeDecl };
   isDark: boolean;
   /** Defaults to all states; resource scope keeps states used on this row's resource. */
   fsmStateScope?: 'all' | 'resource';

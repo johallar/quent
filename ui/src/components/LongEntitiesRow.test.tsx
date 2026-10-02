@@ -85,7 +85,6 @@ describe('LongEntitiesRow', () => {
         queryId="query-1"
         resourceId="resource-1"
         durationSeconds={1}
-        fsmTypes={{}}
         isDark={false}
       />
     );
@@ -116,7 +115,6 @@ describe('LongEntitiesRow', () => {
         queryId="query-1"
         resourceId="resource-1"
         durationSeconds={1}
-        fsmTypes={{}}
         isDark={false}
       />
     );
@@ -136,7 +134,6 @@ describe('LongEntitiesRow', () => {
         queryId="query-1"
         resourceId="resource-1"
         durationSeconds={1}
-        fsmTypes={{}}
         isDark={false}
       />
     );
@@ -163,7 +160,6 @@ describe('LongEntitiesRow', () => {
         queryId="query-1"
         resourceId="resource-1"
         durationSeconds={1}
-        fsmTypes={{}}
         isDark={false}
       />
     );
@@ -188,7 +184,6 @@ describe('LongEntitiesRow', () => {
       queryId: 'query-1',
       resourceId: 'resource-1',
       durationSeconds: 1,
-      fsmTypes: {},
       isDark: false,
     };
     const { rerender } = render(<LongEntitiesRow {...props} />);
@@ -212,7 +207,6 @@ describe('LongEntitiesRow', () => {
         queryId="query-1"
         resourceId="resource-1"
         durationSeconds={1}
-        fsmTypes={{}}
         isDark={false}
         fsmStateScope="resource"
       />
@@ -239,7 +233,6 @@ describe('LongEntitiesRow', () => {
         queryId="query-1"
         resourceId="resource-1"
         durationSeconds={1}
-        fsmTypes={{}}
         isDark={false}
       />
     );
@@ -263,7 +256,6 @@ describe('LongEntitiesRow', () => {
       queryId: 'query-1',
       resourceId: 'resource-1',
       durationSeconds: 1,
-      fsmTypes: {},
       isDark: false,
     };
     const { rerender } = render(<LongEntitiesRow {...props} />);
@@ -319,7 +311,6 @@ describe('LongEntitiesRow', () => {
       queryId: 'query-1',
       resourceId: 'resource-1',
       durationSeconds: 1,
-      fsmTypes: {},
       isDark: false,
     };
     const { rerender } = render(<LongEntitiesRow {...props} />);
@@ -359,7 +350,6 @@ describe('LongEntitiesRow', () => {
         queryId="query-1"
         resourceId="resource-1"
         durationSeconds={1}
-        fsmTypes={{}}
         isDark={false}
       />
     );
@@ -376,7 +366,6 @@ describe('LongEntitiesRow', () => {
         queryId="query-1"
         resourceId="resource-1"
         durationSeconds={1}
-        fsmTypes={{}}
         isDark={false}
       />
     );
@@ -395,7 +384,6 @@ describe('LongEntitiesRow', () => {
       queryId: 'query-1',
       resourceId: 'resource-1',
       durationSeconds: 1,
-      fsmTypes: {},
       isDark: false,
     };
     const { rerender } = render(<LongEntitiesRow {...props} />);
@@ -437,7 +425,6 @@ describe('LongEntitiesRow', () => {
       queryId: 'query-1',
       resourceId: 'resource-1',
       durationSeconds: 1,
-      fsmTypes: {},
       isDark: false,
     };
     const { rerender } = render(<LongEntitiesRow {...props} />);
@@ -487,7 +474,6 @@ describe('LongEntitiesRow', () => {
         queryId="query-1"
         resourceId="resource-1"
         durationSeconds={1}
-        fsmTypes={{}}
         isDark={false}
       />
     );
