@@ -10,11 +10,7 @@ import {
 } from '@quent/hooks';
 import { isStatStruct, type QuantitySpec } from '@quent/utils';
 import { DataText } from '../ui/data-text';
-import {
-  StatisticField,
-  StatisticFields,
-  type StatisticSectionAction,
-} from './StatisticFields';
+import { StatisticField, StatisticFields, type StatisticSectionAction } from './StatisticFields';
 
 export const OperatorStatFields = ({
   operator,
