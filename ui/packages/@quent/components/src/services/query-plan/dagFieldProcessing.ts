@@ -7,14 +7,9 @@ import {
   buildDeterministicColorMap,
   createDeterministicColorResolver,
   isNumericValue,
-  type PaletteTheme,
 } from '@quent/utils';
 
-export function computeNodeColoring(
-  nodes: DAGNode[],
-  field: string | null,
-  _theme?: PaletteTheme
-): NodeColoring {
+export function computeNodeColoring(nodes: DAGNode[], field: string | null): NodeColoring {
   if (!field || !nodes.length) {
     return null;
   }
@@ -51,11 +46,7 @@ export function computeNodeColoring(
   };
 }
 
-export function computeEdgeColoring(
-  edges: DAGEdge[],
-  field: string | null,
-  _theme?: PaletteTheme
-): EdgeColoring {
+export function computeEdgeColoring(edges: DAGEdge[], field: string | null): EdgeColoring {
   if (!field || !edges.length) {
     return null;
   }

@@ -47,7 +47,7 @@ const FLOW_TRACK_PX = NODE_LAYOUT_WIDTH - 32;
  * distinct: FSM state colors on top, capacity/tier colors below, separated
  * by a 2px gap.
  */
-export const NodeFlowBar = memo(({ operatorId }: { operatorId: string; isDark?: boolean }) => {
+export const NodeFlowBar = memo(({ operatorId }: { operatorId: string }) => {
   const meta = useDataFlowMeta();
   const frame = useDataFlowFrame();
   const stateColor = useColorResolver(COLOR_REGISTRY_KEYS.FSM_STATES);

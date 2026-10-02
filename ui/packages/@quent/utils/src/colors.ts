@@ -10,41 +10,41 @@ export type ColorPalette = readonly string[];
 
 export const COLOR_PALETTES = {
   deterministic: [
-    '#3b82f6',
-    '#a855f7',
-    '#22c55e',
-    '#f97316',
-    '#ef4444',
-    '#4f46e5',
-    '#f59e0b',
-    '#14b8a6',
-    '#06b6d4',
-    '#8b5cf6',
-    '#ec4899',
-    '#10b981',
+    '#3b82f6', // Blue
+    '#a855f7', // Purple
+    '#22c55e', // Green
+    '#f97316', // Orange
+    '#ef4444', // Red
+    '#4f46e5', // Indigo
+    '#f59e0b', // Amber
+    '#14b8a6', // Teal
+    '#06b6d4', // Cyan
+    '#8b5cf6', // Violet
+    '#ec4899', // Pink
+    '#10b981', // Emerald
   ],
   timeline: {
     light: [
-      '#44AA99',
-      '#CC6677',
-      '#332288',
-      '#DDCC77',
-      '#AA4499',
-      '#88CCEE',
-      '#882255',
-      '#88AA55',
-      '#666666',
+      '#44AA99', // Teal
+      '#CC6677', // Rose
+      '#332288', // Indigo
+      '#DDCC77', // Sand
+      '#AA4499', // Purple
+      '#88CCEE', // Cyan
+      '#882255', // Wine
+      '#88AA55', // Muted Lime
+      '#666666', // Grey
     ],
     dark: [
-      '#3D9485',
-      '#B85858',
-      '#4A68AA',
-      '#B8A85E',
-      '#9466BB',
-      '#6BA8C8',
-      '#B87A44',
-      '#6E8C44',
-      '#808080',
+      '#3D9485', // Teal
+      '#B85858', // Coral Red
+      '#4A68AA', // Steel Blue
+      '#B8A85E', // Sand
+      '#9466BB', // Violet
+      '#6BA8C8', // Cyan
+      '#B87A44', // Amber
+      '#6E8C44', // Muted Lime
+      '#808080', // Grey
     ],
   },
 } as const;
