@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { useCallback, useMemo, useState } from 'react';
-import { COLOR_REGISTRY_KEYS, useColorResolver } from '@quent/hooks';
 import type { EntityRef, FiniteStateMachine, QueryBundle, ZoomRange } from '@quent/utils';
 import { EntityDetailDrawer } from '@/components/EntityDetailDrawer';
 import { useNvtxTreeModel } from './NvtxTree';
@@ -40,7 +39,6 @@ export function QueryResourceTree({
   );
   const closeDrawer = useCallback(() => setDrawerFsm(null), []);
 
-  const stateColorFn = useColorResolver(COLOR_REGISTRY_KEYS.FSM_STATES);
   const resourceLabel = useCallback(
     (id: string) => {
       const resource = entities.resources[id];
@@ -122,7 +120,6 @@ export function QueryResourceTree({
         resourceLabel={resourceLabel}
         operatorLabel={operatorLabel}
         onClose={closeDrawer}
-        stateColorFn={stateColorFn}
         queryBundle={queryBundle}
       />
     </TimelineTreeTable>

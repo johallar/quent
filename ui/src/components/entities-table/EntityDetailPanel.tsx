@@ -15,7 +15,6 @@ interface EntityDetailPanelProps {
   fsm: FiniteStateMachine | null;
   resourceLabel: (id: string) => string;
   operatorLabel: (id: string) => string;
-  stateColorFn?: (name: string) => string;
   queryBundle: QueryBundle<EntityRef>;
 }
 
@@ -23,12 +22,10 @@ export function EntityDetailPanel({
   fsm,
   resourceLabel,
   operatorLabel,
-  stateColorFn,
   queryBundle,
 }: EntityDetailPanelProps) {
   const { theme } = useTheme();
-  const registryStateColor = useColorResolver(COLOR_REGISTRY_KEYS.FSM_STATES);
-  const resolveStateColor = stateColorFn ?? registryStateColor;
+  const resolveStateColor = useColorResolver(COLOR_REGISTRY_KEYS.FSM_STATES);
   const [copied, setCopied] = useState(false);
   const copiedTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 

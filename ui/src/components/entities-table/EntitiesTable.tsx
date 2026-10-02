@@ -75,7 +75,6 @@ export function EntitiesTable(props: EntitiesTableProps) {
           fsm={table.selection.selected}
           resourceLabel={table.resourceLabel}
           operatorLabel={table.operatorLabel}
-          stateColorFn={stateColorFn}
           queryBundle={props.queryBundle}
         />
       </ResizablePanel>
