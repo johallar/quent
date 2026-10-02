@@ -19,6 +19,7 @@ import {
   useNodesState,
   useEdgesState,
   useReactFlow,
+  useUpdateNodeInternals,
   getSmoothStepPath,
   Position,
   type Node,
@@ -44,6 +45,7 @@ import {
   useInspectedPipe,
   useSetInspectedPipe,
   useSyncDisplayedPipes,
+  useHoveredPipeId,
   COLOR_REGISTRY_KEYS,
   useColorResolver,
 } from '@quent/hooks';
@@ -102,8 +104,11 @@ const VariableWidthEdge = ({
   data,
 }: VariableWidthEdgeProps) => {
   const inspectedPipe = useInspectedPipe();
+  const hoveredPipeId = useHoveredPipeId();
   const setInspectedPipe = useSetInspectedPipe();
   const pipe = (data as { pipe?: DAGEdge })?.pipe;
+  const isHovered = hoveredPipeId === id;
+  const isEmphasized = isHovered || (hoveredPipeId === null && inspectedPipe?.id === id);
   const isInspected =
     pipe != null &&
     inspectedPipe?.sourcePortId === pipe.sourcePortId &&
@@ -160,14 +165,14 @@ const VariableWidthEdge = ({
   }
 
   const dimFromInteraction = shouldDimEdgeFromInteraction({
-    inspectedEdgeId: inspectedPipe?.id,
+    inspectedEdgeId: hoveredPipeId ?? inspectedPipe?.id,
     edgeId: id,
     sourceId: source,
     targetId: target,
     selectedNodeIds: selectedOperatorIds,
     highlightedNodeIds,
   });
-  const isEdgeDimmed = (edgeDimmed && !isInspected) || dimFromInteraction;
+  const isEdgeDimmed = (edgeDimmed && !isEmphasized) || dimFromInteraction;
 
   const fields = data?.statisticFields as StatisticField[] | undefined;
   let edgeLabelValue: string | undefined;
@@ -217,7 +222,7 @@ const VariableWidthEdge = ({
         >
           <path
             d={`M0,0 L0,${arrowWidth} L${arrowDepth},${arrowWidth / 2} z`}
-            fill={edgeColor ?? 'currentColor'}
+            fill={isEmphasized ? 'hsl(var(--primary))' : (edgeColor ?? 'currentColor')}
           />
         </marker>
       </defs>
@@ -254,8 +259,8 @@ const VariableWidthEdge = ({
         markerEnd={`url(#${markerId})`}
         style={{
           pointerEvents: 'none',
-          stroke: isInspected ? 'hsl(var(--primary))' : (edgeColor ?? 'currentColor'),
-          filter: isInspected ? 'drop-shadow(0 0 3px hsl(var(--primary)))' : undefined,
+          stroke: isEmphasized ? 'hsl(var(--primary))' : (edgeColor ?? 'currentColor'),
+          filter: isEmphasized ? 'drop-shadow(0 0 3px hsl(var(--primary)))' : undefined,
           strokeWidth,
           fill: 'none',
           opacity: isEdgeDimmed ? EDGE_DIMMED_OPACITY : 1,
@@ -362,10 +367,11 @@ const FlowLayout = ({
   onSelectionChange?: (nodeIds: string[]) => void;
   onBackgroundClick?: () => void;
 }) => {
-  useSyncDisplayedPipes(data.edges);
+  useSyncDisplayedPipes(data.edges, data.nodes);
   const [nodes, setNodes, onNodesChange] = useNodesState<Node<QueryPlanNodeData>>([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
   const { fitView } = useReactFlow();
+  const updateNodeInternals = useUpdateNodeInternals();
   const operatorSelection = useOperatorSelection();
   const updateOperatorSelection = useOperatorSelectionActions();
   const [highlightState] = useHighlightedNodeIds();
@@ -569,6 +575,12 @@ const FlowLayout = ({
     observer.observe(container);
     return () => observer.disconnect();
   }, [containerRef, fitView, nodes.length]);
+
+  // Controlled node updates can clear handle bounds while retaining dimensions.
+  // Refresh after each committed node update so unchanged sizes also get handles.
+  useEffect(() => {
+    updateNodeInternals(nodes.map(node => node.id));
+  }, [nodes, updateNodeInternals]);
 
   // Calculate and apply layout
   useLayoutEffect(() => {
