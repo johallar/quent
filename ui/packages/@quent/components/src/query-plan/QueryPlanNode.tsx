@@ -28,6 +28,7 @@ import {
   useSetHighlightedNodeIds,
   COLOR_REGISTRY_KEYS,
   useColorResolver,
+  useInspectedPipe,
 } from '@quent/hooks';
 import { resolveStatisticFields } from '../lib/queryBundle.utils';
 import { DataText } from '../ui/data-text';
@@ -68,6 +69,7 @@ export interface QueryPlanNodeData extends Record<string, unknown> {
   hoveredStatValue?: number;
   heatmapRange?: { min: number; max: number };
   highlightedNodeIds?: ReadonlySet<string> | null;
+  primaryHighlightedNodeId?: string | null;
 }
 
 const nodeVariants = cva(
@@ -88,6 +90,7 @@ const nodeVariants = cva(
 /** Memoized DAG node rendered inside ReactFlow. */
 export const QueryPlanNode = memo(({ data }: { data: QueryPlanNodeData }) => {
   const setHighlightState = useSetHighlightedNodeIds();
+  const inspectedPipe = useInspectedPipe();
   const [nodePalette] = useNodeColorPalette();
   const resolveOperatorTypeColor = useColorResolver(COLOR_REGISTRY_KEYS.OPERATOR_TYPES);
   const isDark = data.isDark ?? false;
@@ -96,11 +99,13 @@ export const QueryPlanNode = memo(({ data }: { data: QueryPlanNodeData }) => {
   const isHighlighted = highlightedNodeIds?.has(operatorId) === true;
   const { quantitySpecs } = data;
   const [nodeLabelField] = useSelectedNodeLabelField();
-  const { fieldColor, isDimmed, isSelected, colorField } = useNodeColoring(
-    operatorId,
-    isDark,
-    data.metadata?.relatedOperatorIds
-  );
+  const {
+    fieldColor,
+    isDimmed,
+    isSelected: operatorIsSelected,
+    colorField,
+  } = useNodeColoring(operatorId, isDark, data.metadata?.relatedOperatorIds);
+  const isSelected = inspectedPipe ? false : operatorIsSelected;
   const [isHoveredLocal, setIsHoveredLocal] = useState(false);
 
   const resolvedLabel = useMemo(() => {
@@ -154,6 +159,10 @@ export const QueryPlanNode = memo(({ data }: { data: QueryPlanNodeData }) => {
   }, [data.heatmapRange, data.hoveredStatValue, nodePalette, isDark]);
 
   const opacityClass = getNodeOpacityClass({
+    pipeEndpoints: inspectedPipe
+      ? new Set([inspectedPipe.source, inspectedPipe.target])
+      : undefined,
+    primaryOperatorId: data.primaryHighlightedNodeId,
     isHoveredStatActive: data.hoveredStatActive ?? false,
     hasHoveredValue: data.hoveredStatValue !== undefined,
     highlightedNodeIds,
