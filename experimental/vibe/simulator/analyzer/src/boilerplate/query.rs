@@ -111,6 +111,15 @@ impl QueryEntity for Query {
                     schema::QueryEvent::Init { instance_name, .. } => Some(instance_name.clone()),
                     _ => None,
                 }),
+            custom_attributes: transitions
+                .first()
+                .and_then(|transition| match &transition.data {
+                    schema::QueryEvent::Init {
+                        custom_attributes, ..
+                    } => Some(custom_attributes.0.clone()),
+                    _ => None,
+                })
+                .unwrap_or_default(),
             start_unix_ns: epoch,
             planning_s,
             executing_s,

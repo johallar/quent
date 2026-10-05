@@ -1,241 +1,136 @@
 // SPDX-FileCopyrightText: Copyright (c) 2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 // SPDX-License-Identifier: Apache-2.0
 
+import { useState } from 'react';
 import { useNavigate } from '@tanstack/react-router';
 import { useQuery } from '@tanstack/react-query';
-import { useRef, useState } from 'react';
-import { fetchListEngines, fetchListCoordinators, fetchListQueries } from '@quent/client';
+import { ArrowLeft } from 'lucide-react';
+import { fetchListEngines, fetchListQueries } from '@quent/client';
+import { Button, DataText } from '@quent/components';
+import { formatDuration } from '@quent/utils';
+import type { Engine, Query } from '@quent/utils';
 import {
-  DataText,
-  HoverCard,
-  HoverCardTrigger,
-  OverflowHoverCardContent,
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-  useOverflowHoverCard,
-} from '@quent/components';
-import { cn } from '@quent/utils';
+  EntityCatalogTable,
+  type CatalogMetadataColumn,
+} from '@/components/query-selection/EntityCatalogTable';
 
-function OverflowingSelectTrigger({
-  label,
-  placeholder,
-}: {
-  label: string | undefined;
-  placeholder: string;
-}) {
-  const valueRef = useRef<HTMLSpanElement>(null);
-  const { open, handlePointerEnter, handlePointerLeave } = useOverflowHoverCard(valueRef, !!label);
+const engineColumns: CatalogMetadataColumn<Engine>[] = [
+  {
+    id: 'implementation',
+    label: 'Implementation',
+    render: engine => (
+      <DataText>
+        {[engine.implementation?.name, engine.implementation?.version].filter(Boolean).join(' ') ||
+          '—'}
+      </DataText>
+    ),
+  },
+];
 
-  return (
-    <HoverCard open={open}>
-      <HoverCardTrigger asChild>
-        <SelectTrigger
-          onPointerEnter={handlePointerEnter}
-          onPointerLeave={handlePointerLeave}
-          onBlur={handlePointerLeave}
-        >
-          <span ref={valueRef} className="min-w-0 flex-1 truncate text-left">
-            <SelectValue placeholder={placeholder}>{label}</SelectValue>
-          </span>
-        </SelectTrigger>
-      </HoverCardTrigger>
-      {label && <OverflowHoverCardContent label={label} />}
-    </HoverCard>
-  );
-}
-
-function OverflowingSelectItem({ value, label }: { value: string; label: string }) {
-  const labelRef = useRef<HTMLSpanElement>(null);
-  const { open, handlePointerEnter, handlePointerLeave } = useOverflowHoverCard(labelRef);
-
-  return (
-    <HoverCard open={open}>
-      <HoverCardTrigger asChild>
-        <SelectItem
-          value={value}
-          className="min-w-0"
-          onPointerEnter={handlePointerEnter}
-          onPointerLeave={handlePointerLeave}
-        >
-          <span ref={labelRef} className="block w-full min-w-0 truncate">
-            <DataText>{label}</DataText>
-          </span>
-        </SelectItem>
-      </HoverCardTrigger>
-      <OverflowHoverCardContent label={label} />
-    </HoverCard>
-  );
-}
+const queryColumns: CatalogMetadataColumn<Query>[] = [
+  {
+    id: 'started',
+    label: 'Started',
+    render: query => (
+      <DataText className="tabular-nums">
+        {query.start_unix_ns == null
+          ? '—'
+          : new Date(Number(query.start_unix_ns / 1_000_000n)).toLocaleString()}
+      </DataText>
+    ),
+  },
+  {
+    id: 'planning',
+    label: 'Planning',
+    render: query => (
+      <DataText className="tabular-nums">
+        {query.planning_s == null ? '—' : formatDuration(query.planning_s * 1000)}
+      </DataText>
+    ),
+  },
+  {
+    id: 'duration',
+    label: 'Duration',
+    render: query => (
+      <DataText className="tabular-nums">
+        {query.completed_s == null ? '—' : formatDuration(query.completed_s * 1000)}
+      </DataText>
+    ),
+  },
+];
 
 export function EngineSelectionPage() {
   const navigate = useNavigate();
-  const [engineId, setEngineId] = useState<string>('');
-  const [coordinatorId, setCoordinatorId] = useState<string>('');
-  const [queryId, setQueryId] = useState<string>('');
-
+  const [engineId, setEngineId] = useState('');
   const enginesList = useQuery({
     queryKey: ['list_engines'],
     queryFn: fetchListEngines,
   });
-
-  const coordinatorsList = useQuery({
-    queryKey: ['list_coordinators', engineId],
-    queryFn: () => (engineId ? fetchListCoordinators(engineId) : Promise.resolve([])),
+  const queryList = useQuery({
+    queryKey: ['list_queries', engineId],
+    queryFn: () => fetchListQueries(engineId),
     enabled: !!engineId,
   });
+  const selectedEngine = enginesList.data?.items.find(engine => engine.id === engineId);
 
-  const queryList = useQuery({
-    queryKey: ['list_queries', engineId, coordinatorId],
-    queryFn: () =>
-      engineId && coordinatorId ? fetchListQueries(engineId, coordinatorId) : Promise.resolve([]),
-    enabled: !!engineId && !!coordinatorId,
-  });
-
-  const handleEngineChange = (value: string) => {
-    setEngineId(value);
-    setCoordinatorId('');
-    setQueryId('');
+  const openQuery = (query: Query) => {
+    navigate({
+      to: '/profile/engine/$engineId/query/$queryId',
+      params: { engineId, queryId: query.id },
+      search: {},
+    });
   };
-
-  const handleCoordinatorChange = (value: string) => {
-    setCoordinatorId(value);
-    setQueryId('');
-  };
-
-  const handleQuerySelect = (queryId: string) => {
-    setQueryId(queryId);
-    if (engineId && queryId) {
-      navigate({
-        to: '/profile/engine/$engineId/query/$queryId',
-        params: { engineId, queryId },
-        search: {},
-      });
-    }
-  };
-
-  const engineOptions = [
-    ...(enginesList.data?.map(engine => ({
-      id: engine.id,
-      name: engine.instance_name ?? engine.id,
-    })) ?? []),
-  ];
-  const coordinatorOptions = [
-    ...(coordinatorsList.data?.map(coordinator => ({
-      id: coordinator.id,
-      name: coordinator.instance_name ?? coordinator.id,
-    })) ?? []),
-  ];
-  const queryOptions = [
-    ...(queryList.data?.map(query => ({
-      id: query.id,
-      name: query.instance_name ?? query.id,
-    })) ?? []),
-  ];
-  const engineLabel = engineOptions.find(engine => engine.id === engineId)?.name;
-  const coordinatorLabel = coordinatorOptions.find(
-    coordinator => coordinator.id === coordinatorId
-  )?.name;
-  const queryLabel = queryOptions.find(query => query.id === queryId)?.name;
 
   return (
-    <div className="flex flex-col items-center justify-center h-full min-h-[400px] space-y-6">
-      <h1 className="text-2xl font-semibold">Query Profiler</h1>
-      <p className="text-muted-foreground text-center max-w-md">
-        Select an engine, coordinator, and query to view execution plans and profiles.
-      </p>
-      <div className="w-full max-w-xs space-y-4">
-        {/* Engine Selection */}
-        <div>
-          <label htmlFor="engineId" className="block text-sm font-medium mb-1">
-            Engine
-          </label>
-          <Select value={engineId} onValueChange={handleEngineChange}>
-            <OverflowingSelectTrigger label={engineLabel ?? engineId} placeholder="Select Engine" />
-            <SelectContent className="max-h-64 w-[var(--radix-select-trigger-width)] max-w-[var(--radix-select-trigger-width)] overflow-y-auto">
-              {enginesList.isLoading ? (
-                <SelectItem value="_loading" disabled>
-                  Loading engines...
-                </SelectItem>
-              ) : enginesList.data?.length === 0 ? (
-                <SelectItem value="_empty" disabled>
-                  No engines available
-                </SelectItem>
-              ) : (
-                enginesList.data?.map(engine => (
-                  <OverflowingSelectItem
-                    key={engine.id}
-                    value={engine.id}
-                    label={engine.instance_name ?? engine.id}
-                  />
-                ))
-              )}
-            </SelectContent>
-          </Select>
-        </div>
+    <div className="h-full overflow-auto">
+      <div className="mx-auto flex min-h-full w-full max-w-7xl flex-col px-4 py-8 sm:px-6 lg:px-8">
+        {engineId && selectedEngine ? (
+          <div className="mb-6 flex flex-col gap-3 border-b border-border pb-5 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                Selected engine
+              </p>
+              <DataText as="p" className="mt-1 text-base font-semibold">
+                {selectedEngine.instance_name ?? selectedEngine.id}
+              </DataText>
+            </div>
+            <Button variant="outline" size="sm" onClick={() => setEngineId('')}>
+              <ArrowLeft />
+              Change engine
+            </Button>
+          </div>
+        ) : null}
 
-        {/* Coordinator Selection */}
-        <div className={cn(engineId && 'visible', !engineId && 'invisible')}>
-          <label htmlFor="coordinatorId" className="block text-sm font-medium mb-1">
-            Query Group
-          </label>
-          <Select value={coordinatorId} onValueChange={handleCoordinatorChange}>
-            <OverflowingSelectTrigger
-              label={coordinatorLabel ?? coordinatorId}
-              placeholder="Select Query Group"
-            />
-            <SelectContent className="max-h-64 w-[var(--radix-select-trigger-width)] max-w-[var(--radix-select-trigger-width)] overflow-y-auto">
-              {coordinatorsList.isLoading ? (
-                <SelectItem value="_loading" disabled>
-                  Loading Query Groups...
-                </SelectItem>
-              ) : coordinatorsList.data?.length === 0 ? (
-                <SelectItem value="_empty" disabled>
-                  No Query Groups available
-                </SelectItem>
-              ) : (
-                coordinatorsList.data?.map(coordinator => (
-                  <OverflowingSelectItem
-                    key={coordinator.id}
-                    value={coordinator.id}
-                    label={coordinator.instance_name ?? coordinator.id}
-                  />
-                ))
-              )}
-            </SelectContent>
-          </Select>
-        </div>
-
-        {/* Query Selection */}
-        <div className={cn(coordinatorId && 'visible', !coordinatorId && 'invisible')}>
-          <label htmlFor="queryId" className="block text-sm font-medium mb-1">
-            Query
-          </label>
-          <Select value={queryId} onValueChange={handleQuerySelect}>
-            <OverflowingSelectTrigger label={queryLabel} placeholder="Select Query" />
-            <SelectContent className="max-h-64 w-[var(--radix-select-trigger-width)] max-w-[var(--radix-select-trigger-width)] overflow-y-auto">
-              {queryList.isLoading ? (
-                <SelectItem value="_loading" disabled>
-                  Loading queries...
-                </SelectItem>
-              ) : queryList.data?.length === 0 ? (
-                <SelectItem value="_empty" disabled>
-                  No queries available
-                </SelectItem>
-              ) : (
-                queryList.data?.map(query => (
-                  <OverflowingSelectItem
-                    key={query.id}
-                    value={query.id}
-                    label={query.instance_name ?? query.id}
-                  />
-                ))
-              )}
-            </SelectContent>
-          </Select>
-        </div>
+        {engineId ? (
+          <EntityCatalogTable
+            key={engineId}
+            title="Select a query"
+            description="Search query metadata or use the analyzer’s suggested grouping to find the profile you want to inspect."
+            items={queryList.data?.items ?? []}
+            initialGroupBy={queryList.data?.initial_group_by_attribute ?? null}
+            metadataColumns={queryColumns}
+            isLoading={queryList.isLoading}
+            error={queryList.error instanceof Error ? queryList.error : null}
+            emptyMessage="This engine has no queries."
+            actionLabel="Open profile"
+            onRetry={() => void queryList.refetch()}
+            onSelect={openQuery}
+          />
+        ) : (
+          <EntityCatalogTable
+            title="Select an engine"
+            description="Search recorded engines and compare their runtime metadata before choosing a query."
+            items={enginesList.data?.items ?? []}
+            initialGroupBy={enginesList.data?.initial_group_by_attribute ?? null}
+            metadataColumns={engineColumns}
+            isLoading={enginesList.isLoading}
+            error={enginesList.error instanceof Error ? enginesList.error : null}
+            emptyMessage="No engines are available."
+            actionLabel="View queries"
+            onRetry={() => void enginesList.refetch()}
+            onSelect={engine => setEngineId(engine.id)}
+          />
+        )}
       </div>
     </div>
   );

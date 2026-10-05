@@ -111,6 +111,8 @@ pub struct Engine {
     /// The name of this [`Engine`] instance.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub instance_name: Option<String>,
+    /// Arbitrary application-specific attributes defined at run time.
+    pub custom_attributes: Vec<DynamicAttribute>,
     /// Details about the Engine implementation.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub implementation: Option<EngineImplementationAttributes>,
@@ -123,6 +125,7 @@ impl Engine {
             start_time_unix_ns: None,
             duration_s: None,
             instance_name: None,
+            custom_attributes: Vec::new(),
             implementation: None,
         }
     }
@@ -148,6 +151,8 @@ pub struct Query {
     pub query_group_id: Uuid,
     /// A name for this [`Query`].
     pub instance_name: Option<String>,
+    /// Arbitrary application-specific attributes defined at run time.
+    pub custom_attributes: Vec<DynamicAttribute>,
 
     /// The start time of this query, relative to the Unix epoch.
     pub start_unix_ns: Option<TimeUnixNanoSec>,
@@ -161,6 +166,20 @@ pub struct Query {
     /// The time relative to the start time at which the engine started
     /// completed executing this query.
     pub completed_s: Option<TimeSec>,
+}
+
+/// Engines available for selection in the UI.
+#[derive(TS, Debug, Serialize)]
+pub struct EngineListResponse {
+    pub items: Vec<Engine>,
+    pub initial_group_by_attribute: Option<String>,
+}
+
+/// Queries available for selection within an engine.
+#[derive(TS, Debug, Serialize)]
+pub struct QueryListResponse {
+    pub items: Vec<Query>,
+    pub initial_group_by_attribute: Option<String>,
 }
 
 /// A worker that executed a leaf [`Plan`].

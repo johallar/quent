@@ -6,6 +6,7 @@ use super::*;
 #[derive(Default)]
 pub(crate) struct EngineAccumulator {
     pub(crate) instance_name: Option<String>,
+    pub(crate) custom_attributes: quent_dynamic_attributes::DynamicAttributes,
     pub(crate) implementation: Option<schema::EngineImplementationAttributes>,
     pub(crate) exited: bool,
 }
@@ -18,8 +19,10 @@ impl EntityEventAccumulator for EngineAccumulator {
             schema::EngineEvent::Init {
                 implementation,
                 instance_name,
+                custom_attributes,
             } => {
                 self.instance_name = instance_name;
+                self.custom_attributes = custom_attributes;
                 self.implementation = Some(implementation);
             }
             schema::EngineEvent::Exit => self.exited = true,
@@ -81,6 +84,7 @@ impl EngineEntity for Engine {
             start_time_unix_ns: Some(start),
             duration_s,
             instance_name: data.instance_name.clone(),
+            custom_attributes: data.custom_attributes.0.clone(),
             implementation: data.implementation.as_ref().map(|implementation| {
                 query_engine_ui::EngineImplementationAttributes {
                     name: implementation.name.clone(),

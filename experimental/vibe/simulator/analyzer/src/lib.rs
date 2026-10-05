@@ -264,6 +264,7 @@ impl UiAnalyzer for SimulatorUiAnalyzer {
             if let SimulatorEvent::Engine(schema::EngineEvent::Init {
                 implementation,
                 instance_name,
+                custom_attributes,
             }) = event.data
             {
                 return Ok(quent_query_engine_ui::Engine {
@@ -271,6 +272,7 @@ impl UiAnalyzer for SimulatorUiAnalyzer {
                     start_time_unix_ns: Some(event.timestamp),
                     duration_s: None,
                     instance_name,
+                    custom_attributes: custom_attributes.0,
                     implementation: Some(quent_query_engine_ui::EngineImplementationAttributes {
                         name: implementation.name,
                         version: implementation.version,
@@ -280,6 +282,14 @@ impl UiAnalyzer for SimulatorUiAnalyzer {
             }
         }
         Ok(quent_query_engine_ui::Engine::new(engine_id))
+    }
+
+    fn engine_initial_group_by_attribute() -> Option<String> {
+        Some("workers".to_owned())
+    }
+
+    fn query_initial_group_by_attribute(&self) -> Option<String> {
+        Some("workload".to_owned())
     }
 
     fn try_new(

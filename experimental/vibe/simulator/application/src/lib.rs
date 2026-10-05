@@ -1477,6 +1477,12 @@ impl Engine {
                     custom_attributes: Default::default(),
                 },
                 Some(format!("holodeck-{:04x}", rng().random::<u32>())),
+                vec![
+                    DynamicAttribute::u64("workers", num_workers as u64),
+                    DynamicAttribute::u64("threads_per_worker", num_threads as u64),
+                    DynamicAttribute::u64("gpus_per_worker", num_gpus as u64),
+                ]
+                .into(),
             )
             .unwrap();
 
@@ -1588,11 +1594,9 @@ fn simulate_with_engine_id(context: SimulatorContext, config: SimulationConfig, 
 
     for query_group_index in 0..config.num_query_groups {
         let mut query_group = context.observer::<instr::QueryGroup>().handle();
+        let workload_name = format!("Simulated workload (run {query_group_index})");
         query_group
-            .declaration(
-                format!("Simulated workload (run {query_group_index})"),
-                engine.handle.as_entity_ref(),
-            )
+            .declaration(workload_name.clone(), engine.handle.as_entity_ref())
             .unwrap();
 
         // "Run" the specified number of queries, sequentially for now.
@@ -1607,7 +1611,15 @@ fn simulate_with_engine_id(context: SimulatorContext, config: SimulationConfig, 
             let query = context
                 .observer::<instr::Query>()
                 .handle_with_id(query_id)
-                .init(query_name, query_group.as_entity_ref())
+                .init(
+                    query_name,
+                    query_group.as_entity_ref(),
+                    vec![
+                        DynamicAttribute::string("workload", workload_name.clone()),
+                        DynamicAttribute::u64("query_index", query_index as u64),
+                    ]
+                    .into(),
+                )
                 .planning();
             let mut l_plan = make_logical_plan(&context, query.as_entity_ref(), "logical".into());
             l_plan.declare(None);

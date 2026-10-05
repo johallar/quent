@@ -51,6 +51,19 @@ pub trait UiAnalyzer {
     where
         Self: Sized;
 
+    /// Attribute used to group the initial engine catalog, if any.
+    fn engine_initial_group_by_attribute() -> Option<String>
+    where
+        Self: Sized,
+    {
+        None
+    }
+
+    /// Attribute used to group the initial query catalog, if any.
+    fn query_initial_group_by_attribute(&self) -> Option<String> {
+        None
+    }
+
     /// Deliver a UI-friendly `QueryBundle` with all high-level yet
     /// non-volumous information related to this query.
     fn query_bundle(&self, query_id: Uuid) -> AnalyzerResult<ui::QueryBundle>;

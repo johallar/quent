@@ -60,6 +60,7 @@ const queryBundle = {
       start_time_unix_ns: null,
       duration_s: null,
       instance_name: null,
+      custom_attributes: [],
       implementation: null,
     },
     query_group: {
@@ -71,6 +72,7 @@ const queryBundle = {
       id: 'query-1',
       query_group_id: 'query-group-1',
       instance_name: null,
+      custom_attributes: [],
       start_unix_ns: null,
       planning_s: null,
       executing_s: null,

@@ -33,6 +33,7 @@ entities:
         attributes:
           implementation: EngineImplementationAttributes
           instance_name: { option: string }
+          custom_attributes: dynamic
       exit: {}
 
   QueryGroup:
@@ -189,6 +190,7 @@ fsms:
         attributes:
           instance_name: string
           query_group_id: { scope-ref: QueryGroup }
+          custom_attributes: dynamic
         to: [planning]
       planning:
         to: [executing]

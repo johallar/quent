@@ -1,9 +1,9 @@
 // SPDX-FileCopyrightText: Copyright (c) 2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 // SPDX-License-Identifier: Apache-2.0
 
+import { useRef, useState } from 'react';
 import { useMatch, useNavigate } from '@tanstack/react-router';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { useRef } from 'react';
 import { ChevronDown, ChevronRight } from 'lucide-react';
 import {
   DataText,
@@ -18,22 +18,26 @@ import {
   useOverflowHoverCard,
 } from '@quent/components';
 import { cn } from '@quent/utils';
-import {
-  queryBundleQueryOptions,
-  fetchListEngines,
-  fetchListCoordinators,
-  fetchListQueries,
-} from '@quent/client';
+import { fetchListEngines, fetchListQueries, queryBundleQueryOptions } from '@quent/client';
+
+interface BreadcrumbItem {
+  id: string;
+  label: string;
+}
 
 function BreadcrumbDropdown({
   label,
   activeId,
   items,
+  loading,
+  error,
   onSelect,
 }: {
   label: string;
   activeId: string;
-  items: { id: string; label: string }[] | undefined;
+  items: BreadcrumbItem[] | undefined;
+  loading: boolean;
+  error: boolean;
   onSelect: (id: string) => void;
 }) {
   const labelRef = useRef<HTMLSpanElement>(null);
@@ -45,6 +49,7 @@ function BreadcrumbDropdown({
         <HoverCardTrigger asChild>
           <DropdownMenuTrigger asChild>
             <button
+              aria-label={`Change ${label}`}
               className="-mx-1.5 flex min-w-0 max-w-40 cursor-pointer items-center gap-0.5 rounded-sm px-1.5 py-0.5 transition-colors hover:bg-accent hover:text-foreground md:max-w-48 xl:max-w-64"
               onPointerEnter={handlePointerEnter}
               onPointerLeave={handlePointerLeave}
@@ -67,7 +72,11 @@ function BreadcrumbDropdown({
               <OverflowingItemLabel label={item.label} />
             </DropdownMenuItem>
           ))}
-          {(!items || items.length === 0) && <DropdownMenuItem disabled>No items</DropdownMenuItem>}
+          {loading && <DropdownMenuItem disabled>Loading…</DropdownMenuItem>}
+          {error && <DropdownMenuItem disabled>Unable to load items</DropdownMenuItem>}
+          {!loading && !error && (!items || items.length === 0) && (
+            <DropdownMenuItem disabled>No items</DropdownMenuItem>
+          )}
         </DropdownMenuContent>
       </DropdownMenu>
       <OverflowHoverCardContent label={label} side="bottom" />
@@ -78,40 +87,26 @@ function BreadcrumbDropdown({
 export function NavBarNavigator() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-
-  // Match the layout route — satisfied by any child route (timeline, operators,
-  // node/$nodeId, index, …) without needing a per-leaf match here.
+  const [navigationError, setNavigationError] = useState('');
   const queryLayoutMatch = useMatch({
     from: '/profile/engine/$engineId/query/$queryId',
     shouldThrow: false,
   });
-
   const engineId = queryLayoutMatch?.params?.engineId;
   const queryId = queryLayoutMatch?.params?.queryId;
-
   const { data: queryBundle } = useQuery({
     ...queryBundleQueryOptions({ engineId: engineId ?? '', queryId: queryId ?? '' }),
     enabled: !!engineId && !!queryId,
   });
-
-  const queryGroupId = queryBundle?.entities.query_group.id;
-
-  const { data: engines } = useQuery({
+  const enginesQuery = useQuery({
     queryKey: ['list_engines'],
     queryFn: fetchListEngines,
     enabled: !!engineId,
   });
-
-  const { data: queryGroups } = useQuery({
-    queryKey: ['list_coordinators', engineId],
-    queryFn: () => fetchListCoordinators(engineId!),
+  const queriesQuery = useQuery({
+    queryKey: ['list_queries', engineId],
+    queryFn: () => fetchListQueries(engineId!),
     enabled: !!engineId,
-  });
-
-  const { data: queries } = useQuery({
-    queryKey: ['list_queries', engineId, queryGroupId],
-    queryFn: () => fetchListQueries(engineId!, queryGroupId!),
-    enabled: !!engineId && !!queryGroupId,
   });
 
   if (!queryBundle || !engineId) {
@@ -119,74 +114,40 @@ export function NavBarNavigator() {
   }
 
   const engineItems =
-    engines?.map(engine => ({
+    enginesQuery.data?.items.map(engine => ({
       id: engine.id,
       label: engine.instance_name ?? engine.id,
     })) ?? [];
-  const queryGroupItems =
-    queryGroups?.map(queryGroup => ({
-      id: queryGroup.id,
-      label: queryGroup.instance_name ?? queryGroup.id,
-    })) ?? [];
   const queryItems =
-    queries?.map(query => ({
+    queriesQuery.data?.items.map(query => ({
       id: query.id,
       label: query.instance_name ?? query.id,
     })) ?? [];
-  const engine = queryBundle.entities.engine.instance_name ?? queryBundle.entities.engine.id;
-  const queryGroupName =
-    queryBundle.entities.query_group.instance_name ?? queryBundle.entities.query_group.id;
-  const queryName = queryBundle.entities.query.instance_name ?? queryBundle.entities.query.id;
+  const engineLabel = queryBundle.entities.engine.instance_name ?? queryBundle.entities.engine.id;
+  const queryLabel = queryBundle.entities.query.instance_name ?? queryBundle.entities.query.id;
 
   const handleEngineChange = async (newEngineId: string) => {
     if (newEngineId === engineId) {
       return;
     }
+    setNavigationError('');
     try {
-      const groups = await queryClient.fetchQuery({
-        queryKey: ['list_coordinators', newEngineId],
-        queryFn: () => fetchListCoordinators(newEngineId),
+      const response = await queryClient.fetchQuery({
+        queryKey: ['list_queries', newEngineId],
+        queryFn: () => fetchListQueries(newEngineId),
       });
-      const firstGroup = groups[0];
-      if (!firstGroup) {
+      const firstQuery = response.items[0];
+      if (!firstQuery) {
+        setNavigationError('That engine has no queries.');
         return;
       }
-      const groupQueries = await queryClient.fetchQuery({
-        queryKey: ['list_queries', newEngineId, firstGroup.id],
-        queryFn: () => fetchListQueries(newEngineId, firstGroup.id),
+      navigate({
+        to: '/profile/engine/$engineId/query/$queryId',
+        params: { engineId: newEngineId, queryId: firstQuery.id },
+        search: {},
       });
-      const firstQuery = groupQueries[0];
-      if (firstQuery) {
-        navigate({
-          to: '/profile/engine/$engineId/query/$queryId',
-          params: { engineId: newEngineId, queryId: firstQuery.id },
-          search: {},
-        });
-      }
-    } catch {
-      // ignore
-    }
-  };
-
-  const handleQueryGroupChange = async (newGroupId: string) => {
-    if (newGroupId === queryGroupId) {
-      return;
-    }
-    try {
-      const groupQueries = await queryClient.fetchQuery({
-        queryKey: ['list_queries', engineId, newGroupId],
-        queryFn: () => fetchListQueries(engineId!, newGroupId),
-      });
-      const firstQuery = groupQueries[0];
-      if (firstQuery) {
-        navigate({
-          to: '/profile/engine/$engineId/query/$queryId',
-          params: { engineId: engineId!, queryId: firstQuery.id },
-          search: {},
-        });
-      }
-    } catch {
-      // ignore
+    } catch (error) {
+      setNavigationError(error instanceof Error ? error.message : 'Unable to switch engines.');
     }
   };
 
@@ -194,6 +155,7 @@ export function NavBarNavigator() {
     if (newQueryId === queryId) {
       return;
     }
+    setNavigationError('');
     navigate({
       to: '/profile/engine/$engineId/query/$queryId',
       params: { engineId, queryId: newQueryId },
@@ -202,27 +164,34 @@ export function NavBarNavigator() {
   };
 
   return (
-    <nav className="flex min-w-0 max-w-full items-center gap-1.5 text-sm text-muted-foreground">
-      <BreadcrumbDropdown
-        label={engine}
-        activeId={engineId}
-        items={engineItems}
-        onSelect={handleEngineChange}
-      />
-      <ChevronRight className="h-3.5 w-3.5 shrink-0" />
-      <BreadcrumbDropdown
-        label={queryGroupName ?? queryGroupId ?? ''}
-        activeId={queryGroupId ?? ''}
-        items={queryGroupItems}
-        onSelect={handleQueryGroupChange}
-      />
-      <ChevronRight className="h-3.5 w-3.5 shrink-0" />
-      <BreadcrumbDropdown
-        label={queryName}
-        activeId={queryId ?? ''}
-        items={queryItems}
-        onSelect={handleQueryChange}
-      />
-    </nav>
+    <div className="flex min-w-0 items-center gap-2">
+      <nav
+        aria-label="Profile selection"
+        className="flex min-w-0 max-w-full items-center gap-1.5 text-sm text-muted-foreground"
+      >
+        <BreadcrumbDropdown
+          label={engineLabel}
+          activeId={engineId}
+          items={engineItems}
+          loading={enginesQuery.isLoading}
+          error={enginesQuery.isError}
+          onSelect={handleEngineChange}
+        />
+        <ChevronRight className="h-3.5 w-3.5 shrink-0" />
+        <BreadcrumbDropdown
+          label={queryLabel}
+          activeId={queryId ?? ''}
+          items={queryItems}
+          loading={queriesQuery.isLoading}
+          error={queriesQuery.isError}
+          onSelect={handleQueryChange}
+        />
+      </nav>
+      {navigationError && (
+        <span role="alert" className="max-w-48 truncate text-xs text-destructive">
+          {navigationError}
+        </span>
+      )}
+    </div>
   );
 }
