@@ -51,7 +51,7 @@ import { QueryPlanNode, type QueryPlanNodeData } from '../query-plan/QueryPlanNo
 import { DAGLegend } from './DAGLegend';
 import { resolveSelectedOperatorsFromNodes } from './dagSelection';
 import { shouldDimEdgeFromInteraction } from './edgeOpacity';
-import { parseCustomStatistics } from '../lib/queryBundle.utils';
+import { parseCustomStatistics, parseOperatorAttributes } from '../lib/queryBundle.utils';
 import {
   continuousColor,
   inferFieldFormatter,
@@ -282,11 +282,13 @@ function selectedOperatorDataFromFlowNode(
     nodeId: node.id,
     label: node.data.label,
     operationType: node.data.operationType,
+    attributes: parseOperatorAttributes(node.data.metadata?.rawNode),
     statistics: parseCustomStatistics(node.data.metadata?.rawNode),
     relatedOperators: node.data.metadata?.relatedOperators?.map(operator => ({
       nodeId: operator.id,
       label: operator.instance_name ?? operator.operator_type_name ?? 'Operator',
       operationType: operator.operator_type_name?.toLowerCase() ?? 'operator',
+      attributes: parseOperatorAttributes(operator),
       statistics: parseCustomStatistics(operator),
     })),
   };
