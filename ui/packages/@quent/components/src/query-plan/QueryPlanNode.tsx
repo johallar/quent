@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: Copyright (c) 2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 // SPDX-License-Identifier: Apache-2.0
 
+import { flattenStatistics, statisticFieldName } from '@quent/utils';
 import { memo, useState, useMemo, useCallback } from 'react';
 import { Handle, Position } from '@xyflow/react';
 import { cva } from 'class-variance-authority';
@@ -112,15 +113,15 @@ export const QueryPlanNode = memo(({ data }: { data: QueryPlanNodeData }) => {
     return data.label;
   }, [nodeLabelField, data]);
 
-  const colorFieldStat = colorField ? statistics.find(s => s.key === colorField) : null;
+  const colorFieldStat = colorField ? flattenStatistics(statistics).find(s => s.key === colorField) : null;
   const colorFieldValue = colorFieldStat?.value ?? null;
   const formattedColorFieldValue =
     colorFieldValue === null
       ? null
-      : typeof colorFieldValue === 'number'
+      : typeof colorFieldValue === 'number' || typeof colorFieldValue === 'bigint'
         ? formatStatWithQuantity(
             colorFieldValue,
-            colorField!,
+            statisticFieldName(colorField!),
             colorFieldStat?.quantity && quantitySpecs
               ? quantitySpecs[colorFieldStat.quantity]
               : undefined
