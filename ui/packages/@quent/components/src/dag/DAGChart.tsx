@@ -1,7 +1,8 @@
 // SPDX-FileCopyrightText: Copyright (c) 2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-import { normalizeEdgeWidth, statisticFieldName } from '@quent/utils';
+import { useInspectedPipe, useSetInspectedPipe, useSyncDisplayedPipes } from '@quent/hooks';
+import { normalizeEdgeWidth, statisticFieldName, type DAGEdge } from '@quent/utils';
 import {
   useCallback,
   useEffect,
@@ -96,6 +97,18 @@ const VariableWidthEdge = ({
   targetPosition,
   data,
 }: VariableWidthEdgeProps) => {
+  const inspectedPipe = useInspectedPipe();
+  const setInspectedPipe = useSetInspectedPipe();
+  const pipe = (data as { pipe?: DAGEdge })?.pipe;
+  const isInspected =
+    pipe != null &&
+    inspectedPipe?.sourcePortId === pipe.sourcePortId &&
+    inspectedPipe?.targetPortId === pipe.targetPortId;
+  const inspect = () => {
+    if (pipe?.sourcePortId && pipe.targetPortId) {
+      setInspectedPipe({ sourcePortId: pipe.sourcePortId, targetPortId: pipe.targetPortId });
+    }
+  };
   const edgeWidthConfig = useEdgeWidthConfig();
   const edgeColoring = useEdgeColoring();
   const edgePalette = useEdgeColorPalette()[0];
@@ -139,12 +152,14 @@ const VariableWidthEdge = ({
   }
 
   const dimFromInteraction = shouldDimEdgeFromInteraction({
+    inspectedEdgeId: inspectedPipe?.id,
+    edgeId: id,
     sourceId: source,
     targetId: target,
     selectedNodeIds: selectedOperatorIds,
     highlightedNodeIds,
   });
-  const isEdgeDimmed = edgeDimmed || dimFromInteraction;
+  const isEdgeDimmed = (edgeDimmed && !isInspected) || dimFromInteraction;
 
   let edgeLabelValue: string | undefined;
   if (edgeColoring) {
@@ -198,13 +213,41 @@ const VariableWidthEdge = ({
           />
         </marker>
       </defs>
+      {pipe?.sourcePortId && pipe.targetPortId && (
+        <path
+          d={edgePath}
+          fill="none"
+          stroke="transparent"
+          strokeWidth={Math.max(16, strokeWidth)}
+          style={{ pointerEvents: 'stroke', cursor: 'pointer' }}
+          role="button"
+          tabIndex={0}
+          aria-label={`Inspect pipe ${pipe.sourcePortName ?? pipe.sourcePortId} to ${pipe.targetPortName ?? pipe.targetPortId}`}
+          aria-pressed={isInspected}
+          onClick={event => {
+            event.stopPropagation();
+            inspect();
+          }}
+          onKeyDown={event => {
+            if (event.key === 'Enter' || event.key === ' ') {
+              event.preventDefault();
+              event.stopPropagation();
+              inspect();
+            }
+          }}
+        >
+          <title>{`${pipe.sourcePortName ?? pipe.sourcePortId} → ${pipe.targetPortName ?? pipe.targetPortId}`}</title>
+        </path>
+      )}
       <path
         id={id}
         className="react-flow__edge-path"
         d={edgePath}
         markerEnd={`url(#${markerId})`}
         style={{
-          stroke: edgeColor ?? 'currentColor',
+          pointerEvents: 'none',
+          stroke: isInspected ? 'hsl(var(--primary))' : (edgeColor ?? 'currentColor'),
+          filter: isInspected ? 'drop-shadow(0 0 3px hsl(var(--primary)))' : undefined,
           strokeWidth,
           fill: 'none',
           opacity: isEdgeDimmed ? EDGE_DIMMED_OPACITY : 1,
@@ -309,6 +352,7 @@ const FlowLayout = ({
   onSelectionChange?: (nodeIds: string[]) => void;
   onBackgroundClick?: () => void;
 }) => {
+  useSyncDisplayedPipes(data.edges);
   const [nodes, setNodes, onNodesChange] = useNodesState<Node<QueryPlanNodeData>>([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
   const { fitView } = useReactFlow();
@@ -467,7 +511,7 @@ const FlowLayout = ({
       target: edge.target,
       type: 'smoothstep',
       // Pass isDark down to edge components via data
-      data: { isDark },
+      data: { isDark, pipe: edge },
     }));
 
     return { flowNodes, flowEdges };
