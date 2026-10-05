@@ -113,7 +113,9 @@ export const QueryPlanNode = memo(({ data }: { data: QueryPlanNodeData }) => {
     return data.label;
   }, [nodeLabelField, data]);
 
-  const colorFieldStat = colorField ? flattenStatistics(statistics).find(s => s.key === colorField) : null;
+  const colorFieldStat = colorField
+    ? flattenStatistics(statistics).find(s => s.key === colorField)
+    : null;
   const colorFieldValue = colorFieldStat?.value ?? null;
   const formattedColorFieldValue =
     colorFieldValue === null
