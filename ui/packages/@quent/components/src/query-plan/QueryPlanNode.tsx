@@ -125,7 +125,7 @@ export const QueryPlanNode = memo(({ data }: { data: QueryPlanNodeData }) => {
       : typeof colorFieldValue === 'number' || typeof colorFieldValue === 'bigint'
         ? formatStatWithQuantity(
             colorFieldValue,
-            statisticFieldName(colorField!),
+            statisticFieldName(colorFieldStat ?? colorField!),
             colorFieldStat?.quantity && quantitySpecs
               ? quantitySpecs[colorFieldStat.quantity]
               : undefined

@@ -20,7 +20,12 @@ import {
   type DeepLinkStateV3,
   validateDeepLinkSearch,
 } from './deepLink.schema';
-import { CONTINUOUS_PALETTES, DAG_LAYOUT_DIRECTION, NODE_LABEL_FIELD } from '@quent/utils';
+import {
+  statisticFieldId,
+  CONTINUOUS_PALETTES,
+  DAG_LAYOUT_DIRECTION,
+  NODE_LABEL_FIELD,
+} from '@quent/utils';
 import { OPERATOR_TABLE_INDEX_ORDER } from '@/components/operator-table/types';
 import { MAX_RESOURCE_FILTER_QUERY_LENGTH } from '@/features/resource-filter/resourceFilter';
 
@@ -104,6 +109,31 @@ describe('deep-link codec', () => {
     expect(decodeDeepLinkState(first.value)).toEqual({
       ok: true,
       value: { version: 'v3', data: state },
+    });
+  });
+
+  it('round-trips selections for statistic paths longer than the name limit', () => {
+    const fieldId = statisticFieldId([
+      ['Volume '.repeat(100), 0],
+      ['bytes '.repeat(100), 2],
+    ]);
+    const nestedState: DeepLinkStateV3 = {
+      ...state,
+      dag: {
+        ...state.dag,
+        nodeColorField: fieldId,
+        edgeWidthField: fieldId,
+        edgeColorField: fieldId,
+      },
+    };
+    const encoded = encodeDeepLinkState(nestedState);
+    expect(encoded.ok).toBe(true);
+    if (!encoded.ok) {
+      throw new Error('Failed to encode nested statistic selections');
+    }
+    expect(decodeDeepLinkState(encoded.value)).toEqual({
+      ok: true,
+      value: { version: 'v3', data: nestedState },
     });
   });
 

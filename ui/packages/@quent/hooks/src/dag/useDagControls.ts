@@ -11,6 +11,7 @@ import {
   type EdgeWidthConfig,
   type EdgeColoring,
   type Statistic,
+  type StatisticField,
 } from '@quent/utils';
 import {
   selectedColorField,
@@ -69,22 +70,28 @@ export function useDagEdgeColoring(edges: DAGEdge[], computeEdgeColoring: Comput
 export function useOperatorStatFields(
   nodes: DAGNode[],
   parseCustomStatistics: ParseCustomStatisticsFn
-): string[] {
+): StatisticField[] {
   return useMemo(
     () => [
-      ...new Set(
+      ...new Map(
         nodes.flatMap(n =>
-          flattenStatistics(parseCustomStatistics(n.metadata?.rawNode)).map(s => s.key)
+          flattenStatistics(parseCustomStatistics(n.metadata?.rawNode)).map(
+            s => [s.key, s] as const
+          )
         )
-      ),
+      ).values(),
     ],
     [nodes, parseCustomStatistics]
   );
 }
 
-export function usePortStatFields(edges: DAGEdge[]): string[] {
+export function usePortStatFields(edges: DAGEdge[]): StatisticField[] {
   return useMemo(
-    () => [...new Set(edges.flatMap(e => flattenStatistics(e.portStats ?? []).map(s => s.key)))],
+    () => [
+      ...new Map(
+        edges.flatMap(e => flattenStatistics(e.portStats ?? []).map(s => [s.key, s] as const))
+      ).values(),
+    ],
     [edges]
   );
 }

@@ -135,7 +135,9 @@ export type { Statistic, StatStruct } from './dagTypes';
 
 export {
   flattenStatistics,
+  statisticFieldId,
   statisticFieldLabel,
   statisticFieldName,
   normalizeEdgeWidth,
 } from './statisticFields';
+export type { StatisticField, StatisticFieldPath } from './statisticFields';

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { describe, it, expect } from 'vitest';
-import type { DAGNode, DAGEdge } from '@quent/utils';
+import { statisticFieldId, type DAGNode, type DAGEdge } from '@quent/utils';
 import {
   computeNodeColoring,
   computeEdgeColoring,
@@ -310,7 +310,10 @@ it('scales width from the selected nested path without conflating another bytes 
       { key: 'Volume', value: { kind: 'struct', fields: [{ key: 'bytes', value: 1024 }] } },
     ]),
   ];
-  const field = '[ ["Volume",0], ["bytes",0] ]'.replace(/ /g, '');
+  const field = statisticFieldId([
+    ['Volume', 0],
+    ['bytes', 0],
+  ]);
   const result = computeEdgeWidthConfig(edges, field);
   expect(result?.min).toBe(0);
   expect(result?.max).toBe(1024);

@@ -54,11 +54,13 @@ import { shouldDimEdgeFromInteraction } from './edgeOpacity';
 import { parseCustomStatistics, parseOperatorAttributes } from '../lib/queryBundle.utils';
 import {
   continuousColor,
+  flattenStatistics,
   inferFieldFormatter,
   normalizeEdgeWidth,
   statisticFieldName,
   toggleOperatorSelection,
   type Operator,
+  type StatisticField,
   type QuantitySpec,
   type SelectedOperatorGroupData,
 } from '@quent/utils';
@@ -147,12 +149,14 @@ const VariableWidthEdge = ({
   });
   const isEdgeDimmed = edgeDimmed || dimFromInteraction;
 
+  const fields = data?.statisticFields as StatisticField[] | undefined;
+  const selectedField = (id: string | null) => fields?.find(field => field.key === id) ?? id ?? '';
   let edgeLabelValue: string | undefined;
   if (edgeColoring) {
     if (edgeColoring.type === 'continuous') {
       const v = edgeColoring.values.get(id);
       if (v !== undefined) {
-        edgeLabelValue = inferFieldFormatter(statisticFieldName(edgeColorField ?? ''))(v);
+        edgeLabelValue = inferFieldFormatter(statisticFieldName(selectedField(edgeColorField)))(v);
       }
     } else {
       const v = edgeColoring.labelMap.get(id);
@@ -163,7 +167,7 @@ const VariableWidthEdge = ({
   } else if (edgeWidthConfig) {
     const v = edgeWidthConfig.values.get(id);
     if (v !== undefined) {
-      edgeLabelValue = inferFieldFormatter(statisticFieldName(edgeWidthField ?? ''))(v);
+      edgeLabelValue = inferFieldFormatter(statisticFieldName(selectedField(edgeWidthField)))(v);
     }
   }
 
@@ -411,13 +415,26 @@ const FlowLayout = ({
     return relatedOperatorIds.length > 0 ? [...relatedOperatorIds, node.id] : [node.id];
   }, []);
 
+  const statisticFields = useMemo(
+    () =>
+      new Map(
+        [
+          ...data.nodes.flatMap(node =>
+            flattenStatistics(parseCustomStatistics(node.metadata?.rawNode))
+          ),
+          ...data.edges.flatMap(edge => flattenStatistics(edge.portStats ?? [])),
+        ].map(field => [field.key, field] as const)
+      ),
+    [data.nodes, data.edges]
+  );
+
   const statQuantitySpecs = useMemo((): Record<string, QuantitySpec> => {
     if (!data.quantitySpecs) {
       return {};
     }
     const result: Record<string, QuantitySpec> = {};
     for (const node of data.nodes) {
-      for (const stat of parseCustomStatistics(node.metadata?.rawNode)) {
+      for (const stat of flattenStatistics(parseCustomStatistics(node.metadata?.rawNode))) {
         if (stat.quantity && !(stat.key in result)) {
           const spec = data.quantitySpecs[stat.quantity];
           if (spec) {
@@ -468,7 +485,7 @@ const FlowLayout = ({
       target: edge.target,
       type: 'smoothstep',
       // Pass isDark down to edge components via data
-      data: { isDark },
+      data: { isDark, statisticFields: flattenStatistics(edge.portStats ?? []) },
     }));
 
     return { flowNodes, flowEdges };
@@ -579,7 +596,11 @@ const FlowLayout = ({
       defaultEdgeOptions={{ type: 'smoothstep' }}
     >
       <Background />
-      <DAGLegend isDark={isDark} statQuantitySpecs={statQuantitySpecs} />
+      <DAGLegend
+        isDark={isDark}
+        statQuantitySpecs={statQuantitySpecs}
+        statisticFields={statisticFields}
+      />
       <MiniMap
         pannable
         zoomable

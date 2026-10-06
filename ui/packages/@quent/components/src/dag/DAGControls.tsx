@@ -25,6 +25,7 @@ import {
   NODE_LABEL_FIELD,
   DAG_LAYOUT_DIRECTION,
   type NodeLabelField,
+  type StatisticField,
   type DagLayoutDirection,
 } from '@quent/utils';
 import { Palette, Spline, Brush, Type, ArrowUpDown, Gauge, Tags, Layers } from 'lucide-react';
@@ -33,8 +34,8 @@ import { ControlField, ControlGrid, ControlSection } from '../ui/control-grid';
 import { RequiredMultiSelectField } from '../ui/required-multi-select-field';
 
 interface DAGControlsProps {
-  operatorStatFields: string[];
-  portStatFields: string[];
+  operatorStatFields: StatisticField[];
+  portStatFields: StatisticField[];
   /** Whether dark mode is active. Passed explicitly to decouple from ThemeContext. */
   isDark: boolean;
 }
@@ -71,11 +72,11 @@ export const DAGControls = ({ operatorStatFields, portStatFields, isDark }: DAGC
   const setDataFlowSelectedDimensions = useSetDataFlowSelectedDimensions();
 
   const operatorOptions: SelectFieldOption[] = operatorStatFields.map(f => ({
-    value: f,
+    value: f.key,
     label: statisticFieldLabel(f),
   }));
   const portOptions: SelectFieldOption[] = portStatFields.map(f => ({
-    value: f,
+    value: f.key,
     label: statisticFieldLabel(f),
   }));
 
