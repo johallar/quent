@@ -44,6 +44,10 @@ The complete Docker example can be started from the repository root:
 docker compose -f experimental/vibe/simulator/docker-compose.yml up --build
 ```
 
+This starts the analyzer API on `http://localhost:8080`, generates one
+simulated query group, and starts the experimental streamable-HTTP MCP bridge
+at `http://localhost:8081/mcp`.
+
 ## Verify
 
 ```bash
