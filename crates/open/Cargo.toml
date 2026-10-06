@@ -8,6 +8,10 @@ edition.workspace = true
 publish.workspace = true
 
 [features]
+default = ["mcp"]
+# Start a host-version MCP bridge when the artifact's pinned Quent revision
+# does not provide one, or its bridge cannot be built or started.
+mcp = ["dep:quent-mcp"]
 # Open archive inputs (tar family or zip) in `local` mode by extracting and
 # scanning them for telemetry. Pulls in the archive/codec crates.
 archive = ["dep:tar", "dep:flate2", "dep:zstd", "dep:zip", "dep:tempfile"]
@@ -28,7 +32,7 @@ open = "5"
 prettyplease.workspace = true
 proc-macro2 = "1"
 quent-build-info = { path = "../build-info" }
-quent-mcp = { path = "../../experimental/vibe/quent-mcp" }
+quent-mcp = { path = "../../experimental/vibe/quent-mcp", optional = true }
 quote = "1"
 # `rustls-tls-native-roots` (OS trust store) rather than `rustls-tls` (bundled
 # webpki-roots): fits an internal CA, and avoids webpki-roots' CDLA-Permissive
