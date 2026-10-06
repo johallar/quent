@@ -28,6 +28,7 @@ open = "5"
 prettyplease.workspace = true
 proc-macro2 = "1"
 quent-build-info = { path = "../build-info" }
+quent-mcp = { path = "../../experimental/vibe/quent-mcp" }
 quote = "1"
 # `rustls-tls-native-roots` (OS trust store) rather than `rustls-tls` (bundled
 # webpki-roots): fits an internal CA, and avoids webpki-roots' CDLA-Permissive
