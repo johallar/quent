@@ -48,6 +48,7 @@ describe('OperatorStatFields', () => {
       { key: 'execution_status', value: { String: 'Complete' } },
     ]);
     expect(screen.getAllByRole('heading').map(h => h.textContent)).toEqual([
+      'Statistics',
       'Join decomposition',
       'Probe',
       'Build',
@@ -135,9 +136,59 @@ it('shows producer-defined decomposition from declaration attributes before term
     />
   );
   expect(screen.getAllByRole('heading').map(h => h.textContent)).toEqual([
+    'Attributes',
     'Fused decomposition',
     'Projection',
+    'Statistics',
     'Execution',
   ]);
   expect(screen.getByText('price * discount')).toBeVisible();
+});
+
+it('displays every repeated name within and across attributes and statistics in producer order', () => {
+  render(
+    <OperatorStatFields
+      operator={{
+        nodeId: 'one',
+        label: 'Scan',
+        operationType: 'scan',
+        attributes: [
+          { key: 'status', value: 'Declared' },
+          { key: 'source', value: 'Input' },
+          { key: 'status', value: 'Configured' },
+          { key: 'status', value: null },
+        ],
+        statistics: [
+          { key: 'status', value: 'Running' },
+          { key: 'rows', value: 0 },
+          { key: 'status', value: 'Completed' },
+          { key: 'status', value: 'Completed' },
+        ],
+      }}
+    />
+  );
+
+  const attributes = screen.getByRole('heading', { name: 'Attributes' }).closest('section')!;
+  const statistics = screen.getByRole('heading', { name: 'Statistics' }).closest('section')!;
+
+  expect(
+    within(attributes)
+      .getAllByRole('term')
+      .map(term => term.textContent)
+  ).toEqual(['status:', 'source:', 'status:', 'status:']);
+  expect(
+    within(attributes)
+      .getAllByRole('definition')
+      .map(value => value.textContent)
+  ).toEqual(['Declared', 'Input', 'Configured', '—']);
+  expect(
+    within(statistics)
+      .getAllByRole('term')
+      .map(term => term.textContent)
+  ).toEqual(['status:', 'rows:', 'status:', 'status:']);
+  expect(
+    within(statistics)
+      .getAllByRole('definition')
+      .map(value => value.textContent)
+  ).toEqual(['Running', '0', 'Completed', 'Completed']);
 });

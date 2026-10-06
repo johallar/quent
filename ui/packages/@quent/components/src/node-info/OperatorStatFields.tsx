@@ -21,9 +21,15 @@ export const OperatorStatFields = ({
         </DataText>
       </StatisticField>
     </div>
-    <StatisticFields
-      statistics={[...(operator.attributes ?? []), ...operator.statistics]}
-      quantitySpecs={quantitySpecs}
-    />
+    {operator.attributes?.length ? (
+      <section className="mb-3">
+        <h3 className="mb-1 text-xs font-semibold">Attributes</h3>
+        <StatisticFields statistics={operator.attributes} quantitySpecs={quantitySpecs} />
+      </section>
+    ) : null}
+    <section>
+      <h3 className="mb-1 text-xs font-semibold">Statistics</h3>
+      <StatisticFields statistics={operator.statistics} quantitySpecs={quantitySpecs} />
+    </section>
   </>
 );
