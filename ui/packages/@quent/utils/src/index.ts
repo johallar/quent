@@ -3,7 +3,7 @@
 
 // Utilities
 export { cn } from './cn';
-export { clamp } from './math';
+export { clamp, normalizeLogScale, normalizeLogScale as normalizeEdgeWidth } from './math';
 export { parseJsonWithBigInt } from './parseJsonWithBigInt';
 export { getFsmTypeName, getResourceTypeName } from './timeline';
 export { workerDisplayName } from './worker';
@@ -138,6 +138,5 @@ export {
   statisticFieldId,
   statisticFieldLabel,
   statisticFieldName,
-  normalizeEdgeWidth,
 } from './statisticFields';
 export type { StatisticField, StatisticFieldPath } from './statisticFields';

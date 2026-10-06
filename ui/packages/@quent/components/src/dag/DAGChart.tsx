@@ -56,7 +56,7 @@ import {
   continuousColor,
   flattenStatistics,
   inferFieldFormatter,
-  normalizeEdgeWidth,
+  normalizeLogScale,
   statisticFieldName,
   toggleOperatorSelection,
   type Operator,
@@ -74,7 +74,6 @@ const EDGE_TRANSITION_MS = 150;
 const ARROW_WIDTH_MULTIPLIER = 1.5;
 const ARROW_WIDTH_BASE = 8;
 const ARROW_DEPTH_RATIO = 0.6;
-const FALLBACK_NORMALIZED_T = 0.5; // used when min === max
 
 // Layout constants
 const FIT_VIEW_PADDING = 0.1;
@@ -112,7 +111,7 @@ const VariableWidthEdge = ({
   if (edgeWidthConfig) {
     const v = edgeWidthConfig.values.get(id);
     if (v !== undefined) {
-      const t = normalizeEdgeWidth(v, edgeWidthConfig.min, edgeWidthConfig.max);
+      const t = normalizeLogScale(v, edgeWidthConfig.min, edgeWidthConfig.max);
       strokeWidth = EDGE_STROKE_WIDTH_MIN + t * EDGE_STROKE_WIDTH_RANGE;
     }
   }
@@ -125,10 +124,7 @@ const VariableWidthEdge = ({
       if (v === undefined) {
         edgeDimmed = true;
       } else {
-        const t =
-          edgeColoring.max > edgeColoring.min
-            ? (v - edgeColoring.min) / (edgeColoring.max - edgeColoring.min)
-            : FALLBACK_NORMALIZED_T;
+        const t = normalizeLogScale(v, edgeColoring.min, edgeColoring.max);
         edgeColor = continuousColor(t, edgePalette, isDark);
       }
     } else {

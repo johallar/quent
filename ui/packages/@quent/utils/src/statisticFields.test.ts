@@ -5,7 +5,6 @@ import { describe, expect, it } from 'vitest';
 import {
   flattenStatistics,
   statisticFieldId,
-  normalizeEdgeWidth,
   statisticFieldLabel,
   statisticFieldName,
 } from './statisticFields';
@@ -99,13 +98,5 @@ describe('statistic fields', () => {
     ]);
     expect(new Set(fields.map(field => field.key)).size).toBe(4);
     expect(new Set(fields.map(statisticFieldLabel)).size).toBe(4);
-  });
-
-  it('uses full-range logarithmic widths with equal-value and zero handling', () => {
-    expect(normalizeEdgeWidth(0, 0, 1e9)).toBe(0);
-    expect(normalizeEdgeWidth(1e9, 0, 1e9)).toBe(1);
-    expect(normalizeEdgeWidth(1000, 0, 1e9)).toBeGreaterThan(0.3);
-    expect(normalizeEdgeWidth(7, 7, 7)).toBe(0.5);
-    expect(normalizeEdgeWidth(0, 0, 0)).toBe(0.5);
   });
 });

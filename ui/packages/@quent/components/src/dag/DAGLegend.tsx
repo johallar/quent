@@ -31,6 +31,7 @@ interface ContinuousLegendProps {
   palette: ContinuousPaletteName;
   isDark: boolean;
   formatValue?: (v: number) => string;
+  logarithmic?: boolean;
 }
 
 const ContinuousLegend = ({
@@ -40,12 +41,14 @@ const ContinuousLegend = ({
   palette,
   isDark,
   formatValue,
+  logarithmic = false,
 }: ContinuousLegendProps) => {
   const fmt = formatValue ?? inferFieldFormatter(statisticFieldName(field));
   return (
     <div className="flex flex-col gap-1">
       <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">
         {statisticFieldLabel(field)}
+        {logarithmic && ' (log scale)'}
       </span>
       <div
         className="h-2 w-36 rounded-sm"
@@ -199,6 +202,7 @@ function EdgeLegendContent({
         palette={palette}
         isDark={isDark}
         formatValue={resolveFormatter(field, statQuantitySpecs)}
+        logarithmic
       />
     );
   }

@@ -1,0 +1,134 @@
+// SPDX-FileCopyrightText: Copyright (c) 2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+// SPDX-License-Identifier: Apache-2.0
+
+import { type ComponentType, type ReactNode } from 'react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { Provider, createStore } from 'jotai';
+import { describe, expect, it, vi } from 'vitest';
+import type { Edge, EdgeProps } from '@xyflow/react';
+import {
+  useDagEdgeColoring,
+  useDagEdgeWidthConfig,
+  useEdgeColorPalette,
+  useSelectedEdgeColorField,
+  useSelectedEdgeWidthField,
+} from '@quent/hooks';
+import { continuousColor } from '@quent/utils';
+import type { DAGData } from '../services/query-plan/types';
+import {
+  computeEdgeColoring,
+  computeEdgeWidthConfig,
+} from '../services/query-plan/dagFieldProcessing';
+import { DAGChart } from './DAGChart';
+
+const mocks = vi.hoisted(() => ({ fitView: vi.fn() }));
+
+// Replace layout and the canvas host; render the actual registered edge components
+// and legend, driven by the real statistic-processing and selection hooks.
+vi.mock('./layout', async importOriginal => ({
+  ...(await importOriginal<typeof import('./layout')>()),
+  calculateLayout: async (nodes: unknown[], edges: unknown[]) => ({ nodes, edges }),
+}));
+vi.mock('@xyflow/react', async importOriginal => {
+  const actual = await importOriginal<typeof import('@xyflow/react')>();
+  return {
+    ...actual,
+    useReactFlow: () => ({ fitView: mocks.fitView }),
+    Background: () => null,
+    MiniMap: () => null,
+    Panel: ({ children }: { children: ReactNode }) => <div>{children}</div>,
+    ReactFlow: ({
+      edges,
+      edgeTypes,
+      children,
+    }: {
+      edges: Edge[];
+      edgeTypes: Record<string, ComponentType<EdgeProps>>;
+      children: ReactNode;
+    }) => (
+      <div>
+        <svg>
+          {edges.map(edge => {
+            const EdgeComponent = edgeTypes[edge.type ?? 'default'];
+            return (
+              <EdgeComponent
+                key={edge.id}
+                id={edge.id}
+                source={edge.source}
+                target={edge.target}
+                sourceX={0}
+                sourceY={0}
+                targetX={0}
+                targetY={100}
+                sourcePosition={actual.Position.Bottom}
+                targetPosition={actual.Position.Top}
+                data={edge.data}
+              />
+            );
+          })}
+        </svg>
+        {children}
+      </div>
+    ),
+  };
+});
+
+const data: DAGData = {
+  nodes: [],
+  edges: [0, 3, 15].map((value, index) => ({
+    id: `edge-${index}`,
+    source: `node-${index}`,
+    target: `node-${index + 1}`,
+    portStats: [{ key: 'bytes', value }],
+  })),
+  queryData: [],
+};
+
+function EdgeConfiguration() {
+  const [, setColorField] = useSelectedEdgeColorField();
+  const [, setWidthField] = useSelectedEdgeWidthField();
+  const [, setPalette] = useEdgeColorPalette();
+  useDagEdgeColoring(data.edges, computeEdgeColoring);
+  useDagEdgeWidthConfig(data.edges, computeEdgeWidthConfig);
+  return (
+    <button
+      onClick={() => {
+        setColorField('bytes');
+        setWidthField('bytes');
+        setPalette('blue');
+      }}
+    >
+      Select bytes
+    </button>
+  );
+}
+
+describe('DAGChart edge scaling', () => {
+  it('renders width and color at the same logarithmic positions and identifies the legend scale', async () => {
+    const { container } = render(
+      <Provider store={createStore()}>
+        <EdgeConfiguration />
+        <DAGChart data={data} isDark={false} />
+      </Provider>
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Select bytes' }));
+    await waitFor(() => {
+      expect(container.querySelector('#edge-1')).toHaveStyle({
+        strokeWidth: '13.5',
+        stroke: continuousColor(0.5, 'blue'),
+      });
+    });
+    expect(container.querySelector('#edge-0')).toHaveStyle({
+      strokeWidth: '2',
+      stroke: continuousColor(0, 'blue'),
+    });
+    expect(container.querySelector('#edge-2')).toHaveStyle({
+      strokeWidth: '25',
+      stroke: continuousColor(1, 'blue'),
+    });
+    expect(screen.getByText('bytes (log scale)')).toBeVisible();
+    expect(screen.getByText('0 B')).toBeVisible();
+    expect(screen.getByText('15.00 B')).toBeVisible();
+  });
+});

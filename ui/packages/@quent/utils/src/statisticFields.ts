@@ -71,12 +71,3 @@ export function flattenStatistics(
     return [{ ...statistic, key: statisticFieldId(path), path }];
   });
 }
-
-/** Widths encode nonnegative volume on a logarithmic scale over the full displayed DAG. */
-export function normalizeEdgeWidth(value: number, min: number, max: number): number {
-  if (max <= min) {
-    return 0.5;
-  }
-  const clamped = Math.min(max, Math.max(min, value));
-  return (Math.log1p(clamped) - Math.log1p(min)) / (Math.log1p(max) - Math.log1p(min));
-}
