@@ -266,7 +266,7 @@ export function QueryPlan({ queryId, engineId }: { queryId: string; engineId: st
       </section>
 
       <ResizablePanelGroup orientation="vertical" className="min-h-0 flex-1">
-        <ResizablePanel id="query-plan-dag" minSize={48}>
+        <ResizablePanel id="query-plan-dag" minSize="25%">
           <div className="flex h-full min-h-0 flex-col overflow-hidden">
             <div className="flex-1 min-h-0">
               <Suspense
