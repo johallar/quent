@@ -3,7 +3,8 @@
 
 import type { SelectedOperatorData } from '@quent/hooks';
 import type { QuantitySpec } from '@quent/utils';
-import { StatisticFields } from './StatisticFields';
+import { DataText } from '../ui/data-text';
+import { StatisticField, StatisticFields } from './StatisticFields';
 
 export const OperatorStatFields = ({
   operator,
@@ -13,12 +14,13 @@ export const OperatorStatFields = ({
   quantitySpecs?: { [key: string]: QuantitySpec | undefined };
 }) => (
   <>
-    <dl className="mb-2 grid grid-cols-[auto_minmax(0,1fr)] gap-2 text-xs">
-      <dt>ID</dt>
-      <dd className="truncate text-muted-foreground" title={operator.nodeId}>
-        {operator.nodeId}
-      </dd>
-    </dl>
+    <div className="mb-2">
+      <StatisticField name="ID">
+        <DataText className="block truncate" title={operator.nodeId}>
+          {operator.nodeId}
+        </DataText>
+      </StatisticField>
+    </div>
     <StatisticFields
       statistics={[...(operator.attributes ?? []), ...operator.statistics]}
       quantitySpecs={quantitySpecs}
