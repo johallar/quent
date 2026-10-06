@@ -36,8 +36,8 @@ export function parseCustomStatistics(rawNode: unknown): Statistic[] {
   return ((rawNode as Operator)?.statistics?.custom_statistics ?? []).map(
     ({ value: { key, value }, quantity }) => ({
       key,
-      value: value == null ? null : unwrapTaggedValue(value),
-      ...(quantity != null ? { quantity } : {}),
+      value: unwrapTaggedValue(value),
+      ...(quantity !== null && quantity !== undefined ? { quantity } : {}),
     })
   );
 }
@@ -45,7 +45,7 @@ export function parseCustomStatistics(rawNode: unknown): Statistic[] {
 export function parsePortStatistics(rawPort: unknown): Statistic[] {
   return ((rawPort as Port)?.statistics?.custom_statistics ?? []).map(({ key, value }) => ({
     key,
-    value: value == null ? null : unwrapTaggedValue(value),
+    value: unwrapTaggedValue(value),
   }));
 }
 

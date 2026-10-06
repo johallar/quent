@@ -328,9 +328,16 @@ function isAttribute(value: unknown): value is { key: string; value: unknown } {
   );
 }
 
+function stringifyFallback(value: unknown): string {
+  return (
+    JSON.stringify(value, (_key, item) => (typeof item === 'bigint' ? item.toString() : item)) ??
+    String(value)
+  );
+}
+
 function unwrapStruct(fields: unknown): StatValue {
   if (!Array.isArray(fields) || !fields.every(isAttribute)) {
-    return JSON.stringify(fields);
+    return stringifyFallback(fields);
   }
   return {
     kind: 'struct',
@@ -359,7 +366,7 @@ function unwrapList(val: unknown): StatValue {
 
 /** Preserve struct/list identity and producer order while unwrapping Rust enum tags. */
 export function unwrapTaggedValue(val: unknown): StatValue {
-  if (val == null) {
+  if (val === null || val === undefined) {
     return null;
   }
   if (
@@ -393,7 +400,7 @@ export function unwrapTaggedValue(val: unknown): StatValue {
     if (Object.keys(obj).length === 1) {
       return unwrapTaggedValue(Object.values(obj)[0]);
     }
-    return JSON.stringify(val);
+    return stringifyFallback(val);
   }
   return String(val);
 }
@@ -409,7 +416,7 @@ export function isBytesRateStat(name: string): boolean {
  */
 export function formatAttributeValue(key: string, value: unknown): string {
   const v = unwrapTaggedValue(value);
-  if (v == null) {
+  if (v === null) {
     return '—';
   }
   if (isNumericValue(v)) {
@@ -424,7 +431,7 @@ export function formatAttributeValue(key: string, value: unknown): string {
   if (isStatStruct(v)) {
     return v.fields
       .map(field => `${field.key}: ${formatAttributeValue(field.key, field.value)}`)
-      .join('\n');
+      .join(', ');
   }
   if (Array.isArray(v)) {
     return v.map(item => formatAttributeValue(key, item)).join(', ');

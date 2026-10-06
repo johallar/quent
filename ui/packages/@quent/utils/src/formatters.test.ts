@@ -635,6 +635,7 @@ describe('unwrapTaggedValue', () => {
     expect(unwrapTaggedValue(42)).toBe(42);
     expect(unwrapTaggedValue('task-0')).toBe('task-0');
     expect(unwrapTaggedValue(null)).toBe(null);
+    expect(unwrapTaggedValue(undefined)).toBe(null);
   });
 
   it('unwraps lists and struct entries', () => {
@@ -643,6 +644,17 @@ describe('unwrapTaggedValue', () => {
       kind: 'struct',
       fields: [{ key: 'tier', value: 'GPU' }],
     });
+  });
+
+  it('stringifies malformed structs containing bigints without losing precision', () => {
+    expect(unwrapTaggedValue({ Struct: [9007199254740993n] })).toBe('["9007199254740993"]');
+    expect(unwrapTaggedValue({ Struct: [{ invalid: [1n] }] })).toBe('[{"invalid":["1"]}]');
+  });
+
+  it('stringifies unknown objects containing nested bigints', () => {
+    expect(unwrapTaggedValue({ foo: 9007199254740993n, bar: [2n] })).toBe(
+      '{"foo":"9007199254740993","bar":["2"]}'
+    );
   });
 
   it('stringifies objects that are not tagged values', () => {
@@ -665,6 +677,26 @@ describe('isNumericValue', () => {
 });
 
 describe('formatAttributeValue', () => {
+  it('separates nested struct fields in inline displays while preserving repeated names', () => {
+    expect(
+      formatAttributeValue('device', {
+        Struct: [
+          { key: 'name', value: { String: 'GPU' } },
+          { key: 'count', value: { U64: 3 } },
+          { key: 'count', value: { U64: 4 } },
+          {
+            key: 'details',
+            value: { Struct: [{ key: 'input_bytes', value: { U64: 2048 } }] },
+          },
+        ],
+      })
+    ).toBe('name: GPU, count: 3, count: 4, details: input_bytes: 2.00 KiB');
+  });
+
+  it('renders malformed structs containing bigints', () => {
+    expect(formatAttributeValue('device', { Struct: [1n] })).toBe('["1"]');
+  });
+
   it('byte-formats bytes-like keys', () => {
     expect(formatAttributeValue('input_bytes', { U64: 1073741824 })).toBe('1.00 GiB');
     expect(formatAttributeValue('requested_bytes', 2048)).toBe('2.00 KiB');
@@ -677,6 +709,7 @@ describe('formatAttributeValue', () => {
 
   it('renders missing values as a dash', () => {
     expect(formatAttributeValue('anything', null)).toBe('—');
+    expect(formatAttributeValue('anything', undefined)).toBe('—');
   });
 
   it('handles bigint entity-attribute values (large U64/I64)', () => {

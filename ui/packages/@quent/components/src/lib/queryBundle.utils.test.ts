@@ -98,6 +98,26 @@ describe('parseCustomStatistics', () => {
     expect(result).toEqual([{ key: 'rows', value: 42 }]);
   });
 
+  it('omits null and absent quantities while preserving empty quantity keys and falsy values', () => {
+    expect(
+      parseCustomStatistics({
+        statistics: {
+          custom_statistics: [
+            { value: { key: 'zero', value: 0 }, quantity: null },
+            { value: { key: 'false', value: false } },
+            { value: { key: 'empty', value: '' }, quantity: '' },
+            { value: { key: 'missing', value: undefined } },
+          ],
+        },
+      })
+    ).toEqual([
+      { key: 'zero', value: 0 },
+      { key: 'false', value: false },
+      { key: 'empty', value: '', quantity: '' },
+      { key: 'missing', value: null },
+    ]);
+  });
+
   it('preserves a quantity key', () => {
     const op = {
       statistics: {
