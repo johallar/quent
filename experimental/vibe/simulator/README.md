@@ -34,6 +34,22 @@ Generate a dataset from another shell:
 cargo run -p quent-simulator -- --exporter collector
 ```
 
+Optionally, after the analyzer and test data are available, start the MCP bridge
+for agent workflows from a third shell:
+
+```bash
+cargo run -p quent-mcp -- \
+  --transport http \
+  --api-base http://localhost:8080/api \
+  --listen 127.0.0.1:8081
+```
+
+The analysis API is available at `http://localhost:8080/api` and the
+optional streamable-HTTP MCP endpoint is available at
+`http://localhost:8081/mcp`.
+Run these commands inside `pixi shell`, or prefix each `cargo` command with
+`pixi run`.
+
 The simulator uses the same workspace package names and commands as the
 upstream simulator. For the frontend development and bundled-UI workflows, see
 [`DEVELOPMENT.md`](../../../DEVELOPMENT.md).
@@ -45,8 +61,8 @@ docker compose -f experimental/vibe/simulator/docker-compose.yml up --build
 ```
 
 This starts the analyzer API on `http://localhost:8080`, generates one
-simulated query group, and starts the experimental streamable-HTTP MCP bridge
-at `http://localhost:8081/mcp`.
+simulated query group, and starts the optional, agent-facing experimental
+streamable-HTTP MCP bridge at `http://localhost:8081/mcp`.
 
 ## Verify
 

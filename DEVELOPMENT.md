@@ -50,7 +50,7 @@ docker compose up --build
 ```
 
 The collector listens on port `7836`, and the analysis API listens on port
-`8080`. The streamable-HTTP MCP endpoint is available at
+`8080`. The optional, agent-facing streamable-HTTP MCP endpoint is available at
 `http://localhost:8081/mcp`. This development image intentionally omits the
 embedded UI so the frontend can run separately with Vite and hot reload.
 
@@ -70,6 +70,9 @@ Rust types while the development server remains open.
 
 ## Run without Docker
 
+Run these commands from separate shells after entering `pixi shell`. If you are
+not using an activated Pixi shell, prefix each `cargo` command with `pixi run`.
+
 Start the simulator server with CORS enabled for Vite:
 
 ```bash
@@ -81,6 +84,19 @@ Generate a test dataset from another shell:
 ```bash
 cargo run -p quent-simulator -- --exporter collector
 ```
+
+Optionally, after the analyzer and test data are available, start the MCP bridge
+for agent workflows from a third shell:
+
+```bash
+cargo run -p quent-mcp -- \
+  --transport http \
+  --api-base http://localhost:8080/api \
+  --listen 127.0.0.1:8081
+```
+
+The optional streamable-HTTP MCP endpoint is available at
+<http://localhost:8081/mcp>.
 
 ## Build with the bundled UI
 

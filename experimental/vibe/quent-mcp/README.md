@@ -7,6 +7,9 @@ Experimental Model Context Protocol bridge for a running Quent REST API. It is
 a standalone proxy: enabling it does not add routes or dependencies to the
 production query-engine server.
 
+The bridge is optional. Start the analyzer and generate any test data first,
+then run `quent-mcp` only when an agent needs MCP access.
+
 The tools mirror REST operations and return raw JSON facts:
 
 - `list_engines`
@@ -28,7 +31,7 @@ Deterministic summaries, rankings, joins, and comparisons belong in
 Start Quent's analyzer server, then configure an MCP client to run:
 
 ```sh
-cargo run -p quent-mcp -- \
+pixi run cargo run -p quent-mcp -- \
   --transport stdio \
   --api-base http://localhost:8080/api
 ```
@@ -38,7 +41,7 @@ Logs go to stderr because stdout carries the MCP protocol.
 ## Streamable HTTP
 
 ```sh
-cargo run -p quent-mcp -- \
+pixi run cargo run -p quent-mcp -- \
   --transport http \
   --api-base http://localhost:8080/api \
   --listen 127.0.0.1:8081
@@ -60,11 +63,19 @@ prints both URLs:
 
 ```text
 ready: MODEL — 1 context(s)  http://127.0.0.1:49152/
-mcp: MODEL — 1 context(s)  http://127.0.0.1:49153/mcp
+mcp: MODEL — 1 context(s)  (host)  http://127.0.0.1:49153/mcp
 ```
 
 The endpoint uses the same bind host as its viewer and stops when the viewer
-exits or `quent-open` receives Ctrl-C.
+exits or `quent-open` receives Ctrl-C. `quent-open` prefers the MCP package from
+the artifact's pinned Quent revision so its tools match that revision's REST
+contract. When the pinned revision predates MCP, cannot build its MCP bridge, or
+cannot start it, `quent-open` falls back to the host checkout's MCP
+implementation. The source is shown as `(pinned-revision)` or `(host)`.
+
+The host fallback is enabled by the default `quent-open` `mcp` feature. If the
+pinned revision has no MCP and the host binary was built without that feature,
+the viewer still starts and prints a warning instead of an `mcp:` URL.
 
 ## Validation
 

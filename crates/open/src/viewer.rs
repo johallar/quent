@@ -14,13 +14,18 @@ use std::time::Duration;
 
 use backon::{ConstantBuilder, Retryable};
 use tokio::io::AsyncReadExt;
-use tokio::process::Command;
+use tokio::process::{Child, Command};
+#[cfg(feature = "mcp")]
+use tokio::task::JoinHandle;
 use tokio::task::JoinSet;
 
 use crate::compatibility::WrapperCompatibility;
 use crate::error::{OpenError, Result};
 use crate::spec::ViewerSpec;
-use crate::wrapper::{self, ADDR_ENV, ROOT_ENV, WRAPPER_PACKAGE};
+use crate::wrapper::{
+    self, ADDR_ENV, REVISION_MCP_ADDR_ENV, REVISION_MCP_API_BASE_ENV, REVISION_MCP_PACKAGE,
+    ROOT_ENV, WRAPPER_PACKAGE,
+};
 
 /// Viewer to build: representative [`ViewerSpec`] plus all contexts sharing it.
 pub struct ViewerGroup {
@@ -31,6 +36,7 @@ pub struct ViewerGroup {
 /// A built viewer ready to serve: its binary, cache dir, and the contexts it covers.
 struct BuiltViewer {
     bin: PathBuf,
+    revision_mcp_bin: Option<PathBuf>,
     crate_dir: PathBuf,
     contexts: Vec<PathBuf>,
     label: String,
@@ -100,25 +106,61 @@ async fn build_one(group: ViewerGroup) -> Result<BuiltViewer> {
         compatibility.has_nvtx_routes,
         compatibility.context_indexing,
     )?;
-    let bin = cargo_build(&crate_dir).await?;
+    let bin = cargo_build(&crate_dir, WRAPPER_PACKAGE).await?;
+    let revision_mcp_bin = if compatibility.has_mcp_server {
+        build_revision_mcp(&spec, &crate_dir).await
+    } else {
+        None
+    };
     Ok(BuiltViewer {
         bin,
+        revision_mcp_bin,
         crate_dir,
         contexts,
         label,
     })
 }
 
+async fn build_revision_mcp(spec: &ViewerSpec, crate_dir: &Path) -> Option<PathBuf> {
+    let revision_mcp_dir = crate_dir.join("revision-mcp");
+    if let Err(error) = wrapper::generate_revision_mcp(spec, &revision_mcp_dir) {
+        eprintln!(
+            "warning: could not generate the pinned revision's MCP bridge ({error}); \
+             trying the host MCP implementation"
+        );
+        return None;
+    }
+    match cargo_build(&revision_mcp_dir, REVISION_MCP_PACKAGE).await {
+        Ok(bin) => Some(bin),
+        Err(error) => {
+            eprintln!(
+                "warning: could not build the pinned revision's MCP bridge ({error}); \
+                 trying the host MCP implementation"
+            );
+            None
+        }
+    }
+}
+
 /// Serve one built viewer over all its contexts.
 async fn serve_one(viewer: BuiltViewer, open_browser: bool, host: IpAddr) -> Result<()> {
     let BuiltViewer {
         bin,
+        revision_mcp_bin,
         crate_dir,
         contexts,
         label,
     } = viewer;
     let output_root = stage_output_root(&crate_dir, &contexts)?;
-    let result = serve(&output_root, &bin, &label, open_browser, host).await;
+    let result = serve(
+        &output_root,
+        &bin,
+        revision_mcp_bin.as_deref(),
+        &label,
+        open_browser,
+        host,
+    )
+    .await;
     // Best-effort cleanup of this run's staged root; keep the cached build.
     let _ = std::fs::remove_dir_all(&output_root);
     result
@@ -145,7 +187,7 @@ fn build_dir(spec: &ViewerSpec) -> Result<PathBuf> {
 /// The first build fetches the pinned git sources and compiles the embedded UI,
 /// which invokes `pnpm`/`node`; both must be on `PATH`. Subsequent builds reuse
 /// the cached `crate_dir`.
-async fn cargo_build(crate_dir: &Path) -> Result<PathBuf> {
+async fn cargo_build(crate_dir: &Path, target_name: &str) -> Result<PathBuf> {
     let log_path = crate_dir.join("build.log");
     let log = std::fs::File::create(&log_path)?;
     let mut child = Command::new("cargo")
@@ -187,22 +229,24 @@ async fn cargo_build(crate_dir: &Path) -> Result<PathBuf> {
         let mut detail = rendered_diagnostics(&json);
         detail.push_str(&std::fs::read_to_string(&log_path).unwrap_or_default());
         return Err(OpenError::Build {
+            what: format!("`{target_name}`"),
             status: format!("{status}\n{detail}"),
         });
     }
-    wrapper_executable(&json).ok_or_else(|| OpenError::Build {
-        status: format!("cargo build reported no `{WRAPPER_PACKAGE}` executable"),
+    built_executable(&json, target_name).ok_or_else(|| OpenError::Build {
+        what: format!("`{target_name}`"),
+        status: format!("cargo build reported no `{target_name}` executable"),
     })
 }
 
-/// Find the wrapper binary's path in cargo's `--message-format=json`
+/// Find a binary's path in cargo's `--message-format=json`
 /// `compiler-artifact` messages (avoids assuming a target-dir layout).
-fn wrapper_executable(stdout: &[u8]) -> Option<PathBuf> {
+fn built_executable(stdout: &[u8], target_name: &str) -> Option<PathBuf> {
     std::str::from_utf8(stdout).ok()?.lines().find_map(|line| {
         let msg: serde_json::Value = serde_json::from_str(line).ok()?;
-        let is_wrapper =
-            msg["reason"] == "compiler-artifact" && msg["target"]["name"] == WRAPPER_PACKAGE;
-        is_wrapper
+        let is_target =
+            msg["reason"] == "compiler-artifact" && msg["target"]["name"] == target_name;
+        is_target
             .then(|| msg["executable"].as_str().map(PathBuf::from))
             .flatten()
     })
@@ -280,6 +324,7 @@ fn symlink_dir(_src: &Path, _link: &Path) -> Result<()> {
 async fn serve(
     output_root: &Path,
     bin: &Path,
+    revision_mcp_bin: Option<&Path>,
     label: &str,
     open_browser: bool,
     host: IpAddr,
@@ -289,16 +334,7 @@ async fn serve(
     // matching loopback instead (the server may be bound v6-only on `::`).
     let reachable = reachable_addr(addr);
     let url = format!("http://{reachable}/");
-
-    // Hold the listener while the viewer starts so another process cannot take
-    // the companion MCP port. Dropping this future on Ctrl-C or viewer exit
-    // closes the listener without leaving a sidecar process behind.
-    let mcp_listener = tokio::net::TcpListener::bind((host, 0)).await?;
-    let mcp_reachable = reachable_addr(mcp_listener.local_addr()?);
-    let mcp_url = format!("http://{mcp_reachable}/mcp");
     let api_base = format!("{url}api");
-    let mcp = quent_mcp::serve_http(&api_base, mcp_listener);
-    tokio::pin!(mcp);
 
     let mut child = Command::new(bin)
         .env(ROOT_ENV, output_root)
@@ -315,13 +351,14 @@ async fn serve(
             source,
         })?;
 
-    let ready = tokio::select! {
-        ready = wait_until_ready(reachable) => ready,
-        result = &mut mcp => return Err(mcp_exit(result)),
-    };
+    let ready = wait_until_ready(reachable).await;
+    let mut mcp = None;
     if ready {
         println!("ready: {label}  {url}");
-        println!("mcp: {label}  {mcp_url}");
+        mcp = start_mcp(revision_mcp_bin, &api_base, host).await;
+        if let Some(server) = &mcp {
+            announce_mcp(label, server);
+        }
         if open_browser && let Err(e) = open_browser_without_token(&url) {
             eprintln!("could not open a browser ({e}); open {url} manually");
         }
@@ -329,9 +366,27 @@ async fn serve(
         eprintln!("warning: {label} did not start listening at {url} within the timeout");
     }
 
-    let status = tokio::select! {
-        status = child.wait() => status?,
-        result = &mut mcp => return Err(mcp_exit(result)),
+    let status = loop {
+        let Some(server) = mcp.as_mut() else {
+            break child.wait().await?;
+        };
+        tokio::select! {
+            status = child.wait() => break status?,
+            reason = server.wait() => {
+                let was_revision = server.is_revision();
+                eprintln!(
+                    "warning: {} MCP server for {label} stopped ({reason})",
+                    server.source()
+                );
+                mcp = None;
+                if was_revision {
+                    mcp = start_host_mcp(&api_base, host).await;
+                    if let Some(server) = &mcp {
+                        announce_mcp(label, server);
+                    }
+                }
+            }
+        }
     };
     if !status.success() {
         return Err(OpenError::ViewerExited {
@@ -341,22 +396,161 @@ async fn serve(
     Ok(())
 }
 
+enum RunningMcp {
+    Revision {
+        child: Child,
+        url: String,
+    },
+    #[cfg(feature = "mcp")]
+    Host {
+        task: JoinHandle<std::result::Result<(), String>>,
+        url: String,
+    },
+}
+
+impl RunningMcp {
+    fn url(&self) -> &str {
+        match self {
+            Self::Revision { url, .. } => url,
+            #[cfg(feature = "mcp")]
+            Self::Host { url, .. } => url,
+        }
+    }
+
+    fn source(&self) -> &'static str {
+        match self {
+            Self::Revision { .. } => "pinned-revision",
+            #[cfg(feature = "mcp")]
+            Self::Host { .. } => "host",
+        }
+    }
+
+    fn is_revision(&self) -> bool {
+        matches!(self, Self::Revision { .. })
+    }
+
+    async fn wait(&mut self) -> String {
+        match self {
+            Self::Revision { child, .. } => match child.wait().await {
+                Ok(status) => status.to_string(),
+                Err(error) => error.to_string(),
+            },
+            #[cfg(feature = "mcp")]
+            Self::Host { task, .. } => match task.await {
+                Ok(Ok(())) => "server stopped".to_owned(),
+                Ok(Err(error)) => error,
+                Err(error) => error.to_string(),
+            },
+        }
+    }
+}
+
+impl Drop for RunningMcp {
+    fn drop(&mut self) {
+        #[cfg(feature = "mcp")]
+        if let Self::Host { task, .. } = self {
+            task.abort();
+        }
+    }
+}
+
+fn announce_mcp(label: &str, server: &RunningMcp) {
+    println!("mcp: {label}  ({})  {}", server.source(), server.url());
+}
+
+async fn start_mcp(
+    revision_mcp_bin: Option<&Path>,
+    api_base: &str,
+    host: IpAddr,
+) -> Option<RunningMcp> {
+    if let Some(bin) = revision_mcp_bin {
+        match start_revision_mcp(bin, api_base, host).await {
+            Ok(server) => return Some(server),
+            Err(error) => {
+                eprintln!(
+                    "warning: could not start the pinned revision's MCP server ({error}); \
+                     trying the host MCP implementation"
+                );
+            }
+        }
+    }
+    start_host_mcp(api_base, host).await
+}
+
+async fn start_revision_mcp(
+    bin: &Path,
+    api_base: &str,
+    host: IpAddr,
+) -> std::result::Result<RunningMcp, String> {
+    let addr = free_port(host).map_err(|error| error.to_string())?;
+    let reachable = reachable_addr(addr);
+    let url = format!("http://{reachable}/mcp");
+    let mut child = Command::new(bin)
+        .env(REVISION_MCP_API_BASE_ENV, api_base)
+        .env(REVISION_MCP_ADDR_ENV, addr.to_string())
+        .env_remove("QUENT_OPEN_TOKEN")
+        .kill_on_drop(true)
+        .spawn()
+        .map_err(|error| error.to_string())?;
+
+    tokio::select! {
+        ready = wait_until_ready(reachable) => {
+            if ready {
+                Ok(RunningMcp::Revision { child, url })
+            } else {
+                Err(format!("did not start listening at {url} within the timeout"))
+            }
+        }
+        status = child.wait() => {
+            match status {
+                Ok(status) => Err(format!("exited before listening ({status})")),
+                Err(error) => Err(error.to_string()),
+            }
+        }
+    }
+}
+
+#[cfg(feature = "mcp")]
+async fn start_host_mcp(api_base: &str, host: IpAddr) -> Option<RunningMcp> {
+    let listener = match tokio::net::TcpListener::bind((host, 0)).await {
+        Ok(listener) => listener,
+        Err(error) => {
+            eprintln!("warning: could not bind the host MCP server ({error})");
+            return None;
+        }
+    };
+    let reachable = match listener.local_addr() {
+        Ok(addr) => reachable_addr(addr),
+        Err(error) => {
+            eprintln!("warning: could not inspect the host MCP listener ({error})");
+            return None;
+        }
+    };
+    let url = format!("http://{reachable}/mcp");
+    let api_base = api_base.to_owned();
+    let task = tokio::spawn(async move {
+        quent_mcp::serve_http(&api_base, listener)
+            .await
+            .map_err(|error| error.to_string())
+    });
+    Some(RunningMcp::Host { task, url })
+}
+
+#[cfg(not(feature = "mcp"))]
+async fn start_host_mcp(_api_base: &str, _host: IpAddr) -> Option<RunningMcp> {
+    eprintln!(
+        "warning: no usable MCP server is available from the pinned revision, \
+         and the host quent-open was built without the `mcp` feature"
+    );
+    None
+}
+
 fn reachable_addr(addr: SocketAddr) -> SocketAddr {
     match addr.ip() {
         IpAddr::V4(ip) if ip.is_unspecified() => (Ipv4Addr::LOCALHOST, addr.port()).into(),
         IpAddr::V6(ip) if ip.is_unspecified() => (Ipv6Addr::LOCALHOST, addr.port()).into(),
         _ => addr,
     }
-}
-
-fn mcp_exit(
-    result: std::result::Result<(), Box<dyn std::error::Error + Send + Sync>>,
-) -> OpenError {
-    let reason = match result {
-        Ok(()) => "server stopped".to_owned(),
-        Err(error) => error.to_string(),
-    };
-    OpenError::McpExited { reason }
 }
 
 /// Open `url` in the browser like [`open::that`], but scrub the db-mode API token
@@ -416,15 +610,44 @@ mod tests {
     }
 
     #[test]
-    fn unexpected_mcp_completion_is_an_open_error() {
-        assert!(matches!(
-            mcp_exit(Ok(())),
-            OpenError::McpExited { reason } if reason == "server stopped"
-        ));
-        assert!(matches!(
-            mcp_exit(Err(Box::new(std::io::Error::other("listener failed")))),
-            OpenError::McpExited { reason } if reason == "listener failed"
-        ));
+    fn selects_the_requested_generated_binary() {
+        let messages = concat!(
+            "{\"reason\":\"compiler-artifact\",\"target\":{\"name\":\"quent-open-viewer\"},",
+            "\"executable\":\"/tmp/viewer\"}\n",
+            "{\"reason\":\"compiler-artifact\",\"target\":{\"name\":\"quent-open-revision-mcp\"},",
+            "\"executable\":\"/tmp/mcp\"}\n"
+        );
+        assert_eq!(
+            built_executable(messages.as_bytes(), WRAPPER_PACKAGE),
+            Some(PathBuf::from("/tmp/viewer"))
+        );
+        assert_eq!(
+            built_executable(messages.as_bytes(), REVISION_MCP_PACKAGE),
+            Some(PathBuf::from("/tmp/mcp"))
+        );
+    }
+
+    #[cfg(feature = "mcp")]
+    #[tokio::test]
+    async fn missing_revision_mcp_falls_back_to_the_host_server() {
+        let server = start_mcp(
+            Some(Path::new("/path/that/does/not/exist/quent-mcp")),
+            "http://127.0.0.1:9/api",
+            Ipv4Addr::LOCALHOST.into(),
+        )
+        .await
+        .expect("the default host MCP feature should provide a fallback");
+        assert_eq!(server.source(), "host");
+        let addr: SocketAddr = server
+            .url()
+            .strip_prefix("http://")
+            .and_then(|url| url.strip_suffix("/mcp"))
+            .unwrap()
+            .parse()
+            .unwrap();
+        tokio::net::TcpStream::connect(addr)
+            .await
+            .expect("the host fallback should already be listening");
     }
 
     /// Compatibility gate, run explicitly in CI (the `open-compat` job in
