@@ -5,6 +5,19 @@
 export { QuentProvider } from './QuentProvider';
 export type { QuentProviderProps } from './QuentProvider';
 
+// Crossfilter hooks
+export {
+  useCrossfilter,
+  useCrossfilterActions,
+  useCrossfilterItemIds,
+} from './crossfilter/useCrossfilter';
+export type {
+  CrossfilterAction,
+  CrossfilterDimensionState,
+  CrossfilterSelection,
+  CrossfilterSelectionInput,
+} from '@quent/utils';
+
 // Query-scoped deterministic color registries
 export {
   COLOR_REGISTRY_KEYS,

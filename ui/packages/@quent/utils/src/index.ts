@@ -79,6 +79,22 @@ export const MAX_TIMELINE_BINS = 200;
 export { EntityTypeKey, unpackEntityRef } from './entityTypes';
 export type { EntityTypeValue, SingleEntity, EntityRefKey, EntityRefParts } from './entityTypes';
 
+// Crossfilter state
+export {
+  addCrossfilterSelection,
+  createEmptyCrossfilterDimension,
+  getCrossfilterItemIds,
+  reduceCrossfilter,
+  removeCrossfilterSelection,
+  replaceCrossfilterSelections,
+} from './crossfilter';
+export type {
+  CrossfilterAction,
+  CrossfilterDimensionState,
+  CrossfilterSelection,
+  CrossfilterSelectionInput,
+} from './crossfilter';
+
 // DAG coloring types (shared between @quent/hooks and @quent/components)
 export { NODE_LABEL_FIELD, DAG_LAYOUT_DIRECTION } from './dagTypes';
 export type {

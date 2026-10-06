@@ -10,14 +10,18 @@ import type {
 import {
   addOperatorSelection as addSelection,
   createEmptyOperatorSelectionState,
+  fromCrossfilterState,
   getSelectedOperatorIds,
+  OPERATOR_CROSSFILTER_DIMENSION,
   removeOperatorSelection as removeSelection,
+  toCrossfilterState,
 } from '../dag/operatorSelection';
 import {
   findSelectedOperatorData,
   removeSelectedOperatorData,
   upsertSelectedOperatorData,
 } from '../dag/selectedOperatorData';
+import { crossfilterDimensionAtomFamily, crossfilterItemIdsAtomFamily } from './crossfilter';
 import { selectedOperatorsDataAtom } from './dagControls';
 
 export type OperatorSelectionAction =
@@ -47,8 +51,10 @@ export type OperatorSelectionAction =
   | { type: 'clear' };
 
 /** Canonical operator filter selection state */
-export const operatorSelectionAtom = atom<OperatorSelectionState>(
-  createEmptyOperatorSelectionState()
+export const operatorSelectionAtom = atom(
+  get => fromCrossfilterState(get(crossfilterDimensionAtomFamily(OPERATOR_CROSSFILTER_DIMENSION))),
+  (_get, set, state: OperatorSelectionState) =>
+    set(crossfilterDimensionAtomFamily(OPERATOR_CROSSFILTER_DIMENSION), toCrossfilterState(state))
 );
 
 /** Updates operator filters and their selected details as one transaction. */
@@ -126,9 +132,7 @@ export const operatorSelectionActionAtom = atom(
 );
 
 /** The operator IDs represented by the current selections */
-export const selectedOperatorIdsAtom = atom(get =>
-  getSelectedOperatorIds(get(operatorSelectionAtom))
-);
+export const selectedOperatorIdsAtom = crossfilterItemIdsAtomFamily(OPERATOR_CROSSFILTER_DIMENSION);
 
 /** The currently selected plan ID in the query plan tree view */
 export const selectedPlanIdAtom = atom<string>('');

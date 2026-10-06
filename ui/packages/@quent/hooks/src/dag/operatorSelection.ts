@@ -1,27 +1,51 @@
 // SPDX-FileCopyrightText: Copyright (c) 2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-import type { OperatorSelectionState } from '@quent/utils';
+import {
+  addCrossfilterSelection,
+  createEmptyCrossfilterDimension,
+  getCrossfilterItemIds,
+  removeCrossfilterSelection,
+  type CrossfilterDimensionState,
+  type OperatorSelectionState,
+} from '@quent/utils';
+
+export const OPERATOR_CROSSFILTER_DIMENSION = 'operators';
 
 export function createEmptyOperatorSelectionState(): OperatorSelectionState {
-  return {
-    selections: new Map(),
-  };
+  return fromCrossfilterState(createEmptyCrossfilterDimension());
 }
 
 export function getSelectedOperatorIds(state: OperatorSelectionState): Set<string> {
-  return new Set(
-    Array.from(state.selections.values()).flatMap(selection => [...selection.operatorIds])
-  );
+  return getCrossfilterItemIds(toCrossfilterState(state));
 }
 
-function containsAll(container: ReadonlySet<string>, contained: ReadonlySet<string>): boolean {
-  for (const id of contained) {
-    if (!container.has(id)) {
-      return false;
-    }
-  }
-  return true;
+export function toCrossfilterState(state: OperatorSelectionState): CrossfilterDimensionState {
+  return {
+    selections: new Map(
+      Array.from(state.selections, ([selectionId, selection]) => [
+        selectionId,
+        {
+          label: selection.label,
+          itemIds: selection.operatorIds,
+        },
+      ])
+    ),
+  };
+}
+
+export function fromCrossfilterState(state: CrossfilterDimensionState): OperatorSelectionState {
+  return {
+    selections: new Map(
+      Array.from(state.selections, ([selectionId, selection]) => [
+        selectionId,
+        {
+          label: selection.label,
+          operatorIds: selection.itemIds,
+        },
+      ])
+    ),
+  };
 }
 
 export function addOperatorSelection(
@@ -30,32 +54,24 @@ export function addOperatorSelection(
   label: string,
   operatorIds: Iterable<string>
 ): OperatorSelectionState {
+  const crossfilterState = toCrossfilterState(state);
   const selectedIds = new Set(operatorIds);
   selectedIds.add(selectionId);
-
-  for (const [existingId, existing] of state.selections) {
-    if (existingId !== selectionId && containsAll(existing.operatorIds, selectedIds)) {
-      return state;
-    }
+  const next = addCrossfilterSelection(crossfilterState, selectionId, label, selectedIds);
+  if (next === crossfilterState) {
+    return state;
   }
-
-  const selections = new Map(state.selections);
-  for (const [existingId, existing] of selections) {
-    if (existingId !== selectionId && containsAll(selectedIds, existing.operatorIds)) {
-      selections.delete(existingId);
-    }
-  }
-  selections.set(selectionId, { label, operatorIds: selectedIds });
-
-  return { selections };
+  return fromCrossfilterState(next);
 }
 
 export function removeOperatorSelection(
   state: OperatorSelectionState,
   selectionId: string
 ): OperatorSelectionState {
-  const selections = new Map(state.selections);
-  selections.delete(selectionId);
-
-  return { selections };
+  const crossfilterState = toCrossfilterState(state);
+  const next = removeCrossfilterSelection(crossfilterState, selectionId);
+  if (next === crossfilterState) {
+    return state;
+  }
+  return fromCrossfilterState(next);
 }

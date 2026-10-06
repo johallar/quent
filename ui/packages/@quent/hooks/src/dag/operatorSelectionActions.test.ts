@@ -4,7 +4,9 @@
 import { createStore } from 'jotai';
 import { describe, expect, it } from 'vitest';
 import { operatorSelectionActionAtom, operatorSelectionAtom } from '../atoms/dag';
+import { crossfilterDimensionAtomFamily } from '../atoms/crossfilter';
 import { selectedOperatorsDataAtom } from '../atoms/dagControls';
+import { OPERATOR_CROSSFILTER_DIMENSION } from './operatorSelection';
 
 const scanData = {
   nodeId: 'scan',
@@ -39,6 +41,14 @@ describe('operator selection actions', () => {
 
     expect(selectedIds).toEqual(new Set(['logical-scan', 'physical-scan']));
     expect(store.get(operatorSelectionAtom).selections.has('logical-scan')).toBe(true);
+    expect(
+      store
+        .get(crossfilterDimensionAtomFamily(OPERATOR_CROSSFILTER_DIMENSION))
+        .selections.get('logical-scan')
+    ).toEqual({
+      label: 'Scan',
+      itemIds: new Set(['logical-scan', 'physical-scan']),
+    });
     expect(store.get(selectedOperatorsDataAtom)).toEqual(new Map([['logical-scan', scanData]]));
 
     store.set(operatorSelectionActionAtom, { type: 'remove', selectionId: 'logical-scan' });
