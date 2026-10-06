@@ -66,6 +66,10 @@ pub enum OpenError {
     #[error("the viewer exited unexpectedly (status {status})")]
     ViewerExited { status: String },
 
+    /// The companion MCP server stopped while its viewer was still running.
+    #[error("the MCP server exited unexpectedly ({reason})")]
+    McpExited { reason: String },
+
     /// No context directories with `model.qmi` were found under the paths.
     #[error("no Quent context directories (with a model.qmi) found under the given paths")]
     NoContexts,

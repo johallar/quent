@@ -53,6 +53,19 @@ Set `QUENT_MCP_CORS_ORIGIN` only when a browser MCP client needs access. The
 bridge does not add authentication; do not expose it or the Quent API to
 untrusted networks.
 
+## Quent Open
+
+`quent-open` starts one companion MCP endpoint for each generated viewer and
+prints both URLs:
+
+```text
+ready: MODEL — 1 context(s)  http://127.0.0.1:49152/
+mcp: MODEL — 1 context(s)  http://127.0.0.1:49153/mcp
+```
+
+The endpoint uses the same bind host as its viewer and stops when the viewer
+exits or `quent-open` receives Ctrl-C.
+
 ## Validation
 
 ```sh

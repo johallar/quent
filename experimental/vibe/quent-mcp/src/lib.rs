@@ -9,6 +9,7 @@
 
 use std::{fmt::Display, sync::Arc};
 
+use axum::Router;
 use reqwest::{Client, RequestBuilder};
 use rmcp::{
     ErrorData, ServerHandler, ServiceExt,
@@ -339,6 +340,20 @@ pub fn http_service(
         Arc::new(LocalSessionManager::default()),
         http_config(),
     ))
+}
+
+/// Serve streamable HTTP at `/mcp` on an already-bound listener.
+///
+/// Accepting the listener lets callers reserve a port before announcing it and
+/// keeps the listener lifetime tied to this future.
+pub async fn serve_http(
+    api_base: &str,
+    listener: tokio::net::TcpListener,
+) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    let service = http_service(api_base).map_err(std::io::Error::other)?;
+    let app = Router::new().nest_service("/mcp", service);
+    axum::serve(listener, app).await?;
+    Ok(())
 }
 
 /// Serve MCP over stdin/stdout until the client disconnects.

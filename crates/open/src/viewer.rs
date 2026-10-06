@@ -287,12 +287,18 @@ async fn serve(
     let addr = free_port(host)?;
     // An unspecified host (`0.0.0.0`/`::`) is not browseable; show and probe the
     // matching loopback instead (the server may be bound v6-only on `::`).
-    let reachable = match addr.ip() {
-        IpAddr::V4(ip) if ip.is_unspecified() => (Ipv4Addr::LOCALHOST, addr.port()).into(),
-        IpAddr::V6(ip) if ip.is_unspecified() => (Ipv6Addr::LOCALHOST, addr.port()).into(),
-        _ => addr,
-    };
+    let reachable = reachable_addr(addr);
     let url = format!("http://{reachable}/");
+
+    // Hold the listener while the viewer starts so another process cannot take
+    // the companion MCP port. Dropping this future on Ctrl-C or viewer exit
+    // closes the listener without leaving a sidecar process behind.
+    let mcp_listener = tokio::net::TcpListener::bind((host, 0)).await?;
+    let mcp_reachable = reachable_addr(mcp_listener.local_addr()?);
+    let mcp_url = format!("http://{mcp_reachable}/mcp");
+    let api_base = format!("{url}api");
+    let mcp = quent_mcp::serve_http(&api_base, mcp_listener);
+    tokio::pin!(mcp);
 
     let mut child = Command::new(bin)
         .env(ROOT_ENV, output_root)
@@ -309,8 +315,13 @@ async fn serve(
             source,
         })?;
 
-    if wait_until_ready(reachable).await {
+    let ready = tokio::select! {
+        ready = wait_until_ready(reachable) => ready,
+        result = &mut mcp => return Err(mcp_exit(result)),
+    };
+    if ready {
         println!("ready: {label}  {url}");
+        println!("mcp: {label}  {mcp_url}");
         if open_browser && let Err(e) = open_browser_without_token(&url) {
             eprintln!("could not open a browser ({e}); open {url} manually");
         }
@@ -318,13 +329,34 @@ async fn serve(
         eprintln!("warning: {label} did not start listening at {url} within the timeout");
     }
 
-    let status = child.wait().await?;
+    let status = tokio::select! {
+        status = child.wait() => status?,
+        result = &mut mcp => return Err(mcp_exit(result)),
+    };
     if !status.success() {
         return Err(OpenError::ViewerExited {
             status: status.to_string(),
         });
     }
     Ok(())
+}
+
+fn reachable_addr(addr: SocketAddr) -> SocketAddr {
+    match addr.ip() {
+        IpAddr::V4(ip) if ip.is_unspecified() => (Ipv4Addr::LOCALHOST, addr.port()).into(),
+        IpAddr::V6(ip) if ip.is_unspecified() => (Ipv6Addr::LOCALHOST, addr.port()).into(),
+        _ => addr,
+    }
+}
+
+fn mcp_exit(
+    result: std::result::Result<(), Box<dyn std::error::Error + Send + Sync>>,
+) -> OpenError {
+    let reason = match result {
+        Ok(()) => "server stopped".to_owned(),
+        Err(error) => error.to_string(),
+    };
+    OpenError::McpExited { reason }
 }
 
 /// Open `url` in the browser like [`open::that`], but scrub the db-mode API token
@@ -366,6 +398,34 @@ async fn wait_until_ready(addr: SocketAddr) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn unspecified_bind_addresses_are_announced_on_loopback() {
+        assert_eq!(
+            reachable_addr("0.0.0.0:4321".parse().unwrap()),
+            "127.0.0.1:4321".parse().unwrap()
+        );
+        assert_eq!(
+            reachable_addr("[::]:4321".parse().unwrap()),
+            "[::1]:4321".parse().unwrap()
+        );
+        assert_eq!(
+            reachable_addr("192.0.2.10:4321".parse().unwrap()),
+            "192.0.2.10:4321".parse().unwrap()
+        );
+    }
+
+    #[test]
+    fn unexpected_mcp_completion_is_an_open_error() {
+        assert!(matches!(
+            mcp_exit(Ok(())),
+            OpenError::McpExited { reason } if reason == "server stopped"
+        ));
+        assert!(matches!(
+            mcp_exit(Err(Box::new(std::io::Error::other("listener failed")))),
+            OpenError::McpExited { reason } if reason == "listener failed"
+        ));
+    }
 
     /// Compatibility gate, run explicitly in CI (the `open-compat` job in
     /// `rust.yml`): the quent-open being built must still open artifacts
