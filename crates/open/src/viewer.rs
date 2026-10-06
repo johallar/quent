@@ -15,8 +15,6 @@ use std::time::Duration;
 use backon::{ConstantBuilder, Retryable};
 use tokio::io::AsyncReadExt;
 use tokio::process::{Child, Command};
-#[cfg(feature = "mcp")]
-use tokio::task::JoinHandle;
 use tokio::task::JoinSet;
 
 use crate::compatibility::WrapperCompatibility;
@@ -126,7 +124,7 @@ async fn build_revision_mcp(spec: &ViewerSpec, crate_dir: &Path) -> Option<PathB
     if let Err(error) = wrapper::generate_revision_mcp(spec, &revision_mcp_dir) {
         eprintln!(
             "warning: could not generate the pinned revision's MCP bridge ({error}); \
-             trying the host MCP implementation"
+             continuing without MCP"
         );
         return None;
     }
@@ -135,7 +133,7 @@ async fn build_revision_mcp(spec: &ViewerSpec, crate_dir: &Path) -> Option<PathB
         Err(error) => {
             eprintln!(
                 "warning: could not build the pinned revision's MCP bridge ({error}); \
-                 trying the host MCP implementation"
+                 continuing without MCP"
             );
             None
         }
@@ -355,7 +353,17 @@ async fn serve(
     let mut mcp = None;
     if ready {
         println!("ready: {label}  {url}");
-        mcp = start_mcp(revision_mcp_bin, &api_base, host).await;
+        if let Some(bin) = revision_mcp_bin {
+            match start_revision_mcp(bin, &api_base, host).await {
+                Ok(server) => mcp = Some(server),
+                Err(error) => {
+                    eprintln!(
+                        "warning: could not start the pinned revision's MCP server ({error}); \
+                         continuing without MCP"
+                    );
+                }
+            }
+        }
         if let Some(server) = &mcp {
             announce_mcp(label, server);
         }
@@ -373,18 +381,8 @@ async fn serve(
         tokio::select! {
             status = child.wait() => break status?,
             reason = server.wait() => {
-                let was_revision = server.is_revision();
-                eprintln!(
-                    "warning: {} MCP server for {label} stopped ({reason})",
-                    server.source()
-                );
+                eprintln!("warning: MCP server for {label} stopped ({reason})");
                 mcp = None;
-                if was_revision {
-                    mcp = start_host_mcp(&api_base, host).await;
-                    if let Some(server) = &mcp {
-                        announce_mcp(label, server);
-                    }
-                }
             }
         }
     };
@@ -396,85 +394,26 @@ async fn serve(
     Ok(())
 }
 
-enum RunningMcp {
-    Revision {
-        child: Child,
-        url: String,
-    },
-    #[cfg(feature = "mcp")]
-    Host {
-        task: JoinHandle<std::result::Result<(), String>>,
-        url: String,
-    },
+struct RunningMcp {
+    child: Child,
+    url: String,
 }
 
 impl RunningMcp {
     fn url(&self) -> &str {
-        match self {
-            Self::Revision { url, .. } => url,
-            #[cfg(feature = "mcp")]
-            Self::Host { url, .. } => url,
-        }
-    }
-
-    fn source(&self) -> &'static str {
-        match self {
-            Self::Revision { .. } => "pinned-revision",
-            #[cfg(feature = "mcp")]
-            Self::Host { .. } => "host",
-        }
-    }
-
-    fn is_revision(&self) -> bool {
-        matches!(self, Self::Revision { .. })
+        &self.url
     }
 
     async fn wait(&mut self) -> String {
-        match self {
-            Self::Revision { child, .. } => match child.wait().await {
-                Ok(status) => status.to_string(),
-                Err(error) => error.to_string(),
-            },
-            #[cfg(feature = "mcp")]
-            Self::Host { task, .. } => match task.await {
-                Ok(Ok(())) => "server stopped".to_owned(),
-                Ok(Err(error)) => error,
-                Err(error) => error.to_string(),
-            },
-        }
-    }
-}
-
-impl Drop for RunningMcp {
-    fn drop(&mut self) {
-        #[cfg(feature = "mcp")]
-        if let Self::Host { task, .. } = self {
-            task.abort();
+        match self.child.wait().await {
+            Ok(status) => status.to_string(),
+            Err(error) => error.to_string(),
         }
     }
 }
 
 fn announce_mcp(label: &str, server: &RunningMcp) {
-    println!("mcp: {label}  ({})  {}", server.source(), server.url());
-}
-
-async fn start_mcp(
-    revision_mcp_bin: Option<&Path>,
-    api_base: &str,
-    host: IpAddr,
-) -> Option<RunningMcp> {
-    if let Some(bin) = revision_mcp_bin {
-        match start_revision_mcp(bin, api_base, host).await {
-            Ok(server) => return Some(server),
-            Err(error) => {
-                eprintln!(
-                    "warning: could not start the pinned revision's MCP server ({error}); \
-                     trying the host MCP implementation"
-                );
-            }
-        }
-    }
-    start_host_mcp(api_base, host).await
+    println!("mcp: {label}  {}", server.url());
 }
 
 async fn start_revision_mcp(
@@ -496,7 +435,7 @@ async fn start_revision_mcp(
     tokio::select! {
         ready = wait_until_ready(reachable) => {
             if ready {
-                Ok(RunningMcp::Revision { child, url })
+                Ok(RunningMcp { child, url })
             } else {
                 Err(format!("did not start listening at {url} within the timeout"))
             }
@@ -508,41 +447,6 @@ async fn start_revision_mcp(
             }
         }
     }
-}
-
-#[cfg(feature = "mcp")]
-async fn start_host_mcp(api_base: &str, host: IpAddr) -> Option<RunningMcp> {
-    let listener = match tokio::net::TcpListener::bind((host, 0)).await {
-        Ok(listener) => listener,
-        Err(error) => {
-            eprintln!("warning: could not bind the host MCP server ({error})");
-            return None;
-        }
-    };
-    let reachable = match listener.local_addr() {
-        Ok(addr) => reachable_addr(addr),
-        Err(error) => {
-            eprintln!("warning: could not inspect the host MCP listener ({error})");
-            return None;
-        }
-    };
-    let url = format!("http://{reachable}/mcp");
-    let api_base = api_base.to_owned();
-    let task = tokio::spawn(async move {
-        quent_mcp::serve_http(&api_base, listener)
-            .await
-            .map_err(|error| error.to_string())
-    });
-    Some(RunningMcp::Host { task, url })
-}
-
-#[cfg(not(feature = "mcp"))]
-async fn start_host_mcp(_api_base: &str, _host: IpAddr) -> Option<RunningMcp> {
-    eprintln!(
-        "warning: no usable MCP server is available from the pinned revision, \
-         and the host quent-open was built without the `mcp` feature"
-    );
-    None
 }
 
 fn reachable_addr(addr: SocketAddr) -> SocketAddr {
@@ -625,29 +529,6 @@ mod tests {
             built_executable(messages.as_bytes(), REVISION_MCP_PACKAGE),
             Some(PathBuf::from("/tmp/mcp"))
         );
-    }
-
-    #[cfg(feature = "mcp")]
-    #[tokio::test]
-    async fn missing_revision_mcp_falls_back_to_the_host_server() {
-        let server = start_mcp(
-            Some(Path::new("/path/that/does/not/exist/quent-mcp")),
-            "http://127.0.0.1:9/api",
-            Ipv4Addr::LOCALHOST.into(),
-        )
-        .await
-        .expect("the default host MCP feature should provide a fallback");
-        assert_eq!(server.source(), "host");
-        let addr: SocketAddr = server
-            .url()
-            .strip_prefix("http://")
-            .and_then(|url| url.strip_suffix("/mcp"))
-            .unwrap()
-            .parse()
-            .unwrap();
-        tokio::net::TcpStream::connect(addr)
-            .await
-            .expect("the host fallback should already be listening");
     }
 
     /// Compatibility gate, run explicitly in CI (the `open-compat` job in

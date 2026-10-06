@@ -63,19 +63,15 @@ prints both URLs:
 
 ```text
 ready: MODEL — 1 context(s)  http://127.0.0.1:49152/
-mcp: MODEL — 1 context(s)  (host)  http://127.0.0.1:49153/mcp
+mcp: MODEL — 1 context(s)  http://127.0.0.1:49153/mcp
 ```
 
 The endpoint uses the same bind host as its viewer and stops when the viewer
-exits or `quent-open` receives Ctrl-C. `quent-open` prefers the MCP package from
-the artifact's pinned Quent revision so its tools match that revision's REST
-contract. When the pinned revision predates MCP, cannot build its MCP bridge, or
-cannot start it, `quent-open` falls back to the host checkout's MCP
-implementation. The source is shown as `(pinned-revision)` or `(host)`.
-
-The host fallback is enabled by the default `quent-open` `mcp` feature. If the
-pinned revision has no MCP and the host binary was built without that feature,
-the viewer still starts and prints a warning instead of an `mcp:` URL.
+exits or `quent-open` receives Ctrl-C. `quent-open` starts MCP only when the
+artifact's pinned Quent revision contains the `quent-mcp` package, ensuring its
+tools match that revision's REST contract. If the package is absent or its
+bridge cannot be built or started, the viewer still starts without an `mcp:`
+URL; the host checkout is not used as a fallback.
 
 ## Validation
 

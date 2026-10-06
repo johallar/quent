@@ -60,8 +60,7 @@ pub fn generate(
 /// Generate a standalone MCP bridge pinned to the artifact's Quent revision.
 ///
 /// This crate is built separately from the viewer so an unavailable or broken
-/// revision MCP implementation can fall back to the host implementation without
-/// preventing the viewer itself from opening.
+/// revision MCP implementation does not prevent the viewer itself from opening.
 pub fn generate_revision_mcp(spec: &ViewerSpec, crate_dir: &Path) -> Result<()> {
     std::fs::create_dir_all(crate_dir.join("src"))?;
     std::fs::write(crate_dir.join("Cargo.toml"), revision_mcp_cargo_toml(spec))?;
