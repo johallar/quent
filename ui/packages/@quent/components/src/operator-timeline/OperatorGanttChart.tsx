@@ -209,6 +209,7 @@ export function OperatorGanttChart({
               nodeId: op.operatorId,
               label: op.label,
               operationType: op.typeName,
+              attributes: op.attributes,
               statistics: op.statistics,
             },
           });
