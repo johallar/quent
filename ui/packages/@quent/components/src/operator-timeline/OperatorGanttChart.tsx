@@ -14,7 +14,14 @@ import {
   COLOR_REGISTRY_KEYS,
   useColorResolver,
 } from '@quent/hooks';
-import { continuousColor, withOpacity, toggleOperatorSelection, type Operator } from '@quent/utils';
+import {
+  continuousColor,
+  withOpacity,
+  buildRelatedOperatorIdsById,
+  resolveSelectedOperatorSelections,
+  toggleOperatorSelection,
+  type Operator,
+} from '@quent/utils';
 import type { OperatorActiveSpanEntry } from './types';
 import { GanttChart, type GanttRenderItem } from '../gantt-chart/GanttChart';
 import type { GanttHover } from '../gantt-chart/hover';
@@ -200,18 +207,14 @@ export function OperatorGanttChart({
             ),
           });
         } else {
+          const relatedIds =
+            buildRelatedOperatorIdsById(allOperators, [op.operatorId]).get(op.operatorId) ?? [];
           updateOperatorSelection({
-            type: 'add',
-            selectionId: op.operatorId,
-            label: op.label,
-            operatorIds: [op.operatorId],
-            selectedData: {
-              nodeId: op.operatorId,
-              label: op.label,
-              operationType: op.typeName,
-              attributes: op.attributes,
-              statistics: op.statistics,
-            },
+            type: 'replace',
+            selections: resolveSelectedOperatorSelections(allOperators, [
+              op.operatorId,
+              ...relatedIds,
+            ]),
           });
           if (op.planId) {
             setSelectedPlanId(op.planId);

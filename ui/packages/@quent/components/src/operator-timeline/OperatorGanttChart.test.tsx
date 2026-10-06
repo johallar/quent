@@ -12,6 +12,7 @@ import {
 } from '@quent/hooks';
 import type { EntityRef, Operator, QueryBundle } from '@quent/utils';
 import { DAGNodeInfoPanel } from '../dag/DAGNodeInfoPanel';
+import { QueryPlanNode } from '../query-plan/QueryPlanNode';
 import { QueryToolbar } from '../timeline/QueryToolbar';
 import { OperatorGanttChart } from './OperatorGanttChart';
 import type { OperatorActiveSpanEntry } from './types';
@@ -155,6 +156,88 @@ describe('OperatorGanttChart', () => {
       expect(within(statistics).getByText('0')).toBeVisible();
     }
   );
+
+  it('selects the DAG group from a bar, replaces other selections, and toggles it off', () => {
+    const parent = makeOperator('parent');
+    const child = makeOperator('child', ['parent']);
+    const other = makeOperator('other');
+    const operators: OperatorActiveSpanEntry[] = [parent, other].map((operator, index) => ({
+      operatorId: operator.id,
+      label: operator.id,
+      typeName: 'test',
+      startMs: 0,
+      endMs: 1,
+      rowIndex: index,
+      planId: 'plan',
+      statistics: [],
+    }));
+    render(
+      <Provider store={createStore()}>
+        <SelectionControls />
+        <DAGNodeInfoPanel />
+        <div data-testid="parent-node">
+          <QueryPlanNode
+            data={{
+              nodeId: 'parent',
+              label: 'parent',
+              operationType: 'test',
+              metadata: {
+                rawNode: parent,
+                relatedOperatorIds: ['child'],
+                relatedOperators: [child],
+              },
+            }}
+          />
+        </div>
+        <div data-testid="other-node">
+          <QueryPlanNode
+            data={{
+              nodeId: 'other',
+              label: 'other',
+              operationType: 'test',
+              metadata: { rawNode: other },
+            }}
+          />
+        </div>
+        <OperatorGanttChart
+          operators={operators}
+          allOperators={[parent, child, other]}
+          durationSeconds={1}
+          isDark={false}
+        />
+      </Provider>
+    );
+    const clickBar = (dataIndex: number) =>
+      act(() => {
+        mocks.ganttChart.mock.lastCall?.[0].onEvents.click({
+          dataIndex,
+          seriesName: 'operator-span',
+        });
+      });
+    const parentNode = screen.getByTestId('parent-node');
+    const otherNode = screen.getByTestId('other-node');
+
+    clickBar(1);
+    expect(otherNode.querySelector('.shadow-glow')).not.toBeNull();
+    clickBar(0);
+    expect(screen.getByTestId('selection-ids')).toHaveTextContent(
+      JSON.stringify(['child', 'parent'])
+    );
+    expect(
+      screen.getByRole('group', { name: 'Operator Gantt chart: parent, other' })
+    ).toHaveAttribute('data-selected-operator-ids', 'parent');
+    expect(parentNode.querySelector('.shadow-glow')).not.toBeNull();
+    expect(otherNode.querySelector('.opacity-35')).not.toBeNull();
+    expect(screen.getByTestId('operator-accordion-parent')).toBeVisible();
+    expect(screen.queryByTestId('operator-accordion-other')).not.toBeInTheDocument();
+
+    clickBar(0);
+    expect(screen.getByTestId('selection-ids')).toHaveTextContent('[]');
+    expect(parentNode.querySelector('.shadow-glow')).toBeNull();
+    expect(parentNode.querySelector('.opacity-100')).not.toBeNull();
+    expect(otherNode.querySelector('.opacity-100')).not.toBeNull();
+    expect(screen.queryByTestId('operator-accordion-parent')).not.toBeInTheDocument();
+  });
 
   it('splits a selected parent when a covered child is deselected', () => {
     const allOperators = [
