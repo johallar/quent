@@ -2,9 +2,16 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { useMemo, useEffect } from 'react';
-import { flattenStatistics, type Statistic } from '@quent/utils';
 import { useAtomValue, useSetAtom } from 'jotai';
-import type { DAGNode, DAGEdge, NodeColoring, EdgeWidthConfig, EdgeColoring } from '@quent/utils';
+import {
+  flattenStatistics,
+  type DAGNode,
+  type DAGEdge,
+  type NodeColoring,
+  type EdgeWidthConfig,
+  type EdgeColoring,
+  type Statistic,
+} from '@quent/utils';
 import {
   selectedColorField,
   nodeColoringAtom,

@@ -1,7 +1,6 @@
 // SPDX-FileCopyrightText: Copyright (c) 2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-import { normalizeEdgeWidth, statisticFieldName } from '@quent/utils';
 import {
   useCallback,
   useEffect,
@@ -56,6 +55,8 @@ import { parseCustomStatistics, parseOperatorAttributes } from '../lib/queryBund
 import {
   continuousColor,
   inferFieldFormatter,
+  normalizeEdgeWidth,
+  statisticFieldName,
   toggleOperatorSelection,
   type Operator,
   type QuantitySpec,

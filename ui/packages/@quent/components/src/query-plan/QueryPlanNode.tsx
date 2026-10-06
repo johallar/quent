@@ -1,13 +1,15 @@
 // SPDX-FileCopyrightText: Copyright (c) 2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-import { flattenStatistics, statisticFieldName } from '@quent/utils';
 import { memo, useState, useMemo, useCallback } from 'react';
 import { Handle, Position } from '@xyflow/react';
 import { cva } from 'class-variance-authority';
 import {
   cn,
   continuousColor,
+  flattenStatistics,
+  formatStatWithQuantity,
+  statisticFieldName,
   isLightColor,
   withOpacity,
   WHITE,
@@ -16,6 +18,7 @@ import {
   DAG_LAYOUT_DIRECTION,
   type Operator,
   type DagLayoutDirection,
+  type QuantitySpec,
 } from '@quent/utils';
 import {
   useSelectedNodeLabelField,
@@ -29,7 +32,6 @@ import {
   useColorResolver,
   resolveHoveredStatValue,
 } from '@quent/hooks';
-import { formatStatWithQuantity, type QuantitySpec } from '@quent/utils';
 import { parseCustomStatistics } from '../lib/queryBundle.utils';
 import { DataText } from '../ui/data-text';
 import { NodeFlowBar } from './NodeFlowBar';
