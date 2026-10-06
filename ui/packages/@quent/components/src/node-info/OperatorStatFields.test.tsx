@@ -53,7 +53,7 @@ describe('OperatorStatFields', () => {
       'Build',
       'Build',
     ]);
-    const probe = screen.getByRole('region', { name: 'Probe' });
+    const probe = screen.getByRole('heading', { name: 'Probe' }).closest('section')!;
     expect(
       within(probe)
         .getAllByRole('term')

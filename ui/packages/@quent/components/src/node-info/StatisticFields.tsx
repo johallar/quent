@@ -76,7 +76,7 @@ export function StatisticFields({
     <div className="space-y-0.5 text-xs leading-snug">
       {statistics.map(({ key, value, quantity }, index) =>
         isStatStruct(value) ? (
-          <section key={index} aria-label={key} className="mt-2 border-t pt-1 first:mt-0.5">
+          <section key={index} className="mt-2 border-t pt-1 first:mt-0.5">
             <div
               role="heading"
               aria-level={Math.min(6, depth + 4)}
