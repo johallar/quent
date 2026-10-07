@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { useMemo, useState, type ReactNode } from 'react';
-import { ArrowRight, RotateCcw, Search } from 'lucide-react';
+import { RotateCcw, Search } from 'lucide-react';
 import {
   Button,
   DataText,
@@ -74,7 +74,7 @@ export function EntityCatalogTable<T extends CatalogEntity>({
   const groupBy = selectedGroupBy === NO_GROUPING ? '' : selectedGroupBy;
   const filteredItems = useMemo(() => filterCatalogItems(items, search), [items, search]);
   const groups = useMemo(() => groupCatalogItems(filteredItems, groupBy), [filteredItems, groupBy]);
-  const columnCount = 2 + metadataColumns.length + attributeKeys.length;
+  const columnCount = 1 + metadataColumns.length + attributeKeys.length;
   const catalogName = title.replace(/^Select (?:an?|the) /i, '');
 
   return (
@@ -127,11 +127,7 @@ export function EntityCatalogTable<T extends CatalogEntity>({
         ) : filteredItems.length === 0 ? (
           <CatalogMessage>No matches for “{search}”.</CatalogMessage>
         ) : (
-          <InnerScrollTable
-            stickyLeftColumns={1}
-            stickyRightColumns={1}
-            containerClassName="min-h-0 flex-auto"
-          >
+          <InnerScrollTable stickyLeftColumns={1} containerClassName="min-h-0 flex-auto">
             <TableHeader className="bg-card">
               <TableRow>
                 <TableHead className="min-w-48">Name</TableHead>
@@ -141,7 +137,6 @@ export function EntityCatalogTable<T extends CatalogEntity>({
                 {attributeKeys.map(key => (
                   <TableHead key={key}>{attributeLabel(key)}</TableHead>
                 ))}
-                <TableHead aria-label="Actions" className="min-w-32 text-center" />
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -164,7 +159,19 @@ export function EntityCatalogTable<T extends CatalogEntity>({
                     ]
                   : []),
                 ...group.items.map(item => (
-                  <TableRow key={item.id}>
+                  <TableRow
+                    key={item.id}
+                    tabIndex={0}
+                    aria-label={`${actionLabel}: ${item.instance_name ?? item.id}`}
+                    className="cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
+                    onClick={() => onSelect(item)}
+                    onKeyDown={event => {
+                      if (event.key === 'Enter' || event.key === ' ') {
+                        event.preventDefault();
+                        onSelect(item);
+                      }
+                    }}
+                  >
                     <TableCell className="min-w-48 max-w-64 font-medium">
                       <DataText className="block truncate">
                         {item.instance_name ?? 'Unnamed'}
@@ -180,12 +187,6 @@ export function EntityCatalogTable<T extends CatalogEntity>({
                         </DataText>
                       </TableCell>
                     ))}
-                    <TableCell className="min-w-32 text-center">
-                      <Button size="xs" onClick={() => onSelect(item)}>
-                        {actionLabel}
-                        <ArrowRight />
-                      </Button>
-                    </TableCell>
                   </TableRow>
                 )),
               ])}

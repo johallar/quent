@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { useRef, useState } from 'react';
-import { useMatch, useNavigate } from '@tanstack/react-router';
+import { Link, useMatch, useNavigate } from '@tanstack/react-router';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { ChevronDown, ChevronRight } from 'lucide-react';
+import { ChevronDown, ChevronRight, Home } from 'lucide-react';
 import {
   DataText,
   DropdownMenu,
@@ -243,6 +243,15 @@ export function NavBarNavigator() {
         aria-label="Profile selection"
         className="flex min-w-0 max-w-full items-center gap-1.5 text-sm text-muted-foreground"
       >
+        <Link
+          to="/"
+          aria-label="Select an engine"
+          title="Select an engine"
+          className="flex size-7 shrink-0 items-center justify-center rounded-sm transition-colors hover:bg-accent hover:text-foreground"
+        >
+          <Home className="size-4" />
+        </Link>
+        <ChevronRight className="h-3.5 w-3.5 shrink-0" />
         <BreadcrumbDropdown
           label={engineLabel}
           activeId={engineId}

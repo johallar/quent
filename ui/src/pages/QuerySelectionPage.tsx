@@ -59,7 +59,16 @@ export function QuerySelectionPage({ engineId }: { engineId: string }) {
 
   return (
     <div className="mx-auto flex h-full min-h-0 w-full max-w-7xl flex-col px-4 py-8 sm:px-6 lg:px-8">
-      <div className="mb-6 flex shrink-0 flex-col gap-3 border-b border-border pb-5 sm:flex-row sm:items-end sm:justify-between">
+      <div className="mb-6 flex shrink-0 items-center gap-3 border-b border-border pb-5">
+        <Button
+          variant="ghost"
+          size="icon"
+          aria-label="Change engine"
+          className="size-12 shrink-0 [&_svg]:size-7"
+          onClick={() => navigate({ to: '/' })}
+        >
+          <ArrowLeft />
+        </Button>
         <div>
           <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
             Selected engine
@@ -68,10 +77,6 @@ export function QuerySelectionPage({ engineId }: { engineId: string }) {
             {selectedEngine?.instance_name ?? engineId}
           </DataText>
         </div>
-        <Button variant="outline" size="sm" onClick={() => navigate({ to: '/' })}>
-          <ArrowLeft />
-          Change engine
-        </Button>
       </div>
 
       <EntityCatalogTable

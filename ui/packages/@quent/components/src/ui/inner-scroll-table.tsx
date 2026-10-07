@@ -17,6 +17,7 @@ const useIsomorphicLayoutEffect =
 
 const innerScrollTableClassName = cn(
   '[&_thead_th]:sticky [&_thead_th]:top-0 [&_thead_th]:z-30 [&_thead_th]:bg-card',
+  '[&_thead_tr]:border-b-0',
   '[&_[data-inner-scroll-sticky]]:sticky [&_[data-inner-scroll-sticky]]:z-10',
   '[&_[data-inner-scroll-sticky]]:bg-card',
   '[&_thead_[data-inner-scroll-sticky]]:z-40',
@@ -25,8 +26,10 @@ const innerScrollTableClassName = cn(
   '[&_[data-inner-scroll-sticky-right]]:shadow-[inset_1px_0_hsl(var(--border))]',
   '[&_thead_[data-inner-scroll-sticky-left]]:shadow-[inset_-1px_0_hsl(var(--border)),inset_0_-1px_0_hsl(var(--border))]',
   '[&_thead_[data-inner-scroll-sticky-right]]:shadow-[inset_1px_0_hsl(var(--border)),inset_0_-1px_0_hsl(var(--border))]',
-  '[&_tbody_tr[data-inner-scroll-data-row]:hover]:bg-[color-mix(in_srgb,hsl(var(--muted))_50%,hsl(var(--card)))]',
-  '[&_tbody_tr[data-inner-scroll-data-row]:hover>[data-inner-scroll-sticky]]:bg-[color-mix(in_srgb,hsl(var(--muted))_50%,hsl(var(--card)))]'
+  '[&_tbody_tr[data-inner-scroll-data-row]]:transition-none',
+  '[&_tbody_tr[data-inner-scroll-data-row]_[data-inner-scroll-sticky]]:transition-none',
+  '[&_tbody_tr[data-inner-scroll-data-row]:hover]:bg-[color-mix(in_srgb,hsl(var(--muted))_70%,hsl(var(--card)))]',
+  '[&_tbody_tr[data-inner-scroll-data-row]:hover>[data-inner-scroll-sticky]]:bg-[color-mix(in_srgb,hsl(var(--muted))_70%,hsl(var(--card)))]'
 );
 
 function columnCount(row: HTMLTableRowElement) {

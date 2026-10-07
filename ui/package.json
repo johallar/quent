@@ -29,6 +29,8 @@
     "ci:build": "pnpm --filter '@quent/*' --recursive build:ci && pnpm ci:build:app",
     "ci:build:app": "tsr generate && tsc && vite build",
     "deep-link": "tsx scripts/deep-link.ts",
+    "simulator:data:clean": "node -e \"const fs=require('node:fs');const dir='../data/simulator-events';fs.rmSync(dir,{recursive:true,force:true});fs.mkdirSync(dir,{recursive:true});\"",
+    "simulator:data:generate": "cargo run --manifest-path ../Cargo.toml -p quent-simulator -- --num-workloads 1 --num-queries 2 --num-workers 8 --num-threads 2 --num-gpus 1 --num-tasks 2000 --exporter collector --collector-address http://localhost:7836 --dynamic-engine-id",
     "demo:wasm": "cargo build --manifest-path ../Cargo.toml -p quent-simulator-wasm --lib --target wasm32-unknown-unknown --release --locked && wasm-bindgen ../target/wasm32-unknown-unknown/release/quent_simulator_wasm.wasm --target web --out-dir generated/simulator-wasm",
     "demo:data": "cargo run --manifest-path ../Cargo.toml -p quent-simulator-wasm --bin generate-demo --features generate --locked -- generated/simulator-demo.postcard",
     "demo:build": "pnpm demo:wasm && pnpm demo:data && pnpm bindings && tsr generate && tsc && vite build --config vite.simulator.config.ts",
