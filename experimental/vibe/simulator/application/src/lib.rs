@@ -1467,6 +1467,8 @@ impl Engine {
         num_workers: usize,
         num_threads: usize,
         num_gpus: usize,
+        num_workloads: usize,
+        num_queries_per_workload: usize,
     ) {
         info!("Simulating Engine {}", self.handle.id());
         self.handle
@@ -1481,6 +1483,11 @@ impl Engine {
                     DynamicAttribute::u64("workers", num_workers as u64),
                     DynamicAttribute::u64("threads_per_worker", num_threads as u64),
                     DynamicAttribute::u64("gpus_per_worker", num_gpus as u64),
+                    DynamicAttribute::u64("num_workloads", num_workloads as u64),
+                    DynamicAttribute::u64(
+                        "num_queries",
+                        num_workloads as u64 * num_queries_per_workload as u64,
+                    ),
                 ]
                 .into(),
             )
@@ -1590,6 +1597,8 @@ fn simulate_with_engine_id(context: SimulatorContext, config: SimulationConfig, 
         config.num_workers,
         config.num_threads,
         config.num_gpus,
+        config.num_workloads,
+        config.num_queries,
     );
 
     for workload_index in 0..config.num_workloads {

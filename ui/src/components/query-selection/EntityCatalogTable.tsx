@@ -132,7 +132,9 @@ export function EntityCatalogTable<T extends CatalogEntity>({
           <Table containerClassName="max-h-[min(62vh,42rem)] overflow-auto">
             <TableHeader className="sticky top-0 z-10 bg-card">
               <TableRow>
-                <TableHead>Name</TableHead>
+                <TableHead className="sticky left-0 z-20 min-w-48 border-r border-border bg-card">
+                  Name
+                </TableHead>
                 <TableHead>ID</TableHead>
                 {metadataColumns.map(column => (
                   <TableHead key={column.id}>{column.label}</TableHead>
@@ -140,7 +142,9 @@ export function EntityCatalogTable<T extends CatalogEntity>({
                 {attributeKeys.map(key => (
                   <TableHead key={key}>{attributeLabel(key)}</TableHead>
                 ))}
-                <TableHead className="text-right">Action</TableHead>
+                <TableHead className="sticky right-0 z-20 min-w-32 border-l border-border bg-card text-right">
+                  Action
+                </TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -161,8 +165,8 @@ export function EntityCatalogTable<T extends CatalogEntity>({
                     ]
                   : []),
                 ...group.items.map(item => (
-                  <TableRow key={item.id}>
-                    <TableCell className="max-w-64 font-medium">
+                  <TableRow key={item.id} className="group">
+                    <TableCell className="sticky left-0 z-10 min-w-48 max-w-64 border-r border-border bg-card font-medium transition-colors group-hover:bg-muted/50">
                       <DataText className="block truncate">
                         {item.instance_name ?? 'Unnamed'}
                       </DataText>
@@ -180,7 +184,7 @@ export function EntityCatalogTable<T extends CatalogEntity>({
                         </DataText>
                       </TableCell>
                     ))}
-                    <TableCell className="text-right">
+                    <TableCell className="sticky right-0 z-10 min-w-32 border-l border-border bg-card text-right transition-colors group-hover:bg-muted/50">
                       <Button size="xs" onClick={() => onSelect(item)}>
                         {actionLabel}
                         <ArrowRight />

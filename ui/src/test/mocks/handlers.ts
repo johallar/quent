@@ -12,7 +12,10 @@ export const handlers = [
           instance_name: 'Engine 1',
           start_time_unix_ns: null,
           duration_s: null,
-          custom_attributes: [],
+          custom_attributes: [
+            { key: 'num_workloads', value: { U64: 1 } },
+            { key: 'num_queries', value: { U64: 1 } },
+          ],
           implementation: null,
         },
       ],

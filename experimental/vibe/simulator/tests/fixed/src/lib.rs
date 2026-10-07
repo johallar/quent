@@ -138,7 +138,12 @@ pub fn emit(ctx: &SimulatorContext) {
                     custom_attributes: Default::default(),
                 },
                 Some("test-engine".into()),
-                vec![DynamicAttribute::u64("workers", 2)].into(),
+                vec![
+                    DynamicAttribute::u64("workers", 2),
+                    DynamicAttribute::u64("num_workloads", 1),
+                    DynamicAttribute::u64("num_queries", 1),
+                ]
+                .into(),
             )
             .unwrap()
     );

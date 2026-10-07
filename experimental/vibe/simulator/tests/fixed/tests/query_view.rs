@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: Copyright (c) 2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 // SPDX-License-Identifier: Apache-2.0
 
+use quent_dynamic_attributes::DynamicValue;
 use quent_events::Event;
 use quent_instrumentation::{ExporterOptions, FileSystemExporterOptions, FileSystemFormat};
 use quent_query_engine_analyzer::{
@@ -59,6 +60,12 @@ fn builds_each_query_view_when_queries_share_resources() {
             .iter()
             .any(|attribute| attribute.key == "workers")
     );
+    assert!(engine.custom_attributes.iter().any(|attribute| {
+        attribute.key == "num_workloads" && attribute.value.as_ref() == Some(&DynamicValue::U64(1))
+    }));
+    assert!(engine.custom_attributes.iter().any(|attribute| {
+        attribute.key == "num_queries" && attribute.value.as_ref() == Some(&DynamicValue::U64(2))
+    }));
     assert_eq!(
         SimulatorUiAnalyzer::engine_initial_group_by_attribute().as_deref(),
         Some("workers")

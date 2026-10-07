@@ -18,6 +18,8 @@ const enginesResponse = {
       custom_attributes: [
         { key: 'workers', value: { U64: 2 } },
         { key: 'frontend', value: { String: 'ray' } },
+        { key: 'num_workloads', value: { U64: 2 } },
+        { key: 'num_queries', value: { U64: 8 } },
       ],
       implementation: { name: 'Simulator', version: 'vibe', custom_attributes: [] },
     },
@@ -29,6 +31,8 @@ const enginesResponse = {
       custom_attributes: [
         { key: 'workers', value: { U64: 4 } },
         { key: 'frontend', value: { String: 'spmd' } },
+        { key: 'num_workloads', value: { U64: 3 } },
+        { key: 'num_queries', value: { U64: 12 } },
       ],
       implementation: null,
     },
@@ -67,6 +71,10 @@ describe('EngineSelectionPage', () => {
     expect(await screen.findByRole('heading', { name: 'Select an engine' })).toBeInTheDocument();
     await screen.findByText('Alpha engine');
     expect(screen.getByText(/Workers: 2/)).toBeInTheDocument();
+    expect(screen.getByRole('columnheader', { name: 'Num Workloads' })).toBeInTheDocument();
+    expect(screen.getByRole('columnheader', { name: 'Num Queries' })).toBeInTheDocument();
+    expect(screen.getByText('8')).toBeInTheDocument();
+    expect(screen.getByText('12')).toBeInTheDocument();
     expect(screen.getByText('Beta engine')).toBeInTheDocument();
 
     await user.type(screen.getByRole('textbox', { name: 'Search engine' }), 'ray');
