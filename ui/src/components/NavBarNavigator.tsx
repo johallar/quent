@@ -12,17 +12,81 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
   HoverCard,
+  HoverCardContent,
   HoverCardTrigger,
   OverflowHoverCardContent,
   OverflowingItemLabel,
   useOverflowHoverCard,
 } from '@quent/components';
-import { cn } from '@quent/utils';
+import { cn, formatAttributeValue } from '@quent/utils';
+import type { DynamicAttribute } from '@quent/utils';
 import { fetchListEngines, fetchListQueries, queryBundleQueryOptions } from '@quent/client';
+import { attributeLabel } from '@/components/query-selection/catalog';
 
 interface BreadcrumbItem {
   id: string;
   label: string;
+  details?: BreadcrumbItemDetail[];
+}
+
+interface BreadcrumbItemDetail {
+  label: string;
+  value: string;
+}
+
+function attributeDetails(attributes: DynamicAttribute[]): BreadcrumbItemDetail[] {
+  return attributes.map(attribute => ({
+    label: attributeLabel(attribute.key),
+    value: formatAttributeValue(attribute.key, attribute.value),
+  }));
+}
+
+function BreadcrumbDropdownItem({
+  item,
+  active,
+  open,
+  onOpenChange,
+  onSelect,
+}: {
+  item: BreadcrumbItem;
+  active: boolean;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onSelect: () => void;
+}) {
+  const menuItem = (
+    <DropdownMenuItem
+      onSelect={onSelect}
+      className={cn('min-w-48', active && 'bg-accent font-semibold')}
+    >
+      <OverflowingItemLabel label={item.label} />
+    </DropdownMenuItem>
+  );
+
+  if (!item.details?.length) {
+    return menuItem;
+  }
+
+  return (
+    <HoverCard open={open} onOpenChange={onOpenChange} openDelay={100} closeDelay={50}>
+      <HoverCardTrigger asChild>{menuItem}</HoverCardTrigger>
+      <HoverCardContent side="right" align="start" className="w-80 p-3 duration-75">
+        <dl className="space-y-2">
+          {item.details.map((detail, index) => (
+            <div
+              key={`${detail.label}-${index}`}
+              className="grid grid-cols-[max-content_minmax(0,1fr)] gap-4"
+            >
+              <dt className="text-xs text-muted-foreground">{detail.label}</dt>
+              <dd className="min-w-0 text-right text-xs">
+                <DataText className="whitespace-normal break-words">{detail.value}</DataText>
+              </dd>
+            </div>
+          ))}
+        </dl>
+      </HoverCardContent>
+    </HoverCard>
+  );
 }
 
 function BreadcrumbDropdown({
@@ -41,11 +105,16 @@ function BreadcrumbDropdown({
   onSelect: (id: string) => void;
 }) {
   const labelRef = useRef<HTMLSpanElement>(null);
-  const { open, handlePointerEnter, handlePointerLeave } = useOverflowHoverCard(labelRef);
+  const [openItemId, setOpenItemId] = useState<string | null>(null);
+  const {
+    open: labelHoverOpen,
+    handlePointerEnter,
+    handlePointerLeave,
+  } = useOverflowHoverCard(labelRef);
 
   return (
-    <HoverCard open={open}>
-      <DropdownMenu>
+    <HoverCard open={labelHoverOpen}>
+      <DropdownMenu onOpenChange={open => !open && setOpenItemId(null)}>
         <HoverCardTrigger asChild>
           <DropdownMenuTrigger asChild>
             <button
@@ -64,13 +133,16 @@ function BreadcrumbDropdown({
         </HoverCardTrigger>
         <DropdownMenuContent align="start" className="max-h-64 w-max max-w-64 overflow-y-auto">
           {items?.map(item => (
-            <DropdownMenuItem
+            <BreadcrumbDropdownItem
               key={item.id}
+              item={item}
+              active={item.id === activeId}
+              open={openItemId === item.id}
+              onOpenChange={open =>
+                setOpenItemId(current => (open ? item.id : current === item.id ? null : current))
+              }
               onSelect={() => onSelect(item.id)}
-              className={cn('min-w-0', item.id === activeId && 'bg-accent font-semibold')}
-            >
-              <OverflowingItemLabel label={item.label} />
-            </DropdownMenuItem>
+            />
           ))}
           {loading && <DropdownMenuItem disabled>Loading…</DropdownMenuItem>}
           {error && <DropdownMenuItem disabled>Unable to load items</DropdownMenuItem>}
@@ -117,11 +189,13 @@ export function NavBarNavigator() {
     enginesQuery.data?.items.map(engine => ({
       id: engine.id,
       label: engine.instance_name ?? engine.id,
+      details: attributeDetails(engine.custom_attributes),
     })) ?? [];
   const queryItems =
     queriesQuery.data?.items.map(query => ({
       id: query.id,
       label: query.instance_name ?? query.id,
+      details: attributeDetails(query.custom_attributes),
     })) ?? [];
   const engineLabel = queryBundle.entities.engine.instance_name ?? queryBundle.entities.engine.id;
   const queryLabel = queryBundle.entities.query.instance_name ?? queryBundle.entities.query.id;

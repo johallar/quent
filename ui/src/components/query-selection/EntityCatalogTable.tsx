@@ -13,7 +13,7 @@ import {
   SelectTrigger,
   SelectValue,
   Skeleton,
-  Table,
+  InnerScrollTable,
   TableBody,
   TableCell,
   TableHead,
@@ -69,23 +69,24 @@ export function EntityCatalogTable<T extends CatalogEntity>({
   const [groupByOverride, setGroupByOverride] = useState<string>();
   const attributeKeys = useMemo(() => catalogAttributeKeys(items), [items]);
   const hintedGroupBy =
-    initialGroupBy && attributeKeys.includes(initialGroupBy) ? initialGroupBy : '';
-  const groupBy = groupByOverride ?? hintedGroupBy;
+    initialGroupBy && attributeKeys.includes(initialGroupBy) ? initialGroupBy : NO_GROUPING;
+  const selectedGroupBy = groupByOverride ?? hintedGroupBy;
+  const groupBy = selectedGroupBy === NO_GROUPING ? '' : selectedGroupBy;
   const filteredItems = useMemo(() => filterCatalogItems(items, search), [items, search]);
   const groups = useMemo(() => groupCatalogItems(filteredItems, groupBy), [filteredItems, groupBy]);
-  const columnCount = 3 + metadataColumns.length + attributeKeys.length;
+  const columnCount = 2 + metadataColumns.length + attributeKeys.length;
   const catalogName = title.replace(/^Select (?:an?|the) /i, '');
 
   return (
-    <section aria-labelledby="catalog-title" className="flex min-h-0 flex-col gap-4">
-      <div>
+    <section aria-labelledby="catalog-title" className="flex min-h-0 flex-1 flex-col gap-4">
+      <div className="shrink-0">
         <h1 id="catalog-title" className="text-2xl font-semibold tracking-tight text-balance">
           {title}
         </h1>
         <p className="mt-1 max-w-2xl text-sm text-muted-foreground text-pretty">{description}</p>
       </div>
 
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+      <div className="flex shrink-0 flex-col gap-2 sm:flex-row sm:items-center">
         <div className="relative min-w-0 flex-1">
           <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
           <Input
@@ -100,10 +101,7 @@ export function EntityCatalogTable<T extends CatalogEntity>({
           <label htmlFor="catalog-group-by" className="text-sm text-muted-foreground">
             Group by
           </label>
-          <Select
-            value={groupBy || NO_GROUPING}
-            onValueChange={value => setGroupByOverride(value === NO_GROUPING ? '' : value)}
-          >
+          <Select value={selectedGroupBy} onValueChange={setGroupByOverride}>
             <SelectTrigger id="catalog-group-by" className="w-48">
               <SelectValue />
             </SelectTrigger>
@@ -119,7 +117,7 @@ export function EntityCatalogTable<T extends CatalogEntity>({
         </div>
       </div>
 
-      <div className="min-h-0 overflow-hidden rounded-md border border-border bg-card">
+      <div className="flex flex-col overflow-hidden rounded-md border border-border bg-card">
         {isLoading ? (
           <CatalogLoading />
         ) : error ? (
@@ -129,22 +127,21 @@ export function EntityCatalogTable<T extends CatalogEntity>({
         ) : filteredItems.length === 0 ? (
           <CatalogMessage>No matches for “{search}”.</CatalogMessage>
         ) : (
-          <Table containerClassName="max-h-[min(62vh,42rem)] overflow-auto">
-            <TableHeader className="sticky top-0 z-10 bg-card">
+          <InnerScrollTable
+            stickyLeftColumns={1}
+            stickyRightColumns={1}
+            containerClassName="min-h-0 flex-auto"
+          >
+            <TableHeader className="bg-card">
               <TableRow>
-                <TableHead className="sticky left-0 z-20 min-w-48 border-r border-border bg-card">
-                  Name
-                </TableHead>
-                <TableHead>ID</TableHead>
+                <TableHead className="min-w-48">Name</TableHead>
                 {metadataColumns.map(column => (
                   <TableHead key={column.id}>{column.label}</TableHead>
                 ))}
                 {attributeKeys.map(key => (
                   <TableHead key={key}>{attributeLabel(key)}</TableHead>
                 ))}
-                <TableHead className="sticky right-0 z-20 min-w-32 border-l border-border bg-card text-right">
-                  Action
-                </TableHead>
+                <TableHead aria-label="Actions" className="min-w-32 text-center" />
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -154,25 +151,24 @@ export function EntityCatalogTable<T extends CatalogEntity>({
                       <TableRow key={`group-${group.id}`} className="hover:bg-muted/30">
                         <TableCell
                           colSpan={columnCount}
-                          className="bg-muted/30 py-2 text-xs font-semibold text-muted-foreground"
+                          className="border-b border-border bg-muted py-2 text-xs font-semibold text-muted-foreground"
                         >
-                          {attributeLabel(groupBy)}: {group.label}
-                          <span className="ml-2 font-normal tabular-nums">
-                            ({group.items.length})
-                          </span>
+                          <div className="sticky left-2 w-fit">
+                            {attributeLabel(groupBy)}: {group.label}
+                            <span className="ml-2 font-normal tabular-nums">
+                              ({group.items.length})
+                            </span>
+                          </div>
                         </TableCell>
                       </TableRow>,
                     ]
                   : []),
                 ...group.items.map(item => (
-                  <TableRow key={item.id} className="group">
-                    <TableCell className="sticky left-0 z-10 min-w-48 max-w-64 border-r border-border bg-card font-medium transition-colors group-hover:bg-muted/50">
+                  <TableRow key={item.id}>
+                    <TableCell className="min-w-48 max-w-64 font-medium">
                       <DataText className="block truncate">
                         {item.instance_name ?? 'Unnamed'}
                       </DataText>
-                    </TableCell>
-                    <TableCell className="max-w-64 text-muted-foreground">
-                      <DataText className="block truncate">{item.id}</DataText>
                     </TableCell>
                     {metadataColumns.map(column => (
                       <TableCell key={column.id}>{column.render(item)}</TableCell>
@@ -184,7 +180,7 @@ export function EntityCatalogTable<T extends CatalogEntity>({
                         </DataText>
                       </TableCell>
                     ))}
-                    <TableCell className="sticky right-0 z-10 min-w-32 border-l border-border bg-card text-right transition-colors group-hover:bg-muted/50">
+                    <TableCell className="min-w-32 text-center">
                       <Button size="xs" onClick={() => onSelect(item)}>
                         {actionLabel}
                         <ArrowRight />
@@ -194,7 +190,7 @@ export function EntityCatalogTable<T extends CatalogEntity>({
                 )),
               ])}
             </TableBody>
-          </Table>
+          </InnerScrollTable>
         )}
       </div>
     </section>
@@ -203,7 +199,7 @@ export function EntityCatalogTable<T extends CatalogEntity>({
 
 function CatalogLoading() {
   return (
-    <div aria-label="Loading catalog" className="space-y-3 p-4">
+    <div aria-label="Loading catalog" className="flex-1 space-y-3 p-4">
       {Array.from({ length: 5 }, (_, index) => (
         <Skeleton key={index} className="h-9 w-full" />
       ))}
@@ -213,7 +209,7 @@ function CatalogLoading() {
 
 function CatalogError({ error, onRetry }: { error: Error; onRetry: () => void }) {
   return (
-    <div role="alert" className="flex min-h-48 flex-col items-center justify-center gap-3 p-6">
+    <div role="alert" className="flex flex-1 flex-col items-center justify-center gap-3 p-6">
       <div className="text-center">
         <p className="font-medium">Unable to load this catalog</p>
         <p className="mt-1 text-sm text-muted-foreground">{error.message}</p>
@@ -228,7 +224,7 @@ function CatalogError({ error, onRetry }: { error: Error; onRetry: () => void })
 
 function CatalogMessage({ children }: { children: ReactNode }) {
   return (
-    <p className="flex min-h-48 items-center justify-center p-6 text-sm text-muted-foreground">
+    <p className="flex flex-1 items-center justify-center p-6 text-sm text-muted-foreground">
       {children}
     </p>
   );

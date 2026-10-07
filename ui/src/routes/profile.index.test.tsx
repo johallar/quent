@@ -66,7 +66,7 @@ describe('EngineSelectionPage', () => {
 
   it('renders a searchable, analyzer-grouped engine catalog', async () => {
     const user = userEvent.setup();
-    renderWithRouter({ initialPath: '/profile' });
+    renderWithRouter();
 
     expect(await screen.findByRole('heading', { name: 'Select an engine' })).toBeInTheDocument();
     await screen.findByText('Alpha engine');
@@ -83,20 +83,35 @@ describe('EngineSelectionPage', () => {
     expect(screen.queryByText('Beta engine')).not.toBeInTheDocument();
   });
 
+  it('defaults to no grouping without an analyzer hint', async () => {
+    server.use(
+      http.get(`${API_BASE}/engines`, () =>
+        HttpResponse.json({ ...enginesResponse, initial_group_by_attribute: null })
+      )
+    );
+    renderWithRouter();
+
+    await screen.findByText('Alpha engine');
+    expect(screen.getByRole('combobox', { name: 'Group by' })).toHaveTextContent('None');
+    expect(screen.queryByText(/Workers: 2/)).not.toBeInTheDocument();
+  });
+
   it('advances to the query catalog and can return to engines', async () => {
     const user = userEvent.setup();
-    renderWithRouter({ initialPath: '/profile' });
+    const { router } = renderWithRouter();
 
     await screen.findByText('Alpha engine');
     await user.click(screen.getAllByRole('button', { name: /view queries/i })[0]);
 
     expect(await screen.findByRole('heading', { name: 'Select a query' })).toBeInTheDocument();
+    expect(router.state.location.pathname).toBe('/profile/engine/engine-1');
     expect(screen.getByText('Q42')).toBeInTheDocument();
     expect(screen.getByText(/Workload: nightly/)).toBeInTheDocument();
     expect(screen.getByText('Alpha engine')).toBeInTheDocument();
 
     await user.click(screen.getByRole('button', { name: /change engine/i }));
     expect(await screen.findByRole('heading', { name: 'Select an engine' })).toBeInTheDocument();
+    expect(router.state.location.pathname).toBe('/');
   });
 
   it('shows an empty engine catalog', async () => {
@@ -105,7 +120,7 @@ describe('EngineSelectionPage', () => {
         HttpResponse.json({ items: [], initial_group_by_attribute: null })
       )
     );
-    renderWithRouter({ initialPath: '/profile' });
+    renderWithRouter();
 
     expect(await screen.findByText('No engines are available.')).toBeInTheDocument();
   });
@@ -122,7 +137,7 @@ describe('EngineSelectionPage', () => {
       })
     );
     const user = userEvent.setup();
-    renderWithRouter({ initialPath: '/profile' });
+    renderWithRouter();
 
     expect(await screen.findByRole('alert')).toHaveTextContent('Unable to load this catalog');
     await user.click(screen.getByRole('button', { name: /retry/i }));
