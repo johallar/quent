@@ -16,10 +16,6 @@ describe('entityRefToEntitiesKey', () => {
     expect(entityRefToEntitiesKey('Engine')).toBe('engine');
   });
 
-  it('maps QueryGroup to query_group', () => {
-    expect(entityRefToEntitiesKey('QueryGroup')).toBe('query_group');
-  });
-
   it('maps Query to query', () => {
     expect(entityRefToEntitiesKey('Query')).toBe('query');
   });
@@ -53,7 +49,7 @@ describe('entityRefToEntitiesKey', () => {
   });
 
   it('ENTITY_REF_TO_ENTITIES_KEY contains exactly the expected entries', () => {
-    expect(Object.keys(ENTITY_REF_TO_ENTITIES_KEY)).toHaveLength(9);
+    expect(Object.keys(ENTITY_REF_TO_ENTITIES_KEY)).toHaveLength(8);
   });
 });
 

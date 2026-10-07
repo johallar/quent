@@ -44,7 +44,6 @@ const queriesResponse = {
   items: [
     {
       id: 'query-1',
-      query_group_id: 'group-1',
       instance_name: 'Q42',
       custom_attributes: [{ key: 'workload', value: { String: 'nightly' } }],
       start_unix_ns: null,

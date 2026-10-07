@@ -63,14 +63,8 @@ const queryBundle = {
       custom_attributes: [],
       implementation: null,
     },
-    query_group: {
-      id: 'query-group-1',
-      instance_name: null,
-      engine_id: 'engine-1',
-    },
     query: {
       id: 'query-1',
-      query_group_id: 'query-group-1',
       instance_name: null,
       custom_attributes: [],
       start_unix_ns: null,

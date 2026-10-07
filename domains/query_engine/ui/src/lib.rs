@@ -24,7 +24,6 @@ use uuid::Uuid;
 pub enum EntityRef {
     Engine(Uuid),
     Worker(Uuid),
-    QueryGroup(Uuid),
     Query(Uuid),
     Plan(Uuid),
     Operator(Uuid),
@@ -131,24 +130,11 @@ impl Engine {
     }
 }
 
-/// A group of [`Query`]s.
-#[derive(TS, Debug, Serialize)]
-pub struct QueryGroup {
-    /// The ID of this query group.
-    pub id: Uuid,
-    /// The name of this query group.
-    pub instance_name: Option<String>,
-    /// The id of the engine this query group was executed on.
-    pub engine_id: Option<Uuid>,
-}
-
 /// A [`Query`] executed by an [`Engine`].
 #[derive(TS, Debug, Serialize)]
 pub struct Query {
     /// The ID of this [`Query`].
     pub id: Uuid,
-    /// The ID of the `QueryGroup` this query is part of.
-    pub query_group_id: Uuid,
     /// A name for this [`Query`].
     pub instance_name: Option<String>,
     /// Arbitrary application-specific attributes defined at run time.
@@ -308,10 +294,6 @@ pub struct QueryEntities {
     ///
     /// Is a Resource Group.
     pub engine: Engine,
-    /// The group of this query.
-    ///
-    /// Is a Resource Group.
-    pub query_group: QueryGroup,
     /// The query.
     ///
     /// Is a Resource Group.
@@ -339,7 +321,6 @@ pub struct QueryEntities {
     ///
     /// This includes declarations for:
     /// - [`Engine`]
-    /// - [`QueryGroup`]
     /// - [`Query`]
     /// - [`Worker`]
     /// - [`Plan`]

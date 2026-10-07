@@ -344,12 +344,6 @@ impl UiAnalyzer for SimulatorUiAnalyzer {
 
         debug!("converting query engine model entities");
         let engine = EngineEntity::to_ui(view.engine()?)?;
-        // Preserve the legacy bundle shape without modeling a simulator QueryGroup.
-        let query_group = quent_query_engine_ui::QueryGroup {
-            id: engine.id,
-            instance_name: engine.instance_name.clone(),
-            engine_id: Some(engine.id),
-        };
         let query = query.to_ui()?;
         let workers = view.workers().map(|w| (w.id(), w.to_ui(epoch))).collect();
         let plans = view.plans().map(|p| (p.id(), p.to_ui())).collect();
@@ -463,7 +457,6 @@ impl UiAnalyzer for SimulatorUiAnalyzer {
 
         let entities = QueryEntities {
             engine,
-            query_group,
             query,
             workers,
             plans,

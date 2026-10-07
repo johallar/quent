@@ -100,7 +100,6 @@ impl QueryEntity for Query {
 
         Ok(query_engine_ui::Query {
             id: self.id(),
-            query_group_id: self.engine_id().unwrap_or_default(),
             instance_name: transitions
                 .first()
                 .and_then(|transition| match &transition.data {

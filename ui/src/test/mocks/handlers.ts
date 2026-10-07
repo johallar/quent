@@ -28,7 +28,6 @@ export const handlers = [
       items: [
         {
           id: 'query-1',
-          query_group_id: 'group-1',
           instance_name: 'Query 1',
           custom_attributes: [],
           start_unix_ns: null,
