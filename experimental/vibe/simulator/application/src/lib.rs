@@ -29,11 +29,11 @@ const QUERY_ID_BASE: u128 = 0x01a07b4c86ab797197c128ffb10dde0d;
 #[command(name = "simulator")]
 #[command(about = "Emits simulated query engine telemetry", long_about = None)]
 struct Args {
-    /// Number of query groups
+    /// Number of simulated workloads
     #[arg(long, default_value_t = 1)]
-    num_query_groups: usize,
+    num_workloads: usize,
 
-    /// Number of queries per query group
+    /// Number of queries per workload
     #[arg(long, default_value_t = 1)]
     num_queries: usize,
 
@@ -1551,9 +1551,9 @@ impl Engine {
 /// Controls the amount of telemetry emitted by a simulator run.
 #[derive(Clone, Copy, Debug)]
 pub struct SimulationConfig {
-    /// Number of query groups.
-    pub num_query_groups: usize,
-    /// Number of queries in each query group.
+    /// Number of simulated workloads.
+    pub num_workloads: usize,
+    /// Number of queries in each workload.
     pub num_queries: usize,
     /// Number of tasks per operator.
     pub num_tasks: usize,
@@ -1568,7 +1568,7 @@ pub struct SimulationConfig {
 impl Default for SimulationConfig {
     fn default() -> Self {
         Self {
-            num_query_groups: 1,
+            num_workloads: 1,
             num_queries: 1,
             num_tasks: 32,
             num_workers: 4,
@@ -1592,17 +1592,12 @@ fn simulate_with_engine_id(context: SimulatorContext, config: SimulationConfig, 
         config.num_gpus,
     );
 
-    for query_group_index in 0..config.num_query_groups {
-        let mut query_group = context.observer::<instr::QueryGroup>().handle();
-        let workload_name = format!("Simulated workload (run {query_group_index})");
-        query_group
-            .declaration(workload_name.clone(), engine.handle.as_entity_ref())
-            .unwrap();
-
+    for workload_index in 0..config.num_workloads {
+        let workload_name = format!("Simulated workload (run {workload_index})");
         // "Run" the specified number of queries, sequentially for now.
         for query_index in 0..config.num_queries {
-            let total = config.num_query_groups * config.num_queries;
-            let done = query_group_index * config.num_queries + query_index;
+            let total = config.num_workloads * config.num_queries;
+            let done = workload_index * config.num_queries + query_index;
             let query_id = Uuid::from_u128(QUERY_ID_BASE + done as u128);
             info!("{}% ({}/{})", done * 100 / total, done, total);
             const QUERY_NUMBERS: &[u32] = &[42, 1337, 7, 404, 256, 99, 13, 1024, 69, 314];
@@ -1613,7 +1608,7 @@ fn simulate_with_engine_id(context: SimulatorContext, config: SimulationConfig, 
                 .handle_with_id(query_id)
                 .init(
                     query_name,
-                    query_group.as_entity_ref(),
+                    engine.handle.as_entity_ref(),
                     vec![
                         DynamicAttribute::string("workload", workload_name.clone()),
                         DynamicAttribute::u64("query_index", query_index as u64),
@@ -1672,7 +1667,7 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
     info!("Simulating with: {args:?}");
 
     let config = SimulationConfig {
-        num_query_groups: args.num_query_groups,
+        num_workloads: args.num_workloads,
         num_queries: args.num_queries,
         num_tasks: args.num_tasks,
         num_workers: args.num_workers,

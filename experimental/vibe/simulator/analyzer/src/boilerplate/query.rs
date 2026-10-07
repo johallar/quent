@@ -17,9 +17,9 @@ impl Query {
         self.0.transitions()
     }
 
-    pub(crate) fn query_group_id(&self) -> Option<Uuid> {
+    pub(crate) fn engine_id(&self) -> Option<Uuid> {
         match &self.0.transition(0)?.data {
-            schema::QueryEvent::Init { query_group_id, .. } => Some(query_group_id.target),
+            schema::QueryEvent::Init { engine_id, .. } => Some(engine_id.target),
             _ => None,
         }
     }
@@ -69,15 +69,11 @@ impl Using for Query {
 
 impl RefTreeEntity for Query {
     fn parent_id(&self) -> Option<Uuid> {
-        self.query_group_id()
+        self.engine_id()
     }
 }
 
 impl QueryEntity for Query {
-    fn query_group_id(&self) -> Option<Uuid> {
-        self.query_group_id()
-    }
-
     fn to_ui(&self) -> AnalyzerResult<query_engine_ui::Query> {
         let transitions = self.transitions();
         let epoch = transitions.first().map(Timestamp::timestamp);
@@ -104,7 +100,7 @@ impl QueryEntity for Query {
 
         Ok(query_engine_ui::Query {
             id: self.id(),
-            query_group_id: self.query_group_id().unwrap_or_default(),
+            query_group_id: self.engine_id().unwrap_or_default(),
             instance_name: transitions
                 .first()
                 .and_then(|transition| match &transition.data {

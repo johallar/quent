@@ -36,14 +36,6 @@ entities:
           custom_attributes: dynamic
       exit: {}
 
-  QueryGroup:
-    doc: A group of queries submitted to an engine.
-    events:
-      declaration:
-        attributes:
-          instance_name: string
-          engine_id: { scope-ref: Engine }
-
   Worker:
     doc: A worker executing plans for an engine.
     events:
@@ -189,7 +181,7 @@ fsms:
         initial: true
         attributes:
           instance_name: string
-          query_group_id: { scope-ref: QueryGroup }
+          engine_id: { scope-ref: Engine }
           custom_attributes: dynamic
         to: [planning]
       planning:

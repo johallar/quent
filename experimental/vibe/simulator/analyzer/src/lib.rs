@@ -6,8 +6,8 @@ pub use quent_query_engine_analyzer::QueryEngineModel;
 #[cfg(not(target_arch = "wasm32"))]
 use quent_query_engine_analyzer::ui::{QuentViewer, ViewerEventStream};
 use quent_query_engine_analyzer::{
-    EngineEntity, OperatorEntity, PlanEntity, PortEntity, QueryEntity, QueryGroupEntity,
-    WorkerEntity, entities, ui::UiAnalyzer,
+    EngineEntity, OperatorEntity, PlanEntity, PortEntity, QueryEntity, WorkerEntity, entities,
+    ui::UiAnalyzer,
 };
 use quent_query_engine_ui::{
     DataFlowTimelineBinned, EntityRef, OperatorFilter, QueryBundle, QueryEntities, QueryFilter,
@@ -310,7 +310,6 @@ impl UiAnalyzer for SimulatorUiAnalyzer {
 
         tracing::info!(
             engines = 1,
-            query_groups = model.query_groups.len(),
             workers = model.workers.len(),
             plans = model.plans.len(),
             operators = model.operators.len(),
@@ -344,14 +343,13 @@ impl UiAnalyzer for SimulatorUiAnalyzer {
         let epoch = view.query_epoch(query_id)?;
 
         debug!("converting query engine model entities");
-        let engine = view.engine()?.to_ui()?;
-        let query_group_id = query.query_group_id().ok_or_else(|| {
-            quent_analyzer::AnalyzerError::IncompleteEntity(format!(
-                "query {} has no query_group_id",
-                query_id
-            ))
-        })?;
-        let query_group = view.query_group(query_group_id)?.to_ui();
+        let engine = EngineEntity::to_ui(view.engine()?)?;
+        // Preserve the legacy bundle shape without modeling a simulator QueryGroup.
+        let query_group = quent_query_engine_ui::QueryGroup {
+            id: engine.id,
+            instance_name: engine.instance_name.clone(),
+            engine_id: Some(engine.id),
+        };
         let query = query.to_ui()?;
         let workers = view.workers().map(|w| (w.id(), w.to_ui(epoch))).collect();
         let plans = view.plans().map(|p| (p.id(), p.to_ui())).collect();
