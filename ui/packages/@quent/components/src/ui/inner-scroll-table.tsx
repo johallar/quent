@@ -139,11 +139,17 @@ export const InnerScrollTable = React.forwardRef<HTMLTableElement, InnerScrollTa
       for (const cell of layoutCells(table)) {
         observer?.observe(cell);
       }
+      const mutationObserver =
+        typeof MutationObserver === 'undefined'
+          ? undefined
+          : new MutationObserver(updateStickyColumns);
+      mutationObserver?.observe(table, { childList: true, subtree: true });
       return () => {
+        mutationObserver?.disconnect();
         observer?.disconnect();
         window.removeEventListener('resize', updateStickyColumns);
       };
-    }, [children, stickyLeftColumns, stickyRightColumns]);
+    }, [stickyLeftColumns, stickyRightColumns]);
 
     return (
       <Table
