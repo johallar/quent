@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: Copyright (c) 2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useMatch, useNavigate } from '@tanstack/react-router';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { ChevronDown, ChevronRight, Home } from 'lucide-react';
@@ -21,7 +21,7 @@ import {
 import { cn, formatAttributeValue } from '@quent/utils';
 import type { DynamicAttribute } from '@quent/utils';
 import { fetchListEngines, queriesQueryOptions, queryBundleQueryOptions } from '@quent/client';
-import { attributeLabel } from '@/components/query-selection/catalog';
+import { attributeLabel, sortQueriesByMostRecent } from '@/components/query-selection/catalog';
 
 interface BreadcrumbItem {
   id: string;
@@ -204,6 +204,10 @@ function NavBarNavigatorContent({
     enabled: !!engineId,
   });
   const queriesQuery = useQuery(queriesQueryOptions(engineId ?? ''));
+  const sortedQueries = useMemo(
+    () => sortQueriesByMostRecent(queriesQuery.data?.items ?? []),
+    [queriesQuery.data?.items]
+  );
 
   if (!queryBundle) {
     return null;
@@ -215,12 +219,11 @@ function NavBarNavigatorContent({
       label: engine.instance_name ?? engine.id,
       details: attributeDetails(engine.custom_attributes),
     })) ?? [];
-  const queryItems =
-    queriesQuery.data?.items.map(query => ({
-      id: query.id,
-      label: query.instance_name ?? query.id,
-      details: attributeDetails(query.custom_attributes),
-    })) ?? [];
+  const queryItems = sortedQueries.map(query => ({
+    id: query.id,
+    label: query.instance_name ?? query.id,
+    details: attributeDetails(query.custom_attributes),
+  }));
   const engineLabel = queryBundle.entities.engine.instance_name ?? queryBundle.entities.engine.id;
   const queryLabel = queryBundle.entities.query.instance_name ?? queryBundle.entities.query.id;
 
@@ -235,7 +238,7 @@ function NavBarNavigatorContent({
       if (token !== switchToken.current) {
         return;
       }
-      const firstQuery = response.items[0];
+      const firstQuery = sortQueriesByMostRecent(response.items)[0];
       if (!firstQuery) {
         setNavigationError('That engine has no queries.');
         return;

@@ -6,8 +6,10 @@ import {
   catalogAttributeKeys,
   filterCatalogItems,
   groupCatalogItems,
+  sortQueriesByMostRecent,
   type CatalogEntity,
 } from './catalog';
+import type { Query } from '@quent/utils';
 
 const items: CatalogEntity[] = [
   {
@@ -68,5 +70,54 @@ describe('catalog helpers', () => {
       { id: 'value:__other__', label: '__other__', items: [collisionItems[0]] },
       { id: 'missing', label: 'Other', items: [collisionItems[1]] },
     ]);
+  });
+
+  it('sorts queries by newest start time with deterministic fallbacks', () => {
+    const queries: Query[] = [
+      {
+        id: 'query-missing',
+        instance_name: null,
+        custom_attributes: [],
+        start_unix_ns: null,
+        planning_s: null,
+        executing_s: null,
+        completed_s: null,
+      },
+      {
+        id: 'query-b',
+        instance_name: 'Beta',
+        custom_attributes: [],
+        start_unix_ns: 20n,
+        planning_s: null,
+        executing_s: null,
+        completed_s: null,
+      },
+      {
+        id: 'query-a',
+        instance_name: 'Alpha',
+        custom_attributes: [],
+        start_unix_ns: 20n,
+        planning_s: null,
+        executing_s: null,
+        completed_s: null,
+      },
+      {
+        id: 'query-old',
+        instance_name: 'Old',
+        custom_attributes: [],
+        start_unix_ns: 10n,
+        planning_s: null,
+        executing_s: null,
+        completed_s: null,
+      },
+    ];
+
+    expect(sortQueriesByMostRecent(queries).map(query => query.id)).toEqual([
+      'query-a',
+      'query-b',
+      'query-old',
+      'query-missing',
+    ]);
+    expect(queries[0]?.id).toBe('query-missing');
   });
 });

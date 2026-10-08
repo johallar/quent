@@ -3,6 +3,7 @@
 
 import { Link, useNavigate } from '@tanstack/react-router';
 import { useQuery } from '@tanstack/react-query';
+import { useMemo } from 'react';
 import { ArrowLeft } from 'lucide-react';
 import { fetchListEngines, queriesQueryOptions } from '@quent/client';
 import { Button, DataText } from '@quent/components';
@@ -12,6 +13,7 @@ import {
   EntityCatalogTable,
   type CatalogMetadataColumn,
 } from '@/components/query-selection/EntityCatalogTable';
+import { sortQueriesByMostRecent } from '@/components/query-selection/catalog';
 
 const queryColumns: CatalogMetadataColumn<Query>[] = [
   {
@@ -53,6 +55,10 @@ export function QuerySelectionPage({ engineId }: { engineId: string }) {
   });
   const queryList = useQuery(queriesQueryOptions(engineId));
   const selectedEngine = enginesList.data?.items.find(engine => engine.id === engineId);
+  const queries = useMemo(
+    () => sortQueriesByMostRecent(queryList.data?.items ?? []),
+    [queryList.data?.items]
+  );
 
   return (
     <div className="mx-auto flex h-full min-h-0 w-full max-w-7xl flex-col px-4 py-8 sm:px-6 lg:px-8">
@@ -79,7 +85,7 @@ export function QuerySelectionPage({ engineId }: { engineId: string }) {
       <EntityCatalogTable
         title="Select a query"
         description="Search query metadata or use the analyzer’s suggested grouping to find the profile you want to inspect."
-        items={queryList.data?.items ?? []}
+        items={queries}
         initialGroupBy={queryList.data?.initial_group_by_attribute ?? null}
         metadataColumns={queryColumns}
         isLoading={queryList.isLoading}
