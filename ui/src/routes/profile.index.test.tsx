@@ -100,6 +100,13 @@ describe('EngineSelectionPage', () => {
     const { router } = renderWithRouter();
 
     await screen.findByText('Alpha engine');
+    const engineRow = screen.getByText('Alpha engine').closest('tr');
+    if (!engineRow) {
+      throw new Error('Engine row was not rendered');
+    }
+    expect(engineRow.querySelectorAll('td > a')).toHaveLength(
+      engineRow.querySelectorAll('td').length
+    );
     await user.click(screen.getByRole('link', { name: 'View queries: Alpha engine' }));
 
     expect(await screen.findByRole('heading', { name: 'Select a query' })).toBeInTheDocument();
@@ -107,6 +114,7 @@ describe('EngineSelectionPage', () => {
     expect(screen.getByText('Q42')).toBeInTheDocument();
     expect(screen.getByText(/Workload: nightly/)).toBeInTheDocument();
     expect(screen.getByText('Alpha engine')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'View profile: Q42' })).toHaveTextContent('Q42');
 
     await user.click(screen.getByRole('button', { name: /change engine/i }));
     expect(await screen.findByRole('heading', { name: 'Select an engine' })).toBeInTheDocument();

@@ -42,14 +42,14 @@ export function EngineSelectionPage() {
         error={enginesList.error instanceof Error ? enginesList.error : null}
         emptyMessage="No engines are available."
         onRetry={() => void enginesList.refetch()}
-        renderItemLink={engine => (
+        renderItemLink={(engine, children, primary) => (
           <Link
             to="/profile/engine/$engineId"
             params={{ engineId: engine.id }}
-            aria-label={`View queries: ${engine.instance_name ?? engine.id}`}
-            className="block truncate rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            aria-label={primary ? `View queries: ${engine.instance_name ?? engine.id}` : undefined}
+            tabIndex={primary ? undefined : -1}
           >
-            <DataText>{engine.instance_name ?? 'Unnamed'}</DataText>
+            {children}
           </Link>
         )}
       />

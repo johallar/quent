@@ -31,6 +31,8 @@ import {
 } from './catalog';
 
 const NO_GROUPING = '__none__';
+const linkedCellClassName =
+  'p-0 [&>a]:block [&>a]:px-2 [&>a]:py-2 [&>a]:focus-visible:outline-none [&>a]:focus-visible:ring-2 [&>a]:focus-visible:ring-inset [&>a]:focus-visible:ring-ring';
 
 export interface CatalogMetadataColumn<T> {
   id: string;
@@ -48,7 +50,7 @@ export interface EntityCatalogTableProps<T extends CatalogEntity> {
   error: Error | null;
   emptyMessage: string;
   onRetry: () => void;
-  renderItemLink: (item: T) => ReactNode;
+  renderItemLink: (item: T, children: ReactNode, primary: boolean) => ReactNode;
 }
 
 export function EntityCatalogTable<T extends CatalogEntity>({
@@ -157,18 +159,30 @@ export function EntityCatalogTable<T extends CatalogEntity>({
                     ]
                   : []),
                 ...group.items.map(item => (
-                  <TableRow key={item.id}>
-                    <TableCell className="min-w-48 max-w-64 font-medium">
-                      {renderItemLink(item)}
+                  <TableRow key={item.id} className="cursor-pointer">
+                    <TableCell className={`${linkedCellClassName} min-w-48 max-w-64 font-medium`}>
+                      {renderItemLink(
+                        item,
+                        <DataText className="block truncate">
+                          {item.instance_name ?? 'Unnamed'}
+                        </DataText>,
+                        true
+                      )}
                     </TableCell>
                     {metadataColumns.map(column => (
-                      <TableCell key={column.id}>{column.render(item)}</TableCell>
+                      <TableCell key={column.id} className={linkedCellClassName}>
+                        {renderItemLink(item, column.render(item), false)}
+                      </TableCell>
                     ))}
                     {attributeKeys.map(key => (
-                      <TableCell key={key} className="max-w-64">
-                        <DataText className="block truncate">
-                          {formatAttributeValue(key, attributeValue(item.custom_attributes, key))}
-                        </DataText>
+                      <TableCell key={key} className={`${linkedCellClassName} max-w-64`}>
+                        {renderItemLink(
+                          item,
+                          <DataText className="block truncate">
+                            {formatAttributeValue(key, attributeValue(item.custom_attributes, key))}
+                          </DataText>,
+                          false
+                        )}
                       </TableCell>
                     ))}
                   </TableRow>

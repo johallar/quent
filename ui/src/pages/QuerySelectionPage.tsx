@@ -89,15 +89,15 @@ export function QuerySelectionPage({ engineId }: { engineId: string }) {
         error={queryList.error instanceof Error ? queryList.error : null}
         emptyMessage="This engine has no queries."
         onRetry={() => void queryList.refetch()}
-        renderItemLink={query => (
+        renderItemLink={(query, children, primary) => (
           <Link
             to="/profile/engine/$engineId/query/$queryId"
             params={{ engineId, queryId: query.id }}
             search={{}}
-            aria-label={`Open profile: ${query.instance_name ?? query.id}`}
-            className="block truncate rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            aria-label={primary ? `View profile: ${query.instance_name ?? query.id}` : undefined}
+            tabIndex={primary ? undefined : -1}
           >
-            <DataText>{query.instance_name ?? 'Unnamed'}</DataText>
+            {children}
           </Link>
         )}
       />
