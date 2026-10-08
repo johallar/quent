@@ -5,9 +5,12 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { NavBarNavigator } from './NavBarNavigator';
 import { act, renderWithQuery, screen, userEvent, waitFor } from '@/test/test-utils';
 
-const { fetchQueryMock, navigateMock, useQueryMock } = vi.hoisted(() => ({
+const { fetchQueryMock, navigateMock, routeParams, useQueryMock } = vi.hoisted(() => ({
   fetchQueryMock: vi.fn(),
   navigateMock: vi.fn(),
+  routeParams: {
+    current: { engineId: 'engine-current', queryId: 'query-current' },
+  },
   useQueryMock: vi.fn(),
 }));
 
@@ -16,9 +19,7 @@ vi.mock('@tanstack/react-router', async importOriginal => {
   return {
     ...actual,
     Link: ({ children }: { children: React.ReactNode }) => children,
-    useMatch: () => ({
-      params: { engineId: 'engine-current', queryId: 'query-current' },
-    }),
+    useMatch: () => ({ params: routeParams.current }),
     useNavigate: () => navigateMock,
   };
 });
@@ -63,6 +64,7 @@ describe('NavBarNavigator', () => {
   beforeEach(() => {
     navigateMock.mockReset();
     fetchQueryMock.mockReset();
+    routeParams.current = { engineId: 'engine-current', queryId: 'query-current' };
     useQueryMock.mockImplementation(options => {
       switch (options.queryKey[0]) {
         case 'queryBundle':
@@ -77,7 +79,7 @@ describe('NavBarNavigator', () => {
     });
   });
 
-  it('ignores an engine switch that finishes after a newer switch', async () => {
+  it('ignores stale switches and clears errors when the route changes', async () => {
     let resolveEngineA!: (value: typeof queries) => void;
     let resolveEngineB!: (value: typeof queries) => void;
     const engineA = new Promise<typeof queries>(resolve => {
@@ -91,7 +93,7 @@ describe('NavBarNavigator', () => {
     );
 
     const user = userEvent.setup();
-    renderWithQuery(<NavBarNavigator />);
+    const { rerender } = renderWithQuery(<NavBarNavigator />);
 
     await user.click(screen.getByRole('button', { name: 'Change Current engine' }));
     await user.click(screen.getByRole('menuitem', { name: 'Engine A' }));
@@ -99,23 +101,19 @@ describe('NavBarNavigator', () => {
     await user.click(screen.getByRole('menuitem', { name: 'Engine B' }));
 
     await act(async () => {
-      resolveEngineB({
-        items: [{ id: 'query-b', instance_name: 'Query B', custom_attributes: [] }],
-      });
+      resolveEngineB({ items: [] });
     });
-    await waitFor(() =>
-      expect(navigateMock).toHaveBeenCalledWith({
-        to: '/profile/engine/$engineId/query/$queryId',
-        params: { engineId: 'engine-b', queryId: 'query-b' },
-        search: {},
-      })
-    );
+    expect(await screen.findByRole('alert')).toHaveTextContent('That engine has no queries.');
+
+    routeParams.current = { engineId: 'engine-current', queryId: 'query-next' };
+    rerender(<NavBarNavigator />);
+    await waitFor(() => expect(screen.queryByRole('alert')).not.toBeInTheDocument());
 
     await act(async () => {
       resolveEngineA({
         items: [{ id: 'query-a', instance_name: 'Query A', custom_attributes: [] }],
       });
     });
-    expect(navigateMock).toHaveBeenCalledTimes(1);
+    expect(navigateMock).not.toHaveBeenCalled();
   });
 });

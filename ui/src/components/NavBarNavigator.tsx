@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: Copyright (c) 2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link, useMatch, useNavigate } from '@tanstack/react-router';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { ChevronDown, ChevronRight, Home } from 'lucide-react';
@@ -157,16 +157,43 @@ function BreadcrumbDropdown({
 }
 
 export function NavBarNavigator() {
-  const navigate = useNavigate();
-  const queryClient = useQueryClient();
-  const [navigationError, setNavigationError] = useState('');
-  const switchToken = useRef(0);
   const queryLayoutMatch = useMatch({
     from: '/profile/engine/$engineId/query/$queryId',
     shouldThrow: false,
   });
   const engineId = queryLayoutMatch?.params?.engineId;
   const queryId = queryLayoutMatch?.params?.queryId;
+
+  if (!engineId) {
+    return null;
+  }
+
+  return (
+    <NavBarNavigatorContent
+      key={`${engineId}:${queryId ?? ''}`}
+      engineId={engineId}
+      queryId={queryId}
+    />
+  );
+}
+
+function NavBarNavigatorContent({
+  engineId,
+  queryId,
+}: {
+  engineId: string;
+  queryId: string | undefined;
+}) {
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const [navigationError, setNavigationError] = useState('');
+  const switchToken = useRef(0);
+  useEffect(
+    () => () => {
+      switchToken.current += 1;
+    },
+    []
+  );
   const { data: queryBundle } = useQuery({
     ...queryBundleQueryOptions({ engineId: engineId ?? '', queryId: queryId ?? '' }),
     enabled: !!engineId && !!queryId,
@@ -178,7 +205,7 @@ export function NavBarNavigator() {
   });
   const queriesQuery = useQuery(queriesQueryOptions(engineId ?? ''));
 
-  if (!queryBundle || !engineId) {
+  if (!queryBundle) {
     return null;
   }
 
