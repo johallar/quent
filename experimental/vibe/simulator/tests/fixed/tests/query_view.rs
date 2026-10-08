@@ -54,18 +54,17 @@ fn builds_each_query_view_when_queries_share_resources() {
         .unwrap()
         .to_ui()
         .unwrap();
-    assert!(
-        engine
-            .custom_attributes
-            .iter()
-            .any(|attribute| attribute.key == "workers")
-    );
-    assert!(engine.custom_attributes.iter().any(|attribute| {
-        attribute.key == "num_workloads" && attribute.value.as_ref() == Some(&DynamicValue::U64(1))
-    }));
-    assert!(engine.custom_attributes.iter().any(|attribute| {
-        attribute.key == "num_queries" && attribute.value.as_ref() == Some(&DynamicValue::U64(2))
-    }));
+    for (key, value) in [
+        ("workers", 1),
+        ("threads_per_worker", 1),
+        ("gpus_per_worker", 1),
+        ("num_workloads", 1),
+        ("num_queries", 2),
+    ] {
+        assert!(engine.custom_attributes.iter().any(|attribute| {
+            attribute.key == key && attribute.value.as_ref() == Some(&DynamicValue::U64(value))
+        }));
+    }
     assert_eq!(
         SimulatorUiAnalyzer::engine_initial_group_by_attribute().as_deref(),
         Some("workers")
@@ -88,6 +87,19 @@ fn builds_each_query_view_when_queries_share_resources() {
             .iter()
             .any(|attribute| attribute.key == "workload")
     }));
+    let mut query_indexes = queries
+        .iter()
+        .flat_map(|query| &query.custom_attributes)
+        .filter_map(
+            |attribute| match (attribute.key.as_str(), attribute.value.as_ref()) {
+                ("query_index", Some(DynamicValue::U64(value))) => Some(*value),
+                _ => None,
+            },
+        )
+        .collect::<Vec<_>>();
+    query_indexes.sort_unstable();
+    assert_eq!(query_indexes, vec![0, 1]);
+
     for query_id in queries.into_iter().map(|query| query.id) {
         assert_eq!(analyzer.query_bundle(query_id).unwrap().query_id, query_id);
     }

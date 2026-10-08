@@ -54,7 +54,7 @@ use quent_analyzer::{
         },
     },
 };
-use quent_dynamic_attributes::DynamicValue;
+use quent_dynamic_attributes::{DynamicAttribute, DynamicValue};
 #[cfg(not(target_arch = "wasm32"))]
 use quent_simulator_store::Simulator;
 use quent_simulator_store::{self as schema, SimulatorEvent};
@@ -264,7 +264,11 @@ impl UiAnalyzer for SimulatorUiAnalyzer {
             if let SimulatorEvent::Engine(schema::EngineEvent::Init {
                 implementation,
                 instance_name,
-                custom_attributes,
+                workers,
+                threads_per_worker,
+                gpus_per_worker,
+                num_workloads,
+                num_queries,
             }) = event.data
             {
                 return Ok(quent_query_engine_ui::Engine {
@@ -272,7 +276,13 @@ impl UiAnalyzer for SimulatorUiAnalyzer {
                     start_time_unix_ns: Some(event.timestamp),
                     duration_s: None,
                     instance_name,
-                    custom_attributes: custom_attributes.0,
+                    custom_attributes: vec![
+                        DynamicAttribute::u64("workers", workers),
+                        DynamicAttribute::u64("threads_per_worker", threads_per_worker),
+                        DynamicAttribute::u64("gpus_per_worker", gpus_per_worker),
+                        DynamicAttribute::u64("num_workloads", num_workloads),
+                        DynamicAttribute::u64("num_queries", num_queries),
+                    ],
                     implementation: Some(quent_query_engine_ui::EngineImplementationAttributes {
                         name: implementation.name,
                         version: implementation.version,

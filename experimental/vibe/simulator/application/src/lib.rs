@@ -1479,17 +1479,11 @@ impl Engine {
                     custom_attributes: Default::default(),
                 },
                 Some(format!("holodeck-{:04x}", rng().random::<u32>())),
-                vec![
-                    DynamicAttribute::u64("workers", num_workers as u64),
-                    DynamicAttribute::u64("threads_per_worker", num_threads as u64),
-                    DynamicAttribute::u64("gpus_per_worker", num_gpus as u64),
-                    DynamicAttribute::u64("num_workloads", num_workloads as u64),
-                    DynamicAttribute::u64(
-                        "num_queries",
-                        num_workloads as u64 * num_queries_per_workload as u64,
-                    ),
-                ]
-                .into(),
+                num_workers as u64,
+                num_threads as u64,
+                num_gpus as u64,
+                num_workloads as u64,
+                num_workloads as u64 * num_queries_per_workload as u64,
             )
             .unwrap();
 
@@ -1618,11 +1612,8 @@ fn simulate_with_engine_id(context: SimulatorContext, config: SimulationConfig, 
                 .init(
                     query_name,
                     engine.handle.as_entity_ref(),
-                    vec![
-                        DynamicAttribute::string("workload", workload_name.clone()),
-                        DynamicAttribute::u64("query_index", query_index as u64),
-                    ]
-                    .into(),
+                    workload_name.clone(),
+                    query_index as u64,
                 )
                 .planning();
             let mut l_plan = make_logical_plan(&context, query.as_entity_ref(), "logical".into());

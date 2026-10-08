@@ -33,7 +33,11 @@ entities:
         attributes:
           implementation: EngineImplementationAttributes
           instance_name: { option: string }
-          custom_attributes: dynamic
+          workers: u64
+          threads_per_worker: u64
+          gpus_per_worker: u64
+          num_workloads: u64
+          num_queries: u64
       exit: {}
 
   Worker:
@@ -182,7 +186,8 @@ fsms:
         attributes:
           instance_name: string
           engine_id: { scope-ref: Engine }
-          custom_attributes: dynamic
+          workload: string
+          query_index: u64
         to: [planning]
       planning:
         to: [executing]

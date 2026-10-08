@@ -51,7 +51,8 @@ pub trait UiAnalyzer {
     where
         Self: Sized;
 
-    /// Attribute used to group the initial engine catalog, if any.
+    /// Top-level UI attribute key used to group the initial engine catalog.
+    /// Nested attribute paths are not supported.
     fn engine_initial_group_by_attribute() -> Option<String>
     where
         Self: Sized,
@@ -59,7 +60,8 @@ pub trait UiAnalyzer {
         None
     }
 
-    /// Attribute used to group the initial query catalog, if any.
+    /// Top-level UI attribute key used to group the initial query catalog.
+    /// Nested attribute paths are not supported.
     fn query_initial_group_by_attribute(&self) -> Option<String> {
         None
     }

@@ -15,6 +15,7 @@ use quent_analyzer::{
     },
     resource::{CapacityDecl, Resource, ResourceTypeDecl, Usage, Using},
 };
+use quent_dynamic_attributes::DynamicAttribute;
 use quent_events::Event;
 use quent_query_engine_analyzer::{
     EngineEntity, OperatorEntity, OperatorEntityMut, PlanEntity, PortEntity, QueryEntity,

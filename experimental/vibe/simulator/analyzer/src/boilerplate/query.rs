@@ -98,23 +98,29 @@ impl QueryEntity for Query {
             }
         }
 
+        let (instance_name, custom_attributes) = match transitions.first() {
+            Some(transition) => match &transition.data {
+                schema::QueryEvent::Init {
+                    instance_name,
+                    workload,
+                    query_index,
+                    ..
+                } => (
+                    Some(instance_name.clone()),
+                    vec![
+                        DynamicAttribute::string("workload", workload.clone()),
+                        DynamicAttribute::u64("query_index", *query_index),
+                    ],
+                ),
+                _ => (None, Vec::new()),
+            },
+            None => (None, Vec::new()),
+        };
+
         Ok(query_engine_ui::Query {
             id: self.id(),
-            instance_name: transitions
-                .first()
-                .and_then(|transition| match &transition.data {
-                    schema::QueryEvent::Init { instance_name, .. } => Some(instance_name.clone()),
-                    _ => None,
-                }),
-            custom_attributes: transitions
-                .first()
-                .and_then(|transition| match &transition.data {
-                    schema::QueryEvent::Init {
-                        custom_attributes, ..
-                    } => Some(custom_attributes.0.clone()),
-                    _ => None,
-                })
-                .unwrap_or_default(),
+            instance_name,
+            custom_attributes,
             start_unix_ns: epoch,
             planning_s,
             executing_s,

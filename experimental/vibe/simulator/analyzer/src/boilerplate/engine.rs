@@ -6,8 +6,12 @@ use super::*;
 #[derive(Default)]
 pub(crate) struct EngineAccumulator {
     pub(crate) instance_name: Option<String>,
-    pub(crate) custom_attributes: quent_dynamic_attributes::DynamicAttributes,
     pub(crate) implementation: Option<schema::EngineImplementationAttributes>,
+    pub(crate) workers: Option<u64>,
+    pub(crate) threads_per_worker: Option<u64>,
+    pub(crate) gpus_per_worker: Option<u64>,
+    pub(crate) num_workloads: Option<u64>,
+    pub(crate) num_queries: Option<u64>,
     pub(crate) exited: bool,
 }
 
@@ -19,11 +23,19 @@ impl EntityEventAccumulator for EngineAccumulator {
             schema::EngineEvent::Init {
                 implementation,
                 instance_name,
-                custom_attributes,
+                workers,
+                threads_per_worker,
+                gpus_per_worker,
+                num_workloads,
+                num_queries,
             } => {
                 self.instance_name = instance_name;
-                self.custom_attributes = custom_attributes;
                 self.implementation = Some(implementation);
+                self.workers = Some(workers);
+                self.threads_per_worker = Some(threads_per_worker);
+                self.gpus_per_worker = Some(gpus_per_worker);
+                self.num_workloads = Some(num_workloads);
+                self.num_queries = Some(num_queries);
             }
             schema::EngineEvent::Exit => self.exited = true,
         }
@@ -84,7 +96,21 @@ impl EngineEntity for Engine {
             start_time_unix_ns: Some(start),
             duration_s,
             instance_name: data.instance_name.clone(),
-            custom_attributes: data.custom_attributes.0.clone(),
+            custom_attributes: [
+                data.workers
+                    .map(|value| DynamicAttribute::u64("workers", value)),
+                data.threads_per_worker
+                    .map(|value| DynamicAttribute::u64("threads_per_worker", value)),
+                data.gpus_per_worker
+                    .map(|value| DynamicAttribute::u64("gpus_per_worker", value)),
+                data.num_workloads
+                    .map(|value| DynamicAttribute::u64("num_workloads", value)),
+                data.num_queries
+                    .map(|value| DynamicAttribute::u64("num_queries", value)),
+            ]
+            .into_iter()
+            .flatten()
+            .collect(),
             implementation: data.implementation.as_ref().map(|implementation| {
                 query_engine_ui::EngineImplementationAttributes {
                     name: implementation.name.clone(),

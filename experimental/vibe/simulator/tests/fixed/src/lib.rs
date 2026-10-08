@@ -138,12 +138,11 @@ pub fn emit(ctx: &SimulatorContext) {
                     custom_attributes: Default::default(),
                 },
                 Some("test-engine".into()),
-                vec![
-                    DynamicAttribute::u64("workers", 2),
-                    DynamicAttribute::u64("num_workloads", 1),
-                    DynamicAttribute::u64("num_queries", 1),
-                ]
-                .into(),
+                2,
+                2,
+                0,
+                1,
+                1,
             )
             .unwrap()
     );
@@ -237,7 +236,8 @@ pub fn emit(ctx: &SimulatorContext) {
         query.init(
             "test-query".into(),
             entity_ref(ENGINE),
-            vec![DynamicAttribute::string("workload", "test-group")].into(),
+            "test-group".into(),
+            0,
         )
     );
     let query = ts!(1_000_000_000, query.planning());

@@ -110,7 +110,8 @@ pub struct Engine {
     /// The name of this [`Engine`] instance.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub instance_name: Option<String>,
-    /// Arbitrary application-specific attributes defined at run time.
+    /// Application-specific attributes exposed to the UI.
+    /// Analyzers should convert statically typed values only at this boundary.
     pub custom_attributes: Vec<DynamicAttribute>,
     /// Details about the Engine implementation.
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -137,7 +138,8 @@ pub struct Query {
     pub id: Uuid,
     /// A name for this [`Query`].
     pub instance_name: Option<String>,
-    /// Arbitrary application-specific attributes defined at run time.
+    /// Application-specific attributes exposed to the UI.
+    /// Analyzers should convert statically typed values only at this boundary.
     pub custom_attributes: Vec<DynamicAttribute>,
 
     /// The start time of this query, relative to the Unix epoch.
