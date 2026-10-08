@@ -21,10 +21,10 @@ test('smoke tests the query profiler routes', async ({ page }) => {
   await expectNoErrors(page, errors, allowedMissingNvtxCatalogErrors);
 
   await expect(page.getByText('test-engine')).toBeVisible();
-  await page.getByRole('button', { name: 'View queries' }).click();
+  await page.getByRole('row', { name: 'View queries: test-engine' }).click();
   await expect(page.getByRole('heading', { name: 'Select a query' })).toBeVisible();
   await expect(page.getByText('test-query')).toBeVisible();
-  await page.getByRole('button', { name: 'Open profile' }).click();
+  await page.getByRole('row', { name: 'Open profile: test-query' }).click();
 
   await expect(page).toHaveURL(new RegExp(`${QUERY_PATH}/timeline$`));
   await expect(page.getByRole('tree').getByText('test-engine', { exact: true })).toBeVisible();

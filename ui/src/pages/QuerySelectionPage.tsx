@@ -21,7 +21,7 @@ const queryColumns: CatalogMetadataColumn<Query>[] = [
       <DataText className="tabular-nums">
         {query.start_unix_ns == null
           ? '—'
-          : new Date(Number(query.start_unix_ns / 1_000_000n)).toLocaleString()}
+          : new Date(Number(query.start_unix_ns) / 1_000_000).toLocaleString()}
       </DataText>
     ),
   },

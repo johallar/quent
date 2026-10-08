@@ -46,7 +46,7 @@ const queriesResponse = {
       id: 'query-1',
       instance_name: 'Q42',
       custom_attributes: [{ key: 'workload', value: { String: 'nightly' } }],
-      start_unix_ns: null,
+      start_unix_ns: 1_000_000_000,
       planning_s: 0,
       executing_s: 0.1,
       completed_s: 1.5,
