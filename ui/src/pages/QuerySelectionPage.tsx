@@ -4,7 +4,7 @@
 import { useNavigate } from '@tanstack/react-router';
 import { useQuery } from '@tanstack/react-query';
 import { ArrowLeft } from 'lucide-react';
-import { fetchListEngines, fetchListQueries } from '@quent/client';
+import { fetchListEngines, queriesQueryOptions } from '@quent/client';
 import { Button, DataText } from '@quent/components';
 import { formatDuration } from '@quent/utils';
 import type { Query } from '@quent/utils';
@@ -51,10 +51,7 @@ export function QuerySelectionPage({ engineId }: { engineId: string }) {
     queryKey: ['list_engines'],
     queryFn: fetchListEngines,
   });
-  const queryList = useQuery({
-    queryKey: ['list_queries', engineId],
-    queryFn: () => fetchListQueries(engineId),
-  });
+  const queryList = useQuery(queriesQueryOptions(engineId));
   const selectedEngine = enginesList.data?.items.find(engine => engine.id === engineId);
 
   return (

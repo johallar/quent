@@ -44,9 +44,29 @@ describe('catalog helpers', () => {
 
   it('groups missing values under Other while preserving row order', () => {
     expect(groupCatalogItems(items, 'workload')).toEqual([
-      { id: 'nightly', label: 'nightly', items: [items[0]] },
-      { id: 'interactive', label: 'interactive', items: [items[1]] },
-      { id: '__other__', label: 'Other', items: [items[2]] },
+      { id: 'value:nightly', label: 'nightly', items: [items[0]] },
+      { id: 'value:interactive', label: 'interactive', items: [items[1]] },
+      { id: 'missing', label: 'Other', items: [items[2]] },
+    ]);
+  });
+
+  it('keeps missing values separate from a value matching the old sentinel', () => {
+    const collisionItems: CatalogEntity[] = [
+      {
+        id: 'query-present',
+        instance_name: null,
+        custom_attributes: [{ key: 'workload', value: '__other__' }],
+      },
+      {
+        id: 'query-missing',
+        instance_name: null,
+        custom_attributes: [],
+      },
+    ];
+
+    expect(groupCatalogItems(collisionItems, 'workload')).toEqual([
+      { id: 'value:__other__', label: '__other__', items: [collisionItems[0]] },
+      { id: 'missing', label: 'Other', items: [collisionItems[1]] },
     ]);
   });
 });

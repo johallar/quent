@@ -68,7 +68,7 @@ export function groupCatalogItems<T extends CatalogEntity>(
   for (const item of items) {
     const value = attributeValue(item.custom_attributes, groupBy);
     const label = value == null ? 'Other' : formatAttributeValue(groupBy, value);
-    const id = value == null ? '__other__' : label;
+    const id = value == null ? 'missing' : `value:${label}`;
     const group = groups.get(id);
     if (group) {
       group.items.push(item);

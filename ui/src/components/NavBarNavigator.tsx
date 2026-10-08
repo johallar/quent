@@ -20,7 +20,7 @@ import {
 } from '@quent/components';
 import { cn, formatAttributeValue } from '@quent/utils';
 import type { DynamicAttribute } from '@quent/utils';
-import { fetchListEngines, fetchListQueries, queryBundleQueryOptions } from '@quent/client';
+import { fetchListEngines, queriesQueryOptions, queryBundleQueryOptions } from '@quent/client';
 import { attributeLabel } from '@/components/query-selection/catalog';
 
 interface BreadcrumbItem {
@@ -160,6 +160,7 @@ export function NavBarNavigator() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [navigationError, setNavigationError] = useState('');
+  const switchToken = useRef(0);
   const queryLayoutMatch = useMatch({
     from: '/profile/engine/$engineId/query/$queryId',
     shouldThrow: false,
@@ -175,11 +176,7 @@ export function NavBarNavigator() {
     queryFn: fetchListEngines,
     enabled: !!engineId,
   });
-  const queriesQuery = useQuery({
-    queryKey: ['list_queries', engineId],
-    queryFn: () => fetchListQueries(engineId!),
-    enabled: !!engineId,
-  });
+  const queriesQuery = useQuery(queriesQueryOptions(engineId ?? ''));
 
   if (!queryBundle || !engineId) {
     return null;
@@ -204,12 +201,13 @@ export function NavBarNavigator() {
     if (newEngineId === engineId) {
       return;
     }
+    const token = ++switchToken.current;
     setNavigationError('');
     try {
-      const response = await queryClient.fetchQuery({
-        queryKey: ['list_queries', newEngineId],
-        queryFn: () => fetchListQueries(newEngineId),
-      });
+      const response = await queryClient.fetchQuery(queriesQueryOptions(newEngineId));
+      if (token !== switchToken.current) {
+        return;
+      }
       const firstQuery = response.items[0];
       if (!firstQuery) {
         setNavigationError('That engine has no queries.');
@@ -221,11 +219,15 @@ export function NavBarNavigator() {
         search: {},
       });
     } catch (error) {
+      if (token !== switchToken.current) {
+        return;
+      }
       setNavigationError(error instanceof Error ? error.message : 'Unable to switch engines.');
     }
   };
 
   const handleQueryChange = (newQueryId: string) => {
+    switchToken.current += 1;
     if (newQueryId === queryId) {
       return;
     }
