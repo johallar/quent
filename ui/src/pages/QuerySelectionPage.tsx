@@ -5,7 +5,7 @@ import { Link, useNavigate } from '@tanstack/react-router';
 import { useQuery } from '@tanstack/react-query';
 import { useMemo } from 'react';
 import { ArrowLeft } from 'lucide-react';
-import { fetchListEngines, queriesQueryOptions } from '@quent/client';
+import { queriesQueryOptions, useEngines } from '@quent/client';
 import { Button, DataText } from '@quent/components';
 import { formatDuration } from '@quent/utils';
 import type { Query } from '@quent/utils';
@@ -49,10 +49,7 @@ const queryColumns: CatalogMetadataColumn<Query>[] = [
 
 export function QuerySelectionPage({ engineId }: { engineId: string }) {
   const navigate = useNavigate();
-  const enginesList = useQuery({
-    queryKey: ['list_engines'],
-    queryFn: fetchListEngines,
-  });
+  const enginesList = useEngines();
   const queryList = useQuery(queriesQueryOptions(engineId));
   const selectedEngine = enginesList.data?.items.find(engine => engine.id === engineId);
   const queries = useMemo(
