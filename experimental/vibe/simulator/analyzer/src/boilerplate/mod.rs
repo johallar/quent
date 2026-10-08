@@ -45,6 +45,7 @@ mod task_executor_thread;
 mod worker;
 
 pub use engine::Engine;
+pub(crate) use engine::engine_custom_attributes;
 pub(crate) use gpu::Gpu;
 pub(crate) use gpu_memory::GpuMemory;
 pub(crate) use host_memory::HostMemory;

@@ -138,11 +138,13 @@ pub fn emit(ctx: &SimulatorContext) {
                     custom_attributes: Default::default(),
                 },
                 Some("test-engine".into()),
-                2,
-                2,
-                0,
-                1,
-                1,
+                instr::EngineConfiguration {
+                    workers: 2,
+                    threads_per_worker: 2,
+                    gpus_per_worker: 0,
+                    num_workloads: 1,
+                    num_queries: 1,
+                },
             )
             .unwrap()
     );

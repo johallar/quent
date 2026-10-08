@@ -1479,11 +1479,13 @@ impl Engine {
                     custom_attributes: Default::default(),
                 },
                 Some(format!("holodeck-{:04x}", rng().random::<u32>())),
-                num_workers as u64,
-                num_threads as u64,
-                num_gpus as u64,
-                num_workloads as u64,
-                num_workloads as u64 * num_queries_per_workload as u64,
+                instr::EngineConfiguration {
+                    workers: num_workers as u64,
+                    threads_per_worker: num_threads as u64,
+                    gpus_per_worker: num_gpus as u64,
+                    num_workloads: num_workloads as u64,
+                    num_queries: num_workloads as u64 * num_queries_per_workload as u64,
+                },
             )
             .unwrap();
 

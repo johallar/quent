@@ -54,7 +54,7 @@ use quent_analyzer::{
         },
     },
 };
-use quent_dynamic_attributes::{DynamicAttribute, DynamicValue};
+use quent_dynamic_attributes::DynamicValue;
 #[cfg(not(target_arch = "wasm32"))]
 use quent_simulator_store::Simulator;
 use quent_simulator_store::{self as schema, SimulatorEvent};
@@ -64,6 +64,7 @@ use quent_time::{SpanNanoSec, TimeNanoSec, TimeUnixNanoSec, Timestamp, to_nanose
 use quent_ui::fsm::FsmTypeDeclaration;
 use uuid::Uuid;
 
+use crate::boilerplate::engine_custom_attributes;
 pub use crate::boilerplate::{Task, TaskExt};
 use crate::model::{SimulatorModel, SimulatorModelBuilder};
 
@@ -264,11 +265,7 @@ impl UiAnalyzer for SimulatorUiAnalyzer {
             if let SimulatorEvent::Engine(schema::EngineEvent::Init {
                 implementation,
                 instance_name,
-                workers,
-                threads_per_worker,
-                gpus_per_worker,
-                num_workloads,
-                num_queries,
+                configuration,
             }) = event.data
             {
                 return Ok(quent_query_engine_ui::Engine {
@@ -276,13 +273,7 @@ impl UiAnalyzer for SimulatorUiAnalyzer {
                     start_time_unix_ns: Some(event.timestamp),
                     duration_s: None,
                     instance_name,
-                    custom_attributes: vec![
-                        DynamicAttribute::u64("workers", workers),
-                        DynamicAttribute::u64("threads_per_worker", threads_per_worker),
-                        DynamicAttribute::u64("gpus_per_worker", gpus_per_worker),
-                        DynamicAttribute::u64("num_workloads", num_workloads),
-                        DynamicAttribute::u64("num_queries", num_queries),
-                    ],
+                    custom_attributes: engine_custom_attributes(&configuration),
                     implementation: Some(quent_query_engine_ui::EngineImplementationAttributes {
                         name: implementation.name,
                         version: implementation.version,
