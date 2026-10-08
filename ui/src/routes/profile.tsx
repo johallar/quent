@@ -9,7 +9,7 @@ export const Route = createFileRoute('/profile')({
 
 function ProfileLayout() {
   return (
-    <div className="h-[calc(100vh-4rem)] overflow-x-hidden overflow-y-auto">
+    <div className="h-full overflow-x-hidden overflow-y-auto">
       <Outlet />
     </div>
   );
