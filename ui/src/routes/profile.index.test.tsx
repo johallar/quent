@@ -100,7 +100,7 @@ describe('EngineSelectionPage', () => {
     const { router } = renderWithRouter();
 
     await screen.findByText('Alpha engine');
-    await user.click(screen.getAllByRole('row', { name: /view queries/i })[0]);
+    await user.click(screen.getByRole('link', { name: 'View queries: Alpha engine' }));
 
     expect(await screen.findByRole('heading', { name: 'Select a query' })).toBeInTheDocument();
     expect(router.state.location.pathname).toBe('/profile/engine/engine-1');

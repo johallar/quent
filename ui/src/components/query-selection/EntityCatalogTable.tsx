@@ -47,9 +47,8 @@ export interface EntityCatalogTableProps<T extends CatalogEntity> {
   isLoading: boolean;
   error: Error | null;
   emptyMessage: string;
-  actionLabel: string;
   onRetry: () => void;
-  onSelect: (item: T) => void;
+  renderItemLink: (item: T) => ReactNode;
 }
 
 export function EntityCatalogTable<T extends CatalogEntity>({
@@ -61,9 +60,8 @@ export function EntityCatalogTable<T extends CatalogEntity>({
   isLoading,
   error,
   emptyMessage,
-  actionLabel,
   onRetry,
-  onSelect,
+  renderItemLink,
 }: EntityCatalogTableProps<T>) {
   const [search, setSearch] = useState('');
   const [groupByOverride, setGroupByOverride] = useState<string>();
@@ -159,23 +157,9 @@ export function EntityCatalogTable<T extends CatalogEntity>({
                     ]
                   : []),
                 ...group.items.map(item => (
-                  <TableRow
-                    key={item.id}
-                    tabIndex={0}
-                    aria-label={`${actionLabel}: ${item.instance_name ?? item.id}`}
-                    className="cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
-                    onClick={() => onSelect(item)}
-                    onKeyDown={event => {
-                      if (event.key === 'Enter' || event.key === ' ') {
-                        event.preventDefault();
-                        onSelect(item);
-                      }
-                    }}
-                  >
+                  <TableRow key={item.id}>
                     <TableCell className="min-w-48 max-w-64 font-medium">
-                      <DataText className="block truncate">
-                        {item.instance_name ?? 'Unnamed'}
-                      </DataText>
+                      {renderItemLink(item)}
                     </TableCell>
                     {metadataColumns.map(column => (
                       <TableCell key={column.id}>{column.render(item)}</TableCell>

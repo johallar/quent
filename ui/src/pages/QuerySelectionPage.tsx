@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: Copyright (c) 2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-import { useNavigate } from '@tanstack/react-router';
+import { Link, useNavigate } from '@tanstack/react-router';
 import { useQuery } from '@tanstack/react-query';
 import { ArrowLeft } from 'lucide-react';
 import { fetchListEngines, queriesQueryOptions } from '@quent/client';
@@ -85,15 +85,18 @@ export function QuerySelectionPage({ engineId }: { engineId: string }) {
         isLoading={queryList.isLoading}
         error={queryList.error instanceof Error ? queryList.error : null}
         emptyMessage="This engine has no queries."
-        actionLabel="Open profile"
         onRetry={() => void queryList.refetch()}
-        onSelect={query =>
-          navigate({
-            to: '/profile/engine/$engineId/query/$queryId',
-            params: { engineId, queryId: query.id },
-            search: {},
-          })
-        }
+        renderItemLink={query => (
+          <Link
+            to="/profile/engine/$engineId/query/$queryId"
+            params={{ engineId, queryId: query.id }}
+            search={{}}
+            aria-label={`Open profile: ${query.instance_name ?? query.id}`}
+            className="block truncate rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            <DataText>{query.instance_name ?? 'Unnamed'}</DataText>
+          </Link>
+        )}
       />
     </div>
   );

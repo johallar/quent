@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: Copyright (c) 2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-import { useNavigate } from '@tanstack/react-router';
+import { Link } from '@tanstack/react-router';
 import { useQuery } from '@tanstack/react-query';
 import { fetchListEngines } from '@quent/client';
 import { DataText } from '@quent/components';
@@ -25,7 +25,6 @@ const engineColumns: CatalogMetadataColumn<Engine>[] = [
 ];
 
 export function EngineSelectionPage() {
-  const navigate = useNavigate();
   const enginesList = useQuery({
     queryKey: ['list_engines'],
     queryFn: fetchListEngines,
@@ -42,14 +41,17 @@ export function EngineSelectionPage() {
         isLoading={enginesList.isLoading}
         error={enginesList.error instanceof Error ? enginesList.error : null}
         emptyMessage="No engines are available."
-        actionLabel="View queries"
         onRetry={() => void enginesList.refetch()}
-        onSelect={engine =>
-          navigate({
-            to: '/profile/engine/$engineId',
-            params: { engineId: engine.id },
-          })
-        }
+        renderItemLink={engine => (
+          <Link
+            to="/profile/engine/$engineId"
+            params={{ engineId: engine.id }}
+            aria-label={`View queries: ${engine.instance_name ?? engine.id}`}
+            className="block truncate rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            <DataText>{engine.instance_name ?? 'Unnamed'}</DataText>
+          </Link>
+        )}
       />
     </div>
   );
