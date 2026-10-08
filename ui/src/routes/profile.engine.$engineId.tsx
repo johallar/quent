@@ -99,7 +99,7 @@ function ProfileLayout() {
     return <Outlet />;
   }
 
-  if (hasQuery && !isQueryReady) {
+  if (!isQueryReady) {
     return <Outlet />;
   }
 
