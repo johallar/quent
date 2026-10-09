@@ -94,6 +94,7 @@ export type {
   StatValue,
   DAGNode,
   DAGEdge,
+  DAGStatisticSet,
 } from './dagTypes';
 
 // Operator selection types

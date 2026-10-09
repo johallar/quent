@@ -261,6 +261,11 @@ describe('getPlanDAG', () => {
   it('builds a node for each unique operator referenced by edges', () => {
     const op1 = makeOperator('op1', { typeName: 'Scan' });
     const op2 = makeOperator('op2', { typeName: 'Join' });
+    op1.statistics = {
+      custom_statistics: [
+        { value: { key: 'Work', value: [{ key: 'rows', value: 42 }] }, quantity: null },
+      ],
+    };
     const port1 = makePort('port1', 'op1');
     const port2 = makePort('port2', 'op2');
     const plan = makePlan('p1', { edges: [{ source: 'port1', target: 'port2' }] });
@@ -270,6 +275,19 @@ describe('getPlanDAG', () => {
     const ids = result.nodes.map(n => n.id);
     expect(ids).toContain('op1');
     expect(ids).toContain('op2');
+    expect(
+      result.nodes.find(node => node.id === 'op1')?.metadata?.operatorStatistics
+    ).toMatchObject({
+      fields: [
+        {
+          value: 42,
+          path: [
+            ['Work', 0],
+            ['rows', 0],
+          ],
+        },
+      ],
+    });
   });
 
   it('deduplicates nodes when the same operator appears in multiple edges', () => {
@@ -654,6 +672,15 @@ it('hydrates sending and receiving port evidence separately for parallel pipes',
   ]);
   expect(edges[0].portStats).toEqual([
     { key: 'Volume', value: { kind: 'struct', fields: [{ key: 'bytes', value: 100 }] } },
+  ]);
+  expect(edges[0].statisticFields).toMatchObject([
+    {
+      value: 100,
+      path: [
+        ['Volume', 0],
+        ['bytes', 0],
+      ],
+    },
   ]);
   expect(edges[0].targetPortStats).toEqual([
     { key: 'Volume', value: { kind: 'struct', fields: [{ key: 'bytes', value: 80 }] } },
