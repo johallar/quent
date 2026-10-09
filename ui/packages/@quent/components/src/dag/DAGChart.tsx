@@ -285,7 +285,9 @@ function selectedOperatorDataFromFlowNode(
     label: node.data.label,
     operationType: node.data.operationType,
     attributes: parseOperatorAttributes(node.data.metadata?.rawNode),
-    statistics: node.data.metadata?.operatorStatistics?.statistics ?? [],
+    statistics: node.data.metadata?.aggregatedStatistics?.length
+      ? node.data.metadata.aggregatedStatistics
+      : (node.data.metadata?.operatorStatistics?.statistics ?? []),
     relatedOperators: node.data.metadata?.relatedOperators?.map((operator, index) => ({
       nodeId: operator.id,
       label: operator.instance_name ?? operator.operator_type_name ?? 'Operator',

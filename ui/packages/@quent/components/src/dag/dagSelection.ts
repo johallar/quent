@@ -33,7 +33,9 @@ function getSelectedOperatorData(node: DAGNode): SelectedOperatorGroupData {
     label: node.label,
     operationType: node.type,
     attributes: parseOperatorAttributes(metadata?.rawNode),
-    statistics: metadata?.operatorStatistics?.statistics ?? [],
+    statistics: metadata?.aggregatedStatistics?.length
+      ? metadata.aggregatedStatistics
+      : (metadata?.operatorStatistics?.statistics ?? []),
     workerLabel: metadata?.operatorWorkerLabels?.[node.id],
     relatedOperators: metadata?.relatedOperators?.map((operator, index) => ({
       nodeId: operator.id,

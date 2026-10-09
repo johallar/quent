@@ -561,6 +561,61 @@ describe('getPlanDAG', () => {
     ]);
   });
 
+  it('sums related operator statistics for higher-level operator details', () => {
+    const logical = makeOperator('logical', { typeName: 'LogicalJoin', planId: 'logical-plan' });
+    const sibling = makeOperator('sibling', { typeName: 'LogicalScan', planId: 'logical-plan' });
+    const physicalA = makeOperator('physical-a', {
+      planId: 'physical-plan',
+      parentOperatorIds: ['logical'],
+    });
+    const physicalB = makeOperator('physical-b', {
+      planId: 'physical-plan',
+      parentOperatorIds: ['logical'],
+    });
+    physicalA.statistics = {
+      custom_statistics: [{ value: { key: 'rows', value: 4 }, quantity: 'rows' }],
+    };
+    physicalB.statistics = {
+      custom_statistics: [{ value: { key: 'rows', value: 6 }, quantity: 'rows' }],
+    };
+    const logicalPlan = makePlan('logical-plan', {
+      edges: [{ source: 'logical-port', target: 'sibling-port' }],
+    });
+    const bundle = makeBundle(
+      { 'logical-plan': logicalPlan, 'physical-plan': makePlan('physical-plan') },
+      {
+        operators: {
+          logical,
+          sibling,
+          'physical-a': physicalA,
+          'physical-b': physicalB,
+        },
+        ports: {
+          'logical-port': makePort('logical-port', 'logical'),
+          'sibling-port': makePort('sibling-port', 'sibling'),
+        },
+      }
+    );
+
+    const logicalNode = getPlanDAG(bundle, 'logical-plan').nodes.find(
+      node => node.id === 'logical'
+    );
+    expect(logicalNode?.metadata?.aggregatedStatistics).toEqual([
+      { key: 'rows', value: 10, quantity: 'rows' },
+    ]);
+
+    logical.statistics = {
+      custom_statistics: [{ value: { key: 'rows', value: 2 }, quantity: 'rows' }],
+    };
+    const logicalNodeWithOwnStats = getPlanDAG(bundle, 'logical-plan').nodes.find(
+      node => node.id === 'logical'
+    );
+    expect(logicalNodeWithOwnStats?.metadata?.aggregatedStatistics).toEqual([]);
+    expect(logicalNodeWithOwnStats?.metadata?.operatorStatistics?.statistics).toEqual([
+      { key: 'rows', value: 2, quantity: 'rows' },
+    ]);
+  });
+
   it('includes transitive related operator IDs', () => {
     const logical = makeOperator('logical', { typeName: 'LogicalJoin', planId: 'logical-plan' });
     const sibling = makeOperator('sibling', { typeName: 'LogicalScan', planId: 'logical-plan' });

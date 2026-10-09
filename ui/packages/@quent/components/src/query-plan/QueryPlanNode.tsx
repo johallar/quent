@@ -19,6 +19,7 @@ import {
   type DagLayoutDirection,
   type QuantitySpec,
   type DAGStatisticSet,
+  type Statistic,
 } from '@quent/utils';
 import {
   useSelectedNodeLabelField,
@@ -41,6 +42,7 @@ export interface QueryPlanNodeData extends Record<string, unknown> {
     rawNode?: Operator;
     relatedOperatorIds?: string[];
     relatedOperators?: Operator[];
+    aggregatedStatistics?: Statistic[];
     operatorStatistics?: DAGStatisticSet;
     relatedOperatorStatistics?: DAGStatisticSet[];
     operatorWorkerLabels?: Record<string, string | undefined>;

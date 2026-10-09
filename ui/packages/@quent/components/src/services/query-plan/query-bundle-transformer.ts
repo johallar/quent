@@ -5,9 +5,12 @@ import { parseCustomStatistics, parsePortStatistics } from '../../lib/queryBundl
 import type { DAGNode, DAGEdge, QueryPlanDataItem } from './types';
 import type { QueryBundle, EntityRef } from '@quent/utils';
 import {
+  aggregateNumericValues,
   buildRelatedOperatorIdsById,
   flattenStatistics,
+  isNumericValue,
   operatorWorkerLabel,
+  statisticFieldLabel,
   workerDisplayName,
   Operator,
   Port,
@@ -15,6 +18,8 @@ import {
   PlanTree,
   Worker,
   type DAGStatisticSet,
+  type Statistic,
+  type StatisticField,
 } from '@quent/utils';
 
 interface PlanTreeNode extends PlanTree {
@@ -23,6 +28,39 @@ interface PlanTreeNode extends PlanTree {
 
 function processStatistics(statistics: DAGStatisticSet['statistics']): DAGStatisticSet {
   return { statistics, fields: flattenStatistics(statistics) };
+}
+
+function sumStatisticSets(statisticSets: readonly DAGStatisticSet[]): Statistic[] {
+  const buckets = new Map<
+    string,
+    { field: StatisticField; values: Array<number | bigint>; fields: StatisticField[] }
+  >();
+  for (const statisticSet of statisticSets) {
+    for (const field of statisticSet.fields) {
+      if (!isNumericValue(field.value)) {
+        continue;
+      }
+      const bucket = buckets.get(field.key) ?? { field, values: [], fields: [] };
+      bucket.values.push(field.value);
+      bucket.fields.push(field);
+      buckets.set(field.key, bucket);
+    }
+  }
+  return [...buckets.values()].flatMap(({ field, values, fields }) => {
+    const sum = aggregateNumericValues(values)?.sum;
+    if (sum == null) {
+      return [];
+    }
+    const quantity = fields[0].quantity;
+    const hasConsistentQuantity = fields.every(candidate => candidate.quantity === quantity);
+    return [
+      {
+        key: statisticFieldLabel(field),
+        value: sum,
+        ...(hasConsistentQuantity && quantity !== undefined ? { quantity } : {}),
+      },
+    ];
+  });
 }
 
 /**
@@ -40,7 +78,8 @@ const getNodeEntity = (
   bundle: QueryBundle<EntityRef>,
   id: string,
   relatedOperatorIdsById: Map<string, string[]>,
-  operatorStatisticsById: ReadonlyMap<string, DAGStatisticSet>
+  operatorStatisticsById: ReadonlyMap<string, DAGStatisticSet>,
+  nodeMap: Map<string, DAGNode>
 ): DAGNode | undefined => {
   // Find associated port
   if (bundle?.entities?.ports?.[id]) {
@@ -49,6 +88,10 @@ const getNodeEntity = (
       ? bundle?.entities?.operators?.[port.operator_id]
       : undefined;
     if (operator) {
+      const cached = nodeMap.get(operator.id);
+      if (cached) {
+        return cached;
+      }
       const relatedOperatorIds = relatedOperatorIdsById.get(operator.id) ?? [];
       const relatedOperators = relatedOperatorIds.flatMap(id => {
         const relatedOperator = bundle.entities.operators[id];
@@ -80,12 +123,16 @@ const getNodeEntity = (
           bundle.entities.workers
         );
       }
-      return {
+      const node: DAGNode = {
         id: operator.id,
         label: operator.instance_name ?? operator.operator_type_name ?? 'Node',
         type: operator.operator_type_name?.toLowerCase() ?? 'operator',
         metadata: {
           rawNode: operator,
+          aggregatedStatistics:
+            operatorStatistics.statistics.length === 0
+              ? sumStatisticSets(relatedOperatorStatistics)
+              : [],
           operatorStatistics,
           relatedOperatorIds,
           relatedOperators,
@@ -93,6 +140,7 @@ const getNodeEntity = (
           operatorWorkerLabels,
         },
       };
+      return node;
     }
   }
 
@@ -215,26 +263,22 @@ export const getPlanDAG = (
       bundle,
       edge.source,
       relatedOperatorIdsById,
-      operatorStatisticsById
+      operatorStatisticsById,
+      nodeMap
     );
     const targetNode = getNodeEntity(
       bundle,
       edge.target,
       relatedOperatorIdsById,
-      operatorStatisticsById
+      operatorStatisticsById,
+      nodeMap
     );
     const sourceStatistics = portStatisticsById.get(edge.source);
     const targetStatistics = portStatisticsById.get(edge.target);
 
     if (sourceNode && targetNode && sourceStatistics && targetStatistics) {
-      // Deduplicate nodes by ID
-      if (!nodeMap.has(sourceNode.id)) {
-        nodeMap.set(sourceNode.id, sourceNode);
-      }
-      if (!nodeMap.has(targetNode.id)) {
-        nodeMap.set(targetNode.id, targetNode);
-      }
-
+      nodeMap.set(sourceNode.id, sourceNode);
+      nodeMap.set(targetNode.id, targetNode);
       edges.push({
         id: `${edge.source}-${edge.target}`,
         source: sourceNode.id,

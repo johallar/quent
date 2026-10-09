@@ -95,6 +95,7 @@ export interface DAGNode {
     estimates?: unknown[];
     identifier?: string;
     rawNode?: unknown;
+    aggregatedStatistics?: Statistic[];
     operatorStatistics?: DAGStatisticSet;
     relatedOperatorStatistics?: DAGStatisticSet[];
     stageId?: string;
