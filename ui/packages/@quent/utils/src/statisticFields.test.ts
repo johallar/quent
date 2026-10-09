@@ -29,6 +29,7 @@ describe('statistic fields', () => {
     ]);
     expect(new Set(fields.map(f => f.key)).size).toBe(5);
     expect(fields.map(f => f.value)).toEqual([1, 2, 3, 4, 5]);
+    expect(fields[4].key).toBe('[["Volume",0],["bytes",0]]');
     expect(fields.map(f => statisticFieldName(f))).toEqual([
       'bytes',
       'bytes',
@@ -63,13 +64,12 @@ describe('statistic fields', () => {
     expect(fields.map(statisticFieldLabel)).toEqual(['Volume › bytes', '"Volume › bytes"']);
   });
 
-  it('bounds long field IDs and retains their full names in metadata', () => {
+  it('retains long field names and explicit structured paths', () => {
     const name = 'very long producer name '.repeat(100);
     const fields = flattenStatistics([
       { key: name, value: 1 },
       { key: name, value: { kind: 'struct', fields: [{ key: name, value: 2 }] } },
     ]);
-    expect(fields.every(field => field.key.length <= 256)).toBe(true);
     expect(fields.map(statisticFieldName)).toEqual([name, name]);
     expect(fields[1].path).toEqual([
       [name, 1],
