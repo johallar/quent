@@ -198,7 +198,6 @@ const VariableWidthEdge = ({
           <path
             d={`M0,0 L0,${arrowWidth} L${arrowDepth},${arrowWidth / 2} z`}
             fill={edgeColor ?? 'currentColor'}
-            opacity={isEdgeDimmed ? EDGE_DIMMED_OPACITY : 1}
           />
         </marker>
       </defs>
