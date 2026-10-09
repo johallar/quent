@@ -14,16 +14,13 @@ use std::time::Duration;
 
 use backon::{ConstantBuilder, Retryable};
 use tokio::io::AsyncReadExt;
-use tokio::process::{Child, Command};
+use tokio::process::Command;
 use tokio::task::JoinSet;
 
 use crate::compatibility::WrapperCompatibility;
 use crate::error::{OpenError, Result};
 use crate::spec::ViewerSpec;
-use crate::wrapper::{
-    self, ADDR_ENV, REVISION_MCP_ADDR_ENV, REVISION_MCP_API_BASE_ENV, REVISION_MCP_PACKAGE,
-    ROOT_ENV, WRAPPER_PACKAGE,
-};
+use crate::wrapper::{self, ADDR_ENV, ROOT_ENV, WRAPPER_PACKAGE};
 
 /// Viewer to build: representative [`ViewerSpec`] plus all contexts sharing it.
 pub struct ViewerGroup {
@@ -34,7 +31,7 @@ pub struct ViewerGroup {
 /// A built viewer ready to serve: its binary, cache dir, and the contexts it covers.
 struct BuiltViewer {
     bin: PathBuf,
-    revision_mcp_bin: Option<PathBuf>,
+    has_mcp_server: bool,
     crate_dir: PathBuf,
     contexts: Vec<PathBuf>,
     label: String,
@@ -102,49 +99,24 @@ async fn build_one(group: ViewerGroup) -> Result<BuiltViewer> {
         &crate_dir,
         compatibility.io_package,
         compatibility.has_nvtx_routes,
+        compatibility.has_mcp_server,
         compatibility.context_indexing,
     )?;
     let bin = cargo_build(&crate_dir, WRAPPER_PACKAGE).await?;
-    let revision_mcp_bin = if compatibility.has_mcp_server {
-        build_revision_mcp(&spec, &crate_dir).await
-    } else {
-        None
-    };
     Ok(BuiltViewer {
         bin,
-        revision_mcp_bin,
+        has_mcp_server: compatibility.has_mcp_server,
         crate_dir,
         contexts,
         label,
     })
 }
 
-async fn build_revision_mcp(spec: &ViewerSpec, crate_dir: &Path) -> Option<PathBuf> {
-    let revision_mcp_dir = crate_dir.join("revision-mcp");
-    if let Err(error) = wrapper::generate_revision_mcp(spec, &revision_mcp_dir) {
-        eprintln!(
-            "warning: could not generate the pinned revision's MCP bridge ({error}); \
-             continuing without MCP"
-        );
-        return None;
-    }
-    match cargo_build(&revision_mcp_dir, REVISION_MCP_PACKAGE).await {
-        Ok(bin) => Some(bin),
-        Err(error) => {
-            eprintln!(
-                "warning: could not build the pinned revision's MCP bridge ({error}); \
-                 continuing without MCP"
-            );
-            None
-        }
-    }
-}
-
 /// Serve one built viewer over all its contexts.
 async fn serve_one(viewer: BuiltViewer, open_browser: bool, host: IpAddr) -> Result<()> {
     let BuiltViewer {
         bin,
-        revision_mcp_bin,
+        has_mcp_server,
         crate_dir,
         contexts,
         label,
@@ -153,7 +125,7 @@ async fn serve_one(viewer: BuiltViewer, open_browser: bool, host: IpAddr) -> Res
     let result = serve(
         &output_root,
         &bin,
-        revision_mcp_bin.as_deref(),
+        has_mcp_server,
         &label,
         open_browser,
         host,
@@ -322,7 +294,7 @@ fn symlink_dir(_src: &Path, _link: &Path) -> Result<()> {
 async fn serve(
     output_root: &Path,
     bin: &Path,
-    revision_mcp_bin: Option<&Path>,
+    has_mcp_server: bool,
     label: &str,
     open_browser: bool,
     host: IpAddr,
@@ -332,7 +304,6 @@ async fn serve(
     // matching loopback instead (the server may be bound v6-only on `::`).
     let reachable = reachable_addr(addr);
     let url = format!("http://{reachable}/");
-    let api_base = format!("{url}api");
 
     let mut child = Command::new(bin)
         .env(ROOT_ENV, output_root)
@@ -350,22 +321,10 @@ async fn serve(
         })?;
 
     let ready = wait_until_ready(reachable).await;
-    let mut mcp = None;
     if ready {
         println!("ready: {label}  {url}");
-        if let Some(bin) = revision_mcp_bin {
-            match start_revision_mcp(bin, &api_base, host).await {
-                Ok(server) => mcp = Some(server),
-                Err(error) => {
-                    eprintln!(
-                        "warning: could not start the pinned revision's MCP server ({error}); \
-                         continuing without MCP"
-                    );
-                }
-            }
-        }
-        if let Some(server) = &mcp {
-            announce_mcp(label, server);
+        if has_mcp_server {
+            println!("mcp: {label}  {url}mcp");
         }
         if open_browser && let Err(e) = open_browser_without_token(&url) {
             eprintln!("could not open a browser ({e}); open {url} manually");
@@ -374,79 +333,13 @@ async fn serve(
         eprintln!("warning: {label} did not start listening at {url} within the timeout");
     }
 
-    let status = loop {
-        let Some(server) = mcp.as_mut() else {
-            break child.wait().await?;
-        };
-        tokio::select! {
-            status = child.wait() => break status?,
-            reason = server.wait() => {
-                eprintln!("warning: MCP server for {label} stopped ({reason})");
-                mcp = None;
-            }
-        }
-    };
+    let status = child.wait().await?;
     if !status.success() {
         return Err(OpenError::ViewerExited {
             status: status.to_string(),
         });
     }
     Ok(())
-}
-
-struct RunningMcp {
-    child: Child,
-    url: String,
-}
-
-impl RunningMcp {
-    fn url(&self) -> &str {
-        &self.url
-    }
-
-    async fn wait(&mut self) -> String {
-        match self.child.wait().await {
-            Ok(status) => status.to_string(),
-            Err(error) => error.to_string(),
-        }
-    }
-}
-
-fn announce_mcp(label: &str, server: &RunningMcp) {
-    println!("mcp: {label}  {}", server.url());
-}
-
-async fn start_revision_mcp(
-    bin: &Path,
-    api_base: &str,
-    host: IpAddr,
-) -> std::result::Result<RunningMcp, String> {
-    let addr = free_port(host).map_err(|error| error.to_string())?;
-    let reachable = reachable_addr(addr);
-    let url = format!("http://{reachable}/mcp");
-    let mut child = Command::new(bin)
-        .env(REVISION_MCP_API_BASE_ENV, api_base)
-        .env(REVISION_MCP_ADDR_ENV, addr.to_string())
-        .env_remove("QUENT_OPEN_TOKEN")
-        .kill_on_drop(true)
-        .spawn()
-        .map_err(|error| error.to_string())?;
-
-    tokio::select! {
-        ready = wait_until_ready(reachable) => {
-            if ready {
-                Ok(RunningMcp { child, url })
-            } else {
-                Err(format!("did not start listening at {url} within the timeout"))
-            }
-        }
-        status = child.wait() => {
-            match status {
-                Ok(status) => Err(format!("exited before listening ({status})")),
-                Err(error) => Err(error.to_string()),
-            }
-        }
-    }
 }
 
 fn reachable_addr(addr: SocketAddr) -> SocketAddr {
@@ -517,17 +410,11 @@ mod tests {
     fn selects_the_requested_generated_binary() {
         let messages = concat!(
             "{\"reason\":\"compiler-artifact\",\"target\":{\"name\":\"quent-open-viewer\"},",
-            "\"executable\":\"/tmp/viewer\"}\n",
-            "{\"reason\":\"compiler-artifact\",\"target\":{\"name\":\"quent-open-revision-mcp\"},",
-            "\"executable\":\"/tmp/mcp\"}\n"
+            "\"executable\":\"/tmp/viewer\"}\n"
         );
         assert_eq!(
             built_executable(messages.as_bytes(), WRAPPER_PACKAGE),
             Some(PathBuf::from("/tmp/viewer"))
-        );
-        assert_eq!(
-            built_executable(messages.as_bytes(), REVISION_MCP_PACKAGE),
-            Some(PathBuf::from("/tmp/mcp"))
         );
     }
 

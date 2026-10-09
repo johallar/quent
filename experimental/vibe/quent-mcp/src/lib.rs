@@ -7,7 +7,11 @@
 //! semantics. Deterministic reductions belong in `quent-cli`; diagnosis belongs
 //! in the calling agent.
 
-use std::{fmt::Display, sync::Arc};
+use std::{
+    fmt::Display,
+    net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr},
+    sync::Arc,
+};
 
 use axum::Router;
 use reqwest::{Client, RequestBuilder};
@@ -342,18 +346,19 @@ pub fn http_service(
     ))
 }
 
-/// Serve streamable HTTP at `/mcp` on an already-bound listener.
-///
-/// Accepting the listener lets callers reserve a port before announcing it and
-/// keeps the listener lifetime tied to this future.
-pub async fn serve_http(
-    api_base: &str,
-    listener: tokio::net::TcpListener,
-) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-    let service = http_service(api_base).map_err(std::io::Error::other)?;
-    let app = Router::new().nest_service("/mcp", service);
-    axum::serve(listener, app).await?;
-    Ok(())
+/// Build the MCP routes for merging into an existing Axum server.
+pub fn http_routes(api_base: &str) -> Result<Router, String> {
+    Ok(Router::new().nest_service("/mcp", http_service(api_base)?))
+}
+
+/// Return the REST base reachable from a server bound at `address`.
+pub fn local_api_base(address: SocketAddr) -> String {
+    let ip = match address.ip() {
+        IpAddr::V4(ip) if ip.is_unspecified() => IpAddr::V4(Ipv4Addr::LOCALHOST),
+        IpAddr::V6(ip) if ip.is_unspecified() => IpAddr::V6(Ipv6Addr::LOCALHOST),
+        ip => ip,
+    };
+    format!("http://{}/api", SocketAddr::new(ip, address.port()))
 }
 
 /// Serve MCP over stdin/stdout until the client disconnects.
@@ -431,6 +436,22 @@ mod tests {
         assert_eq!(server.api.base_url, "http://localhost:8080/api");
         assert!(QuentMcpServer::new("").is_err());
         assert!(QuentMcpServer::new("not a URL").is_err());
+    }
+
+    #[test]
+    fn derives_reachable_api_base() {
+        assert_eq!(
+            local_api_base("0.0.0.0:8080".parse().unwrap()),
+            "http://127.0.0.1:8080/api"
+        );
+        assert_eq!(
+            local_api_base("[::]:8080".parse().unwrap()),
+            "http://[::1]:8080/api"
+        );
+        assert_eq!(
+            local_api_base("192.0.2.10:8080".parse().unwrap()),
+            "http://192.0.2.10:8080/api"
+        );
     }
 
     #[test]
@@ -606,10 +627,7 @@ mod tests {
         let address = listener
             .local_addr()
             .expect("HTTP MCP listener should have an address");
-        let app = Router::new().nest_service(
-            "/mcp",
-            http_service("http://localhost:8080/api").expect("HTTP service should initialize"),
-        );
+        let app = http_routes("http://localhost:8080/api").expect("HTTP service should initialize");
         let task = tokio::spawn(async move {
             axum::serve(listener, app)
                 .await

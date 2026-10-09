@@ -12,10 +12,8 @@ RUN --mount=type=cache,target=/root/.cache/rattler/cache \
     pixi run --frozen cargo build --release --locked \
         -p quent-simulator-server \
         -p quent-simulator \
-        -p quent-mcp \
         --features quent-simulator-server/ui && \
-    cp target/release/quent-simulator-server target/release/quent-simulator \
-        target/release/quent-mcp /quent/
+    cp target/release/quent-simulator-server target/release/quent-simulator /quent/
 
 FROM debian:trixie AS runtime
 
@@ -27,10 +25,8 @@ RUN groupadd --system quent && \
 
 COPY --from=builder /quent/quent-simulator-server /quent/quent-simulator-server
 COPY --from=builder /quent/quent-simulator /quent/quent-simulator
-COPY --from=builder /quent/quent-mcp /quent/quent-mcp
 
 EXPOSE 8080
 EXPOSE 7836
-EXPOSE 8081
 
 USER quent
