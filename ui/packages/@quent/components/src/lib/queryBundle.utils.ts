@@ -2,19 +2,23 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import {
+  aggregateToNumber,
+  flattenStatistics,
+  isNumericValue,
   unwrapTaggedValue,
+  type AggMode,
   type EntityRefKey,
   type QueryEntities,
   type Operator,
   type Port,
   type Statistic,
+  type StatisticField,
 } from '@quent/utils';
 
 // Maps entity ref string to a key in the entities object.
 // Application entities have no corresponding collection in QueryEntities, so they are omitted.
 export const ENTITY_REF_TO_ENTITIES_KEY: Partial<Record<EntityRefKey, keyof QueryEntities>> = {
   Engine: 'engine',
-  QueryGroup: 'query_group',
   Query: 'query',
   Plan: 'plans',
   Worker: 'workers',
@@ -40,6 +44,48 @@ export function parseCustomStatistics(rawNode: unknown): Statistic[] {
       ...(quantity !== null && quantity !== undefined ? { quantity } : {}),
     })
   );
+}
+
+/**
+ * Resolves a node's value for a statistic field. A node's own statistic wins;
+ * a node that groups other operators (e.g. a logical-plan node) has none, so
+ * its numeric value is aggregated from the related operators with `aggMode`
+ * (the same rule the pivot table column hover uses). Non-numeric statistics
+ * are never aggregated.
+ */
+export function resolveOperatorStat(
+  rawNode: unknown,
+  relatedOperators: readonly unknown[] | undefined,
+  field: string,
+  aggMode: AggMode = 'sum'
+): StatisticField | undefined {
+  const find = (raw: unknown) =>
+    flattenStatistics(parseCustomStatistics(raw)).find(s => s.key === field);
+
+  const own = find(rawNode);
+  if (own?.value != null) {
+    return own;
+  }
+
+  const related = (relatedOperators ?? []).flatMap(operator => {
+    const stat = find(operator);
+    return stat?.value != null && isNumericValue(stat.value) ? [stat] : [];
+  });
+  const value = aggregateToNumber(
+    related.map(s => s.value as number | bigint),
+    aggMode
+  );
+  if (value === undefined || related.length === 0) {
+    return undefined;
+  }
+
+  const { quantity, ...base } = related[0];
+  const hasConsistentQuantity = related.every(stat => stat.quantity === quantity);
+  return {
+    ...base,
+    value,
+    ...(hasConsistentQuantity && quantity !== undefined ? { quantity } : {}),
+  };
 }
 
 export function parsePortStatistics(rawPort: unknown): Statistic[] {

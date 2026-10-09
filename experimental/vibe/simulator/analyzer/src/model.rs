@@ -20,7 +20,7 @@ use quent_simulator_store::SimulatorEvent;
 use quent_ui::ResourceGroupTypeDecl;
 use uuid::Uuid;
 
-pub use crate::boilerplate::{Engine, Operator, Plan, Port, Query, QueryGroup, Worker};
+pub use crate::boilerplate::{Engine, Operator, Plan, Port, Query, Worker};
 
 use crate::{
     boilerplate::{
@@ -83,7 +83,6 @@ fn derive_resource_scope_types(
 pub struct SimulatorModel {
     pub(crate) engine: Engine,
     pub(crate) workers: HashMap<Uuid, Worker>,
-    pub(crate) query_groups: HashMap<Uuid, QueryGroup>,
     pub(crate) queries: HashMap<Uuid, Query>,
     pub(crate) plans: HashMap<Uuid, Plan>,
     pub(crate) operators: HashMap<Uuid, Operator>,
@@ -111,8 +110,6 @@ impl Model for SimulatorModel {
             Ok(EntityRef::Engine(entity_id))
         } else if self.workers.contains_key(&entity_id) {
             Ok(EntityRef::Worker(entity_id))
-        } else if self.query_groups.contains_key(&entity_id) {
-            Ok(EntityRef::QueryGroup(entity_id))
         } else if self.queries.contains_key(&entity_id) {
             Ok(EntityRef::Query(entity_id))
         } else if self.plans.contains_key(&entity_id) {
@@ -143,7 +140,6 @@ impl Model for SimulatorModel {
 impl QueryEngineModel for SimulatorModel {
     type Engine = Engine;
     type Query = Query;
-    type QueryGroup = QueryGroup;
     type Worker = Worker;
     type Plan = Plan;
     type Operator = Operator;
@@ -156,11 +152,6 @@ impl QueryEngineModel for SimulatorModel {
         self.queries
             .get(&query_id)
             .ok_or(AnalyzerError::InvalidId(query_id))
-    }
-    fn query_group(&self, query_group_id: Uuid) -> AnalyzerResult<&QueryGroup> {
-        self.query_groups
-            .get(&query_group_id)
-            .ok_or(AnalyzerError::InvalidId(query_group_id))
     }
     fn worker(&self, worker_id: Uuid) -> AnalyzerResult<&Worker> {
         self.workers
@@ -184,9 +175,6 @@ impl QueryEngineModel for SimulatorModel {
     }
     fn queries(&self) -> impl Iterator<Item = &Query> {
         self.queries.values()
-    }
-    fn query_groups(&self) -> impl Iterator<Item = &QueryGroup> {
-        self.query_groups.values()
     }
     fn workers(&self) -> impl Iterator<Item = &Worker> {
         self.workers.values()
@@ -348,11 +336,6 @@ impl RefTreeCollection for SimulatorModel {
                     .map(|entity| entity as &dyn RefTreeEntity),
             )
             .chain(
-                self.query_groups
-                    .values()
-                    .map(|entity| entity as &dyn RefTreeEntity),
-            )
-            .chain(
                 self.queries
                     .values()
                     .map(|entity| entity as &dyn RefTreeEntity),
@@ -434,8 +417,6 @@ impl RefTreeCollection for SimulatorModel {
             Ok(&self.engine)
         } else if let Some(entity) = self.workers.get(&entity_id) {
             Ok(entity)
-        } else if let Some(entity) = self.query_groups.get(&entity_id) {
-            Ok(entity)
         } else if let Some(entity) = self.queries.get(&entity_id) {
             Ok(entity)
         } else if let Some(entity) = self.plans.get(&entity_id) {
@@ -497,7 +478,6 @@ pub struct SimulatorModelBuilder {
     engine_id: Uuid,
     engine: Option<Engine>,
     workers: HashMap<Uuid, Worker>,
-    query_groups: HashMap<Uuid, QueryGroup>,
     queries: HashMap<Uuid, QueryBuilder>,
     plans: HashMap<Uuid, Plan>,
     operators: HashMap<Uuid, Operator>,
@@ -526,7 +506,6 @@ impl SimulatorModelBuilder {
             engine_id,
             engine: None,
             workers: HashMap::default(),
-            query_groups: HashMap::default(),
             queries: HashMap::default(),
             plans: HashMap::default(),
             operators: HashMap::default(),
@@ -583,16 +562,6 @@ impl SimulatorModelBuilder {
                         entry.insert(Worker::try_from_event(event)?);
                         Ok(())
                     }
-                }
-            }
-            SimulatorEvent::QueryGroup(event) => {
-                let event = Event::new(id, timestamp, event);
-                if let Some(group) = self.query_groups.get_mut(&id) {
-                    group.push(event)
-                } else {
-                    self.query_groups
-                        .insert(id, QueryGroup::try_from_event(event)?);
-                    Ok(())
                 }
             }
             SimulatorEvent::Query(event) => {
@@ -762,7 +731,6 @@ impl SimulatorModelBuilder {
         let mut model = SimulatorModel {
             engine,
             workers: self.workers,
-            query_groups: self.query_groups,
             queries,
             plans: self.plans,
             operators: self.operators,

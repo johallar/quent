@@ -7,6 +7,7 @@ import {
   ENTITY_REF_TO_ENTITIES_KEY,
   parseCustomStatistics,
   parsePortStatistics,
+  resolveOperatorStat,
 } from './queryBundle.utils';
 
 // ---- entityRefToEntitiesKey -----------------------------------------------
@@ -14,10 +15,6 @@ import {
 describe('entityRefToEntitiesKey', () => {
   it('maps Engine to engine', () => {
     expect(entityRefToEntitiesKey('Engine')).toBe('engine');
-  });
-
-  it('maps QueryGroup to query_group', () => {
-    expect(entityRefToEntitiesKey('QueryGroup')).toBe('query_group');
   });
 
   it('maps Query to query', () => {
@@ -53,7 +50,7 @@ describe('entityRefToEntitiesKey', () => {
   });
 
   it('ENTITY_REF_TO_ENTITIES_KEY contains exactly the expected entries', () => {
-    expect(Object.keys(ENTITY_REF_TO_ENTITIES_KEY)).toHaveLength(9);
+    expect(Object.keys(ENTITY_REF_TO_ENTITIES_KEY)).toHaveLength(8);
   });
 });
 
@@ -176,6 +173,60 @@ describe('parseCustomStatistics', () => {
     const keys = result.map(r => r.key);
     expect(keys).toContain('rows');
     expect(keys).toContain('bytes');
+  });
+});
+
+// ---- resolveOperatorStat ---------------------------------------------------
+
+function makeQuantifiedOperator(field: string, value: number, quantity?: string) {
+  return {
+    statistics: {
+      custom_statistics: [
+        { value: { key: field, value: makeTagged('UInt64', value) }, quantity: quantity ?? null },
+      ],
+    },
+  };
+}
+
+describe('resolveOperatorStat', () => {
+  it('returns the direct statistic without aggregating related values', () => {
+    expect(
+      resolveOperatorStat(
+        makeQuantifiedOperator('bytes', 10, 'bytes'),
+        [makeQuantifiedOperator('bytes', 20, 'bytes')],
+        'bytes'
+      )
+    ).toMatchObject({ key: 'bytes', value: 10, quantity: 'bytes' });
+  });
+
+  it('aggregates related values with a shared quantity', () => {
+    expect(
+      resolveOperatorStat(
+        undefined,
+        [
+          makeQuantifiedOperator('bytes', 10, 'bytes'),
+          makeQuantifiedOperator('bytes', 20, 'bytes'),
+        ],
+        'bytes'
+      )
+    ).toMatchObject({ key: 'bytes', value: 30, quantity: 'bytes' });
+  });
+
+  it('omits the quantity when related statistics disagree', () => {
+    expect(
+      resolveOperatorStat(
+        undefined,
+        [makeQuantifiedOperator('size', 10, 'bytes'), makeQuantifiedOperator('size', 20, 'rows')],
+        'size'
+      )
+    ).toMatchObject({ key: 'size', value: 30 });
+    expect(
+      resolveOperatorStat(
+        undefined,
+        [makeQuantifiedOperator('size', 10, 'bytes'), makeQuantifiedOperator('size', 20, 'rows')],
+        'size'
+      )?.quantity
+    ).toBeUndefined();
   });
 });
 

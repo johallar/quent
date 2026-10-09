@@ -16,6 +16,7 @@ import {
   DeepLinkStateV2Schema,
   DeepLinkStateV3Schema,
   MAX_EXPANDED_RESOURCE_IDS,
+  MAX_SELECTED_NODE_IDS,
   OperatorGroupSchema,
   type DeepLinkStateV3,
   validateDeepLinkSearch,
@@ -207,6 +208,48 @@ describe('deep-link codec', () => {
     );
 
     expect(result).toMatchObject({ ok: false, code: 'url-too-long' });
+  });
+
+  it('reports the selected operator limit when encoding', () => {
+    const atLimit = Array.from(
+      { length: MAX_SELECTED_NODE_IDS },
+      (_, index) => `operator-${index}`
+    );
+    expect(
+      DeepLinkStateV3Schema.safeParse({
+        route: state.route,
+        selection: { operatorNodeIds: atLimit },
+      }).success
+    ).toBe(true);
+
+    expect(
+      encodeDeepLinkState({
+        route: state.route,
+        selection: { operatorNodeIds: [...atLimit, 'operator-over-limit'] },
+      })
+    ).toEqual({
+      ok: false,
+      code: 'invalid-state',
+      message: `Shared links support at most ${MAX_SELECTED_NODE_IDS} selected operators.`,
+    });
+  });
+
+  it('reports the applicable limit for other oversized state', () => {
+    const expandedRowIds = Array.from(
+      { length: MAX_EXPANDED_RESOURCE_IDS + 1 },
+      (_, index) => `resource-${index}`
+    );
+
+    expect(
+      encodeDeepLinkState({
+        route: state.route,
+        resources: { expandedRowIds },
+      })
+    ).toEqual({
+      ok: false,
+      code: 'invalid-state',
+      message: `Shared links support at most ${MAX_EXPANDED_RESOURCE_IDS} expanded resources.`,
+    });
   });
 });
 

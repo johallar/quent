@@ -462,7 +462,7 @@ const lookupEntity = (
 
   const entityValue = entities[entityKey];
 
-  // SingleEntity (Engine | Query | QueryGroup): single object with id
+  // SingleEntity (Engine | Query): single object with id
   if ('id' in entityValue && entityValue.id === entityId) {
     return entityValue as EntityTypeValue;
   }

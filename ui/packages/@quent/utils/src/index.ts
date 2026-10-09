@@ -115,7 +115,7 @@ export {
 
 export { AGG_MODES } from './aggMode';
 export type { AggMode } from './aggMode';
-export { aggregateNumericValues, getAggregateValue } from './statAggregation';
+export { aggregateNumericValues, aggregateToNumber, getAggregateValue } from './statAggregation';
 export type { NumericAggregates } from './statAggregation';
 
 // Operator timeline row ID utilities
@@ -140,3 +140,15 @@ export {
   statisticFieldName,
 } from './statisticFields';
 export type { StatisticField, StatisticFieldPath } from './statisticFields';
+
+// Long-entities row ID utilities
+export const LONG_ENTITIES_ROW_TYPE = 'long-entities';
+const LONG_ENTITIES_ROW_ID_PREFIX = '__long_entities__';
+export function longEntitiesRowId(resourceId: string): string {
+  return `${LONG_ENTITIES_ROW_ID_PREFIX}${resourceId}`;
+}
+export function resourceIdFromLongEntitiesRowId(id: string): string | null {
+  return id.startsWith(LONG_ENTITIES_ROW_ID_PREFIX)
+    ? id.slice(LONG_ENTITIES_ROW_ID_PREFIX.length)
+    : null;
+}

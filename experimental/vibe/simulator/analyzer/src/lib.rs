@@ -6,8 +6,8 @@ pub use quent_query_engine_analyzer::QueryEngineModel;
 #[cfg(not(target_arch = "wasm32"))]
 use quent_query_engine_analyzer::ui::{QuentViewer, ViewerEventStream};
 use quent_query_engine_analyzer::{
-    EngineEntity, OperatorEntity, PlanEntity, PortEntity, QueryEntity, QueryGroupEntity,
-    WorkerEntity, entities, ui::UiAnalyzer,
+    EngineEntity, OperatorEntity, PlanEntity, PortEntity, QueryEntity, WorkerEntity, entities,
+    ui::UiAnalyzer,
 };
 use quent_query_engine_ui::{
     DataFlowTimelineBinned, EntityRef, OperatorFilter, QueryBundle, QueryEntities, QueryFilter,
@@ -59,11 +59,12 @@ use quent_dynamic_attributes::DynamicValue;
 use quent_simulator_store::Simulator;
 use quent_simulator_store::{self as schema, SimulatorEvent};
 #[cfg(not(target_arch = "wasm32"))]
-use quent_store::event::{EntityEventStore, ModelEventStore, filesystem::Store};
+use quent_store::event::{CombinedEventLoader, EventLoader, filesystem::Loader};
 use quent_time::{SpanNanoSec, TimeNanoSec, TimeUnixNanoSec, Timestamp, to_nanosecs, to_secs};
 use quent_ui::fsm::FsmTypeDeclaration;
 use uuid::Uuid;
 
+use crate::boilerplate::engine_custom_attributes;
 pub use crate::boilerplate::{Task, TaskExt};
 use crate::model::{SimulatorModel, SimulatorModelBuilder};
 
@@ -161,15 +162,14 @@ impl QuentViewer for Viewer {
 
     fn context_inventory(dir: &std::path::Path) -> quent_io::ImporterResult<ContextInventory> {
         let (context_id, root) = context_location(dir)?;
-        let store = Store::<Simulator>::new(root);
-        let engine_ids = store
-            .entity_events::<schema::Engine>(context_id)
+        let store =
+            Loader::<Simulator>::new(root, quent_store::context::ContextSet::one(context_id));
+        let engine_ids = EventLoader::<schema::Engine>::events(&store)
             .map_err(quent_io::ImporterError::other)?
             .map(|event| event.map(|event| event.id))
             .collect::<Result<HashSet<_>, _>>()
             .map_err(quent_io::ImporterError::other)?;
-        let worker_analysis_target_ids = store
-            .entity_events::<schema::Worker>(context_id)
+        let worker_analysis_target_ids = EventLoader::<schema::Worker>::events(&store)
             .map_err(quent_io::ImporterError::other)?
             .filter_map(|event| match event {
                 Ok(Event {
@@ -197,11 +197,12 @@ impl QuentViewer for Viewer {
         dir: &std::path::Path,
     ) -> quent_io::ImporterResult<ViewerEventStream<Self::Analyzer>> {
         let (context_id, root) = context_location(dir)?;
-        let events = Store::<Simulator>::new(root)
-            .events(context_id)
-            .map_err(quent_io::ImporterError::other)?
-            .collect::<Result<Vec<_>, _>>()
-            .map_err(quent_io::ImporterError::other)?;
+        let events =
+            Loader::<Simulator>::new(root, quent_store::context::ContextSet::one(context_id))
+                .combined_events()
+                .map_err(quent_io::ImporterError::other)?
+                .collect::<Result<Vec<_>, _>>()
+                .map_err(quent_io::ImporterError::other)?;
         Ok(Box::new(events.into_iter()))
     }
 }
@@ -264,6 +265,7 @@ impl UiAnalyzer for SimulatorUiAnalyzer {
             if let SimulatorEvent::Engine(schema::EngineEvent::Init {
                 implementation,
                 instance_name,
+                configuration,
             }) = event.data
             {
                 return Ok(quent_query_engine_ui::Engine {
@@ -271,6 +273,7 @@ impl UiAnalyzer for SimulatorUiAnalyzer {
                     start_time_unix_ns: Some(event.timestamp),
                     duration_s: None,
                     instance_name,
+                    custom_attributes: engine_custom_attributes(&configuration),
                     implementation: Some(quent_query_engine_ui::EngineImplementationAttributes {
                         name: implementation.name,
                         version: implementation.version,
@@ -280,6 +283,14 @@ impl UiAnalyzer for SimulatorUiAnalyzer {
             }
         }
         Ok(quent_query_engine_ui::Engine::new(engine_id))
+    }
+
+    fn engine_initial_group_by_attribute() -> Option<String> {
+        Some("workers".to_owned())
+    }
+
+    fn query_initial_group_by_attribute(&self) -> Option<String> {
+        Some("workload".to_owned())
     }
 
     fn try_new(
@@ -300,7 +311,6 @@ impl UiAnalyzer for SimulatorUiAnalyzer {
 
         tracing::info!(
             engines = 1,
-            query_groups = model.query_groups.len(),
             workers = model.workers.len(),
             plans = model.plans.len(),
             operators = model.operators.len(),
@@ -334,14 +344,7 @@ impl UiAnalyzer for SimulatorUiAnalyzer {
         let epoch = view.query_epoch(query_id)?;
 
         debug!("converting query engine model entities");
-        let engine = view.engine()?.to_ui()?;
-        let query_group_id = query.query_group_id().ok_or_else(|| {
-            quent_analyzer::AnalyzerError::IncompleteEntity(format!(
-                "query {} has no query_group_id",
-                query_id
-            ))
-        })?;
-        let query_group = view.query_group(query_group_id)?.to_ui();
+        let engine = EngineEntity::to_ui(view.engine()?)?;
         let query = query.to_ui()?;
         let workers = view.workers().map(|w| (w.id(), w.to_ui(epoch))).collect();
         let plans = view.plans().map(|p| (p.id(), p.to_ui())).collect();
@@ -457,7 +460,6 @@ impl UiAnalyzer for SimulatorUiAnalyzer {
 
         let entities = QueryEntities {
             engine,
-            query_group,
             query,
             workers,
             plans,

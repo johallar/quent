@@ -74,11 +74,21 @@ export function useOperatorStatFields(
   return useMemo(
     () => [
       ...new Map(
-        nodes.flatMap(n =>
-          flattenStatistics(parseCustomStatistics(n.metadata?.rawNode)).map(
-            s => [s.key, s] as const
-          )
-        )
+        nodes.flatMap(n => {
+          const own = flattenStatistics(parseCustomStatistics(n.metadata?.rawNode));
+          // Nodes that group operators (logical-plan nodes) get a value by
+          // aggregating their related operators, which only works for numbers,
+          // so only numeric related stats are offered.
+          const related = Array.isArray(n.metadata?.relatedOperators)
+            ? (n.metadata.relatedOperators as unknown[])
+            : [];
+          const aggregatable = related.flatMap(raw =>
+            flattenStatistics(parseCustomStatistics(raw)).filter(
+              s => typeof s.value === 'number' || typeof s.value === 'bigint'
+            )
+          );
+          return [...own, ...aggregatable].map(s => [s.key, s] as const);
+        })
       ).values(),
     ],
     [nodes, parseCustomStatistics]
