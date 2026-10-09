@@ -1,9 +1,8 @@
 # Quent UI
 
-
 A front end for query profiling instrumentation
 
-![Quent overview demo](./docs/screenshots/demo.gif)
+![Quent overview demo](./docs/screenshots/demof.gif)
 
 ## Tech Stack
 
