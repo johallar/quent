@@ -15,7 +15,6 @@ import { StatValue } from '../services/query-plan/types';
 // Application entities have no corresponding collection in QueryEntities, so they are omitted.
 export const ENTITY_REF_TO_ENTITIES_KEY: Partial<Record<EntityRefKey, keyof QueryEntities>> = {
   Engine: 'engine',
-  QueryGroup: 'query_group',
   Query: 'query',
   Plan: 'plans',
   Worker: 'workers',

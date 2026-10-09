@@ -95,7 +95,11 @@ function ProfileLayout() {
     setProviderPayload(encodedState);
   }
 
-  if (hasQuery && !isQueryReady) {
+  if (!hasQuery) {
+    return <Outlet />;
+  }
+
+  if (!isQueryReady) {
     return <Outlet />;
   }
 
