@@ -4,11 +4,8 @@
 # Quent MCP
 
 Experimental Model Context Protocol bridge for a running Quent REST API. It is
-a standalone proxy: enabling it does not add routes or dependencies to the
-production query-engine server.
-
-The bridge is optional. Start the analyzer and generate any test data first,
-then run `quent-mcp` only when an agent needs MCP access.
+mounted at `/mcp` on the analyzer's existing Axum server. The standalone
+`quent-mcp` executable provides stdio transport for clients that require it.
 
 The tools mirror REST operations and return raw JSON facts:
 
@@ -32,7 +29,6 @@ Start Quent's analyzer server, then configure an MCP client to run:
 
 ```sh
 pixi run cargo run -p quent-mcp -- \
-  --transport stdio \
   --api-base http://localhost:8080/api
 ```
 
@@ -40,37 +36,31 @@ Logs go to stderr because stdout carries the MCP protocol.
 
 ## Streamable HTTP
 
-```sh
-pixi run cargo run -p quent-mcp -- \
-  --transport http \
-  --api-base http://localhost:8080/api \
-  --listen 127.0.0.1:8081
-```
+Start the normal analyzer server. Its MCP endpoint shares the analyzer listener:
+`http://127.0.0.1:8080/mcp` by default.
 
-The endpoint is `http://127.0.0.1:8081/mcp`. The underlying MCP transport keeps
-its loopback-only Host allowlist by default. For a non-local deployment, set
-`QUENT_MCP_ALLOWED_HOSTS` to a comma-separated allowlist. Setting it to `*`
-disables the check and should only be used behind an authenticating proxy.
+The underlying MCP transport keeps its loopback-only Host allowlist by default.
+For a non-local deployment, set `QUENT_MCP_ALLOWED_HOSTS` to a comma-separated
+allowlist. Setting it to `*` disables the check and should only be used behind
+an authenticating proxy. Browser clients use the analyzer's existing CORS
+configuration.
 
-Set `QUENT_MCP_CORS_ORIGIN` only when a browser MCP client needs access. The
-bridge does not add authentication; do not expose it or the Quent API to
+The endpoint does not add authentication; do not expose it or the Quent API to
 untrusted networks.
 
 ## Quent Open
 
-`quent-open` starts one companion MCP endpoint for each generated viewer and
-prints both URLs:
+`quent-open` mounts one MCP endpoint on each generated viewer and prints both
+URLs:
 
 ```text
 ready: MODEL — 1 context(s)  http://127.0.0.1:49152/
-mcp: MODEL — 1 context(s)  http://127.0.0.1:49153/mcp
+mcp: MODEL — 1 context(s)  http://127.0.0.1:49152/mcp
 ```
 
-The endpoint uses the same bind host as its viewer and stops when the viewer
-exits or `quent-open` receives Ctrl-C. `quent-open` starts MCP only when the
-artifact's pinned Quent revision contains the `quent-mcp` package, ensuring its
-tools match that revision's REST contract. If the package is absent or its
-bridge cannot be built or started, the viewer still starts without an `mcp:`
+`quent-open` includes MCP only when the artifact's pinned Quent revision
+contains the `quent-mcp` package, ensuring its tools match that revision's REST
+contract. Older revisions still build and start the viewer without an `mcp:`
 URL; the host checkout is not used as a fallback.
 
 ## Validation

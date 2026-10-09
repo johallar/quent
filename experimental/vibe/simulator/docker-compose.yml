@@ -17,19 +17,3 @@ services:
     environment:
       QUENT_COLLECTOR_ADDRESS: "http://server:7836"
     command: "/quent/quent-simulator --num-query-groups 1 --num-queries 1 --num-workers 4 --num-threads 8 --num-tasks 64"
-
-  mcp:
-    image: quent-simulator-example
-    depends_on:
-      - server
-    ports:
-      - "8081:8081"
-    restart: unless-stopped
-    command:
-      - "/quent/quent-mcp"
-      - "--transport"
-      - "http"
-      - "--api-base"
-      - "http://server:8080/api"
-      - "--listen"
-      - "0.0.0.0:8081"

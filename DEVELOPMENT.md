@@ -50,9 +50,10 @@ docker compose up --build
 ```
 
 The collector listens on port `7836`, and the analysis API listens on port
-`8080`. The optional, agent-facing streamable-HTTP MCP endpoint is available at
-`http://localhost:8081/mcp`. This development image intentionally omits the
-embedded UI so the frontend can run separately with Vite and hot reload.
+`8080`. The agent-facing streamable-HTTP MCP endpoint is available on the same
+server at `http://localhost:8080/mcp`. This development image intentionally
+omits the embedded UI so the frontend can run separately with Vite and hot
+reload.
 
 ## Run the UI development server
 
@@ -85,18 +86,8 @@ Generate a test dataset from another shell:
 cargo run -p quent-simulator -- --exporter collector
 ```
 
-Optionally, after the analyzer and test data are available, start the MCP bridge
-for agent workflows from a third shell:
-
-```bash
-cargo run -p quent-mcp -- \
-  --transport http \
-  --api-base http://localhost:8080/api \
-  --listen 127.0.0.1:8081
-```
-
-The optional streamable-HTTP MCP endpoint is available at
-<http://localhost:8081/mcp>.
+The analyzer also serves the streamable-HTTP MCP endpoint at
+<http://localhost:8080/mcp>.
 
 ## Build with the bundled UI
 
