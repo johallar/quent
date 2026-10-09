@@ -48,8 +48,18 @@ export function statisticFieldLabel(field: StatisticField | string): string {
     .join(' › ');
 }
 
-export function statisticFieldName(field: StatisticField | string): string {
-  return typeof field === 'string' ? field : field.path[field.path.length - 1][0];
+export function statisticFieldName(
+  field: StatisticField | string | null | undefined,
+  fields?: readonly StatisticField[]
+): string {
+  if (field == null) {
+    return '';
+  }
+  if (typeof field !== 'string') {
+    return field.path[field.path.length - 1][0];
+  }
+  const resolvedField = fields?.find(candidate => candidate.key === field);
+  return resolvedField ? statisticFieldName(resolvedField) : field;
 }
 
 /** Scalar metric projection only; the inspection tree stays ordered and intact. */

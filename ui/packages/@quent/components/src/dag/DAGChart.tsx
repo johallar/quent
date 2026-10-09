@@ -151,13 +151,12 @@ const VariableWidthEdge = ({
   const isEdgeDimmed = edgeDimmed || dimFromInteraction;
 
   const fields = data?.statisticFields as StatisticField[] | undefined;
-  const selectedField = (id: string | null) => fields?.find(field => field.key === id) ?? id ?? '';
   let edgeLabelValue: string | undefined;
   if (edgeColoring) {
     if (edgeColoring.type === 'continuous') {
       const v = edgeColoring.values.get(id);
       if (v !== undefined) {
-        edgeLabelValue = inferFieldFormatter(statisticFieldName(selectedField(edgeColorField)))(v);
+        edgeLabelValue = inferFieldFormatter(statisticFieldName(edgeColorField, fields))(v);
       }
     } else {
       const v = edgeColoring.labelMap.get(id);
@@ -168,7 +167,7 @@ const VariableWidthEdge = ({
   } else if (edgeWidthConfig) {
     const v = edgeWidthConfig.values.get(id);
     if (v !== undefined) {
-      edgeLabelValue = inferFieldFormatter(statisticFieldName(selectedField(edgeWidthField)))(v);
+      edgeLabelValue = inferFieldFormatter(statisticFieldName(edgeWidthField, fields))(v);
     }
   }
 

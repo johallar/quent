@@ -45,6 +45,16 @@ describe('statistic fields', () => {
   it('keeps flat field IDs stable', () => {
     expect(flattenStatistics([{ key: 'bytes', value: 0 }])[0].key).toBe('bytes');
   });
+
+  it('resolves selected field IDs while preserving name and empty fallbacks', () => {
+    const fields = flattenStatistics([
+      { key: 'Volume', value: { kind: 'struct', fields: [{ key: 'bytes', value: 1 }] } },
+    ]);
+    expect(statisticFieldName(fields[0].key, fields)).toBe('bytes');
+    expect(statisticFieldName('unknown', fields)).toBe('unknown');
+    expect(statisticFieldName(null, fields)).toBe('');
+  });
+
   it('distinguishes literal path separators from nested paths in labels', () => {
     const fields = flattenStatistics([
       { key: 'Volume', value: { kind: 'struct', fields: [{ key: 'bytes', value: 1 }] } },
