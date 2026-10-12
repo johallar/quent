@@ -58,13 +58,13 @@ export function resolveStatisticFields(
   field: string,
   aggMode: AggMode = 'sum'
 ): StatisticField | undefined {
-  const own = ownFields.find(statistic => statistic.key === field);
+  const own = ownFields.find(statistic => statistic.id === field);
   if (own?.value != null) {
     return own;
   }
 
   const related = relatedFields.flatMap(fields => {
-    const stat = fields.find(statistic => statistic.key === field);
+    const stat = fields.find(statistic => statistic.id === field);
     return stat?.value != null && isNumericValue(stat.value) ? [stat] : [];
   });
   const value = aggregateToNumber(

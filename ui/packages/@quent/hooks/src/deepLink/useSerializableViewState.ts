@@ -11,6 +11,7 @@ import {
   type ScaleType,
   type NodeLabelField,
   type Operator,
+  type StatisticFieldId,
 } from '@quent/utils';
 import {
   operatorSelectionActionAtom,
@@ -171,16 +172,16 @@ export function useSerializableViewState({
 
       const dag = state.dag;
       if (dag?.nodeColorField !== undefined) {
-        store.set(selectedColorField, dag.nodeColorField);
+        store.set(selectedColorField, dag.nodeColorField as StatisticFieldId | null);
       }
       if (dag?.nodeColorPalette !== undefined) {
         store.set(nodeColorPaletteAtom, dag.nodeColorPalette);
       }
       if (dag?.edgeWidthField !== undefined) {
-        store.set(selectedEdgeWidthFieldAtom, dag.edgeWidthField);
+        store.set(selectedEdgeWidthFieldAtom, dag.edgeWidthField as StatisticFieldId | null);
       }
       if (dag?.edgeColorField !== undefined) {
-        store.set(selectedEdgeColorFieldAtom, dag.edgeColorField);
+        store.set(selectedEdgeColorFieldAtom, dag.edgeColorField as StatisticFieldId | null);
       }
       if (dag?.edgeColorPalette !== undefined) {
         store.set(edgeColorPaletteAtom, dag.edgeColorPalette);

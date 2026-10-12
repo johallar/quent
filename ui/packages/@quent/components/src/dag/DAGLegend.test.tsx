@@ -108,7 +108,7 @@ describe('DAGLegend node coloring scale', () => {
         <button
           onClick={() => {
             setNodeColoring(coloring);
-            setColorField(nestedField.key);
+            setColorField(nestedField.id);
           }}
         >
           Color by nested field

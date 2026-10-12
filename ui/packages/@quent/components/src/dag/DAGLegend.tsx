@@ -161,7 +161,7 @@ function resolveFormatter(
   field: string | StatisticField,
   statQuantitySpecs: Record<string, QuantitySpec>
 ): (v: number) => string {
-  const spec = statQuantitySpecs[typeof field === 'string' ? field : field.key];
+  const spec = statQuantitySpecs[typeof field === 'string' ? field : field.id];
   return spec
     ? (v: number) => formatQuantity(v, spec, 'Occupancy')
     : inferFieldFormatter(statisticFieldName(field));

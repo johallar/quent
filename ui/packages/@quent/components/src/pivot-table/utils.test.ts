@@ -2,7 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { describe, it, expect } from 'vitest';
-import { continuousColor, scaleColor, SCALE_TYPE } from '@quent/utils';
+import {
+  continuousColor,
+  flattenStatistics,
+  scaleColor,
+  statisticFieldId,
+  SCALE_TYPE,
+} from '@quent/utils';
 import type { StatValue } from '@quent/utils';
 import {
   formatNumericStat,
@@ -43,7 +49,7 @@ function makeExpandedRow(
     itemType: opts.itemType ?? '-',
     itemId: opts.itemId ?? 'item-1',
     scopeId: opts.scopeId ?? 'scope-1',
-    statisticName,
+    statisticName: statisticFieldId([[statisticName, 0]]),
     value,
   };
 }
@@ -75,7 +81,12 @@ function makePivotedRow(
   return {
     groupKeys: [],
     rowKey: '',
-    values: new Map(Object.entries(values).map(([key, value]) => [key, [{ key, value }]])),
+    values: new Map(
+      Object.entries(values).map(([key, value]) => [
+        key,
+        [{ id: statisticFieldId([[key, 0]]), value }],
+      ])
+    ),
     aggs: aggMap,
     itemIds: new Set(),
     itemType: '-',
@@ -321,7 +332,7 @@ describe('getSchemaStatNames', () => {
     groups: {},
     itemId: r => r.id,
     scopeId: r => r.id,
-    stats: r => Object.entries(r.stats).map(([key, value]) => ({ key, value })),
+    stats: r => flattenStatistics(Object.entries(r.stats).map(([key, value]) => ({ key, value }))),
   };
 
   it('returns [] for empty rows', () => {
@@ -356,7 +367,7 @@ describe('expandRowsFromSchema', () => {
     },
     itemId: r => r.id,
     scopeId: r => r.plan,
-    stats: r => Object.entries(r.stats).map(([key, value]) => ({ key, value })),
+    stats: r => flattenStatistics(Object.entries(r.stats).map(([key, value]) => ({ key, value }))),
   };
 
   it('returns [] for empty rows', () => {

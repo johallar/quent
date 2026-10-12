@@ -153,6 +153,7 @@ export {
 } from './statisticFields';
 export type {
   StatisticField,
+  StatisticFieldId,
   StatisticFieldPath,
   StatisticFieldPresentation,
 } from './statisticFields';

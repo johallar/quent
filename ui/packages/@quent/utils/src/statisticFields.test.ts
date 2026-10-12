@@ -28,9 +28,9 @@ describe('statistic fields', () => {
       { key: '[["Volume",0],["bytes",0]]', value: 5 },
       { key: 'list', value: [1, 2] },
     ]);
-    expect(new Set(fields.map(f => f.key)).size).toBe(5);
+    expect(new Set(fields.map(f => f.id)).size).toBe(5);
     expect(fields.map(f => f.value)).toEqual([1, 2, 3, 4, 5]);
-    expect(fields[4].key).toBe('[["Volume",0],["bytes",0]]');
+    expect(fields[4].id).toBe('[["Volume",0],["bytes",0]]');
     expect(fields.map(f => statisticFieldName(f))).toEqual([
       'bytes',
       'bytes',
@@ -45,15 +45,17 @@ describe('statistic fields', () => {
     ]);
   });
   it('keeps flat field IDs stable', () => {
-    expect(flattenStatistics([{ key: 'bytes', value: 0 }])[0].key).toBe('bytes');
+    const field = flattenStatistics([{ key: 'bytes', value: 0 }])[0];
+    expect(field.id).toBe('bytes');
+    expect(field).not.toHaveProperty('key');
   });
 
   it('resolves selected field IDs while preserving name and empty fallbacks', () => {
     const fields = flattenStatistics([
       { key: 'Volume', value: { kind: 'struct', fields: [{ key: 'bytes', value: 1 }] } },
     ]);
-    expect(statisticFieldLabel(fields[0].key)).toBe('Volume › bytes');
-    expect(statisticFieldName(fields[0].key, fields)).toBe('bytes');
+    expect(statisticFieldLabel(fields[0].id)).toBe('Volume › bytes');
+    expect(statisticFieldName(fields[0].id, fields)).toBe('bytes');
     expect(statisticFieldName('unknown', fields)).toBe('unknown');
     expect(statisticFieldName(null, fields)).toBe('');
   });
@@ -73,7 +75,7 @@ describe('statistic fields', () => {
       { key: 'rows', value: 3 },
     ]);
     const presentations = buildStatisticFieldPresentations(fields);
-    expect(fields.map(field => presentations.get(field.key))).toEqual([
+    expect(fields.map(field => presentations.get(field.id))).toEqual([
       { fieldName: 'rows', label: 'Input › rows', title: 'Input › rows' },
       { fieldName: 'rows', label: 'Output › rows', title: 'Output › rows' },
       { fieldName: 'rows', label: 'rows', title: 'rows' },
@@ -91,7 +93,7 @@ describe('statistic fields', () => {
       [name, 1],
       [name, 0],
     ]);
-    expect(fields[1].key).toBe(statisticFieldId(fields[1].path));
+    expect(fields[1].id).toBe(statisticFieldId(fields[1].path));
   });
 
   it('keeps nested identities stable when values or unrelated sibling order change', () => {
@@ -102,8 +104,8 @@ describe('statistic fields', () => {
       { key: 'other', value: 5 },
       { key: 'Volume', value: { kind: 'struct', fields: [{ key: 'bytes', value: 99 }] } },
     ])[1];
-    expect(first.key).toBe(second.key);
-    expect(first.key).toBe(
+    expect(first.id).toBe(second.id);
+    expect(first.id).toBe(
       statisticFieldId([
         ['Volume', 0],
         ['bytes', 0],
@@ -120,9 +122,9 @@ describe('statistic fields', () => {
       { key: 'bytes', value: 1 },
       { key: 'bytes', value: 2 },
       { key: 'bytes [2]', value: 3 },
-      { key: repeated[1].key, value: 4 },
+      { key: repeated[1].id, value: 4 },
     ]);
-    expect(new Set(fields.map(field => field.key)).size).toBe(4);
+    expect(new Set(fields.map(field => field.id)).size).toBe(4);
     expect(new Set(fields.map(statisticFieldLabel)).size).toBe(4);
   });
 });

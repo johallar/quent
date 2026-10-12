@@ -400,7 +400,7 @@ const FlowLayout = ({
               []
           ),
           ...data.edges.flatMap(edge => edge.statisticFields ?? []),
-        ].map(field => [field.key, field] as const)
+        ].map(field => [field.id, field] as const)
       ),
     [data.nodes, data.edges]
   );
@@ -417,10 +417,10 @@ const FlowLayout = ({
           []),
       ];
       for (const stat of fields) {
-        if (stat.quantity && !(stat.key in result)) {
+        if (stat.quantity && !(stat.id in result)) {
           const spec = data.quantitySpecs[stat.quantity];
           if (spec) {
-            result[stat.key] = spec;
+            result[stat.id] = spec;
           }
         }
       }

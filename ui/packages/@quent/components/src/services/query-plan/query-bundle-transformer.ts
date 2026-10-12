@@ -40,10 +40,10 @@ function sumStatisticSets(statisticSets: readonly DAGStatisticSet[]): Statistic[
       if (!isNumericValue(field.value)) {
         continue;
       }
-      const bucket = buckets.get(field.key) ?? { field, values: [], fields: [] };
+      const bucket = buckets.get(field.id) ?? { field, values: [], fields: [] };
       bucket.values.push(field.value);
       bucket.fields.push(field);
-      buckets.set(field.key, bucket);
+      buckets.set(field.id, bucket);
     }
   }
   return [...buckets.values()].flatMap(({ field, values, fields }) => {

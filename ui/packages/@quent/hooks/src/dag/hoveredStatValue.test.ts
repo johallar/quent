@@ -2,12 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { describe, expect, it } from 'vitest';
+import { statisticFieldId } from '@quent/utils';
 import { resolveHoveredStatValue } from './hoveredStatValue';
 import type { HoveredStatInfo } from '../atoms/dagControls';
 
 function stat(values: Record<string, number>, aggMode: HoveredStatInfo['aggMode'] = 'sum') {
   return {
-    name: 'rows',
+    name: statisticFieldId([['rows', 0]]),
     values: new Map(Object.entries(values)),
     min: 0,
     max: 100,

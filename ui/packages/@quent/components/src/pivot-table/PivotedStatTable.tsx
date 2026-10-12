@@ -4,7 +4,13 @@
 import { useMemo, useState, useCallback, useEffect, useRef } from 'react';
 import type { OnChangeFn, SortingState } from '@tanstack/react-table';
 import { GroupedDataTable } from './GroupedDataTable';
-import { cn, computeScaleRange, type ScaleRange, type StatValue } from '@quent/utils';
+import {
+  cn,
+  computeScaleRange,
+  type ScaleRange,
+  type StatisticFieldId,
+  type StatValue,
+} from '@quent/utils';
 import type { AggMode, PivotedRow, HoveredStatInfo, PivotedStatTableSchema } from './types';
 import type {
   DataHeaderProps,
@@ -196,7 +202,7 @@ function DataCell({ row, stat }: DataCellProps<PivotedRow>) {
         {...statCellProps}
       >
         {entries.length
-          ? entries.map(entry => formatValue(entry.value, entry.key, entry.quantity)).join(', ')
+          ? entries.map(entry => formatValue(entry.value, entry.id, entry.quantity)).join(', ')
           : '-'}
       </td>
     );
@@ -364,7 +370,13 @@ export function PivotedStatTable<TRow>({
           max = v;
         }
       }
-      return { name: statName, values, min, max, aggMode: isAggregating ? aggMode : 'sum' };
+      return {
+        name: statName as StatisticFieldId,
+        values,
+        min,
+        max,
+        aggMode: isAggregating ? aggMode : 'sum',
+      };
     },
     [statsByItem, isAggregating, aggMode]
   );

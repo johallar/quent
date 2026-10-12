@@ -2,12 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import type { QueryEntities } from '~quent/types/QueryEntities';
-import {
-  flattenStatistics,
-  statisticFieldLabel,
-  workerDisplayName,
-  type Statistic,
-} from '@quent/utils';
+import { flattenStatistics, workerDisplayName, type Statistic } from '@quent/utils';
 import { parseCustomStatistics } from '@quent/components';
 import type { OperatorTableRow } from './types';
 
@@ -81,10 +76,7 @@ export function buildOperatorRows(
         { key: 'duration_s', value: duration !== null ? Number(duration.toFixed(6)) : null },
         ...parseCustomStatistics(op),
       ];
-      const stats = flattenStatistics(statistics).map(field => ({
-        ...field,
-        key: statisticFieldLabel(field),
-      }));
+      const stats = flattenStatistics(statistics);
       rows.push({
         partitionId,
         partitionLabel,

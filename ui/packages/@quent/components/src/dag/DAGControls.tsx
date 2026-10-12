@@ -28,6 +28,7 @@ import {
   SCALE_TYPE,
   type NodeLabelField,
   type StatisticField,
+  type StatisticFieldId,
   type DagLayoutDirection,
   type ScaleType,
 } from '@quent/utils';
@@ -74,10 +75,10 @@ const LAYOUT_DIRECTION_OPTIONS: SelectFieldOption[] = [
 function statisticFieldOptions(fields: StatisticField[]): SelectFieldOption[] {
   const presentations = buildStatisticFieldPresentations(fields);
   return fields.map(field => {
-    const presentation = presentations.get(field.key);
+    const presentation = presentations.get(field.id);
     return {
-      value: field.key,
-      label: presentation?.label ?? field.key,
+      value: field.id,
+      label: presentation?.label ?? field.id,
       title: presentation?.title,
     };
   });
@@ -148,7 +149,7 @@ export const DAGControls = ({ operatorStatFields, portStatFields, isDark }: DAGC
               ariaLabel="Node color"
               options={operatorOptions}
               value={colorField ?? ''}
-              onValueChange={setColorField}
+              onValueChange={value => setColorField(value as StatisticFieldId)}
               placeholder="None"
               triggerClassName="h-6 text-xs"
             />
@@ -158,7 +159,7 @@ export const DAGControls = ({ operatorStatFields, portStatFields, isDark }: DAGC
               ariaLabel="Edge width"
               options={portOptions}
               value={edgeWidthField ?? ''}
-              onValueChange={setEdgeWidthField}
+              onValueChange={value => setEdgeWidthField(value as StatisticFieldId)}
               placeholder="None"
               triggerClassName="h-6 text-xs"
             />
@@ -174,7 +175,7 @@ export const DAGControls = ({ operatorStatFields, portStatFields, isDark }: DAGC
               ariaLabel="Edge color"
               options={portOptions}
               value={edgeColorField ?? ''}
-              onValueChange={setEdgeColorField}
+              onValueChange={value => setEdgeColorField(value as StatisticFieldId)}
               placeholder="None"
               triggerClassName="h-6 text-xs"
             />

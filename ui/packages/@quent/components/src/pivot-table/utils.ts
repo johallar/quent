@@ -9,7 +9,7 @@ import {
   isStatStruct,
   formatStatWithQuantity,
 } from '@quent/utils';
-import type { StatValue, Statistic, QuantitySpec, ContinuousPaletteName } from '@quent/utils';
+import type { StatValue, StatisticField, QuantitySpec, ContinuousPaletteName } from '@quent/utils';
 import { scaleColor, type ScaleRange, type ScaleType } from '@quent/utils';
 import type { GroupedDataTableSortFn } from './GroupedDataTable';
 
@@ -110,7 +110,7 @@ export function formatStatValue(
 
 /** Only a single scalar statistic defines a numeric cell. */
 export function getNumericCellValue(
-  statistics: readonly Statistic[] | undefined
+  statistics: readonly Pick<StatisticField, 'value'>[] | undefined
 ): number | bigint | null {
   if (statistics?.length !== 1) {
     return null;
@@ -162,7 +162,7 @@ export function getSchemaStatNames<TRow>(
   const names: string[] = [];
   for (const row of rows) {
     const stats = schema.stats(row);
-    for (const { key: statName } of stats) {
+    for (const { id: statName } of stats) {
       if (seen.has(statName)) {
         continue;
       }
@@ -192,7 +192,7 @@ export function expandRowsFromSchema<TRow>(
       groups.item?.id ??
       groups.partition?.id ??
       '-';
-    for (const { key: statisticName, value, quantity } of schema.stats(row)) {
+    for (const { id: statisticName, value, quantity } of schema.stats(row)) {
       expanded.push({
         groups,
         itemType,
@@ -256,7 +256,7 @@ export function getSortValue(
 type Accumulator = {
   keys: GroupKeyEntry[];
   rowKey: string;
-  values: Map<string, Statistic[]>;
+  values: PivotedRow['values'];
   aggBuckets: Map<
     string,
     {
@@ -317,8 +317,8 @@ export function buildPivotedRows(
     group.itemScopeIds.set(row.itemId, row.scopeId);
 
     if (!isAggregating) {
-      const statistic: Statistic = {
-        key: row.statisticName,
+      const statistic = {
+        id: row.statisticName,
         value: row.value,
         ...(row.quantity !== undefined ? { quantity: row.quantity } : {}),
       };

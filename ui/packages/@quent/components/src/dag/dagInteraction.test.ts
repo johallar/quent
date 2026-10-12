@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { describe, expect, it } from 'vitest';
-import type { DAGNode } from '@quent/utils';
+import { statisticFieldId, type DAGNode } from '@quent/utils';
 import type { HoveredStatInfo } from '@quent/hooks';
 import { resolveDagHeatmap, resolveDagHighlightedNodeIds } from './dagInteraction';
 
@@ -18,7 +18,7 @@ const NODES: DAGNode[] = [
 
 function hoveredStat(values: Record<string, number>): HoveredStatInfo {
   return {
-    name: 'duration_s',
+    name: statisticFieldId([['duration_s', 0]]),
     values: new Map(Object.entries(values)),
     min: 0,
     max: 100,

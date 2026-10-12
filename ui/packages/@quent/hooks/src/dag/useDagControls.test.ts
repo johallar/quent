@@ -29,7 +29,7 @@ describe('useOperatorStatFields', () => {
       },
     };
     const { result } = renderHook(() => useOperatorStatFields([node]));
-    expect(result.current.map(f => f.key)).toEqual(['rows']);
+    expect(result.current.map(f => f.id)).toEqual(['rows']);
   });
 
   it('keeps a node’s own categorical stats', () => {
@@ -46,6 +46,6 @@ describe('useOperatorStatFields', () => {
       },
     };
     const { result } = renderHook(() => useOperatorStatFields([node]));
-    expect(result.current.map(f => f.key)).toEqual(['kind']);
+    expect(result.current.map(f => f.id)).toEqual(['kind']);
   });
 });

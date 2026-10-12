@@ -14,6 +14,7 @@ import type {
   ScaleType,
   SelectedOperatorGroupData,
   AggMode,
+  StatisticFieldId,
 } from '@quent/utils';
 import { NODE_LABEL_FIELD, DAG_LAYOUT_DIRECTION, SCALE_TYPE } from '@quent/utils';
 import type { ContinuousPaletteName } from '@quent/utils';
@@ -24,7 +25,7 @@ import type { ContinuousPaletteName } from '@quent/utils';
  * and the pivot-table package consume this type.
  */
 export interface HoveredStatInfo {
-  name: string;
+  name: StatisticFieldId;
   /** item ID → numeric value for this stat */
   values: Map<string, number>;
   min: number;
@@ -62,19 +63,19 @@ export const hoveredStatAtom = atom(
 );
 
 /** Field to color each DAG node by */
-export const selectedColorField = atom<string | null>(null);
+export const selectedColorField = atom<StatisticFieldId | null>(null);
 
 /** Computed node coloring config (written by QueryPlan, read by QueryPlanNode) */
 export const nodeColoringAtom = atom<NodeColoring>(null);
 
 /** Field to scale edge widths by */
-export const selectedEdgeWidthFieldAtom = atom<string | null>(null);
+export const selectedEdgeWidthFieldAtom = atom<StatisticFieldId | null>(null);
 
 /** Computed edge width config (written by QueryPlan, read by VariableWidthEdge) */
 export const edgeWidthConfigAtom = atom<EdgeWidthConfig>(null);
 
 /** Field to color each DAG edge by */
-export const selectedEdgeColorFieldAtom = atom<string | null>(null);
+export const selectedEdgeColorFieldAtom = atom<StatisticFieldId | null>(null);
 
 /** Computed edge coloring config (written by QueryPlan, read by VariableWidthEdge) */
 export const edgeColoringAtom = atom<EdgeColoring>(null);

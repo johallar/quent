@@ -1,7 +1,13 @@
 // SPDX-FileCopyrightText: Copyright (c) 2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-import type { StatValue, Statistic, ContinuousPaletteName, ScaleType } from '@quent/utils';
+import type {
+  StatValue,
+  StatisticField,
+  StatisticFieldId,
+  ContinuousPaletteName,
+  ScaleType,
+} from '@quent/utils';
 import type { AggMode, HoveredStatInfo } from '@quent/hooks';
 
 // Re-exports of pivot-table-related types that originate in @quent/hooks but
@@ -106,7 +112,7 @@ export interface StatGroupExpandedRow {
   itemType: string;
   itemId: string;
   scopeId: string;
-  statisticName: string;
+  statisticName: StatisticFieldId;
   value: StatValue;
   quantity?: string;
 }
@@ -132,7 +138,7 @@ export interface PivotedStatTableSchema<TRow> {
    */
   itemType?: (row: TRow) => string;
   /** Ordered statistics for one logical row; names become table columns. */
-  stats: (row: TRow) => readonly Statistic[];
+  stats: (row: TRow) => readonly StatisticField[];
 }
 
 export interface GroupKeyEntry {
@@ -155,7 +161,10 @@ export interface PivotedRowAgg {
 export interface PivotedRow {
   groupKeys: GroupKeyEntry[];
   rowKey: string;
-  values: Map<string, Statistic[]>;
+  values: Map<
+    string,
+    Array<Pick<StatisticField, 'id' | 'value'> & Pick<Partial<StatisticField>, 'quantity'>>
+  >;
   aggs: Map<string, PivotedRowAgg>;
   itemIds: Set<string>;
   itemType: string;

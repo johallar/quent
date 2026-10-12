@@ -61,7 +61,7 @@ export function computeEdgeColoring(edges: DAGEdge[], field: string | null): Edg
   }
 
   const entries = edges.flatMap(edge => {
-    const stat = edge.statisticFields?.find(statistic => statistic.key === field);
+    const stat = edge.statisticFields?.find(statistic => statistic.id === field);
     if (stat?.value == null) {
       return [];
     }
@@ -98,7 +98,7 @@ export function computeEdgeWidthConfig(edges: DAGEdge[], field: string | null): 
   }
 
   const entries = edges.flatMap(edge => {
-    const stat = edge.statisticFields?.find(statistic => statistic.key === field);
+    const stat = edge.statisticFields?.find(statistic => statistic.id === field);
     if (
       stat?.value == null ||
       !isNumericValue(stat.value) ||

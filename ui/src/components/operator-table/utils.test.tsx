@@ -7,6 +7,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { PivotedStatTable, formatStatValue, type PivotedStatTableSchema } from '@quent/components';
 import {
   buildStatisticFieldPresentations,
+  statisticFieldId,
   type Operator,
   type QueryEntities,
   type QuantitySpec,
@@ -206,7 +207,7 @@ describe('operator table structured statistics', () => {
     expect(screen.getByRole('cell', { name: 'GPU' })).toBeInTheDocument();
     expect(screen.getByRole('cell', { name: '2.00 KiB' })).toBeInTheDocument();
     expect(rows[0].stats).toContainEqual(
-      expect.objectContaining({ key: 'input_bytes', value: 1024, quantity: 'bytes' })
+      expect.objectContaining({ id: 'input_bytes', value: 1024, quantity: 'bytes' })
     );
   });
 
@@ -237,10 +238,10 @@ describe('operator table structured statistics', () => {
     renderRows(rows);
 
     expect(rows[0].stats.slice(1)).toMatchObject([
-      { key: 'work', value: 1024n, quantity: 'bytes' },
-      { key: 'work [2]', value: 2, quantity: 'seconds' },
+      { id: 'work', value: 1024n, quantity: 'bytes' },
+      { id: statisticFieldId([['work', 1]]), value: 2, quantity: 'seconds' },
     ]);
-    expect(rows[0].stats.some(stat => stat.key === 'sizes')).toBe(false);
+    expect(rows[0].stats.some(stat => stat.id === 'sizes')).toBe(false);
     expect(screen.getByRole('cell', { name: '1.00 KiB' })).toBeInTheDocument();
     expect(screen.getByRole('cell', { name: '2.00 s' })).toBeInTheDocument();
   });

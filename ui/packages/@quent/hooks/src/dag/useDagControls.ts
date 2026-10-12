@@ -10,6 +10,7 @@ import {
   type EdgeWidthConfig,
   type EdgeColoring,
   type StatisticField,
+  type StatisticFieldId,
 } from '@quent/utils';
 import {
   selectedColorField,
@@ -21,9 +22,12 @@ import {
 } from '../atoms/dagControls';
 
 // Computation functions injected to avoid circular dep with @quent/components
-type ComputeNodeColoringFn = (nodes: DAGNode[], field: string | null) => NodeColoring;
-type ComputeEdgeWidthConfigFn = (edges: DAGEdge[], field: string | null) => EdgeWidthConfig;
-type ComputeEdgeColoringFn = (edges: DAGEdge[], field: string | null) => EdgeColoring;
+type ComputeNodeColoringFn = (nodes: DAGNode[], field: StatisticFieldId | null) => NodeColoring;
+type ComputeEdgeWidthConfigFn = (
+  edges: DAGEdge[],
+  field: StatisticFieldId | null
+) => EdgeWidthConfig;
+type ComputeEdgeColoringFn = (edges: DAGEdge[], field: StatisticFieldId | null) => EdgeColoring;
 
 export function useDagNodeColoring(nodes: DAGNode[], computeNodeColoring: ComputeNodeColoringFn) {
   const selectedField = useAtomValue(selectedColorField);
@@ -78,7 +82,7 @@ export function useOperatorStatFields(nodes: DAGNode[]): StatisticField[] {
           const aggregatable = relatedFields.flatMap(fields =>
             fields.filter(s => typeof s.value === 'number' || typeof s.value === 'bigint')
           );
-          return [...own, ...aggregatable].map(s => [s.key, s] as const);
+          return [...own, ...aggregatable].map(s => [s.id, s] as const);
         })
       ).values(),
     ],
@@ -91,7 +95,7 @@ export function usePortStatFields(edges: DAGEdge[]): StatisticField[] {
     () => [
       ...new Map(
         edges.flatMap(e =>
-          (e.statisticFields ?? []).map(statistic => [statistic.key, statistic] as const)
+          (e.statisticFields ?? []).map(statistic => [statistic.id, statistic] as const)
         )
       ).values(),
     ],

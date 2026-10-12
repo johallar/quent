@@ -199,7 +199,7 @@ describe('resolveStatisticFields', () => {
         [operatorFields(makeQuantifiedOperator('bytes', 20, 'bytes'))],
         'bytes'
       )
-    ).toMatchObject({ key: 'bytes', value: 10, quantity: 'bytes' });
+    ).toMatchObject({ id: 'bytes', value: 10, quantity: 'bytes' });
   });
 
   it('aggregates related values with a shared quantity', () => {
@@ -212,7 +212,7 @@ describe('resolveStatisticFields', () => {
         ],
         'bytes'
       )
-    ).toMatchObject({ key: 'bytes', value: 30, quantity: 'bytes' });
+    ).toMatchObject({ id: 'bytes', value: 30, quantity: 'bytes' });
   });
 
   it('omits the quantity when related statistics disagree', () => {
@@ -225,7 +225,7 @@ describe('resolveStatisticFields', () => {
         ],
         'size'
       )
-    ).toMatchObject({ key: 'size', value: 30 });
+    ).toMatchObject({ id: 'size', value: 30 });
     expect(
       resolveStatisticFields(
         [],
