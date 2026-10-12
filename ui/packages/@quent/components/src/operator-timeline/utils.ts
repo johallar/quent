@@ -77,8 +77,7 @@ export function spanToMs(span: { start: number; end: number }): {
 
 function buildOperatorActiveSpanEntry(
   operatorId: string,
-  op: NormalizedOperator,
-  fallbackPlanId?: string
+  op: NormalizedOperator
 ): OperatorActiveSpanEntry | null {
   const span = op.active_span;
   if (span == null) {
@@ -96,9 +95,7 @@ function buildOperatorActiveSpanEntry(
     startMs,
     endMs,
     rowIndex: 0,
-    planId: op.plan_id ?? fallbackPlanId ?? '',
-    attributes: op.attributes,
-    statistics: op.statistics.statistics,
+    planId: op.plan_id ?? '',
   };
 }
 
@@ -126,7 +123,7 @@ export function operatorsWithActiveSpans(
     .sort(([a], [b]) => a.localeCompare(b));
 
   for (const [operatorId, op] of sorted) {
-    const entry = buildOperatorActiveSpanEntry(operatorId, op, planId);
+    const entry = buildOperatorActiveSpanEntry(operatorId, op);
     if (entry) {
       entries.push(entry);
     }

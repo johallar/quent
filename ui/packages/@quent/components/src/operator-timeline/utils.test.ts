@@ -168,7 +168,6 @@ describe('getOperatorsAtTimestamp', () => {
     endMs,
     rowIndex: 0,
     planId: 'plan',
-    statistics: [],
   });
 
   it('returns every overlapping operator', () => {
@@ -251,19 +250,26 @@ describe('operatorsWithActiveSpans', () => {
         active_span: { start: 0, end: 1 },
         operator_type_name: 'Scan',
         instance_name: 'my-scan',
+        attributes: [{ key: 'source', value: 'orders' }],
+        statistics: {
+          custom_statistics: [],
+          statistics: [{ key: 'rows', value: 12 }],
+          fields: [{ id: 'rows', path: [['rows', 0]], value: 12 }],
+        },
       }),
     });
     const result = operatorsWithActiveSpans(bundle, 'p1');
-    expect(result).toHaveLength(1);
-    expect(result[0]).toMatchObject({
-      operatorId: 'op1',
-      label: 'my-scan',
-      typeName: 'Scan',
-      planId: 'p1',
-      startMs: 0,
-      endMs: 1000,
-      rowIndex: 0,
-    });
+    expect(result).toEqual([
+      {
+        operatorId: 'op1',
+        label: 'my-scan',
+        typeName: 'Scan',
+        planId: 'p1',
+        startMs: 0,
+        endMs: 1000,
+        rowIndex: 0,
+      },
+    ]);
   });
 
   it('falls back to operator_type_name when instance_name is null', () => {

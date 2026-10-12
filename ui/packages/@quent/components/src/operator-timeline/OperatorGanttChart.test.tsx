@@ -100,7 +100,7 @@ function SelectionControls() {
 
 describe('OperatorGanttChart', () => {
   it.each(['plan', 'worker'])(
-    'shows ordered attributes when an operator is selected from the %s timeline',
+    'hydrates Operator Details from allOperators after a %s timeline click',
     scope => {
       const operator: NormalizedOperator = {
         ...makeOperator('scan'),
@@ -130,6 +130,8 @@ describe('OperatorGanttChart', () => {
         scope === 'plan'
           ? operatorsWithActiveSpans(bundle, 'plan')
           : operatorsWithActiveSpansForWorker(bundle, 'worker');
+      expect(operators[0]).not.toHaveProperty('attributes');
+      expect(operators[0]).not.toHaveProperty('statistics');
 
       render(
         <Provider store={createStore()}>
@@ -179,7 +181,6 @@ describe('OperatorGanttChart', () => {
       endMs: 1,
       rowIndex: index,
       planId: 'plan',
-      statistics: [],
     }));
     render(
       <Provider store={createStore()}>
@@ -237,7 +238,6 @@ describe('OperatorGanttChart', () => {
         endMs: 1,
         rowIndex: 0,
         planId: 'plan',
-        statistics: [],
       },
     ];
 
