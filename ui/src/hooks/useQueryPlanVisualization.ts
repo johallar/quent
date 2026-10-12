@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { useMemo } from 'react';
-import type { QueryBundle, EntityRef } from '@quent/utils';
+import type { EntityRef, NormalizedQueryBundle } from '@quent/utils';
 import type { QueryPlanDataItem, DAGData } from '@quent/components';
 import { getTreeData, getPlanDAG } from '@quent/components';
 
@@ -13,7 +13,7 @@ interface UseQueryPlanVisualizationResult {
 }
 
 export const useQueryPlanVisualization = (
-  queryBundle: QueryBundle<EntityRef> | undefined,
+  queryBundle: NormalizedQueryBundle<EntityRef> | undefined,
   planId: string
 ): UseQueryPlanVisualizationResult => {
   const treeData = useMemo(() => {

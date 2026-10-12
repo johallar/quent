@@ -7,15 +7,33 @@ import { describe, expect, it, vi } from 'vitest';
 import { PivotedStatTable, formatStatValue, type PivotedStatTableSchema } from '@quent/components';
 import {
   buildStatisticFieldPresentations,
+  projectStatisticScalarFields,
   statisticFieldId,
+  unwrapTaggedValue,
   type Operator,
-  type QueryEntities,
+  type NormalizedQueryEntities,
   type QuantitySpec,
+  type Statistic,
 } from '@quent/utils';
 import { buildOperatorRows } from './utils';
 import type { OperatorTableRow } from './types';
 
-function makeEntities(statistics: NonNullable<Operator['statistics']>): QueryEntities {
+function normalizeStatistics(rawStatistics: NonNullable<Operator['statistics']>) {
+  const statistics: Statistic[] = rawStatistics.custom_statistics.map(
+    ({ value: { key, value }, quantity }) => ({
+      key,
+      value: unwrapTaggedValue(value),
+      ...(quantity !== null ? { quantity } : {}),
+    })
+  );
+  return {
+    ...rawStatistics,
+    statistics,
+    fields: projectStatisticScalarFields(statistics),
+  };
+}
+
+function makeEntities(rawStatistics: NonNullable<Operator['statistics']>): NormalizedQueryEntities {
   return {
     engine: {
       id: 'engine',
@@ -29,6 +47,7 @@ function makeEntities(statistics: NonNullable<Operator['statistics']>): QueryEnt
       id: 'query',
       instance_name: null,
       custom_attributes: [],
+      attributes: [],
       start_unix_ns: null,
       planning_s: null,
       executing_s: null,
@@ -45,8 +64,9 @@ function makeEntities(statistics: NonNullable<Operator['statistics']>): QueryEnt
         instance_name: 'Scan',
         operator_type_name: 'Scan',
         custom_attributes: [],
+        attributes: [],
         active_span: { start: 1, end: 3 },
-        statistics,
+        statistics: normalizeStatistics(rawStatistics),
       },
     },
     workers: {},
@@ -299,9 +319,9 @@ describe('operator table structured statistics', () => {
     entities.operators.other = {
       ...entities.operators.scan,
       id: 'other',
-      statistics: {
+      statistics: normalizeStatistics({
         custom_statistics: [{ value: { key: 'work', value: { U32: 1024 } }, quantity: second }],
-      },
+      }),
     };
     renderRows(buildOperatorRows(entities, new Set(['plan'])), true, []);
     expect(screen.getByRole('cell', { name: expected })).toBeInTheDocument();

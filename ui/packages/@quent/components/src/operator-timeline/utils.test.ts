@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { describe, it, expect } from 'vitest';
-import type { QueryBundle, EntityRef, Operator, PlanTree } from '@quent/utils';
+import type { EntityRef, NormalizedOperator, NormalizedQueryBundle, PlanTree } from '@quent/utils';
 import type { OperatorActiveSpanEntry } from './types';
 import {
   operatorTimelineRowId,
@@ -17,7 +17,7 @@ import {
 
 // ---- Helpers ---------------------------------------------------------------
 
-function makeOp(overrides: Partial<Operator> = {}): Operator {
+function makeOp(overrides: Partial<NormalizedOperator> = {}): NormalizedOperator {
   return {
     id: 'op',
     plan_id: null,
@@ -25,31 +25,32 @@ function makeOp(overrides: Partial<Operator> = {}): Operator {
     instance_name: null,
     operator_type_name: null,
     custom_attributes: [],
-    statistics: null,
+    attributes: [],
+    statistics: { custom_statistics: [], statistics: [], fields: [] },
     active_span: null,
     ...overrides,
   };
 }
 
 function makeBundle(
-  operators: Record<string, Operator | null | undefined>,
+  operators: Record<string, NormalizedOperator | null | undefined>,
   planTree: PlanTree = { id: 'root', worker: null, children: [] }
-): QueryBundle<EntityRef> {
+): NormalizedQueryBundle<EntityRef> {
   return {
     entities: { operators },
-  } as unknown as QueryBundle<EntityRef>;
+  } as unknown as NormalizedQueryBundle<EntityRef>;
   // plan_tree only used by operatorsWithActiveSpansForWorker — provided inline there
   void planTree;
 }
 
 function makeBundleWithTree(
-  operators: Record<string, Operator | null | undefined>,
+  operators: Record<string, NormalizedOperator | null | undefined>,
   planTree: PlanTree
-): QueryBundle<EntityRef> {
+): NormalizedQueryBundle<EntityRef> {
   return {
     entities: { operators },
     plan_tree: planTree,
-  } as unknown as QueryBundle<EntityRef>;
+  } as unknown as NormalizedQueryBundle<EntityRef>;
 }
 
 // ---- operatorTimelineRowId / workerIdFromOperatorTimelineRowId -------------
@@ -210,7 +211,7 @@ describe('spanToMs', () => {
 
 describe('operatorsWithActiveSpans', () => {
   it('returns [] when operators is absent', () => {
-    const bundle = { entities: {} } as unknown as QueryBundle<EntityRef>;
+    const bundle = { entities: {} } as unknown as NormalizedQueryBundle<EntityRef>;
     expect(operatorsWithActiveSpans(bundle, 'p1')).toEqual([]);
   });
 
@@ -303,7 +304,7 @@ describe('operatorsWithActiveSpansForWorker', () => {
     const bundle = {
       entities: {},
       plan_tree: { id: 'root', worker: null, children: [] },
-    } as unknown as QueryBundle<EntityRef>;
+    } as unknown as NormalizedQueryBundle<EntityRef>;
     expect(operatorsWithActiveSpansForWorker(bundle, 'w1')).toEqual([]);
   });
 

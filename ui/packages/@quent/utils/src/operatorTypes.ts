@@ -32,7 +32,7 @@ export interface SelectedOperatorGroupData extends SelectedOperatorData {
 }
 
 function resolveOperatorWorker(
-  operator: Operator,
+  operator: Pick<Operator, 'plan_id'>,
   plans: Record<string, Plan>,
   workers: Record<string, Worker>
 ): { plan?: Plan; worker?: Worker } {
@@ -42,7 +42,7 @@ function resolveOperatorWorker(
 }
 
 export function operatorLocationDescription(
-  operator: Operator,
+  operator: Pick<Operator, 'plan_id'>,
   plans: Record<string, Plan>,
   workers: Record<string, Worker>
 ): string | undefined {
@@ -56,7 +56,7 @@ export function operatorLocationDescription(
 }
 
 export function operatorWorkerLabel(
-  operator: Operator,
+  operator: Pick<Operator, 'plan_id'>,
   plans: Record<string, Plan>,
   workers: Record<string, Worker>
 ): string | undefined {

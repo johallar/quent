@@ -21,7 +21,7 @@ import {
   buildRelatedOperatorIdsById,
   resolveSelectedOperatorSelections,
   toggleOperatorSelection,
-  type Operator,
+  type NormalizedOperator,
 } from '@quent/utils';
 import type { OperatorActiveSpanEntry } from './types';
 import { GanttChart, type GanttRenderItem } from '../gantt-chart/GanttChart';
@@ -46,7 +46,7 @@ function getOperatorBarColors(
 
 export interface OperatorGanttChartProps {
   operators: OperatorActiveSpanEntry[];
-  allOperators: readonly Operator[];
+  allOperators: readonly NormalizedOperator[];
   durationSeconds: number;
   height?: number;
   /** Whether dark mode is active. Passed explicitly to decouple from ThemeContext. */

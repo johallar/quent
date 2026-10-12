@@ -1,23 +1,22 @@
 // SPDX-FileCopyrightText: Copyright (c) 2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-import { parseCustomStatistics, parsePortStatistics } from '../../lib/queryBundle.utils';
 import type { DAGNode, DAGEdge, QueryPlanDataItem } from './types';
-import type { QueryBundle, EntityRef } from '@quent/utils';
 import {
   aggregateNumericValues,
   buildRelatedOperatorIdsById,
   isNumericValue,
   operatorWorkerLabel,
-  projectStatisticScalarFields,
   statisticFieldLabel,
   workerDisplayName,
-  Operator,
-  Port,
   Plan,
   PlanTree,
   Worker,
-  type DAGStatisticSet,
+  type EntityRef,
+  type NormalizedOperator,
+  type NormalizedPort,
+  type NormalizedQueryBundle,
+  type StatisticSet,
   type Statistic,
   type StatisticField,
 } from '@quent/utils';
@@ -26,11 +25,7 @@ interface PlanTreeNode extends PlanTree {
   query?: string | null;
 }
 
-function processStatistics(statistics: DAGStatisticSet['statistics']): DAGStatisticSet {
-  return { statistics, fields: projectStatisticScalarFields(statistics) };
-}
-
-function sumStatisticSets(statisticSets: readonly DAGStatisticSet[]): Statistic[] {
+function sumStatisticSets(statisticSets: readonly StatisticSet[]): Statistic[] {
   const buckets = new Map<
     string,
     { field: StatisticField; values: Array<number | bigint>; fields: StatisticField[] }
@@ -67,24 +62,24 @@ function sumStatisticSets(statisticSets: readonly DAGStatisticSet[]): Statistic[
  * Validate that a query bundle has the required structure
  */
 export const validateQueryBundle = (
-  bundle: QueryBundle<EntityRef>
-): bundle is QueryBundle<EntityRef> =>
+  bundle: NormalizedQueryBundle<EntityRef>
+): bundle is NormalizedQueryBundle<EntityRef> =>
   typeof bundle === 'object' && bundle !== null && Object.keys(bundle?.entities?.plans).length > 0;
 
 /**
  * Retrieve the operator node entity from a port id
  */
 const getNodeEntity = (
-  bundle: QueryBundle<EntityRef>,
+  bundle: NormalizedQueryBundle<EntityRef>,
   id: string,
   relatedOperatorIdsById: Map<string, string[]>,
-  operatorStatisticsById: ReadonlyMap<string, DAGStatisticSet>,
+  operatorStatisticsById: ReadonlyMap<string, StatisticSet>,
   nodeMap: Map<string, DAGNode>
 ): DAGNode | undefined => {
   // Find associated port
   if (bundle?.entities?.ports?.[id]) {
-    const port: Port = bundle?.entities?.ports?.[id];
-    const operator: Operator | undefined = port.operator_id
+    const port: NormalizedPort = bundle?.entities?.ports?.[id];
+    const operator: NormalizedOperator | undefined = port.operator_id
       ? bundle?.entities?.operators?.[port.operator_id]
       : undefined;
     if (operator) {
@@ -98,7 +93,7 @@ const getNodeEntity = (
         return relatedOperator ? [relatedOperator] : [];
       });
       const operatorStatistics = operatorStatisticsById.get(operator.id);
-      const relatedOperatorStatistics: DAGStatisticSet[] = [];
+      const relatedOperatorStatistics: StatisticSet[] = [];
       for (const relatedOperator of relatedOperators) {
         const statistics = operatorStatisticsById.get(relatedOperator.id);
         if (!statistics) {
@@ -175,7 +170,7 @@ const transformNodeForTreeView = (
 /**
  * Transform the plan_tree into TreeView format for query plan explorer
  */
-export const getTreeData = (bundle: QueryBundle<EntityRef>): QueryPlanDataItem[] => {
+export const getTreeData = (bundle: NormalizedQueryBundle<EntityRef>): QueryPlanDataItem[] => {
   if (!validateQueryBundle(bundle)) {
     throw new Error('Invalid QueryBundle format');
   }
@@ -189,7 +184,7 @@ export const getTreeData = (bundle: QueryBundle<EntityRef>): QueryPlanDataItem[]
 };
 
 export const getSelectedOperatorCountsByPlan = (
-  bundle: QueryBundle<EntityRef>,
+  bundle: NormalizedQueryBundle<EntityRef>,
   selectedOperatorIds: ReadonlySet<string>
 ): Map<string, number> => {
   const counts = new Map<string, number>();
@@ -206,7 +201,7 @@ export const getSelectedOperatorCountsByPlan = (
  * Transform specified query plan into DAG visualization data
  */
 export const getPlanDAG = (
-  bundle: QueryBundle<EntityRef>,
+  bundle: NormalizedQueryBundle<EntityRef>,
   planId: string
 ): { nodes: DAGNode[]; edges: DAGEdge[] } => {
   if (!validateQueryBundle(bundle)) {
@@ -233,7 +228,7 @@ export const getPlanDAG = (
     )
   );
   const operators = Object.values(bundle.entities.operators).filter(
-    (operator): operator is Operator => operator !== undefined
+    (operator): operator is NormalizedOperator => operator !== undefined
   );
   const relatedOperatorIdsById = buildRelatedOperatorIdsById(operators, selectedOperatorIds);
   const relevantOperatorIds = new Set(selectedOperatorIds);
@@ -245,16 +240,14 @@ export const getPlanDAG = (
   const operatorStatisticsById = new Map(
     [...relevantOperatorIds].flatMap(operatorId => {
       const operator = bundle.entities.operators[operatorId];
-      return operator
-        ? [[operatorId, processStatistics(parseCustomStatistics(operator))] as const]
-        : [];
+      return operator ? ([[operatorId, operator.statistics]] as const) : [];
     })
   );
   const portStatisticsById = new Map(
-    [...new Set(planTree.edges.flatMap(edge => [edge.source, edge.target]))].map(
-      portId =>
-        [portId, processStatistics(parsePortStatistics(bundle.entities.ports[portId]))] as const
-    )
+    [...new Set(planTree.edges.flatMap(edge => [edge.source, edge.target]))].flatMap(portId => {
+      const port = bundle.entities.ports[portId];
+      return port ? ([[portId, port.statistics]] as const) : [];
+    })
   );
 
   // Build the DAG from the plan's edges

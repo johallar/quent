@@ -13,7 +13,7 @@ import {
   useZoomRange,
 } from '@quent/hooks';
 import { NVTX_SECTION_ID, toast, Toaster } from '@quent/components';
-import type { Operator } from '@quent/utils';
+import type { NormalizedOperator } from '@quent/utils';
 import { render, screen, waitFor, userEvent } from '@/test/test-utils';
 import { entitiesTableStateAtom, type EntitiesTableState } from '@/atoms/entitiesTable';
 import {
@@ -47,7 +47,7 @@ const BOUNDARY_PROPS = {
 
 const RESOURCE_A_ID = '01a025ff-ea8b-7881-9d31-72a275872c9d';
 const RESOURCE_B_ID = '01a025ff-ea8b-7881-9d31-72a275872c9e';
-const DEEP_LINK_OPERATORS: Operator[] = [
+const DEEP_LINK_OPERATORS: NormalizedOperator[] = [
   {
     id: 'operator-a',
     plan_id: null,
@@ -55,7 +55,8 @@ const DEEP_LINK_OPERATORS: Operator[] = [
     instance_name: 'Operator A',
     operator_type_name: null,
     custom_attributes: [],
-    statistics: null,
+    attributes: [],
+    statistics: { custom_statistics: [], statistics: [], fields: [] },
     active_span: null,
   },
   {
@@ -65,7 +66,8 @@ const DEEP_LINK_OPERATORS: Operator[] = [
     instance_name: 'Operator Child',
     operator_type_name: null,
     custom_attributes: [],
-    statistics: null,
+    attributes: [],
+    statistics: { custom_statistics: [], statistics: [], fields: [] },
     active_span: null,
   },
 ];

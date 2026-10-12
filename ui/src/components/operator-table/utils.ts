@@ -1,9 +1,12 @@
 // SPDX-FileCopyrightText: Copyright (c) 2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-import type { QueryEntities } from '~quent/types/QueryEntities';
-import { projectStatisticScalarFields, workerDisplayName, type Statistic } from '@quent/utils';
-import { parseCustomStatistics } from '@quent/components';
+import {
+  projectStatisticScalarFields,
+  workerDisplayName,
+  type NormalizedQueryEntities,
+  type Statistic,
+} from '@quent/utils';
 import type { OperatorTableRow } from './types';
 
 /**
@@ -14,7 +17,7 @@ import type { OperatorTableRow } from './types';
  * normalized to the placeholder `'-'`.
  */
 export function buildOperatorRows(
-  entities: QueryEntities,
+  entities: NormalizedQueryEntities,
   includedPlanIds: Set<string>
 ): OperatorTableRow[] {
   const rows: OperatorTableRow[] = [];
@@ -74,7 +77,7 @@ export function buildOperatorRows(
       const duration = op.active_span ? op.active_span.end - op.active_span.start : null;
       const statistics: Statistic[] = [
         { key: 'duration_s', value: duration !== null ? Number(duration.toFixed(6)) : null },
-        ...parseCustomStatistics(op),
+        ...op.statistics.statistics,
       ];
       const stats = projectStatisticScalarFields(statistics);
       rows.push({

@@ -51,13 +51,12 @@ import { DAGLegend } from './DAGLegend';
 import { resolveSelectedOperatorsFromNodes } from './dagSelection';
 import { shouldDimEdgeFromInteraction } from './edgeOpacity';
 import { resolveDagHeatmap, resolveDagHighlightedNodeIds } from './dagInteraction';
-import { parseOperatorAttributes } from '../lib/queryBundle.utils';
 import {
   scaleColor,
   inferFieldFormatter,
   statisticFieldName,
   toggleOperatorSelection,
-  type Operator,
+  type NormalizedOperator,
   type StatisticField,
   type QuantitySpec,
   type SelectedOperatorGroupData,
@@ -274,7 +273,7 @@ interface DAGProps {
   /** Called when the empty chart background is clicked. */
   onBackgroundClick?: () => void;
   /** Complete operator hierarchy used to split grouped selections. */
-  operators?: readonly Operator[];
+  operators?: readonly NormalizedOperator[];
 }
 
 function selectedOperatorDataFromFlowNode(
@@ -284,7 +283,7 @@ function selectedOperatorDataFromFlowNode(
     nodeId: node.id,
     label: node.data.label,
     operationType: node.data.operationType,
-    attributes: parseOperatorAttributes(node.data.metadata?.rawNode),
+    attributes: node.data.metadata?.rawNode?.attributes ?? [],
     statistics: node.data.metadata?.aggregatedStatistics?.length
       ? node.data.metadata.aggregatedStatistics
       : (node.data.metadata?.operatorStatistics?.statistics ?? []),
@@ -292,7 +291,7 @@ function selectedOperatorDataFromFlowNode(
       nodeId: operator.id,
       label: operator.instance_name ?? operator.operator_type_name ?? 'Operator',
       operationType: operator.operator_type_name?.toLowerCase() ?? 'operator',
-      attributes: parseOperatorAttributes(operator),
+      attributes: operator.attributes,
       statistics: node.data.metadata?.relatedOperatorStatistics?.[index]?.statistics ?? [],
     })),
   };
@@ -310,7 +309,7 @@ const FlowLayout = ({
   data: DAGData;
   containerRef: RefObject<HTMLDivElement | null>;
   isDark: boolean;
-  operators?: readonly Operator[];
+  operators?: readonly NormalizedOperator[];
   selectedNodeIds?: string[];
   onSelectionChange?: (nodeIds: string[]) => void;
   onBackgroundClick?: () => void;
@@ -334,7 +333,7 @@ const FlowLayout = ({
     if (operators) {
       return operators;
     }
-    const byId = new Map<string, Operator>();
+    const byId = new Map<string, NormalizedOperator>();
     for (const node of data.nodes) {
       const metadata = node.metadata as QueryPlanNodeData['metadata'];
       if (metadata?.rawNode) {

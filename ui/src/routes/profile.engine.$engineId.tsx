@@ -15,13 +15,15 @@ import {
 } from '@quent/components';
 import { CopyLinkButton, DeepLinkBoundary } from '@/features/deep-link';
 import { THEME_DARK, useTheme } from '@/contexts/ThemeContext';
-import { type EntityRef, type PaletteTheme, type QueryBundle } from '@quent/utils';
+import { type EntityRef, type NormalizedQueryBundle, type PaletteTheme } from '@quent/utils';
 
 export const Route = createFileRoute('/profile/engine/$engineId')({
   component: ProfileLayout,
 });
 
-function defaultRootResourceType(queryBundle: QueryBundle<EntityRef> | undefined): string | null {
+function defaultRootResourceType(
+  queryBundle: NormalizedQueryBundle<EntityRef> | undefined
+): string | null {
   if (!queryBundle) {
     return null;
   }

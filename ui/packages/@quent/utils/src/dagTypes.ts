@@ -97,10 +97,14 @@ export function isStatStruct(value: StatValue): value is StatStruct {
   );
 }
 
-export interface DAGStatisticSet {
+/** Ordered statistics and their selectable scalar projection. */
+export interface StatisticSet {
   statistics: Statistic[];
   fields: StatisticField[];
 }
+
+/** @deprecated Use StatisticSet. */
+export type DAGStatisticSet = StatisticSet;
 
 export interface DAGNode {
   id: string;

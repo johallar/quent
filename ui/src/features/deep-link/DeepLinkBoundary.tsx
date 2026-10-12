@@ -17,7 +17,12 @@ import {
   useSetDebouncedZoomRange,
   useSetZoomRange,
 } from '@quent/hooks';
-import { DAG_LAYOUT_DIRECTION, SCALE_TYPE, NODE_LABEL_FIELD, type Operator } from '@quent/utils';
+import {
+  DAG_LAYOUT_DIRECTION,
+  SCALE_TYPE,
+  NODE_LABEL_FIELD,
+  type NormalizedOperator,
+} from '@quent/utils';
 import { toast } from '@quent/components';
 import {
   entitiesTableStateAtom,
@@ -71,7 +76,7 @@ interface DeepLinkBoundaryProps {
   activeTab?: DeepLinkTab;
   durationSeconds: number;
   defaultRootResourceType?: string | null;
-  operators: readonly Operator[];
+  operators: readonly NormalizedOperator[];
   encodedState?: string;
   isQueryReady: boolean;
 }

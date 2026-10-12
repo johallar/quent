@@ -16,7 +16,7 @@ import {
   BLACK,
   NODE_LABEL_FIELD,
   DAG_LAYOUT_DIRECTION,
-  type Operator,
+  type NormalizedOperator,
   type DagLayoutDirection,
   type QuantitySpec,
   type DAGStatisticSet,
@@ -41,9 +41,9 @@ export interface QueryPlanNodeData extends Record<string, unknown> {
   nodeId: string;
   operationType: string;
   metadata?: {
-    rawNode?: Operator;
+    rawNode?: NormalizedOperator;
     relatedOperatorIds?: string[];
-    relatedOperators?: Operator[];
+    relatedOperators?: NormalizedOperator[];
     aggregatedStatistics?: Statistic[];
     operatorStatistics?: DAGStatisticSet;
     relatedOperatorStatistics?: DAGStatisticSet[];

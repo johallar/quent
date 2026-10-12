@@ -10,7 +10,7 @@ import {
   type DagLayoutDirection,
   type ScaleType,
   type NodeLabelField,
-  type Operator,
+  type NormalizedOperator,
   type StatisticFieldId,
 } from '@quent/utils';
 import {
@@ -97,7 +97,7 @@ export interface HydratableViewState {
 interface SerializableViewStateOptions {
   operatorTablePersistKey: string;
   operatorTableGroupKeys: readonly string[];
-  operators: readonly Operator[];
+  operators: readonly NormalizedOperator[];
 }
 
 export function useSerializableViewState({

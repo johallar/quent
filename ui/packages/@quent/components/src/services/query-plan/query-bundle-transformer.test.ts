@@ -3,13 +3,18 @@
 
 import { describe, it, expect } from 'vitest';
 import {
+  projectStatisticScalarFields,
   statisticFieldId,
-  type QueryBundle,
+  unwrapTaggedValue,
   type EntityRef,
+  type NormalizedOperator,
+  type NormalizedPort,
+  type NormalizedQueryBundle,
+  type OperatorStatistics,
   type Plan,
-  type Operator,
-  type Port,
   type PlanTree,
+  type PortStatistics,
+  type Statistic,
   type Worker,
 } from '@quent/utils';
 import {
@@ -52,7 +57,7 @@ function makeOperator(
     planId?: string | null;
     parentOperatorIds?: string[];
   } = {}
-): Operator {
+): NormalizedOperator {
   return {
     id,
     plan_id: opts.planId ?? null,
@@ -60,13 +65,53 @@ function makeOperator(
     instance_name: opts.instanceName ?? null,
     operator_type_name: opts.typeName ?? null,
     custom_attributes: [],
-    statistics: null,
+    attributes: [],
+    statistics: { custom_statistics: [], statistics: [], fields: [] },
     active_span: null,
   };
 }
 
-function makePort(id: string, operatorId: string | null): Port {
-  return { id, operator_id: operatorId, instance_name: null, statistics: null };
+function makePort(id: string, operatorId: string | null): NormalizedPort {
+  return {
+    id,
+    operator_id: operatorId,
+    instance_name: null,
+    statistics: { custom_statistics: [], statistics: [], fields: [] },
+  };
+}
+
+function normalizeOperatorStatistics(raw: {
+  custom_statistics: Array<{
+    value: { key: string; value: unknown };
+    quantity: string | null;
+  }>;
+}): NormalizedOperator['statistics'] {
+  const statistics: Statistic[] = raw.custom_statistics.map(
+    ({ value: { key, value }, quantity }) => ({
+      key,
+      value: unwrapTaggedValue(value),
+      ...(quantity !== null ? { quantity } : {}),
+    })
+  );
+  return {
+    custom_statistics: raw.custom_statistics as OperatorStatistics['custom_statistics'],
+    statistics,
+    fields: projectStatisticScalarFields(statistics),
+  };
+}
+
+function normalizePortStatistics(raw: {
+  custom_statistics: Array<{ key: string; value: unknown }>;
+}): NormalizedPort['statistics'] {
+  const statistics: Statistic[] = raw.custom_statistics.map(({ key, value }) => ({
+    key,
+    value: unwrapTaggedValue(value),
+  }));
+  return {
+    custom_statistics: raw.custom_statistics as PortStatistics['custom_statistics'],
+    statistics,
+    fields: projectStatisticScalarFields(statistics),
+  };
 }
 
 function makePlanTree(
@@ -80,12 +125,12 @@ function makePlanTree(
 function makeBundle(
   plans: Record<string, Plan | undefined>,
   opts: {
-    operators?: Record<string, Operator | undefined>;
-    ports?: Record<string, Port | undefined>;
+    operators?: Record<string, NormalizedOperator | undefined>;
+    ports?: Record<string, NormalizedPort | undefined>;
     workers?: Record<string, Worker | undefined>;
     planTree?: PlanTree;
   } = {}
-): QueryBundle<EntityRef> {
+): NormalizedQueryBundle<EntityRef> {
   return {
     entities: {
       plans,
@@ -94,7 +139,7 @@ function makeBundle(
       workers: opts.workers ?? {},
     },
     plan_tree: opts.planTree ?? makePlanTree(Object.keys(plans)[0] ?? 'p1'),
-  } as unknown as QueryBundle<EntityRef>;
+  } as unknown as NormalizedQueryBundle<EntityRef>;
 }
 
 // ---- validateQueryBundle ---------------------------------------------------
@@ -106,7 +151,7 @@ describe('validateQueryBundle', () => {
   });
 
   it('returns false for null', () => {
-    expect(validateQueryBundle(null as unknown as QueryBundle<EntityRef>)).toBe(false);
+    expect(validateQueryBundle(null as unknown as NormalizedQueryBundle<EntityRef>)).toBe(false);
   });
 
   it('returns false for a bundle with an empty plans object', () => {
@@ -124,7 +169,7 @@ describe('validateQueryBundle', () => {
 
 describe('getTreeData', () => {
   it('throws for an invalid bundle', () => {
-    expect(() => getTreeData(null as unknown as QueryBundle<EntityRef>)).toThrow(
+    expect(() => getTreeData(null as unknown as NormalizedQueryBundle<EntityRef>)).toThrow(
       'Invalid QueryBundle format'
     );
   });
@@ -247,7 +292,7 @@ describe('getSelectedOperatorCountsByPlan', () => {
 
 describe('getPlanDAG', () => {
   it('throws for an invalid bundle', () => {
-    expect(() => getPlanDAG(null as unknown as QueryBundle<EntityRef>, 'p1')).toThrow(
+    expect(() => getPlanDAG(null as unknown as NormalizedQueryBundle<EntityRef>, 'p1')).toThrow(
       'Invalid QueryBundle format'
     );
   });
@@ -256,7 +301,7 @@ describe('getPlanDAG', () => {
     const bundle = {
       entities: { plans: { placeholder: undefined }, operators: {}, ports: {} },
       plan_tree: makePlanTree('placeholder'),
-    } as unknown as QueryBundle<EntityRef>;
+    } as unknown as NormalizedQueryBundle<EntityRef>;
     expect(() => getPlanDAG(bundle, 'missing')).toThrow('No plan found for planId:');
   });
 
@@ -270,11 +315,11 @@ describe('getPlanDAG', () => {
   it('builds a node for each unique operator referenced by edges', () => {
     const op1 = makeOperator('op1', { typeName: 'Scan' });
     const op2 = makeOperator('op2', { typeName: 'Join' });
-    op1.statistics = {
+    op1.statistics = normalizeOperatorStatistics({
       custom_statistics: [
         { value: { key: 'Work', value: [{ key: 'rows', value: 42 }] }, quantity: null },
       ],
-    };
+    });
     const port1 = makePort('port1', 'op1');
     const port2 = makePort('port2', 'op2');
     const plan = makePlan('p1', { edges: [{ source: 'port1', target: 'port2' }] });
@@ -302,7 +347,7 @@ describe('getPlanDAG', () => {
   it('projects nested scalar fields with inherited quantities and omits lists', () => {
     const op1 = makeOperator('op1', { typeName: 'Scan' });
     const op2 = makeOperator('op2', { typeName: 'Join' });
-    op1.statistics = {
+    op1.statistics = normalizeOperatorStatistics({
       custom_statistics: [
         {
           value: {
@@ -317,7 +362,7 @@ describe('getPlanDAG', () => {
           quantity: 'bytes',
         },
       ],
-    };
+    });
     const port1 = makePort('port1', 'op1');
     const port2 = makePort('port2', 'op2');
     const plan = makePlan('p1', { edges: [{ source: 'port1', target: 'port2' }] });
@@ -624,12 +669,12 @@ describe('getPlanDAG', () => {
       planId: 'physical-plan',
       parentOperatorIds: ['logical'],
     });
-    physicalA.statistics = {
+    physicalA.statistics = normalizeOperatorStatistics({
       custom_statistics: [{ value: { key: 'rows', value: 4 }, quantity: 'rows' }],
-    };
-    physicalB.statistics = {
+    });
+    physicalB.statistics = normalizeOperatorStatistics({
       custom_statistics: [{ value: { key: 'rows', value: 6 }, quantity: 'rows' }],
-    };
+    });
     const logicalPlan = makePlan('logical-plan', {
       edges: [{ source: 'logical-port', target: 'sibling-port' }],
     });
@@ -656,9 +701,9 @@ describe('getPlanDAG', () => {
       { key: 'rows', value: 10, quantity: 'rows' },
     ]);
 
-    logical.statistics = {
+    logical.statistics = normalizeOperatorStatistics({
       custom_statistics: [{ value: { key: 'rows', value: 2 }, quantity: 'rows' }],
-    };
+    });
     const logicalNodeWithOwnStats = getPlanDAG(bundle, 'logical-plan').nodes.find(
       node => node.id === 'logical'
     );
@@ -754,12 +799,12 @@ it('hydrates sending and receiving port evidence separately for parallel pipes',
   const target = makeOperator('op2');
   const port1 = makePort('port1', 'op1');
   const port2 = makePort('port2', 'op2');
-  port1.statistics = {
+  port1.statistics = normalizePortStatistics({
     custom_statistics: [{ key: 'Volume', value: [{ key: 'bytes', value: 100 }] }],
-  };
-  port2.statistics = {
+  });
+  port2.statistics = normalizePortStatistics({
     custom_statistics: [{ key: 'Volume', value: [{ key: 'bytes', value: 80 }] }],
-  };
+  });
   const port3 = makePort('port3', 'op1');
   const port4 = makePort('port4', 'op2');
   const plan = makePlan('p1', {

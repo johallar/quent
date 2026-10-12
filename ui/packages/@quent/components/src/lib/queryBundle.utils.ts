@@ -35,6 +35,7 @@ export function entityRefToEntitiesKey(entityRef: EntityRefKey): keyof QueryEnti
   return ENTITY_REF_TO_ENTITIES_KEY[entityRef];
 }
 
+/** @deprecated Query bundle consumers receive normalized operator statistics. */
 export function parseCustomStatistics(rawNode: unknown): Statistic[] {
   return ((rawNode as Operator)?.statistics?.custom_statistics ?? []).map(
     ({ value: { key, value }, quantity }) => ({
@@ -84,6 +85,7 @@ export function resolveStatisticFields(
   };
 }
 
+/** @deprecated Query bundle consumers receive normalized port statistics. */
 export function parsePortStatistics(rawPort: unknown): Statistic[] {
   return ((rawPort as Port)?.statistics?.custom_statistics ?? []).map(({ key, value }) => ({
     key,
@@ -91,6 +93,7 @@ export function parsePortStatistics(rawPort: unknown): Statistic[] {
   }));
 }
 
+/** @deprecated Query bundle consumers receive normalized operator attributes. */
 export function parseOperatorAttributes(rawNode: unknown): Statistic[] {
   return ((rawNode as Operator)?.custom_attributes ?? []).map(({ key, value }) => ({
     key,

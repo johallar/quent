@@ -11,7 +11,7 @@ import {
   useSelectedOperatorIds,
 } from '@quent/hooks';
 import { DAGNodeInfoPanel } from '@quent/components';
-import type { EntityRef, Operator, QueryBundle } from '@quent/utils';
+import type { EntityRef, NormalizedOperator, NormalizedQueryBundle } from '@quent/utils';
 import { entitiesTableStateAtom } from '@/atoms/entitiesTable';
 import { ThemeProvider } from '@/contexts/ThemeContext';
 import { EntitiesTable } from './EntitiesTable';
@@ -38,7 +38,7 @@ function makeOperator(
   instanceName: string,
   typeName: string,
   parentOperatorIds: string[] = []
-): Operator {
+): NormalizedOperator {
   return {
     id,
     plan_id: null,
@@ -46,7 +46,8 @@ function makeOperator(
     instance_name: instanceName,
     operator_type_name: typeName,
     custom_attributes: [],
-    statistics: null,
+    attributes: [],
+    statistics: { custom_statistics: [], statistics: [], fields: [] },
     active_span: null,
   };
 }
@@ -67,6 +68,7 @@ const queryBundle = {
       id: 'query-1',
       instance_name: null,
       custom_attributes: [],
+      attributes: [],
       start_unix_ns: null,
       planning_s: null,
       executing_s: null,
@@ -96,11 +98,11 @@ const queryBundle = {
   unique_operator_names: [],
   quantity_specs: {},
   start_time_unix_ns: 0n,
-} satisfies QueryBundle<EntityRef>;
+} satisfies NormalizedQueryBundle<EntityRef>;
 
 function withOperators(
-  operators: QueryBundle<EntityRef>['entities']['operators']
-): QueryBundle<EntityRef> {
+  operators: NormalizedQueryBundle<EntityRef>['entities']['operators']
+): NormalizedQueryBundle<EntityRef> {
   return {
     ...queryBundle,
     entities: {

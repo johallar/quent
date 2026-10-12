@@ -1,8 +1,7 @@
 // SPDX-FileCopyrightText: Copyright (c) 2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-import type { Operator } from './types';
-import { unwrapTaggedValue } from './formatters';
+import type { NormalizedOperator } from './normalizedQuery';
 import type {
   OperatorSelection,
   OperatorSelectionInput,
@@ -17,29 +16,22 @@ interface ResolvedOperatorSelectionCandidates<
   unresolvedOperatorIds: ReadonlySet<string>;
 }
 
-function getOperatorDisplayLabel(operator: Operator): string {
+function getOperatorDisplayLabel(operator: NormalizedOperator): string {
   return operator.instance_name ?? operator.operator_type_name ?? operator.id;
 }
 
-function getSelectedOperatorData(operator: Operator): SelectedOperatorData {
+function getSelectedOperatorData(operator: NormalizedOperator): SelectedOperatorData {
   return {
     nodeId: operator.id,
     label: getOperatorDisplayLabel(operator),
     operationType: operator.operator_type_name?.toLowerCase() ?? 'operator',
-    attributes: (operator.custom_attributes ?? []).map(({ key, value }) => ({
-      key,
-      value: unwrapTaggedValue(value),
-    })),
-    statistics: (operator.statistics?.custom_statistics ?? []).map(statistic => ({
-      key: statistic.value.key,
-      value: unwrapTaggedValue(statistic.value.value),
-      ...(statistic.quantity !== null ? { quantity: statistic.quantity } : {}),
-    })),
+    attributes: operator.attributes,
+    statistics: operator.statistics.statistics,
   };
 }
 
 export function buildRelatedOperatorIdsById(
-  operators: readonly Operator[],
+  operators: readonly NormalizedOperator[],
   rootOperatorIds: Iterable<string> = operators.map(operator => operator.id)
 ): Map<string, string[]> {
   const childrenByParentId = new Map<string, string[]>();
@@ -97,7 +89,7 @@ export function resolveOperatorSelectionCandidates<Selection extends OperatorSel
 }
 
 export function resolveOperatorSelections(
-  operators: readonly Operator[],
+  operators: readonly NormalizedOperator[],
   selectedOperatorIds: Iterable<string>
 ): OperatorSelectionInput[] {
   const selectedIds = [...new Set(selectedOperatorIds)];
@@ -142,7 +134,7 @@ export function resolveOperatorSelections(
 }
 
 export function resolveSelectedOperatorSelections(
-  operators: readonly Operator[],
+  operators: readonly NormalizedOperator[],
   selectedOperatorIds: Iterable<string>
 ): Array<OperatorSelectionInput & { selectedData?: SelectedOperatorGroupData }> {
   const operatorsById = new Map(operators.map(operator => [operator.id, operator]));
@@ -168,7 +160,7 @@ export function resolveSelectedOperatorSelections(
 }
 
 export function toggleOperatorSelection(
-  operators: readonly Operator[],
+  operators: readonly NormalizedOperator[],
   selectedOperatorIds: Iterable<string>,
   selections: ReadonlyMap<string, OperatorSelection>,
   operatorId: string

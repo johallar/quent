@@ -10,11 +10,11 @@ import {
   operatorsWithActiveSpansForWorker,
   workerIdFromOperatorTimelineRowId,
 } from '@quent/components';
-import type { EntityRef, QueryBundle } from '@quent/utils';
+import type { EntityRef, NormalizedQueryBundle } from '@quent/utils';
 import { createSyntheticSubRow, createTimelineSubRow, mapTreeItems } from './subRow';
 
 interface OperatorGanttTimelineSubRowOptions {
-  queryBundle: QueryBundle<EntityRef>;
+  queryBundle: NormalizedQueryBundle<EntityRef>;
   isDark: boolean;
 }
 

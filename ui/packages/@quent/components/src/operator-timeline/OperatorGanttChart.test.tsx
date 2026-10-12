@@ -10,7 +10,7 @@ import {
   useSelectedOperatorIds,
   useSelectedOperatorsData,
 } from '@quent/hooks';
-import type { EntityRef, Operator, QueryBundle } from '@quent/utils';
+import type { EntityRef, NormalizedOperator, NormalizedQueryBundle } from '@quent/utils';
 import { DAGNodeInfoPanel } from '../dag/DAGNodeInfoPanel';
 import { QueryToolbar } from '../timeline/QueryToolbar';
 import { OperatorGanttChart } from './OperatorGanttChart';
@@ -32,7 +32,7 @@ vi.mock('../gantt-chart/GanttChart', () => ({
   },
 }));
 
-function makeOperator(id: string, parentOperatorIds: string[] = []): Operator {
+function makeOperator(id: string, parentOperatorIds: string[] = []): NormalizedOperator {
   return {
     id,
     plan_id: 'plan',
@@ -40,7 +40,8 @@ function makeOperator(id: string, parentOperatorIds: string[] = []): Operator {
     instance_name: id,
     operator_type_name: 'test',
     custom_attributes: [],
-    statistics: null,
+    attributes: [],
+    statistics: { custom_statistics: [], statistics: [], fields: [] },
     active_span: null,
   };
 }
@@ -101,20 +102,30 @@ describe('OperatorGanttChart', () => {
   it.each(['plan', 'worker'])(
     'shows ordered attributes when an operator is selected from the %s timeline',
     scope => {
-      const operator: Operator = {
+      const operator: NormalizedOperator = {
         ...makeOperator('scan'),
         active_span: { start: 0, end: 1 },
-        custom_attributes: [
+        attributes: [
           { key: 'source', value: 'First input' },
-          { key: 'Configuration', value: [{ key: 'expression', value: 'price * discount' }] },
+          {
+            key: 'Configuration',
+            value: {
+              kind: 'struct',
+              fields: [{ key: 'expression', value: 'price * discount' }],
+            },
+          },
           { key: 'source', value: 'Second input' },
         ],
-        statistics: { custom_statistics: [{ value: { key: 'rows', value: 0 }, quantity: null }] },
+        statistics: {
+          custom_statistics: [],
+          statistics: [{ key: 'rows', value: 0 }],
+          fields: [{ id: 'rows', path: [['rows', 0]], value: 0 }],
+        },
       };
       const bundle = {
         entities: { operators: { scan: operator } },
         plan_tree: { id: 'plan', worker: 'worker', children: [] },
-      } as unknown as QueryBundle<EntityRef>;
+      } as unknown as NormalizedQueryBundle<EntityRef>;
       const operators =
         scope === 'plan'
           ? operatorsWithActiveSpans(bundle, 'plan')

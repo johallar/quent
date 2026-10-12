@@ -6,7 +6,6 @@ import {
   type DAGNode,
   type SelectedOperatorGroupData,
 } from '@quent/utils';
-import { parseOperatorAttributes } from '../lib/queryBundle.utils';
 import type { QueryPlanNodeData } from '../query-plan/QueryPlanNode';
 
 export interface ResolvedOperatorSelection {
@@ -32,7 +31,7 @@ function getSelectedOperatorData(node: DAGNode): SelectedOperatorGroupData {
     nodeId: node.id,
     label: node.label,
     operationType: node.type,
-    attributes: parseOperatorAttributes(metadata?.rawNode),
+    attributes: metadata?.rawNode?.attributes ?? [],
     statistics: metadata?.aggregatedStatistics?.length
       ? metadata.aggregatedStatistics
       : (metadata?.operatorStatistics?.statistics ?? []),
@@ -41,7 +40,7 @@ function getSelectedOperatorData(node: DAGNode): SelectedOperatorGroupData {
       nodeId: operator.id,
       label: operator.instance_name ?? operator.operator_type_name ?? 'Operator',
       operationType: operator.operator_type_name?.toLowerCase() ?? 'operator',
-      attributes: parseOperatorAttributes(operator),
+      attributes: operator.attributes,
       statistics: metadata.relatedOperatorStatistics?.[index]?.statistics ?? [],
       workerLabel: metadata?.operatorWorkerLabels?.[operator.id],
     })),

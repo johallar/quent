@@ -5,7 +5,7 @@ import { useMemo, useState } from 'react';
 import { createFileRoute, Link, Outlet } from '@tanstack/react-router';
 import { queryBundleQueryOptions } from '@quent/client';
 import { queryClient } from '@/lib/queryClient';
-import type { QueryBundle, EntityRef } from '@quent/utils';
+import type { EntityRef, NormalizedQueryBundle } from '@quent/utils';
 import { cn } from '@quent/utils';
 import { QueryLoading } from '@/components/QueryLoading';
 import { RouteError } from '@/components/RouteError';
@@ -19,7 +19,7 @@ export const Route = createFileRoute('/profile/engine/$engineId/query/$queryId')
   pendingMs: 200,
   pendingMinMs: 300,
   validateSearch: validateDeepLinkSearch,
-  loader: async ({ params }): Promise<QueryBundle<EntityRef>> => {
+  loader: async ({ params }): Promise<NormalizedQueryBundle<EntityRef>> => {
     const { engineId, queryId } = params;
     return await queryClient.ensureQueryData(queryBundleQueryOptions({ engineId, queryId }));
   },

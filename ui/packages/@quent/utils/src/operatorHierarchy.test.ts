@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { describe, expect, it } from 'vitest';
-import type { Operator } from './types';
+import type { NormalizedOperator } from './normalizedQuery';
 import {
   buildRelatedOperatorIdsById,
   resolveSelectedOperatorSelections,
@@ -10,7 +10,11 @@ import {
   toggleOperatorSelection,
 } from './operatorHierarchy';
 
-function makeOperator(id: string, label: string, parentOperatorIds: string[] = []): Operator {
+function makeOperator(
+  id: string,
+  label: string,
+  parentOperatorIds: string[] = []
+): NormalizedOperator {
   return {
     id,
     plan_id: null,
@@ -18,7 +22,8 @@ function makeOperator(id: string, label: string, parentOperatorIds: string[] = [
     instance_name: label,
     operator_type_name: null,
     custom_attributes: [],
-    statistics: null,
+    attributes: [],
+    statistics: { custom_statistics: [], statistics: [], fields: [] },
     active_span: null,
   };
 }

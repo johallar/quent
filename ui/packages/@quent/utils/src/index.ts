@@ -104,8 +104,16 @@ export type {
   StatValue,
   DAGNode,
   DAGEdge,
+  StatisticSet,
   DAGStatisticSet,
 } from './dagTypes';
+export type {
+  NormalizedOperator,
+  NormalizedPort,
+  NormalizedQuery,
+  NormalizedQueryBundle,
+  NormalizedQueryEntities,
+} from './normalizedQuery';
 
 // Operator selection types
 export type {

@@ -12,7 +12,7 @@ import { applyBulkTimelineResponse, timelineCacheKey, useZoomRange } from '@quen
 import { timelineDataMapAtom } from '@quent/hooks/testing';
 import type {
   SingleTimelineResponse,
-  QueryBundle,
+  NormalizedQueryBundle,
   EntityRef,
   FiniteStateMachine,
   NvtxCatalog,
@@ -155,7 +155,7 @@ const RESOURCE_ID = 'res-1';
 const RESOURCE_TYPE = 'GPU';
 
 /** Minimal QueryBundle that causes the root timeline query to be enabled. */
-const makeBundle = (workerId: string | null = null): QueryBundle<EntityRef> =>
+const makeBundle = (workerId: string | null = null): NormalizedQueryBundle<EntityRef> =>
   ({
     query_id: 'test-query',
     entities: {
@@ -184,16 +184,16 @@ const makeBundle = (workerId: string | null = null): QueryBundle<EntityRef> =>
     quantity_specs: {},
     start_time_unix_ns: 0n,
     duration_s: DURATION_S,
-  }) as unknown as QueryBundle<EntityRef>;
+  }) as unknown as NormalizedQueryBundle<EntityRef>;
 
-const makeNestedBundle = (): QueryBundle<EntityRef> => {
+const makeNestedBundle = (): NormalizedQueryBundle<EntityRef> => {
   const bundle = makeBundle();
   const nestedResourceGroup = {
     id: NESTED_GROUP_ID,
     instance_name: 'Worker 0',
     type_name: 'WorkerGroup',
     parent_group_id: ENGINE_ID,
-  } satisfies QueryBundle<EntityRef>['entities']['resource_groups'][string];
+  } satisfies NormalizedQueryBundle<EntityRef>['entities']['resource_groups'][string];
   const nestedResourceTree = {
     ResourceGroup: {
       id: { Engine: ENGINE_ID },
@@ -206,7 +206,7 @@ const makeNestedBundle = (): QueryBundle<EntityRef> => {
         },
       ],
     },
-  } satisfies QueryBundle<EntityRef>['resource_tree'];
+  } satisfies NormalizedQueryBundle<EntityRef>['resource_tree'];
 
   return {
     ...bundle,

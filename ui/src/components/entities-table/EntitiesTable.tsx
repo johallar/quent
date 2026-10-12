@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@quent/components';
-import type { EntityRef, QueryBundle } from '@quent/utils';
+import type { EntityRef, NormalizedQueryBundle } from '@quent/utils';
 import { COLOR_REGISTRY_KEYS, useColorResolver } from '@quent/hooks';
 import { EntityDetailPanel } from './EntityDetailPanel';
 import { EntityResults } from './EntityResults';
@@ -12,7 +12,7 @@ import { useEntityTable } from './useEntityTable';
 interface EntitiesTableProps {
   engineId: string;
   queryId: string;
-  queryBundle: QueryBundle<EntityRef>;
+  queryBundle: NormalizedQueryBundle<EntityRef>;
 }
 
 export function EntitiesTable(props: EntitiesTableProps) {

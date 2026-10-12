@@ -1,12 +1,8 @@
 // SPDX-FileCopyrightText: Copyright (c) 2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-import type { QueryBundle } from '@quent/utils';
-import type { EntityRef } from '@quent/utils';
-import type { Operator } from '@quent/utils';
-import type { PlanTree } from '@quent/utils';
+import type { EntityRef, NormalizedOperator, NormalizedQueryBundle, PlanTree } from '@quent/utils';
 import type { OperatorActiveSpanEntry } from './types';
-import { parseCustomStatistics, parseOperatorAttributes } from '../lib/queryBundle.utils';
 import { stackIntervalsIntoRows } from '../gantt-chart/utils';
 
 /** Row type identifier for synthetic operator-timeline rows in the resource tree. */
@@ -81,7 +77,7 @@ export function spanToMs(span: { start: number; end: number }): {
 
 function buildOperatorActiveSpanEntry(
   operatorId: string,
-  op: Operator,
+  op: NormalizedOperator,
   fallbackPlanId?: string
 ): OperatorActiveSpanEntry | null {
   const span = op.active_span;
@@ -101,8 +97,8 @@ function buildOperatorActiveSpanEntry(
     endMs,
     rowIndex: 0,
     planId: op.plan_id ?? fallbackPlanId ?? '',
-    attributes: parseOperatorAttributes(op),
-    statistics: parseCustomStatistics(op),
+    attributes: op.attributes,
+    statistics: op.statistics.statistics,
   };
 }
 
@@ -112,7 +108,7 @@ function buildOperatorActiveSpanEntry(
  * Order is stable (by operator id) so row indices are deterministic.
  */
 export function operatorsWithActiveSpans(
-  queryBundle: QueryBundle<EntityRef>,
+  queryBundle: NormalizedQueryBundle<EntityRef>,
   planId?: string | null
 ): OperatorActiveSpanEntry[] {
   const operators = queryBundle.entities.operators;
@@ -125,7 +121,7 @@ export function operatorsWithActiveSpans(
 
   const entries: OperatorActiveSpanEntry[] = [];
   const sorted = Object.entries(operators)
-    .filter((entry): entry is [string, Operator] => entry[1] != null)
+    .filter((entry): entry is [string, NormalizedOperator] => entry[1] != null)
     .filter(([, op]) => op.plan_id === planId)
     .sort(([a], [b]) => a.localeCompare(b));
 
@@ -145,7 +141,7 @@ export function operatorsWithActiveSpans(
  * Order is stable (by operator id).
  */
 export function operatorsWithActiveSpansForWorker(
-  queryBundle: QueryBundle<EntityRef>,
+  queryBundle: NormalizedQueryBundle<EntityRef>,
   workerId: string
 ): OperatorActiveSpanEntry[] {
   const operators = queryBundle.entities.operators;
@@ -160,7 +156,7 @@ export function operatorsWithActiveSpansForWorker(
 
   const entries: OperatorActiveSpanEntry[] = [];
   const sorted = Object.entries(operators)
-    .filter((entry): entry is [string, Operator] => entry[1] != null)
+    .filter((entry): entry is [string, NormalizedOperator] => entry[1] != null)
     .filter(([, op]) => op.plan_id != null && planIds.has(op.plan_id))
     .sort(([a], [b]) => a.localeCompare(b));
 

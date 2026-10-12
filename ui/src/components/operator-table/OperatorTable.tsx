@@ -24,7 +24,11 @@ import {
   COLOR_REGISTRY_KEYS,
   useColorResolver,
 } from '@quent/hooks';
-import { buildStatisticFieldPresentations, type QueryBundle, type EntityRef } from '@quent/utils';
+import {
+  buildStatisticFieldPresentations,
+  type EntityRef,
+  type NormalizedQueryBundle,
+} from '@quent/utils';
 import { useTheme, THEME_DARK } from '@/contexts/ThemeContext';
 import {
   DEFAULT_OPERATOR_TABLE_ENABLED,
@@ -66,7 +70,7 @@ const OPERATOR_SCHEMA: PivotedStatTableSchema<OperatorTableRow> = {
 const VIRTUALIZATION_CONFIG = { enabled: true, overscan: 12 } as const;
 
 interface OperatorTableProps {
-  queryBundle: QueryBundle<EntityRef>;
+  queryBundle: NormalizedQueryBundle<EntityRef>;
 }
 
 export function OperatorTable({ queryBundle }: OperatorTableProps) {

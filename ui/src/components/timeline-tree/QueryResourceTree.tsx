@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { useCallback, useMemo, useState } from 'react';
-import type { EntityRef, FiniteStateMachine, QueryBundle, ZoomRange } from '@quent/utils';
+import type { EntityRef, FiniteStateMachine, NormalizedQueryBundle, ZoomRange } from '@quent/utils';
 import { EntityDetailDrawer } from '@/components/EntityDetailDrawer';
 import { useNvtxTreeModel } from './NvtxTree';
 import { createLongEntitiesTimelineSubRow, createOperatorGanttTimelineSubRow } from './sub-rows';
@@ -15,7 +15,7 @@ import { useFullDurationZeroUtilizationResourceIds } from './useFullDurationZero
 
 export interface QueryResourceTreeProps {
   engineId: string;
-  queryBundle: QueryBundle<EntityRef>;
+  queryBundle: NormalizedQueryBundle<EntityRef>;
   resourceSubRows?: readonly ResourceTimelineSubRow[];
   initialZoomRange?: ZoomRange;
   seedRootExpanded?: boolean;

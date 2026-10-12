@@ -16,7 +16,7 @@ import {
   toggleOperatorSelection as resolveOperatorSelectionToggle,
   type EntityRef,
   type FiniteStateMachine,
-  type QueryBundle,
+  type NormalizedQueryBundle,
   type SortDir,
 } from '@quent/utils';
 import { entitiesTableStateAtom } from '@/atoms/entitiesTable';
@@ -39,7 +39,7 @@ const FILTER_DEBOUNCE_MS = 300;
 interface UseEntityTableParams {
   engineId: string;
   queryId: string;
-  queryBundle: QueryBundle<EntityRef>;
+  queryBundle: NormalizedQueryBundle<EntityRef>;
 }
 
 export function useEntityTable({ engineId, queryId, queryBundle }: UseEntityTableParams) {
