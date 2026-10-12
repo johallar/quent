@@ -7,6 +7,7 @@ import { GroupedDataTable } from './GroupedDataTable';
 import {
   cn,
   computeScaleRange,
+  formatStatisticValue,
   type ScaleRange,
   type StatisticFieldId,
   type StatValue,
@@ -22,7 +23,6 @@ import type {
 import {
   buildPivotedRows,
   expandRowsFromSchema,
-  formatStatValue,
   getSchemaStatNames,
   getSortValue,
   gradientBg,
@@ -192,7 +192,13 @@ function DataCell({ row, stat }: DataCellProps<PivotedRow>) {
     onMouseLeave: () => interaction.setHoveredStat(null),
   };
   const formatValue = (value: StatValue, statName: string, quantity?: string) =>
-    renderConfig.formatValue?.(value, statName, quantity) ?? formatStatValue(value, statName);
+    renderConfig.formatValue?.(value, statName, quantity) ??
+    formatStatisticValue(value, {
+      field: renderConfig.statisticFields?.get(statName) ?? statName,
+      quantity,
+      quantitySpecs: renderConfig.quantitySpecs,
+      missingValue: '-',
+    });
   if (!display.isAggregating) {
     const entries = row.values.get(stat) ?? [];
     return (
@@ -300,6 +306,8 @@ export function PivotedStatTable<TRow>({
       getStatLabel: renderConfig?.getStatLabel,
       getStatTitle: renderConfig?.getStatTitle,
       formatValue: renderConfig?.formatValue,
+      statisticFields: renderConfig?.statisticFields,
+      quantitySpecs: renderConfig?.quantitySpecs,
     }),
     [renderConfig]
   );

@@ -52,13 +52,12 @@ import { resolveSelectedOperatorsFromNodes } from './dagSelection';
 import { shouldDimEdgeFromInteraction } from './edgeOpacity';
 import { resolveDagHeatmap, resolveDagHighlightedNodeIds } from './dagInteraction';
 import {
+  formatStatisticValue,
   scaleColor,
-  inferFieldFormatter,
   resolveStatisticFieldPresentation,
   toggleOperatorSelection,
   type NormalizedOperator,
   type StatisticField,
-  type QuantitySpec,
   type SelectedOperatorGroupData,
   normalizeScaleValue,
 } from '@quent/utils';
@@ -104,6 +103,7 @@ const VariableWidthEdge = ({
     | {
         isDark?: boolean;
         highlightedNodeIds?: ReadonlySet<string> | null;
+        quantitySpecs?: DAGData['quantitySpecs'];
       }
     | undefined;
   const highlightedNodeIds = interactionData?.highlightedNodeIds ?? null;
@@ -153,29 +153,37 @@ const VariableWidthEdge = ({
   let edgeLabelValue: string | undefined;
   let edgeLabelTitle: string | undefined;
   if (edgeColoring) {
-    const presentation = edgeColorField
-      ? resolveStatisticFieldPresentation(edgeColorField, fields)
+    const field = edgeColorField
+      ? (fields?.find(candidate => candidate.id === edgeColorField) ?? edgeColorField)
       : undefined;
+    const presentation = field ? resolveStatisticFieldPresentation(field) : undefined;
     edgeLabelTitle = presentation?.title;
     if (edgeColoring.type === 'continuous') {
       const v = edgeColoring.values.get(id);
       if (v !== undefined) {
-        edgeLabelValue = inferFieldFormatter(presentation?.fieldName ?? '')(v);
+        edgeLabelValue = formatStatisticValue(v, {
+          field,
+          quantitySpecs: interactionData?.quantitySpecs,
+        });
       }
     } else {
       const v = edgeColoring.labelMap.get(id);
       if (v !== undefined) {
-        edgeLabelValue = v;
+        edgeLabelValue = formatStatisticValue(v, { field });
       }
     }
   } else if (edgeWidthConfig) {
-    const presentation = edgeWidthField
-      ? resolveStatisticFieldPresentation(edgeWidthField, fields)
+    const field = edgeWidthField
+      ? (fields?.find(candidate => candidate.id === edgeWidthField) ?? edgeWidthField)
       : undefined;
+    const presentation = field ? resolveStatisticFieldPresentation(field) : undefined;
     edgeLabelTitle = presentation?.title;
     const v = edgeWidthConfig.values.get(id);
     if (v !== undefined) {
-      edgeLabelValue = inferFieldFormatter(presentation?.fieldName ?? '')(v);
+      edgeLabelValue = formatStatisticValue(v, {
+        field,
+        quantitySpecs: interactionData?.quantitySpecs,
+      });
     }
   }
 
@@ -398,7 +406,7 @@ const FlowLayout = ({
     return relatedOperatorIds.length > 0 ? [...relatedOperatorIds, node.id] : [node.id];
   }, []);
 
-  const statisticFields = useMemo(
+  const nodeStatisticFields = useMemo(
     () =>
       new Map(
         [
@@ -408,34 +416,19 @@ const FlowLayout = ({
               node.metadata?.relatedOperatorStatistics?.flatMap(statistics => statistics.fields) ??
               []
           ),
-          ...data.edges.flatMap(edge => edge.statisticFields ?? []),
         ].map(field => [field.id, field] as const)
       ),
-    [data.nodes, data.edges]
+    [data.nodes]
   );
-
-  const statQuantitySpecs = useMemo((): Record<string, QuantitySpec> => {
-    if (!data.quantitySpecs) {
-      return {};
-    }
-    const result: Record<string, QuantitySpec> = {};
-    for (const node of data.nodes) {
-      const fields = [
-        ...(node.metadata?.operatorStatistics?.fields ?? []),
-        ...(node.metadata?.relatedOperatorStatistics?.flatMap(statistics => statistics.fields) ??
-          []),
-      ];
-      for (const stat of fields) {
-        if (stat.quantity && !(stat.id in result)) {
-          const spec = data.quantitySpecs[stat.quantity];
-          if (spec) {
-            result[stat.id] = spec;
-          }
-        }
-      }
-    }
-    return result;
-  }, [data.nodes, data.quantitySpecs]);
+  const edgeStatisticFields = useMemo(
+    () =>
+      new Map(
+        data.edges
+          .flatMap(edge => edge.statisticFields ?? [])
+          .map(field => [field.id, field] as const)
+      ),
+    [data.edges]
+  );
 
   // Convert DAGData to ReactFlow format
   const convertToReactFlow = useCallback(() => {
@@ -479,6 +472,7 @@ const FlowLayout = ({
       data: {
         isDark,
         statisticFields: edge.statisticFields ?? [],
+        quantitySpecs: data.quantitySpecs,
       },
     }));
 
@@ -627,8 +621,9 @@ const FlowLayout = ({
       <Background />
       <DAGLegend
         isDark={isDark}
-        statQuantitySpecs={statQuantitySpecs}
-        statisticFields={statisticFields}
+        quantitySpecs={data.quantitySpecs}
+        nodeStatisticFields={nodeStatisticFields}
+        edgeStatisticFields={edgeStatisticFields}
       />
       <MiniMap
         pannable

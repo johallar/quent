@@ -4,7 +4,7 @@
 import { render, screen } from '@testing-library/react';
 import { Provider, createStore } from 'jotai';
 import { describe, expect, it, vi } from 'vitest';
-import { PivotedStatTable, formatStatValue, type PivotedStatTableSchema } from '@quent/components';
+import { PivotedStatTable, type PivotedStatTableSchema } from '@quent/components';
 import {
   buildStatisticFieldPresentations,
   projectStatisticScalarFields,
@@ -106,6 +106,9 @@ const quantitySpecs: Record<string, QuantitySpec> = {
 
 function renderRows(rows: OperatorTableRow[], isAggregating = false, activeIndices = ['item']) {
   const statMetadata = buildStatisticFieldPresentations(rows.flatMap(row => row.stats));
+  const statisticFields = new Map(
+    rows.flatMap(row => row.stats).map(field => [field.id, field] as const)
+  );
   render(
     <Provider store={createStore()}>
       <PivotedStatTable
@@ -116,13 +119,8 @@ function renderRows(rows: OperatorTableRow[], isAggregating = false, activeIndic
         renderConfig={{
           getStatLabel: stat => statMetadata.get(stat)?.label ?? stat,
           getStatTitle: stat => statMetadata.get(stat)?.title ?? stat,
-          formatValue: (value, statName, quantity) =>
-            formatStatValue(
-              value,
-              statMetadata.get(statName)?.fieldName ?? statName,
-              quantitySpecs,
-              quantity
-            ),
+          statisticFields,
+          quantitySpecs,
         }}
         interaction={{
           hoveredStat: null,

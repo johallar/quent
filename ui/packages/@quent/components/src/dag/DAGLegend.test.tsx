@@ -40,7 +40,7 @@ const nestedField = flattenStatistics([
                 key: 'Input',
                 value: {
                   kind: 'struct',
-                  fields: [{ key: 'input_bytes', value: 5115 }],
+                  fields: [{ key: 'input_bytes', value: 5115, quantity: 'records' }],
                 },
               },
             ],
@@ -119,13 +119,25 @@ describe('DAGLegend node coloring scale', () => {
     render(
       <Provider store={createStore()}>
         <NestedFieldSetup />
-        <DAGLegend isDark={false} />
+        <DAGLegend
+          isDark={false}
+          quantitySpecs={{
+            records: {
+              symbol: 'records',
+              singular: 'record',
+              plural: 'records',
+              occupancy_prefix: 'None',
+              rate_prefix: 'None',
+            },
+          }}
+          statisticFields={new Map([[nestedField.id, nestedField]])}
+        />
       </Provider>
     );
     act(() => screen.getByRole('button', { name: 'Color by nested field' }).click());
 
     const label = 'Execution profile › Data volume › Input › input_bytes';
     expect(screen.getByText(label)).toHaveAttribute('title', label);
-    expect(screen.getByText('63.00 B')).toBeVisible();
+    expect(screen.getByText('63.00 records')).toBeVisible();
   });
 });

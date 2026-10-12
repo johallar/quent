@@ -67,6 +67,7 @@ export {
   formatBytes,
   formatNumber,
   formatAttributeValue,
+  formatStatisticValue,
   unwrapTaggedValue,
   inferFieldFormatter,
   formatStatWithQuantity,
@@ -74,6 +75,7 @@ export {
   isBytesStat,
   bigintToChartNumber,
 } from './formatters';
+export type { FormatStatisticValueOptions } from './formatters';
 
 // Rust-generated TypeScript types
 export * from './types/index';

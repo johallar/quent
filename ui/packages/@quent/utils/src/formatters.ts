@@ -7,6 +7,7 @@
 
 import type { PrefixSystem, QuantitySpec, CapacityKind } from './types/index';
 import { isStatStruct, type StatValue } from './dagTypes';
+import { resolveStatisticFieldPresentation, type StatisticField } from './statisticFields';
 
 const MS_PER_SECOND = 1000;
 const MS_PER_MINUTE = 60 * MS_PER_SECOND;
@@ -410,33 +411,94 @@ export function isBytesRateStat(name: string): boolean {
   return name === 'bytes_per_sec' || name.endsWith('_bytes_per_sec');
 }
 
+export interface FormatStatisticValueOptions {
+  field?: StatisticField | string;
+  quantity?: string;
+  quantitySpec?: QuantitySpec;
+  quantitySpecs?: Readonly<Record<string, QuantitySpec | undefined>>;
+  missingValue?: string;
+  inference?: 'statistic' | 'attribute';
+}
+
+function statisticValueFieldName(field: StatisticField | string | undefined): string {
+  return field === undefined ? '' : resolveStatisticFieldPresentation(field).fieldName;
+}
+
+/**
+ * Canonical statistic value formatting policy.
+ * Explicit quantity metadata wins, followed by field-name inference.
+ */
+export function formatStatisticValue(
+  value: StatValue | undefined,
+  options: FormatStatisticValueOptions = {}
+): string {
+  if (value == null) {
+    return options.missingValue ?? '—';
+  }
+
+  const fieldName = statisticValueFieldName(options.field);
+  const quantity =
+    'quantity' in options
+      ? options.quantity
+      : typeof options.field === 'object'
+        ? options.field.quantity
+        : undefined;
+  const quantitySpec =
+    options.quantitySpec ??
+    (quantity !== undefined ? options.quantitySpecs?.[quantity] : undefined);
+
+  if (isNumericValue(value)) {
+    if (quantitySpec) {
+      return formatQuantity(value, quantitySpec, 'Occupancy');
+    }
+    if (options.inference === 'attribute') {
+      if (isBytesRateStat(fieldName)) {
+        return formatWithPrefix(value, 'B/s', 'Si', 2);
+      }
+      if (isBytesStat(fieldName)) {
+        return formatBytes(value, 2);
+      }
+      return formatNumber(value);
+    }
+    return inferFieldFormatter(fieldName)(value);
+  }
+  if (typeof value === 'boolean' || typeof value === 'string') {
+    return String(value);
+  }
+  if (isStatStruct(value)) {
+    return value.fields
+      .map(
+        field =>
+          `${field.key}: ${formatStatisticValue(field.value, {
+            ...options,
+            field: field.key,
+            quantity: field.quantity,
+            quantitySpec: undefined,
+          })}`
+      )
+      .join(', ');
+  }
+  return value
+    .map(item =>
+      formatStatisticValue(item, {
+        ...options,
+        field: options.field,
+        quantity,
+      })
+    )
+    .join(', ');
+}
+
 /**
  * Format an attribute value for display, inferring units from the key name.
  * The bytes-rate check precedes the bytes check — `bytes_per_sec` matches both.
  */
 export function formatAttributeValue(key: string, value: unknown): string {
-  const v = unwrapTaggedValue(value);
-  if (v === null) {
-    return '—';
-  }
-  if (isNumericValue(v)) {
-    if (isBytesRateStat(key)) {
-      return formatWithPrefix(v, 'B/s', 'Si', 2);
-    }
-    if (isBytesStat(key)) {
-      return formatBytes(v, 2);
-    }
-    return formatNumber(v);
-  }
-  if (isStatStruct(v)) {
-    return v.fields
-      .map(field => `${field.key}: ${formatAttributeValue(field.key, field.value)}`)
-      .join(', ');
-  }
-  if (Array.isArray(v)) {
-    return v.map(item => formatAttributeValue(key, item)).join(', ');
-  }
-  return String(v);
+  return formatStatisticValue(unwrapTaggedValue(value), {
+    field: key,
+    missingValue: '—',
+    inference: 'attribute',
+  });
 }
 
 /** Row/batch count statistics — use SI-scaled display (k/M/…). */
@@ -515,8 +577,5 @@ export function formatStatWithQuantity(
   key: string,
   quantitySpec: QuantitySpec | undefined
 ): string {
-  if (quantitySpec) {
-    return formatQuantity(value, quantitySpec, 'Occupancy');
-  }
-  return inferFieldFormatter(key)(value);
+  return formatStatisticValue(value, { field: key, quantitySpec });
 }

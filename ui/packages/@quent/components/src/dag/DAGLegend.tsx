@@ -1,7 +1,12 @@
 // SPDX-FileCopyrightText: Copyright (c) 2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-import { resolveStatisticFieldPresentation, type StatisticField } from '@quent/utils';
+import {
+  formatStatisticValue,
+  resolveStatisticFieldPresentation,
+  type QuantitySpec,
+  type StatisticField,
+} from '@quent/utils';
 import { useMemo } from 'react';
 import { Panel } from '@xyflow/react';
 import {
@@ -18,7 +23,6 @@ import {
   useColorResolver,
 } from '@quent/hooks';
 import { cn, getLegendGradientStops, SCALE_TYPE, type ScaleType } from '@quent/utils';
-import { inferFieldFormatter, formatQuantity, type QuantitySpec } from '@quent/utils';
 import { Badge } from '../ui/badge';
 import { DataFlowTierLegend } from './DataFlowTierLegend';
 import type { NodeColoring, EdgeColoring } from '../services/query-plan/types';
@@ -161,12 +165,10 @@ export const CategoricalLegend = ({
 
 function resolveFormatter(
   field: string | StatisticField,
-  statQuantitySpecs: Record<string, QuantitySpec>
+  quantitySpecs: Readonly<Record<string, QuantitySpec | undefined>>,
+  quantitySpec?: QuantitySpec
 ): (v: number) => string {
-  const spec = statQuantitySpecs[typeof field === 'string' ? field : field.id];
-  return spec
-    ? (v: number) => formatQuantity(v, spec, 'Occupancy')
-    : inferFieldFormatter(resolveStatisticFieldPresentation(field).fieldName);
+  return (value: number) => formatStatisticValue(value, { field, quantitySpec, quantitySpecs });
 }
 
 function NodeLegendContent({
@@ -174,13 +176,15 @@ function NodeLegendContent({
   field,
   palette,
   isDark,
-  statQuantitySpecs,
+  quantitySpecs,
+  quantitySpec,
 }: {
   coloring: NodeColoring;
   field: string | StatisticField | null;
   palette: ContinuousPaletteName;
   isDark: boolean;
-  statQuantitySpecs: Record<string, QuantitySpec>;
+  quantitySpecs: Readonly<Record<string, QuantitySpec | undefined>>;
+  quantitySpec?: QuantitySpec;
 }) {
   const [scale] = useSelectedScaleType();
   if (!coloring || !field) {
@@ -196,7 +200,7 @@ function NodeLegendContent({
         max={coloring.max}
         palette={palette}
         isDark={isDark}
-        formatValue={resolveFormatter(field, statQuantitySpecs)}
+        formatValue={resolveFormatter(field, quantitySpecs, quantitySpec)}
         scale={scale}
       />
     );
@@ -209,13 +213,15 @@ function EdgeLegendContent({
   field,
   palette,
   isDark,
-  statQuantitySpecs,
+  quantitySpecs,
+  quantitySpec,
 }: {
   coloring: EdgeColoring;
   field: string | StatisticField | null;
   palette: ContinuousPaletteName;
   isDark: boolean;
-  statQuantitySpecs: Record<string, QuantitySpec>;
+  quantitySpecs: Readonly<Record<string, QuantitySpec | undefined>>;
+  quantitySpec?: QuantitySpec;
 }) {
   const [scale] = useSelectedScaleType();
   if (!coloring || !field) {
@@ -231,7 +237,7 @@ function EdgeLegendContent({
         max={coloring.max}
         palette={palette}
         isDark={isDark}
-        formatValue={resolveFormatter(field, statQuantitySpecs)}
+        formatValue={resolveFormatter(field, quantitySpecs, quantitySpec)}
         scale={scale}
       />
     );
@@ -242,13 +248,23 @@ function EdgeLegendContent({
 interface DAGLegendProps {
   /** Whether dark mode is active. Passed explicitly to decouple from ThemeContext. */
   isDark: boolean;
-  /** Pre-resolved stat-key → QuantitySpec for quantity-aware legend formatting. */
-  statQuantitySpecs?: Record<string, QuantitySpec>;
+  quantitySpecs?: Readonly<Record<string, QuantitySpec | undefined>>;
+  /** @deprecated Pass quantitySpecs and StatisticField metadata instead. */
+  statQuantitySpecs?: Readonly<Record<string, QuantitySpec | undefined>>;
   statisticFields?: ReadonlyMap<string, StatisticField>;
+  nodeStatisticFields?: ReadonlyMap<string, StatisticField>;
+  edgeStatisticFields?: ReadonlyMap<string, StatisticField>;
 }
 
 /** Panel overlay showing node/edge coloring legends within the ReactFlow canvas. */
-export const DAGLegend = ({ isDark, statQuantitySpecs = {}, statisticFields }: DAGLegendProps) => {
+export const DAGLegend = ({
+  isDark,
+  quantitySpecs = {},
+  statQuantitySpecs = {},
+  statisticFields,
+  nodeStatisticFields = statisticFields,
+  edgeStatisticFields = statisticFields,
+}: DAGLegendProps) => {
   const nodeColoring = useNodeColoringValue();
   const edgeColoring = useEdgeColoring();
   const [nodePalette] = useNodeColorPalette();
@@ -304,18 +320,20 @@ export const DAGLegend = ({ isDark, statQuantitySpecs = {}, statisticFields }: D
       <div className="flex min-w-0 max-w-full flex-col gap-2.5 overflow-hidden rounded-md border bg-card/90 px-3 py-2.5 text-card-foreground shadow-md backdrop-blur-sm">
         <NodeLegendContent
           coloring={nodeColoring}
-          field={nodeField ? (statisticFields?.get(nodeField) ?? nodeField) : null}
+          field={nodeField ? (nodeStatisticFields?.get(nodeField) ?? nodeField) : null}
           palette={nodePalette}
           isDark={isDark}
-          statQuantitySpecs={statQuantitySpecs}
+          quantitySpecs={quantitySpecs}
+          quantitySpec={nodeField ? statQuantitySpecs[nodeField] : undefined}
         />
         {hasNode && hasEdge && <div className="border-t border-border" />}
         <EdgeLegendContent
           coloring={edgeColoring}
-          field={edgeField ? (statisticFields?.get(edgeField) ?? edgeField) : null}
+          field={edgeField ? (edgeStatisticFields?.get(edgeField) ?? edgeField) : null}
           palette={edgePalette}
           isDark={isDark}
-          statQuantitySpecs={statQuantitySpecs}
+          quantitySpecs={quantitySpecs}
+          quantitySpec={edgeField ? statQuantitySpecs[edgeField] : undefined}
         />
         {(hasNode || hasEdge) && hasDataFlow && <div className="border-t border-border" />}
         {hasDataFlow && (

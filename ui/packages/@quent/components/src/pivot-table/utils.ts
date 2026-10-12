@@ -3,11 +3,9 @@
 
 import {
   aggregateNumericValues,
+  formatStatisticValue,
   getAggregateValue,
-  inferFieldFormatter,
   isNumericValue,
-  isStatStruct,
-  formatStatWithQuantity,
 } from '@quent/utils';
 import type { StatValue, StatisticField, QuantitySpec, ContinuousPaletteName } from '@quent/utils';
 import { scaleColor, type ScaleRange, type ScaleType } from '@quent/utils';
@@ -36,10 +34,7 @@ export interface GroupIndexDef {
 }
 
 export function formatNumericStat(n: number | bigint | null, statName: string): string {
-  if (n === null) {
-    return '-';
-  }
-  return inferFieldFormatter(statName)(n);
+  return formatStatisticValue(n, { field: statName, missingValue: '-' });
 }
 
 export const numericSortingFn: GroupedDataTableSortFn<PivotedRow> = (rowA, rowB, columnId) => {
@@ -81,31 +76,12 @@ export function formatStatValue(
   quantitySpecs?: Record<string, QuantitySpec | undefined>,
   quantity?: string
 ): string {
-  if (value === null || value === undefined) {
-    return '-';
-  }
-  if (isNumericValue(value)) {
-    return formatStatWithQuantity(
-      value,
-      statName,
-      quantity !== undefined ? quantitySpecs?.[quantity] : undefined
-    );
-  }
-  if (typeof value === 'boolean') {
-    return value ? 'true' : 'false';
-  }
-  if (isStatStruct(value)) {
-    return value.fields
-      .map(
-        field =>
-          `${field.key}: ${formatStatValue(field.value, field.key, quantitySpecs, field.quantity)}`
-      )
-      .join(', ');
-  }
-  if (Array.isArray(value)) {
-    return value.map(item => formatStatValue(item, statName, quantitySpecs, quantity)).join(', ');
-  }
-  return String(value);
+  return formatStatisticValue(value, {
+    field: statName,
+    quantity,
+    quantitySpecs,
+    missingValue: '-',
+  });
 }
 
 /** Only a single scalar statistic defines a numeric cell. */

@@ -12,6 +12,7 @@ import {
   formatNumber,
   formatNumberWithMaxFractionDigits,
   formatBytes,
+  formatStatisticValue,
   isBytesStat,
   isCountStat,
   inferFieldFormatter,
@@ -22,6 +23,7 @@ import {
   isNumericValue,
   bigintToChartNumber,
 } from './formatters';
+import { projectStatisticScalarFields } from './statisticFields';
 import type { QuantitySpec } from './types/index';
 
 // ---------------------------------------------------------------------------
@@ -566,6 +568,69 @@ describe('formatQuantity', () => {
     };
     expect(formatQuantity(42, countSpec, 'Occupancy', 0)).toBe('42 rows');
     expect(formatQuantity(100, countSpec, 'Rate', 1)).toBe('100.0 rows/s');
+  });
+});
+
+describe('formatStatisticValue', () => {
+  it.each([
+    { value: 42, field: 'custom_stat', expected: '42' },
+    { value: 9007199254740993n, field: 'custom_stat', expected: '9,007,199,254,740,993' },
+    { value: true, field: 'enabled', expected: 'true' },
+    { value: false, field: 'enabled', expected: 'false' },
+    { value: 'ready', field: 'status', expected: 'ready' },
+    { value: null, field: 'missing', expected: '—' },
+    { value: ['a', 'b'], field: 'tags', expected: 'a, b' },
+    {
+      value: {
+        kind: 'struct' as const,
+        fields: [
+          { key: 'rows', value: 1500 },
+          { key: 'status', value: 'ready' },
+        ],
+      },
+      field: 'profile',
+      expected: 'rows: 1.50 k, status: ready',
+    },
+  ])('formats $field values through the canonical matrix', ({ value, field, expected }) => {
+    expect(formatStatisticValue(value, { field })).toBe(expected);
+  });
+
+  it('uses the configured missing marker', () => {
+    expect(formatStatisticValue(null, { field: 'missing', missingValue: '-' })).toBe('-');
+  });
+
+  it('prefers canonical field quantity metadata over name inference', () => {
+    const bytesSpec: QuantitySpec = {
+      symbol: 'B',
+      singular: 'byte',
+      plural: 'bytes',
+      occupancy_prefix: 'Iec',
+      rate_prefix: 'Si',
+    };
+    const field = projectStatisticScalarFields([
+      { key: 'output_rows', value: 1536, quantity: 'bytes' },
+    ])[0];
+
+    expect(formatStatisticValue(field.value, { field, quantitySpecs: { bytes: bytesSpec } })).toBe(
+      '1.50 KiB'
+    );
+    expect(
+      formatStatisticValue(field.value, {
+        field,
+        quantity: undefined,
+        quantitySpecs: { bytes: bytesSpec },
+      })
+    ).toBe('1.54 k');
+  });
+
+  it('preserves attribute bytes-rate precedence as an explicit compatibility option', () => {
+    expect(
+      formatStatisticValue(2_000_000_000, {
+        field: 'bytes_per_sec',
+        inference: 'attribute',
+      })
+    ).toBe('2.00 GB/s');
+    expect(formatStatisticValue(2_000_000_000, { field: 'bytes_per_sec' })).toBe('1.86 GiB');
   });
 });
 

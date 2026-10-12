@@ -2,12 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { useMemo, useCallback } from 'react';
-import {
-  PivotedStatTable,
-  PivotTableToolbar,
-  formatStatValue,
-  getSchemaStatNames,
-} from '@quent/components';
+import { PivotedStatTable, PivotTableToolbar, getSchemaStatNames } from '@quent/components';
 import type {
   PivotedRow,
   PivotedStatTableSchema,
@@ -157,6 +152,10 @@ export function OperatorTable({ queryBundle }: OperatorTableProps) {
   const allStatNames = useMemo(() => getSchemaStatNames(rows, OPERATOR_SCHEMA), [rows]);
   const statMetadata = useMemo(
     () => buildStatisticFieldPresentations(rows.flatMap(row => row.stats)),
+    [rows]
+  );
+  const statisticFields = useMemo(
+    () => new Map(rows.flatMap(row => row.stats).map(field => [field.id, field] as const)),
     [rows]
   );
   const hasParentItems = useMemo(() => rows.some(r => r.parentItemType !== '-'), [rows]);
@@ -320,15 +319,10 @@ export function OperatorTable({ queryBundle }: OperatorTableProps) {
       getGroupTypeColor: getOperatorGroupTypeColor,
       getStatLabel: stat => statMetadata.get(stat)?.label ?? stat,
       getStatTitle: stat => statMetadata.get(stat)?.title ?? stat,
-      formatValue: (value, statName, quantity) =>
-        formatStatValue(
-          value,
-          statMetadata.get(statName)?.fieldName ?? statName,
-          quantitySpecs,
-          quantity
-        ),
+      statisticFields,
+      quantitySpecs,
     }),
-    [getOperatorGroupTypeColor, quantitySpecs, statMetadata]
+    [getOperatorGroupTypeColor, quantitySpecs, statMetadata, statisticFields]
   );
 
   if (!selectedPlanId) {

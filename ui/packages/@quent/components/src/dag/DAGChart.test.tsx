@@ -36,6 +36,7 @@ vi.mock('@xyflow/react', async importOriginal => {
     ...actual,
     useReactFlow: () => ({ fitView: mocks.fitView }),
     Background: () => null,
+    EdgeLabelRenderer: ({ children }: { children: ReactNode }) => <>{children}</>,
     MiniMap: () => null,
     Panel: ({ children }: { children: ReactNode }) => <div>{children}</div>,
     ReactFlow: ({
@@ -77,7 +78,7 @@ vi.mock('@xyflow/react', async importOriginal => {
 const data: DAGData = {
   nodes: [],
   edges: [0, 3, 15, 63].map((value, index) => {
-    const portStats = [{ key: 'bytes', value }];
+    const portStats = [{ key: 'bytes', value, quantity: 'rows' }];
     return {
       id: `edge-${index}`,
       source: `node-${index}`,
@@ -87,6 +88,15 @@ const data: DAGData = {
     };
   }),
   queryData: [],
+  quantitySpecs: {
+    rows: {
+      symbol: 'rows',
+      singular: 'row',
+      plural: 'rows',
+      occupancy_prefix: 'None',
+      rate_prefix: 'None',
+    },
+  },
 };
 
 function EdgeConfiguration() {
@@ -146,8 +156,9 @@ describe('DAGChart edge scaling', () => {
     expect(screen.getByText('bytes')).toBeVisible();
     expect(screen.getByText('Log')).toBeVisible();
     expect(screen.queryByText('15.00 B')).toBeNull();
-    expect(screen.getByText('0 B')).toBeVisible();
-    expect(screen.getByText('63.00 B')).toBeVisible();
+    expect(screen.getAllByText('0 rows')).toHaveLength(2);
+    // The legend shows the true data range, including the zero edge.
+    expect(screen.getAllByText('63.00 rows')).toHaveLength(2);
   });
 
   it('switches width, color and legend to a linear scale', async () => {

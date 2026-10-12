@@ -509,7 +509,7 @@ describe('DAGLegend under tier selection', () => {
         <Harness response={response} selectedDimensions={selectedDimensions}>
           <DagPlayhead />
           <ReactFlowProvider>
-            <DAGLegend isDark={false} statQuantitySpecs={{}} />
+            <DAGLegend isDark={false} quantitySpecs={{}} />
           </ReactFlowProvider>
         </Harness>
       </Provider>

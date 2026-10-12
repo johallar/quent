@@ -6,6 +6,7 @@ import type {
   StatisticField,
   StatisticFieldId,
   ContinuousPaletteName,
+  QuantitySpec,
   ScaleType,
 } from '@quent/utils';
 import type { AggMode, HoveredStatInfo } from '@quent/hooks';
@@ -78,6 +79,8 @@ export interface PivotTableRenderConfig {
   getStatLabel?: (statName: string) => string;
   getStatTitle?: (statName: string) => string;
   formatValue?: (value: StatValue, statName: string, quantity?: string) => string;
+  statisticFields?: ReadonlyMap<string, StatisticField>;
+  quantitySpecs?: Readonly<Record<string, QuantitySpec | undefined>>;
 }
 
 export interface PivotTableDnDConfig {

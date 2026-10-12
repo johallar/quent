@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import {
-  formatStatWithQuantity,
+  formatStatisticValue,
   isStatStruct,
   type QuantitySpec,
   type Statistic,
@@ -63,11 +63,12 @@ function Value({
   }
   return (
     <DataText className="break-words whitespace-pre-wrap">
-      {value == null
-        ? '—'
-        : typeof value === 'number' || typeof value === 'bigint'
-          ? formatStatWithQuantity(value, name, quantity ? quantitySpecs?.[quantity] : undefined)
-          : String(value)}
+      {formatStatisticValue(value, {
+        field: name,
+        quantity,
+        quantitySpecs,
+        missingValue: '—',
+      })}
     </DataText>
   );
 }

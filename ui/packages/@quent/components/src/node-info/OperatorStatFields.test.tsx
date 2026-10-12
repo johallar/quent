@@ -22,6 +22,30 @@ function show(attributes: unknown[]) {
 }
 
 describe('OperatorStatFields', () => {
+  it('formats scalar values with canonical quantity metadata', () => {
+    render(
+      <OperatorStatFields
+        operator={{
+          nodeId: 'actor-1',
+          label: 'Scan',
+          operationType: 'scan',
+          statistics: [{ key: 'output_rows', value: 1536, quantity: 'bytes' }],
+        }}
+        quantitySpecs={{
+          bytes: {
+            symbol: 'B',
+            singular: 'byte',
+            plural: 'bytes',
+            occupancy_prefix: 'Iec',
+            rate_prefix: 'Si',
+          },
+        }}
+      />
+    );
+
+    expect(screen.getByText('1.50 KiB')).toBeVisible();
+  });
+
   it('uses producer names as nested headings and retains field order and repeated names', () => {
     show([
       {
