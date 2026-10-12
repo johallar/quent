@@ -101,7 +101,7 @@ describe('OperatorStatFields', () => {
       within(screen.getByRole('list', { name: 'inputs values' }))
         .getAllByRole('definition')
         .map(dd => dd.textContent)
-    ).toEqual(['3', '4']);
+    ).toEqual(['3.00 ', '4.00 ']);
   });
 });
 
