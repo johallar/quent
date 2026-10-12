@@ -12,7 +12,6 @@ import {
 } from '@quent/hooks';
 import type { EntityRef, Operator, QueryBundle } from '@quent/utils';
 import { DAGNodeInfoPanel } from '../dag/DAGNodeInfoPanel';
-import { QueryPlanNode } from '../query-plan/QueryPlanNode';
 import { QueryToolbar } from '../timeline/QueryToolbar';
 import { OperatorGanttChart } from './OperatorGanttChart';
 import type { OperatorActiveSpanEntry } from './types';
@@ -157,7 +156,7 @@ describe('OperatorGanttChart', () => {
     }
   );
 
-  it('selects the DAG group from a bar, replaces other selections, and toggles it off', () => {
+  it('adds the DAG group from a bar without replacing other selections', () => {
     const parent = makeOperator('parent');
     const child = makeOperator('child', ['parent']);
     const other = makeOperator('other');
@@ -175,30 +174,6 @@ describe('OperatorGanttChart', () => {
       <Provider store={createStore()}>
         <SelectionControls />
         <DAGNodeInfoPanel />
-        <div data-testid="parent-node">
-          <QueryPlanNode
-            data={{
-              nodeId: 'parent',
-              label: 'parent',
-              operationType: 'test',
-              metadata: {
-                rawNode: parent,
-                relatedOperatorIds: ['child'],
-                relatedOperators: [child],
-              },
-            }}
-          />
-        </div>
-        <div data-testid="other-node">
-          <QueryPlanNode
-            data={{
-              nodeId: 'other',
-              label: 'other',
-              operationType: 'test',
-              metadata: { rawNode: other },
-            }}
-          />
-        </div>
         <OperatorGanttChart
           operators={operators}
           allOperators={[parent, child, other]}
@@ -214,29 +189,26 @@ describe('OperatorGanttChart', () => {
           seriesName: 'operator-span',
         });
       });
-    const parentNode = screen.getByTestId('parent-node');
-    const otherNode = screen.getByTestId('other-node');
 
     clickBar(1);
-    expect(otherNode.querySelector('.shadow-glow')).not.toBeNull();
     clickBar(0);
     expect(screen.getByTestId('selection-ids')).toHaveTextContent(
-      JSON.stringify(['child', 'parent'])
+      JSON.stringify(['child', 'other', 'parent'])
+    );
+    expect(screen.getByTestId('selection-groups')).toHaveTextContent(
+      JSON.stringify(['other', 'parent'])
     );
     expect(
       screen.getByRole('group', { name: 'Operator Gantt chart: parent, other' })
-    ).toHaveAttribute('data-selected-operator-ids', 'parent');
-    expect(parentNode.querySelector('.shadow-glow')).not.toBeNull();
-    expect(otherNode.querySelector('.opacity-35')).not.toBeNull();
+    ).toHaveAttribute('data-selected-operator-ids', 'other parent');
     expect(screen.getByTestId('operator-accordion-parent')).toBeVisible();
-    expect(screen.queryByTestId('operator-accordion-other')).not.toBeInTheDocument();
+    expect(screen.getByTestId('operator-accordion-other')).toBeVisible();
 
     clickBar(0);
-    expect(screen.getByTestId('selection-ids')).toHaveTextContent('[]');
-    expect(parentNode.querySelector('.shadow-glow')).toBeNull();
-    expect(parentNode.querySelector('.opacity-100')).not.toBeNull();
-    expect(otherNode.querySelector('.opacity-100')).not.toBeNull();
+    expect(screen.getByTestId('selection-ids')).toHaveTextContent(JSON.stringify(['other']));
+    expect(screen.getByTestId('selection-groups')).toHaveTextContent(JSON.stringify(['other']));
     expect(screen.queryByTestId('operator-accordion-parent')).not.toBeInTheDocument();
+    expect(screen.getByTestId('operator-accordion-other')).toBeVisible();
   });
 
   it('splits a selected parent when a covered child is deselected', () => {

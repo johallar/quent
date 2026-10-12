@@ -212,6 +212,7 @@ export function OperatorGanttChart({
           updateOperatorSelection({
             type: 'replace',
             selections: resolveSelectedOperatorSelections(allOperators, [
+              ...selectedOperatorIds,
               op.operatorId,
               ...relatedIds,
             ]),
