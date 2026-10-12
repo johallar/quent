@@ -19,6 +19,8 @@ export const MAX_SELECTED_NODE_IDS = 100;
 export const MAX_RESOURCE_OVERRIDES = 50;
 export const MAX_VISIBLE_STATS = 100;
 export const MAX_TABLE_SORTS = 5;
+export const MAX_STATISTIC_PATH_DEPTH = 16;
+export const MAX_STATISTIC_PATH_SEGMENT_LENGTH = 256;
 
 const MAX_V1_EXPANDED_RESOURCE_IDS = 100;
 const MAX_ID_LENGTH = 128;
@@ -324,9 +326,124 @@ export const DeepLinkStateV3Schema = z
   });
 
 export type DeepLinkStateV3 = z.infer<typeof DeepLinkStateV3Schema>;
-export type DeepLinkState = DeepLinkStateV3;
-export type DeepLinkTab = DeepLinkStateV3['route']['tab'];
-export type DeepLinkEntitiesState = NonNullable<DeepLinkStateV3['entities']>;
+
+const StatisticFieldPathSegmentSchema = z.tuple([
+  z
+    .string()
+    .max(
+      MAX_STATISTIC_PATH_SEGMENT_LENGTH,
+      `Statistic path segments cannot exceed ${MAX_STATISTIC_PATH_SEGMENT_LENGTH} characters.`
+    ),
+  z.number().int().nonnegative(),
+]);
+
+export const StatisticFieldPathSchema = z
+  .array(StatisticFieldPathSegmentSchema)
+  .min(1)
+  .max(
+    MAX_STATISTIC_PATH_DEPTH,
+    `Statistic field paths cannot exceed ${MAX_STATISTIC_PATH_DEPTH} segments.`
+  );
+
+function uniqueStatisticPathsInOrder(
+  paths: Array<z.infer<typeof StatisticFieldPathSchema>>
+): Array<z.infer<typeof StatisticFieldPathSchema>> {
+  const seen = new Set<string>();
+  return paths.filter(path => {
+    const key = JSON.stringify(path);
+    if (seen.has(key)) {
+      return false;
+    }
+    seen.add(key);
+    return true;
+  });
+}
+
+const DagControlsV4Schema = z
+  .object({
+    nodeColorField: StatisticFieldPathSchema.optional(),
+    nodeColorPalette: ContinuousPaletteSchema.optional(),
+    edgeWidthField: StatisticFieldPathSchema.optional(),
+    edgeColorField: StatisticFieldPathSchema.optional(),
+    edgeColorPalette: ContinuousPaletteSchema.optional(),
+    nodeLabelField: z.enum(NODE_LABEL_FIELD).optional(),
+    layoutDirection: z.enum(DAG_LAYOUT_DIRECTION).optional(),
+    scaleType: z.enum(SCALE_TYPE).optional(),
+  })
+  .strip();
+
+const OperatorTableV4Schema = z
+  .object({
+    groupingOrder: z
+      .array(OperatorGroupSchema)
+      .max(
+        OperatorGroupSchema.options.length,
+        limitMessage('operator table grouping fields', OperatorGroupSchema.options.length)
+      )
+      .transform(uniqueInOrder)
+      .optional(),
+    enabledGroups: z
+      .array(OperatorGroupSchema)
+      .max(
+        OperatorGroupSchema.options.length,
+        limitMessage('enabled operator table groups', OperatorGroupSchema.options.length)
+      )
+      .transform(uniqueInOrder)
+      .optional(),
+    visibleStats: z
+      .array(StatisticFieldPathSchema)
+      .max(MAX_VISIBLE_STATS, limitMessage('visible operator statistics', MAX_VISIBLE_STATS))
+      .transform(uniqueStatisticPathsInOrder)
+      .optional(),
+    aggregation: z.enum(AGG_MODES).optional(),
+    sort: z
+      .array(
+        z
+          .object({
+            id: StatisticFieldPathSchema,
+            desc: z.boolean(),
+          })
+          .strip()
+      )
+      .max(MAX_TABLE_SORTS, limitMessage('operator table sort fields', MAX_TABLE_SORTS))
+      .optional(),
+  })
+  .strip();
+
+export const DeepLinkStateV4Schema = z
+  .object({
+    route: RouteV3Schema,
+    timeline: TimelineSchema.optional(),
+    selection: SelectionSchema.optional(),
+    resources: ResourceTreeSchema.optional(),
+    dag: DagControlsV4Schema.optional(),
+    dataFlow: DataFlowSchema.optional(),
+    operatorTable: OperatorTableV4Schema.optional(),
+    entities: EntitiesSchema.optional(),
+  })
+  .strip()
+  .superRefine((state, context) => {
+    if (state.route.tab !== 'entities' && !state.timeline) {
+      context.addIssue({
+        code: 'custom',
+        path: ['timeline'],
+        message: 'Timeline state is required for timeline and operator links',
+      });
+    }
+    if (state.route.tab !== 'entities' && state.entities) {
+      context.addIssue({
+        code: 'custom',
+        path: ['entities'],
+        message: 'Entity state is only valid for entity links',
+      });
+    }
+  });
+
+export type StatisticFieldPathReference = z.infer<typeof StatisticFieldPathSchema>;
+export type DeepLinkStateV4 = z.infer<typeof DeepLinkStateV4Schema>;
+export type DeepLinkState = DeepLinkStateV4;
+export type DeepLinkTab = DeepLinkStateV4['route']['tab'];
+export type DeepLinkEntitiesState = NonNullable<DeepLinkStateV4['entities']>;
 
 export const DeepLinkSearchSchema = z
   .object({

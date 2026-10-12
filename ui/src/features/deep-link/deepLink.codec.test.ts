@@ -15,14 +15,17 @@ import {
   DeepLinkStateV1Schema,
   DeepLinkStateV2Schema,
   DeepLinkStateV3Schema,
+  DeepLinkStateV4Schema,
   MAX_EXPANDED_RESOURCE_IDS,
   MAX_SELECTED_NODE_IDS,
+  MAX_STATISTIC_PATH_DEPTH,
+  MAX_STATISTIC_PATH_SEGMENT_LENGTH,
   OperatorGroupSchema,
-  type DeepLinkStateV3,
+  type DeepLinkStateV4,
+  type StatisticFieldPathReference,
   validateDeepLinkSearch,
 } from './deepLink.schema';
 import {
-  statisticFieldId,
   CONTINUOUS_PALETTES,
   DAG_LAYOUT_DIRECTION,
   SCALE_TYPE,
@@ -35,7 +38,7 @@ const RESOURCE_A_ID = '01a025ff-ea8b-7881-9d31-72a275872c9d';
 const RESOURCE_B_ID = '01a025ff-ea8b-7881-9d31-72a275872c9e';
 const NVTX_SECTION_ID = '__nvtx__';
 
-const state: DeepLinkStateV3 = {
+const state: DeepLinkStateV4 = {
   route: {
     engineId: 'engine-a',
     queryId: 'query-a',
@@ -64,10 +67,10 @@ const state: DeepLinkStateV3 = {
     fsmSelections: [{ rowId: 'resource-a', fsmType: 'task' }],
   },
   dag: {
-    nodeColorField: 'duration_s',
+    nodeColorField: [['duration_s', 0]],
     nodeColorPalette: 'viridis',
-    edgeWidthField: 'bytes',
-    edgeColorField: 'rows',
+    edgeWidthField: [['bytes', 0]],
+    edgeColorField: [['rows', 0]],
     edgeColorPalette: 'purple',
     nodeLabelField: 'type',
     layoutDirection: 'top-to-bottom',
@@ -83,9 +86,9 @@ const state: DeepLinkStateV3 = {
   operatorTable: {
     groupingOrder: ['partition', 'item_type', 'item'],
     enabledGroups: ['partition', 'item_type'],
-    visibleStats: ['duration_s', 'spill_bytes'],
+    visibleStats: [[['duration_s', 0]], [['spill_bytes', 0]]],
     aggregation: 'max',
-    sort: [{ id: 'spill_bytes', desc: true }],
+    sort: [{ id: [['spill_bytes', 0]], desc: true }],
   },
   entities: {
     entityType: 'task',
@@ -111,22 +114,22 @@ describe('deep-link codec', () => {
     }
     expect(decodeDeepLinkState(first.value)).toEqual({
       ok: true,
-      value: { version: 'v3', data: state },
+      value: { version: 'v4', data: state },
     });
   });
 
-  it('round-trips explicit statistic paths longer than the generic name limit', () => {
-    const fieldId = statisticFieldId([
-      ['Volume '.repeat(100), 0],
-      ['bytes '.repeat(100), 2],
-    ]);
-    const nestedState: DeepLinkStateV3 = {
+  it('round-trips repeated siblings and separator literals without string parsing', () => {
+    const fieldPath: StatisticFieldPathReference = [
+      ['Volume › bytes', 1],
+      ['bytes [2]', 2],
+    ];
+    const nestedState: DeepLinkStateV4 = {
       ...state,
       dag: {
         ...state.dag,
-        nodeColorField: fieldId,
-        edgeWidthField: fieldId,
-        edgeColorField: fieldId,
+        nodeColorField: fieldPath,
+        edgeWidthField: fieldPath,
+        edgeColorField: fieldPath,
       },
     };
     const encoded = encodeDeepLinkState(nestedState);
@@ -136,7 +139,7 @@ describe('deep-link codec', () => {
     }
     expect(decodeDeepLinkState(encoded.value)).toEqual({
       ok: true,
-      value: { version: 'v3', data: nestedState },
+      value: { version: 'v4', data: nestedState },
     });
   });
 
@@ -184,6 +187,35 @@ describe('deep-link codec', () => {
     expect(decodeDeepLinkState(encoded)).toEqual({
       ok: true,
       value: { version: 'v2', data: legacyState },
+    });
+  });
+
+  it('decodes legacy v3 statistic strings without applying the v4 schema', () => {
+    const legacyState = DeepLinkStateV3Schema.parse({
+      route: { engineId: 'engine-a', queryId: 'query-a', tab: 'operators' },
+      timeline: { zoomRange: { start: 12.5, end: 48.75 } },
+      dag: {
+        nodeColorField: '__quent_stat_path__:[["profile",0],["rows",0]]',
+        edgeWidthField: 'Volume › bytes',
+      },
+      operatorTable: {
+        visibleStats: ['duration_s', '[["profile",0],["rows",0]]'],
+        sort: [{ id: 'rows', desc: true }],
+      },
+    });
+    const compressed = gzipSync(strToU8(JSON.stringify(legacyState)), { level: 9, mtime: 0 });
+    let binary = '';
+    for (const byte of compressed) {
+      binary += String.fromCharCode(byte);
+    }
+    const encoded = `v3.${btoa(binary)
+      .replace(/\+/gu, '-')
+      .replace(/\//gu, '_')
+      .replace(/=+$/u, '')}`;
+
+    expect(decodeDeepLinkState(encoded)).toEqual({
+      ok: true,
+      value: { version: 'v3', data: legacyState },
     });
   });
 
@@ -263,10 +295,10 @@ describe('deep-link search validation', () => {
 });
 
 describe('deep-link state validation', () => {
-  it('validates and canonicalizes comprehensive v3 state', () => {
-    expect(DeepLinkStateV3Schema.parse({ ...state, futureField: true })).toEqual(state);
+  it('validates and canonicalizes comprehensive v4 state', () => {
+    expect(DeepLinkStateV4Schema.parse({ ...state, futureField: true })).toEqual(state);
     expect(
-      DeepLinkStateV3Schema.parse({
+      DeepLinkStateV4Schema.parse({
         route: state.route,
         timeline: state.timeline,
         resources: {
@@ -275,13 +307,13 @@ describe('deep-link state validation', () => {
       }).resources?.expandedRowIds
     ).toEqual([RESOURCE_A_ID, RESOURCE_B_ID, NVTX_SECTION_ID]);
     expect(
-      DeepLinkStateV3Schema.validate({
+      DeepLinkStateV4Schema.validate({
         route: state.route,
         timeline: { zoomRange: { start: 20, end: 10 } },
       })
     ).toBe(false);
     expect(
-      DeepLinkStateV3Schema.validate({
+      DeepLinkStateV4Schema.validate({
         route: state.route,
         timeline: state.timeline,
         resources: {
@@ -293,7 +325,7 @@ describe('deep-link state validation', () => {
       })
     ).toBe(false);
     expect(
-      DeepLinkStateV3Schema.validate({
+      DeepLinkStateV4Schema.validate({
         route: state.route,
         timeline: state.timeline,
         resources: {
@@ -302,11 +334,53 @@ describe('deep-link state validation', () => {
       })
     ).toBe(false);
     expect(
-      DeepLinkStateV3Schema.safeParse({
+      DeepLinkStateV4Schema.safeParse({
         route: state.route,
         entities: { window: { start: 20, end: 10 } },
       }).success
     ).toBe(false);
+  });
+
+  it('bounds v4 statistic paths and canonicalizes repeated references', () => {
+    const base = {
+      route: { engineId: 'engine-a', queryId: 'query-a', tab: 'operators' as const },
+      timeline: state.timeline,
+    };
+    const repeatedPath = [['rows', 0]] as const;
+    expect(
+      DeepLinkStateV4Schema.parse({
+        ...base,
+        operatorTable: { visibleStats: [repeatedPath, repeatedPath] },
+      }).operatorTable?.visibleStats
+    ).toEqual([repeatedPath]);
+    expect(
+      DeepLinkStateV4Schema.safeParse({
+        ...base,
+        dag: {
+          nodeColorField: Array.from({ length: MAX_STATISTIC_PATH_DEPTH + 1 }, () => ['x', 0]),
+        },
+      }).success
+    ).toBe(false);
+    expect(
+      DeepLinkStateV4Schema.safeParse({
+        ...base,
+        dag: { nodeColorField: [['x'.repeat(MAX_STATISTIC_PATH_SEGMENT_LENGTH + 1), 0]] },
+      }).success
+    ).toBe(false);
+    expect(
+      DeepLinkStateV4Schema.safeParse({
+        ...base,
+        dag: { nodeColorField: [['rows', -1]] },
+      }).success
+    ).toBe(false);
+    for (const malformedPath of [[], [['rows']], [['rows', 0.5]], [['rows', 0, 'extra']]]) {
+      expect(
+        DeepLinkStateV4Schema.safeParse({
+          ...base,
+          dag: { nodeColorField: malformedPath },
+        }).success
+      ).toBe(false);
+    }
   });
 
   it('keeps the v2 schema unchanged', () => {
@@ -347,20 +421,20 @@ describe('deep-link state validation', () => {
     const base = { route: state.route, timeline: state.timeline };
     for (const palette of Object.keys(CONTINUOUS_PALETTES)) {
       expect(
-        DeepLinkStateV3Schema.validate({
+        DeepLinkStateV4Schema.validate({
           ...base,
           dag: { nodeColorPalette: palette, edgeColorPalette: palette },
         })
       ).toBe(true);
     }
     for (const nodeLabelField of Object.values(NODE_LABEL_FIELD)) {
-      expect(DeepLinkStateV3Schema.validate({ ...base, dag: { nodeLabelField } })).toBe(true);
+      expect(DeepLinkStateV4Schema.validate({ ...base, dag: { nodeLabelField } })).toBe(true);
     }
     for (const layoutDirection of Object.values(DAG_LAYOUT_DIRECTION)) {
-      expect(DeepLinkStateV3Schema.validate({ ...base, dag: { layoutDirection } })).toBe(true);
+      expect(DeepLinkStateV4Schema.validate({ ...base, dag: { layoutDirection } })).toBe(true);
     }
     for (const scaleType of Object.values(SCALE_TYPE)) {
-      expect(DeepLinkStateV3Schema.validate({ ...base, dag: { scaleType } })).toBe(true);
+      expect(DeepLinkStateV4Schema.validate({ ...base, dag: { scaleType } })).toBe(true);
     }
     expect(OperatorGroupSchema.options).toEqual([...OPERATOR_TABLE_INDEX_ORDER]);
   });

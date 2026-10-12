@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { useLayoutEffect } from 'react';
+import { gzipSync, strToU8 } from 'fflate';
 import { Provider as JotaiProvider, createStore, useAtomValue, useSetAtom } from 'jotai';
 import {
   useDebouncedZoomRange,
@@ -13,7 +14,12 @@ import {
   useZoomRange,
 } from '@quent/hooks';
 import { NVTX_SECTION_ID, toast, Toaster } from '@quent/components';
-import type { NormalizedOperator } from '@quent/utils';
+import {
+  projectStatisticScalarFields,
+  type NormalizedOperator,
+  type NormalizedPort,
+  type Statistic,
+} from '@quent/utils';
 import { render, screen, waitFor, userEvent } from '@/test/test-utils';
 import { entitiesTableStateAtom, type EntitiesTableState } from '@/atoms/entitiesTable';
 import {
@@ -35,6 +41,7 @@ import { CopyLinkButton } from './CopyLinkButton';
 import { DeepLinkBoundary } from './DeepLinkBoundary';
 import { decodeDeepLinkState, encodeDeepLinkState } from './deepLink.codec';
 import { useDeepLink } from './deepLink.context';
+import { DeepLinkStateV3Schema } from './deepLink.schema';
 
 const BOUNDARY_PROPS = {
   engineId: 'e',
@@ -43,10 +50,16 @@ const BOUNDARY_PROPS = {
   durationSeconds: 100,
   isQueryReady: true,
   operators: [],
+  ports: [],
 };
 
 const RESOURCE_A_ID = '01a025ff-ea8b-7881-9d31-72a275872c9d';
 const RESOURCE_B_ID = '01a025ff-ea8b-7881-9d31-72a275872c9e';
+const operatorStatistics: Statistic[] = [{ key: 'spill_bytes', value: 12 }];
+const portStatistics: Statistic[] = [
+  { key: 'bytes', value: 10 },
+  { key: 'rows', value: 20 },
+];
 const DEEP_LINK_OPERATORS: NormalizedOperator[] = [
   {
     id: 'operator-a',
@@ -56,7 +69,11 @@ const DEEP_LINK_OPERATORS: NormalizedOperator[] = [
     operator_type_name: null,
     custom_attributes: [],
     attributes: [],
-    statistics: { custom_statistics: [], statistics: [], fields: [] },
+    statistics: {
+      custom_statistics: [],
+      statistics: operatorStatistics,
+      fields: projectStatisticScalarFields(operatorStatistics),
+    },
     active_span: null,
   },
   {
@@ -67,10 +84,36 @@ const DEEP_LINK_OPERATORS: NormalizedOperator[] = [
     operator_type_name: null,
     custom_attributes: [],
     attributes: [],
-    statistics: { custom_statistics: [], statistics: [], fields: [] },
+    statistics: {
+      custom_statistics: [],
+      statistics: operatorStatistics,
+      fields: projectStatisticScalarFields(operatorStatistics),
+    },
     active_span: null,
   },
 ];
+const DEEP_LINK_PORTS: NormalizedPort[] = [
+  {
+    id: 'port-a',
+    operator_id: 'operator-a',
+    instance_name: null,
+    statistics: {
+      custom_statistics: [],
+      statistics: portStatistics,
+      fields: projectStatisticScalarFields(portStatistics),
+    },
+  },
+];
+
+function encodeLegacyV3(state: unknown): string {
+  const parsed = DeepLinkStateV3Schema.parse(state);
+  const compressed = gzipSync(strToU8(JSON.stringify(parsed)), { level: 9, mtime: 0 });
+  let binary = '';
+  for (const byte of compressed) {
+    binary += String.fromCharCode(byte);
+  }
+  return `v3.${btoa(binary).replace(/\+/gu, '-').replace(/\//gu, '_').replace(/=+$/u, '')}`;
+}
 
 function ViewportProbe() {
   const immediate = useZoomRange();
@@ -299,10 +342,10 @@ describe('DeepLinkBoundary', () => {
         fsmSelections: [{ rowId: 'worker-a', fsmType: 'task' }],
       },
       dag: {
-        nodeColorField: 'duration_s',
+        nodeColorField: [['spill_bytes', 0]],
         nodeColorPalette: 'viridis',
-        edgeWidthField: 'bytes',
-        edgeColorField: 'rows',
+        edgeWidthField: [['bytes', 0]],
+        edgeColorField: [['rows', 0]],
         edgeColorPalette: 'purple',
         nodeLabelField: 'type',
         layoutDirection: 'top-to-bottom',
@@ -318,9 +361,9 @@ describe('DeepLinkBoundary', () => {
       operatorTable: {
         groupingOrder: ['partition', 'item_type', 'item'],
         enabledGroups: ['partition', 'item_type'],
-        visibleStats: ['duration_s', 'spill_bytes'],
+        visibleStats: [[['duration_s', 0]], [['spill_bytes', 0]]],
         aggregation: 'max',
-        sort: [{ id: 'spill_bytes', desc: true }],
+        sort: [{ id: [['spill_bytes', 0]], desc: true }],
       },
     });
     expect(encoded.ok).toBe(true);
@@ -333,6 +376,7 @@ describe('DeepLinkBoundary', () => {
         <DeepLinkBoundary
           {...BOUNDARY_PROPS}
           operators={DEEP_LINK_OPERATORS}
+          ports={DEEP_LINK_PORTS}
           encodedState={encoded.value}
         >
           <SerializableStateProbe />
@@ -349,7 +393,7 @@ describe('DeepLinkBoundary', () => {
           operatorNodeIds: ['operator-a', 'operator-child', 'operator-unknown'],
         },
         dag: {
-          nodeColorField: 'duration_s',
+          nodeColorField: 'spill_bytes',
           nodeColorPalette: 'viridis',
           edgeWidthField: 'bytes',
           edgeColorField: 'rows',
@@ -400,6 +444,62 @@ describe('DeepLinkBoundary', () => {
         },
       ])
     );
+  });
+
+  it('resolves a v3 statistic state and copies it back as structured v4 references', async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, 'clipboard', {
+      configurable: true,
+      value: { writeText },
+    });
+    const encoded = encodeLegacyV3({
+      route: { engineId: 'e', queryId: 'q', tab: 'timeline' },
+      timeline: { zoomRange: { start: 10, end: 40 } },
+      dag: {
+        nodeColorField: 'spill_bytes',
+        edgeWidthField: 'bytes',
+        edgeColorField: 'rows',
+      },
+      operatorTable: {
+        visibleStats: ['duration_s', 'spill_bytes', 'unknown'],
+        sort: [{ id: 'spill_bytes', desc: true }],
+      },
+    });
+
+    render(
+      <JotaiProvider>
+        <DeepLinkBoundary
+          {...BOUNDARY_PROPS}
+          operators={DEEP_LINK_OPERATORS}
+          ports={DEEP_LINK_PORTS}
+          encodedState={encoded}
+        >
+          <CopyLinkButton />
+        </DeepLinkBoundary>
+      </JotaiProvider>
+    );
+
+    await userEvent.click(await screen.findByRole('button', { name: 'Copy Link' }));
+    await waitFor(() => expect(writeText).toHaveBeenCalledOnce());
+    const copiedState = new URL(writeText.mock.calls[0][0] as string).searchParams.get('s');
+
+    expect(decodeDeepLinkState(copiedState!)).toMatchObject({
+      ok: true,
+      value: {
+        version: 'v4',
+        data: {
+          dag: {
+            nodeColorField: [['spill_bytes', 0]],
+            edgeWidthField: [['bytes', 0]],
+            edgeColorField: [['rows', 0]],
+          },
+          operatorTable: {
+            visibleStats: [[['duration_s', 0]], [['spill_bytes', 0]]],
+            sort: [{ id: [['spill_bytes', 0]], desc: true }],
+          },
+        },
+      },
+    });
   });
 
   it('clears an existing resource filter when shared state omits resources', () => {
@@ -577,7 +677,7 @@ describe('DeepLinkBoundary', () => {
     expect(decodeDeepLinkState(encoded!)).toEqual({
       ok: true,
       value: {
-        version: 'v3',
+        version: 'v4',
         data: {
           route: { engineId: 'e', queryId: 'q', tab: 'timeline' },
           timeline: { zoomRange: { start: 20, end: 60 } },
@@ -626,7 +726,7 @@ describe('DeepLinkBoundary', () => {
     expect(decodeDeepLinkState(encoded!)).toMatchObject({
       ok: true,
       value: {
-        version: 'v3',
+        version: 'v4',
         data: {
           resources: {
             resourceFilter: { search: 'resource', showOthers: true },
@@ -684,7 +784,7 @@ describe('DeepLinkBoundary', () => {
     expect(decodeDeepLinkState(encoded!)).toEqual({
       ok: true,
       value: {
-        version: 'v3',
+        version: 'v4',
         data: {
           route: { engineId: 'e', queryId: 'q', tab: 'entities' },
           entities,

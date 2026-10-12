@@ -9,8 +9,8 @@ import {
   DEEP_LINK_SEARCH_KEY,
 } from '../src/features/deep-link/deepLink.codec';
 import {
-  DeepLinkStateV3Schema,
-  type DeepLinkStateV3,
+  DeepLinkStateV4Schema,
+  type DeepLinkStateV4,
   type DeepLinkTab,
 } from '../src/features/deep-link/deepLink.schema';
 import { mergeResourceFilter } from '../src/features/deep-link/deepLink.cli';
@@ -39,7 +39,7 @@ function parseList(value: string | boolean | undefined): string[] | undefined {
 
 async function readState(
   values: Record<string, string | boolean | undefined>,
-  route: DeepLinkStateV3['route']
+  route: DeepLinkStateV4['route']
 ) {
   let input: unknown;
   if (typeof values.state === 'string') {
@@ -73,7 +73,7 @@ async function readState(
     ...(values['show-others'] === true ? { showOthers: true } : {}),
   };
   const candidateWithFilter = mergeResourceFilter(candidate, resourceFilter);
-  const parsed = DeepLinkStateV3Schema.safeParse(candidateWithFilter);
+  const parsed = DeepLinkStateV4Schema.safeParse(candidateWithFilter);
   if (!parsed.success) {
     fail(`Invalid state: ${parsed.error.message}`);
   }

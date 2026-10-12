@@ -51,6 +51,10 @@ function ProfileLayout() {
     () => (queryBundle ? Object.values(queryBundle.entities.operators) : []),
     [queryBundle]
   );
+  const ports = useMemo(
+    () => (queryBundle ? Object.values(queryBundle.entities.ports) : []),
+    [queryBundle]
+  );
   const timelineMatch = useMatch({
     from: '/profile/engine/$engineId/query/$queryId/timeline',
     shouldThrow: false,
@@ -94,6 +98,7 @@ function ProfileLayout() {
       durationSeconds={queryBundle?.duration_s ?? 0}
       defaultRootResourceType={defaultRootResourceType(queryBundle)}
       operators={operators}
+      ports={ports}
       encodedState={encodedState}
       isQueryReady={isQueryReady}
     >

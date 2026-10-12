@@ -7,22 +7,24 @@ import {
   DeepLinkStateV1Schema,
   DeepLinkStateV2Schema,
   DeepLinkStateV3Schema,
+  DeepLinkStateV4Schema,
   type DeepLinkStateV1,
   type DeepLinkStateV2,
   type DeepLinkStateV3,
+  type DeepLinkStateV4,
 } from './deepLink.schema';
 
 /** Canonical fields a decoded link may expose. Missing readers return `undefined`. */
 export type DeepLinkFields = {
-  route: DeepLinkStateV3['route'] | undefined;
+  route: DeepLinkStateV4['route'] | undefined;
   zoomRange: ZoomRange | undefined;
   expandedResourceIds: readonly string[] | undefined;
-  selection: DeepLinkStateV3['selection'];
-  resources: DeepLinkStateV3['resources'];
-  dag: DeepLinkStateV3['dag'];
-  dataFlow: DeepLinkStateV3['dataFlow'];
-  operatorTable: DeepLinkStateV3['operatorTable'];
-  entities: DeepLinkStateV3['entities'];
+  selection: DeepLinkStateV4['selection'];
+  resources: DeepLinkStateV4['resources'];
+  dag: DeepLinkStateV3['dag'] | DeepLinkStateV4['dag'];
+  dataFlow: DeepLinkStateV4['dataFlow'];
+  operatorTable: DeepLinkStateV3['operatorTable'] | DeepLinkStateV4['operatorTable'];
+  entities: DeepLinkStateV4['entities'];
 };
 
 export type DeepLinkFieldKey = keyof DeepLinkFields;
@@ -106,10 +108,26 @@ export const SUPPORTED_DEEP_LINK_SCHEMAS = [
       entities: state => state.entities,
     },
   }),
+  defineDeepLinkVersion({
+    version: 'v4',
+    schema: DeepLinkStateV4Schema,
+    fields: {
+      route: state => state.route,
+      zoomRange: state => state.timeline?.zoomRange,
+      expandedResourceIds: state => state.resources?.expandedRowIds,
+      selection: state => state.selection,
+      resources: state => state.resources,
+      dag: state => state.dag,
+      dataFlow: state => state.dataFlow,
+      operatorTable: state => state.operatorTable,
+      entities: state => state.entities,
+    },
+  }),
 ] as const;
 
 export type DeepLinkVersion = (typeof SUPPORTED_DEEP_LINK_SCHEMAS)[number]['version'];
-export type DecodedDeepLinkState = DeepLinkStateV1 | DeepLinkStateV2 | DeepLinkStateV3;
+export type DecodedDeepLinkState =
+  DeepLinkStateV1 | DeepLinkStateV2 | DeepLinkStateV3 | DeepLinkStateV4;
 
 export type VersionedDeepLinkState = {
   version: DeepLinkVersion;

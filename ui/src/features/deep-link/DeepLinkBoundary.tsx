@@ -22,6 +22,7 @@ import {
   SCALE_TYPE,
   NODE_LABEL_FIELD,
   type NormalizedOperator,
+  type NormalizedPort,
 } from '@quent/utils';
 import { toast } from '@quent/components';
 import {
@@ -65,9 +66,15 @@ import { normalizeZoomRange, resolveCapturedZoomRange } from './deepLink.normali
 import {
   OperatorGroupSchema,
   type DeepLinkEntitiesState,
-  type DeepLinkStateV3,
+  type DeepLinkStateV4,
   type DeepLinkTab,
 } from './deepLink.schema';
+import {
+  createDeepLinkStatisticRegistries,
+  persistStatisticReference,
+  resolveDeepLinkStatisticReferences,
+  type ResolvedStatisticViewState,
+} from './deepLink.statisticRefs';
 
 interface DeepLinkBoundaryProps {
   children: ReactNode;
@@ -77,6 +84,7 @@ interface DeepLinkBoundaryProps {
   durationSeconds: number;
   defaultRootResourceType?: string | null;
   operators: readonly NormalizedOperator[];
+  ports: readonly NormalizedPort[];
   encodedState?: string;
   isQueryReady: boolean;
 }
@@ -84,10 +92,13 @@ interface DeepLinkBoundaryProps {
 type IntakeState = {
   initialExpandedResourceIds: readonly string[] | null;
   initialZoomRange: NonNullable<DeepLinkFields['zoomRange']> | null;
-  fields: DeepLinkFields | null;
+  fields: HydratedDeepLinkFields | null;
   isResolved: boolean;
   status: DeepLinkIntakeStatus;
 };
+
+type HydratedDeepLinkFields = Omit<DeepLinkFields, 'dag' | 'operatorTable'> &
+  ResolvedStatisticViewState;
 
 function hasKeys(value: object): boolean {
   return Object.keys(value).length > 0;
@@ -170,6 +181,7 @@ export function DeepLinkBoundary({
   durationSeconds,
   defaultRootResourceType = null,
   operators,
+  ports,
   encodedState,
   isQueryReady,
 }: DeepLinkBoundaryProps) {
@@ -185,6 +197,14 @@ export function DeepLinkBoundary({
     });
   const intakeRoute = useRef({ engineId, queryId, activeTab }).current;
   const [isHydrated, setIsHydrated] = useState(!encodedState);
+  const statisticRegistries = useMemo(
+    () =>
+      createDeepLinkStatisticRegistries(
+        operators.flatMap(operator => operator.statistics.fields),
+        ports.flatMap(port => port.statistics.fields)
+      ),
+    [operators, ports]
+  );
 
   const intake = useMemo((): IntakeState => {
     if (!encodedState) {
@@ -217,7 +237,17 @@ export function DeepLinkBoundary({
       };
     }
 
-    const fields = readDeepLinkFields(decoded.value);
+    const decodedFields = readDeepLinkFields(decoded.value);
+    const statisticState = resolveDeepLinkStatisticReferences(
+      decodedFields.dag,
+      decodedFields.operatorTable,
+      statisticRegistries
+    );
+    const fields: HydratedDeepLinkFields = {
+      ...decodedFields,
+      dag: statisticState.dag,
+      operatorTable: statisticState.operatorTable,
+    };
     // intakeRoute is captured once via useRef(...).current at mount and never
     // reassigned, so reading it during render carries no tearing risk.
     /* eslint-disable react-hooks/refs */
@@ -269,7 +299,7 @@ export function DeepLinkBoundary({
           } satisfies DeepLinkIntakeStatus)
         : ({ kind: 'ready' } satisfies DeepLinkIntakeStatus),
     };
-  }, [durationSeconds, encodedState, intakeRoute, isQueryReady]);
+  }, [durationSeconds, encodedState, intakeRoute, isQueryReady, statisticRegistries]);
 
   useEffect(() => {
     if (intake.status.kind !== 'error' && intake.status.kind !== 'warning') {
@@ -411,14 +441,14 @@ export function DeepLinkBoundary({
       return { ok: false, message: 'Fix the entity filters before copying a shared link.' };
     }
 
-    const state: DeepLinkStateV3 = {
+    const state: DeepLinkStateV4 = {
       route: { engineId, queryId, tab: activeTab },
     };
     if (capturedRange) {
       state.timeline = { zoomRange: capturedRange };
     }
 
-    const selection: NonNullable<DeepLinkStateV3['selection']> = {};
+    const selection: NonNullable<DeepLinkStateV4['selection']> = {};
     if (sharedView.selection.planId) {
       selection.planId = sharedView.selection.planId;
     }
@@ -429,7 +459,7 @@ export function DeepLinkBoundary({
       state.selection = selection;
     }
 
-    const resources: NonNullable<DeepLinkStateV3['resources']> = {};
+    const resources: NonNullable<DeepLinkStateV4['resources']> = {};
     const expandedRowIds = [...store.get(expandedIdsAtom)].sort();
     if (expandedRowIds.length > 0) {
       resources.expandedRowIds = expandedRowIds;
@@ -467,18 +497,30 @@ export function DeepLinkBoundary({
       state.resources = resources;
     }
 
-    const dag: NonNullable<DeepLinkStateV3['dag']> = {};
-    if (sharedView.dag.nodeColorField) {
-      dag.nodeColorField = sharedView.dag.nodeColorField;
+    const dag: NonNullable<DeepLinkStateV4['dag']> = {};
+    const nodeColorField = persistStatisticReference(
+      statisticRegistries.operator,
+      sharedView.dag.nodeColorField
+    );
+    if (nodeColorField) {
+      dag.nodeColorField = nodeColorField;
     }
     if (sharedView.dag.nodeColorPalette !== 'blue') {
       dag.nodeColorPalette = sharedView.dag.nodeColorPalette;
     }
-    if (sharedView.dag.edgeWidthField) {
-      dag.edgeWidthField = sharedView.dag.edgeWidthField;
+    const edgeWidthField = persistStatisticReference(
+      statisticRegistries.port,
+      sharedView.dag.edgeWidthField
+    );
+    if (edgeWidthField) {
+      dag.edgeWidthField = edgeWidthField;
     }
-    if (sharedView.dag.edgeColorField) {
-      dag.edgeColorField = sharedView.dag.edgeColorField;
+    const edgeColorField = persistStatisticReference(
+      statisticRegistries.port,
+      sharedView.dag.edgeColorField
+    );
+    if (edgeColorField) {
+      dag.edgeColorField = edgeColorField;
     }
     if (sharedView.dag.edgeColorPalette !== 'teal') {
       dag.edgeColorPalette = sharedView.dag.edgeColorPalette;
@@ -496,7 +538,7 @@ export function DeepLinkBoundary({
       state.dag = dag;
     }
 
-    const dataFlow: NonNullable<DeepLinkStateV3['dataFlow']> = {};
+    const dataFlow: NonNullable<DeepLinkStateV4['dataFlow']> = {};
     if (!sharedView.dataFlow.enabled) {
       dataFlow.enabled = false;
     }
@@ -520,7 +562,7 @@ export function DeepLinkBoundary({
       state.dataFlow = dataFlow;
     }
 
-    const table: NonNullable<DeepLinkStateV3['operatorTable']> = {};
+    const table: NonNullable<DeepLinkStateV4['operatorTable']> = {};
     const groupingOrder = sharedView.operatorTable.groupingOrder?.filter(isOperatorGroup);
     if (groupingOrder) {
       table.groupingOrder = groupingOrder;
@@ -535,13 +577,19 @@ export function DeepLinkBoundary({
       table.enabledGroups = enabledGroups;
     }
     if (sharedView.operatorTable.visibleStats !== undefined) {
-      table.visibleStats = sharedView.operatorTable.visibleStats;
+      table.visibleStats = sharedView.operatorTable.visibleStats.flatMap(id => {
+        const reference = persistStatisticReference(statisticRegistries.table, id);
+        return reference ? [reference] : [];
+      });
     }
     if (sharedView.operatorTable.aggregation !== undefined) {
       table.aggregation = sharedView.operatorTable.aggregation;
     }
     if (sharedView.operatorTable.sort !== undefined) {
-      table.sort = sharedView.operatorTable.sort;
+      table.sort = sharedView.operatorTable.sort.flatMap(entry => {
+        const id = persistStatisticReference(statisticRegistries.table, entry.id);
+        return id ? [{ id, desc: entry.desc }] : [];
+      });
     }
     if (hasKeys(table)) {
       state.operatorTable = table;
@@ -574,6 +622,7 @@ export function DeepLinkBoundary({
     queryId,
     readSerializableViewState,
     readZoomRange,
+    statisticRegistries,
     store,
   ]);
 

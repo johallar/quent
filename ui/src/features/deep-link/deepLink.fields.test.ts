@@ -12,6 +12,7 @@ import {
   DeepLinkStateV1Schema,
   DeepLinkStateV2Schema,
   DeepLinkStateV3Schema,
+  DeepLinkStateV4Schema,
 } from './deepLink.schema';
 
 const absentFields = {
@@ -45,6 +46,21 @@ const v3State = DeepLinkStateV3Schema.parse({
     entityType: 'task',
     window: { start: 12, end: 24 },
     sortDir: 'Asc',
+  },
+});
+
+const v4State = DeepLinkStateV4Schema.parse({
+  route: { engineId: 'engine-a', queryId: 'query-a', tab: 'operators' },
+  timeline: { zoomRange: { start: 12, end: 24 } },
+  dag: {
+    nodeColorField: [
+      ['profile', 0],
+      ['rows', 1],
+    ],
+  },
+  operatorTable: {
+    visibleStats: [[['duration_s', 0]]],
+    sort: [{ id: [['duration_s', 0]], desc: true }],
   },
 });
 
@@ -86,6 +102,18 @@ describe('deep-link field readers', () => {
       route: v3State.route,
       selection: v3State.selection,
       entities: v3State.entities,
+    });
+  });
+
+  it('reads v4 structured statistic references', () => {
+    const decoded = { version: 'v4' as const, data: v4State };
+
+    expect(readDeepLinkFields(decoded)).toEqual({
+      ...absentFields,
+      route: v4State.route,
+      zoomRange: { start: 12, end: 24 },
+      dag: v4State.dag,
+      operatorTable: v4State.operatorTable,
     });
   });
 
