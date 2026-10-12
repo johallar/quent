@@ -25,7 +25,7 @@ function getOperatorIds(node: DAGNode): Set<string> {
   return new Set([node.id, ...(metadata?.relatedOperatorIds ?? [])]);
 }
 
-function getSelectedOperatorData(node: DAGNode): SelectedOperatorGroupData {
+export function selectedOperatorDataFromNode(node: DAGNode): SelectedOperatorGroupData {
   const metadata = node.metadata as QueryPlanNodeData['metadata'];
   return {
     nodeId: node.id,
@@ -55,7 +55,7 @@ export function resolveSelectedOperatorsFromNodes(
     selectionId: node.id,
     label: node.label,
     operatorIds: getOperatorIds(node),
-    selectedData: getSelectedOperatorData(node),
+    selectedData: selectedOperatorDataFromNode(node),
   }));
 
   return resolveOperatorSelectionCandidates(candidates, selectedOperatorIds);

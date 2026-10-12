@@ -171,6 +171,74 @@ export function projectStatisticScalarFields(
   return projectStatisticScalarFieldsAt(statistics, parent, undefined);
 }
 
+interface StatisticTreeNode {
+  key: string;
+  value?: StatValue;
+  quantity?: string;
+  children: Map<string, StatisticTreeNode>;
+  scalarOrder?: number;
+  descendantOrder?: number;
+}
+
+function statisticTreeNode(key: string): StatisticTreeNode {
+  return { key, children: new Map() };
+}
+
+function statisticsFromTree(nodes: Iterable<StatisticTreeNode>): Statistic[] {
+  return [...nodes].flatMap(node => {
+    const statistics: Array<{ statistic: Statistic; order: number }> = [];
+    if (node.scalarOrder !== undefined) {
+      statistics.push({
+        statistic: {
+          key: node.key,
+          value: node.value ?? null,
+          ...(node.quantity !== undefined ? { quantity: node.quantity } : {}),
+        },
+        order: node.scalarOrder,
+      });
+    }
+    if (node.descendantOrder !== undefined) {
+      statistics.push({
+        statistic: {
+          key: node.key,
+          value: { kind: 'struct', fields: statisticsFromTree(node.children.values()) },
+        },
+        order: node.descendantOrder,
+      });
+    }
+    return statistics
+      .sort((left, right) => left.order - right.order)
+      .map(({ statistic }) => statistic);
+  });
+}
+
+/**
+ * Rebuilds producer-keyed inspection trees from canonical scalar field paths.
+ */
+export function reconstructStatisticsFromFields(fields: readonly StatisticField[]): Statistic[] {
+  const root = statisticTreeNode('');
+  fields.forEach((field, order) => {
+    let parent = root;
+    field.path.forEach(([key, occurrence], index) => {
+      const nodeId = JSON.stringify([key, occurrence]);
+      let node = parent.children.get(nodeId);
+      if (!node) {
+        node = statisticTreeNode(key);
+        parent.children.set(nodeId, node);
+      }
+      if (index === field.path.length - 1) {
+        node.value = field.value;
+        node.quantity = field.quantity;
+        node.scalarOrder = order;
+      } else {
+        node.descendantOrder = Math.min(node.descendantOrder ?? order, order);
+      }
+      parent = node;
+    });
+  });
+  return statisticsFromTree(root.children.values());
+}
+
 /** @deprecated Use projectStatisticScalarFields to make the projection policy explicit. */
 export function flattenStatistics(
   statistics: readonly Statistic[],

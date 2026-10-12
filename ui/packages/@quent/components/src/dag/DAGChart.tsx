@@ -48,7 +48,7 @@ import { calculateLayout, NODE_LAYOUT_WIDTH, NODE_LAYOUT_HEIGHT, FLOW_BAR_HEIGHT
 import type { DAGData } from '../services/query-plan/types';
 import { QueryPlanNode, type QueryPlanNodeData } from '../query-plan/QueryPlanNode';
 import { DAGLegend } from './DAGLegend';
-import { resolveSelectedOperatorsFromNodes } from './dagSelection';
+import { resolveSelectedOperatorsFromNodes, selectedOperatorDataFromNode } from './dagSelection';
 import { shouldDimEdgeFromInteraction } from './edgeOpacity';
 import { resolveDagHeatmap, resolveDagHighlightedNodeIds } from './dagInteraction';
 import {
@@ -58,7 +58,6 @@ import {
   toggleOperatorSelection,
   type NormalizedOperator,
   type StatisticField,
-  type SelectedOperatorGroupData,
   normalizeScaleValue,
 } from '@quent/utils';
 
@@ -294,27 +293,6 @@ interface DAGProps {
   operators?: readonly NormalizedOperator[];
 }
 
-function selectedOperatorDataFromFlowNode(
-  node: Node<QueryPlanNodeData>
-): SelectedOperatorGroupData {
-  return {
-    nodeId: node.id,
-    label: node.data.label,
-    operationType: node.data.operationType,
-    attributes: node.data.metadata?.rawNode?.attributes ?? [],
-    statistics: node.data.metadata?.aggregatedStatistics?.length
-      ? node.data.metadata.aggregatedStatistics
-      : (node.data.metadata?.operatorStatistics?.statistics ?? []),
-    relatedOperators: node.data.metadata?.relatedOperators?.map((operator, index) => ({
-      nodeId: operator.id,
-      label: operator.instance_name ?? operator.operator_type_name ?? 'Operator',
-      operationType: operator.operator_type_name?.toLowerCase() ?? 'operator',
-      attributes: operator.attributes,
-      statistics: node.data.metadata?.relatedOperatorStatistics?.[index]?.statistics ?? [],
-    })),
-  };
-}
-
 const FlowLayout = ({
   data,
   containerRef,
@@ -498,7 +476,12 @@ const FlowLayout = ({
           selectionId: node.id,
           label: node.data.label,
           operatorIds: getSelectionIds(node),
-          selectedData: selectedOperatorDataFromFlowNode(node),
+          selectedData: selectedOperatorDataFromNode({
+            id: node.id,
+            label: node.data.label,
+            type: node.data.operationType,
+            metadata: node.data.metadata,
+          }),
         });
       }
       onSelectionChange?.([...nextSelectedIds]);

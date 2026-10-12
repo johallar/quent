@@ -6,6 +6,7 @@ import {
   buildStatisticFieldPresentations,
   flattenStatistics,
   projectStatisticScalarFields,
+  reconstructStatisticsFromFields,
   resolveStatisticFieldPresentation,
   statisticFieldId,
   statisticFieldLabel,
@@ -106,7 +107,7 @@ describe('statistic fields', () => {
       { key: name, value: 1 },
       { key: name, value: { kind: 'struct', fields: [{ key: name, value: 2 }] } },
     ]);
-    expect(fields.map(statisticFieldName)).toEqual([name, name]);
+    expect(fields.map(field => statisticFieldName(field))).toEqual([name, name]);
     expect(fields[1].path).toEqual([
       [name, 1],
       [name, 0],
@@ -217,5 +218,59 @@ describe('statistic fields', () => {
       },
     ]);
     expect(flattenStatistics(statistics)).toEqual(fields);
+  });
+
+  it('reconstructs nested and repeated producer keys from explicit paths', () => {
+    const statistics = [
+      {
+        key: 'profile',
+        value: {
+          kind: 'struct' as const,
+          fields: [
+            { key: 'rows', value: 3, quantity: 'rows' },
+            { key: 'rows', value: 5, quantity: 'rows' },
+          ],
+        },
+      },
+      { key: 'profile', value: 7, quantity: 'items' },
+    ];
+
+    expect(reconstructStatisticsFromFields(projectStatisticScalarFields(statistics))).toEqual(
+      statistics
+    );
+  });
+
+  it('keeps scalar and descendant values when schemas conflict at one path', () => {
+    const scalarPath = [['profile', 0]] as const;
+    const descendantPath = [
+      ['profile', 0],
+      ['rows', 0],
+    ] as const;
+
+    expect(
+      reconstructStatisticsFromFields([
+        {
+          id: statisticFieldId(scalarPath),
+          path: scalarPath,
+          value: 2,
+          quantity: 'profiles',
+        },
+        {
+          id: statisticFieldId(descendantPath),
+          path: descendantPath,
+          value: 11,
+          quantity: 'rows',
+        },
+      ])
+    ).toEqual([
+      { key: 'profile', value: 2, quantity: 'profiles' },
+      {
+        key: 'profile',
+        value: {
+          kind: 'struct',
+          fields: [{ key: 'rows', value: 11, quantity: 'rows' }],
+        },
+      },
+    ]);
   });
 });

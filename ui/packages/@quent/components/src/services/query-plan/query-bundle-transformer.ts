@@ -7,7 +7,7 @@ import {
   buildRelatedOperatorIdsById,
   DEFAULT_STATISTIC_AGGREGATION_MODE,
   operatorWorkerLabel,
-  statisticFieldLabel,
+  reconstructStatisticsFromFields,
   workerDisplayName,
   Plan,
   PlanTree,
@@ -34,19 +34,11 @@ function sumStatisticSets(statisticSets: readonly StatisticSet[]): Statistic[] {
       buckets.set(field.id, bucket);
     }
   }
-  return [...buckets.values()].flatMap(fields => {
+  const aggregatedFields = [...buckets.values()].flatMap(fields => {
     const field = aggregateStatisticFields(fields, DEFAULT_STATISTIC_AGGREGATION_MODE);
-    if (!field) {
-      return [];
-    }
-    return [
-      {
-        key: statisticFieldLabel(field),
-        value: field.value,
-        ...(field.quantity !== undefined ? { quantity: field.quantity } : {}),
-      },
-    ];
+    return field ? [field] : [];
   });
+  return reconstructStatisticsFromFields(aggregatedFields);
 }
 
 /**

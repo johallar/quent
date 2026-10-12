@@ -12,7 +12,18 @@ const NODES: DAGNode[] = [
     type: 'join',
     metadata: {
       relatedOperatorIds: ['physical-1', 'physical-2'],
-      aggregatedStatistics: [{ key: 'rows', value: 30 }],
+      aggregatedStatistics: [
+        {
+          key: 'profile',
+          value: {
+            kind: 'struct',
+            fields: [
+              { key: 'rows', value: 10, quantity: 'rows' },
+              { key: 'rows', value: 20, quantity: 'rows' },
+            ],
+          },
+        },
+      ],
     },
   },
   {
@@ -41,7 +52,18 @@ describe('resolveSelectedOperatorsFromNodes', () => {
         operatorIds: new Set(['other']),
       },
     ]);
-    expect(resolved.selections[0].selectedData.statistics).toEqual([{ key: 'rows', value: 30 }]);
+    expect(resolved.selections[0].selectedData.statistics).toEqual([
+      {
+        key: 'profile',
+        value: {
+          kind: 'struct',
+          fields: [
+            { key: 'rows', value: 10, quantity: 'rows' },
+            { key: 'rows', value: 20, quantity: 'rows' },
+          ],
+        },
+      },
+    ]);
     expect(resolved.unresolvedOperatorIds).toEqual(new Set());
   });
 

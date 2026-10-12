@@ -100,6 +100,14 @@ function normalizeOperatorStatistics(raw: {
   };
 }
 
+function operatorStatisticSet(statistics: Statistic[]): NormalizedOperator['statistics'] {
+  return {
+    custom_statistics: [],
+    statistics,
+    fields: projectStatisticScalarFields(statistics),
+  };
+}
+
 function normalizePortStatistics(raw: {
   custom_statistics: Array<{ key: string; value: unknown }>;
 }): NormalizedPort['statistics'] {
@@ -718,6 +726,77 @@ describe('getPlanDAG', () => {
     expect(logicalNodeWithOwnStats?.metadata?.aggregatedStatistics).toEqual([]);
     expect(logicalNodeWithOwnStats?.metadata?.operatorStatistics?.statistics).toEqual([
       { key: 'rows', value: 2, quantity: 'rows' },
+    ]);
+  });
+
+  it('rebuilds nested repeated aggregates and omits only quantity-conflicted fields', () => {
+    const logical = makeOperator('logical', { planId: 'logical-plan' });
+    const sibling = makeOperator('sibling', { planId: 'logical-plan' });
+    const physicalA = makeOperator('physical-a', {
+      planId: 'physical-plan',
+      parentOperatorIds: ['logical'],
+    });
+    const physicalB = makeOperator('physical-b', {
+      planId: 'physical-plan',
+      parentOperatorIds: ['logical'],
+    });
+    physicalA.statistics = operatorStatisticSet([
+      {
+        key: 'profile',
+        value: {
+          kind: 'struct',
+          fields: [
+            { key: 'rows', value: 1, quantity: 'rows' },
+            { key: 'rows', value: 10, quantity: 'rows' },
+            { key: 'rows', value: 100, quantity: 'rows' },
+          ],
+        },
+      },
+    ]);
+    physicalB.statistics = operatorStatisticSet([
+      {
+        key: 'profile',
+        value: {
+          kind: 'struct',
+          fields: [
+            { key: 'rows', value: 2, quantity: 'rows' },
+            { key: 'rows', value: 20, quantity: 'rows' },
+            { key: 'rows', value: 200, quantity: 'bytes' },
+          ],
+        },
+      },
+    ]);
+    const bundle = makeBundle(
+      {
+        'logical-plan': makePlan('logical-plan', {
+          edges: [{ source: 'logical-port', target: 'sibling-port' }],
+        }),
+        'physical-plan': makePlan('physical-plan'),
+      },
+      {
+        operators: { logical, sibling, 'physical-a': physicalA, 'physical-b': physicalB },
+        ports: {
+          'logical-port': makePort('logical-port', 'logical'),
+          'sibling-port': makePort('sibling-port', 'sibling'),
+        },
+      }
+    );
+
+    const logicalNode = getPlanDAG(bundle, 'logical-plan').nodes.find(
+      node => node.id === 'logical'
+    );
+
+    expect(logicalNode?.metadata?.aggregatedStatistics).toEqual([
+      {
+        key: 'profile',
+        value: {
+          kind: 'struct',
+          fields: [
+            { key: 'rows', value: 3, quantity: 'rows' },
+            { key: 'rows', value: 30, quantity: 'rows' },
+          ],
+        },
+      },
     ]);
   });
 

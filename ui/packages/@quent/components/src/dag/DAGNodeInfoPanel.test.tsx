@@ -74,6 +74,38 @@ function SameNameOnDifferentWorkers() {
   return <DAGNodeInfoPanel />;
 }
 
+function NestedStatistics() {
+  const updateOperatorSelection = useOperatorSelectionActions();
+
+  useEffect(() => {
+    updateOperatorSelection({
+      type: 'add',
+      selectionId: 'logical',
+      label: 'Logical join',
+      operatorIds: ['logical'],
+      selectedData: {
+        nodeId: 'logical',
+        label: 'Logical join',
+        operationType: 'logicaljoin',
+        statistics: [
+          {
+            key: 'profile',
+            value: {
+              kind: 'struct',
+              fields: [
+                { key: 'rows', value: 10, quantity: 'rows' },
+                { key: 'rows', value: 20, quantity: 'rows' },
+              ],
+            },
+          },
+        ],
+      },
+    });
+  }, [updateOperatorSelection]);
+
+  return <DAGNodeInfoPanel />;
+}
+
 function SwitchSelectedNode() {
   const [showLogical, setShowLogical] = useState(true);
   const updateOperatorSelection = useOperatorSelectionActions();
@@ -197,6 +229,19 @@ describe('DAGNodeInfoPanel', () => {
     expect(bars.find(bar => bar.getAttribute('data-operation-type') === 'hashprobe')).toHaveStyle({
       backgroundColor: getDeterministicColor('hashprobe'),
     });
+  });
+
+  it('renders nested repeated aggregate fields with producer keys', async () => {
+    render(
+      <Provider>
+        <NestedStatistics />
+      </Provider>
+    );
+
+    await screen.findByTestId('operator-accordion-logical');
+    expect(screen.getByRole('heading', { name: 'profile' })).toBeInTheDocument();
+    expect(screen.getAllByText('rows:')).toHaveLength(2);
+    expect(screen.queryByText(/profile › rows/u)).not.toBeInTheDocument();
   });
 
   it('shows statistics for every selected operator', async () => {
