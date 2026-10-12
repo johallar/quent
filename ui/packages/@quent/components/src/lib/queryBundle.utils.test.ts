@@ -215,7 +215,7 @@ describe('resolveStatisticFields', () => {
     ).toMatchObject({ id: 'bytes', value: 30, quantity: 'bytes' });
   });
 
-  it('omits the quantity when related statistics disagree', () => {
+  it('rejects related statistics when quantities disagree', () => {
     expect(
       resolveStatisticFields(
         [],
@@ -225,17 +225,21 @@ describe('resolveStatisticFields', () => {
         ],
         'size'
       )
-    ).toMatchObject({ id: 'size', value: 30 });
+    ).toBeUndefined();
+  });
+
+  it('uses the requested shared aggregation mode', () => {
     expect(
       resolveStatisticFields(
         [],
         [
-          operatorFields(makeQuantifiedOperator('size', 10, 'bytes')),
-          operatorFields(makeQuantifiedOperator('size', 20, 'rows')),
+          operatorFields(makeQuantifiedOperator('bytes', 10, 'bytes')),
+          operatorFields(makeQuantifiedOperator('bytes', 20, 'bytes')),
         ],
-        'size'
-      )?.quantity
-    ).toBeUndefined();
+        'bytes',
+        'mean'
+      )
+    ).toMatchObject({ value: 15, quantity: 'bytes' });
   });
 });
 

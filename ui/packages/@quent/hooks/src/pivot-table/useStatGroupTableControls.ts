@@ -5,6 +5,11 @@ import { useCallback, useEffect, useId, useMemo, useRef } from 'react';
 import { useAtom } from 'jotai';
 import type { OnChangeFn, SortingState } from '@tanstack/react-table';
 import {
+  DEFAULT_STATISTIC_AGGREGATION_MODE,
+  normalizeStatisticAggregationMode,
+  type StatisticAggregationMode,
+} from '@quent/utils';
+import {
   indexOrderAtomFamily,
   enabledIndicesAtomFamily,
   selectedStatsAtomFamily,
@@ -12,7 +17,6 @@ import {
   aggModeAtomFamily,
   appliedDefaultKeyAtomFamily,
   sortingAtomFamily,
-  type AggMode,
 } from '../atoms/pivotTable';
 
 const EMPTY_SORTING: SortingState = [];
@@ -21,7 +25,7 @@ interface UseStatGroupTableControlsOptions<TIndexKey extends string, TRow = unkn
   baseIndexOrder: TIndexKey[];
   defaultEnabled: Record<TIndexKey, boolean>;
   allStatNames: string[];
-  defaultAggMode?: AggMode;
+  defaultAggMode?: StatisticAggregationMode;
   defaultStatSelector?: (allStats: string[]) => string[] | null;
   filterIndexOrder?: (indexOrder: TIndexKey[]) => TIndexKey[];
   /**
@@ -48,7 +52,7 @@ export function useStatGroupTableControls<TIndexKey extends string, TRow = unkno
   baseIndexOrder,
   defaultEnabled,
   allStatNames,
-  defaultAggMode = 'sum',
+  defaultAggMode = DEFAULT_STATISTIC_AGGREGATION_MODE,
   defaultStatSelector,
   filterIndexOrder,
   persistKey,
@@ -68,7 +72,7 @@ export function useStatGroupTableControls<TIndexKey extends string, TRow = unkno
 
   const indexOrder = (indexOrderRaw as TIndexKey[] | null) ?? baseIndexOrder;
   const enabledIndices = (enabledIndicesRaw as Record<TIndexKey, boolean> | null) ?? defaultEnabled;
-  const aggMode = aggModeRaw ?? defaultAggMode;
+  const aggMode = normalizeStatisticAggregationMode(aggModeRaw, defaultAggMode);
   const sorting = sortingRaw ?? EMPTY_SORTING;
 
   const setSorting = useCallback<OnChangeFn<SortingState>>(

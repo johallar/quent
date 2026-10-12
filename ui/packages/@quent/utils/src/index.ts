@@ -134,10 +134,28 @@ export {
   toggleOperatorSelection,
 } from './operatorHierarchy';
 
-export { AGG_MODES } from './aggMode';
-export type { AggMode } from './aggMode';
-export { aggregateNumericValues, aggregateToNumber, getAggregateValue } from './statAggregation';
-export type { NumericAggregates } from './statAggregation';
+export {
+  AGG_MODES,
+  DEFAULT_STATISTIC_AGGREGATION_MODE,
+  STATISTIC_AGGREGATION_MODES,
+  normalizeStatisticAggregationMode,
+} from './aggMode';
+export type { AggMode, StatisticAggregationMode } from './aggMode';
+export {
+  aggregateNumericValues,
+  aggregateStatisticFields,
+  aggregateStatisticFieldValues,
+  aggregateToNumber,
+  getAggregateValue,
+  haveConsistentStatisticQuantities,
+  isNumericStatisticValue,
+  selectStatisticAggregate,
+} from './statAggregation';
+export type {
+  NumericAggregates,
+  NumericStatisticValue,
+  StatisticFieldAggregates,
+} from './statAggregation';
 
 // Operator timeline row ID utilities
 export const OPERATOR_TIMELINE_ROW_TYPE = 'operator-timeline';

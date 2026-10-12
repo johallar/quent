@@ -2,12 +2,19 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import {
-  aggregateNumericValues,
+  aggregateStatisticFieldValues,
   formatStatisticValue,
-  getAggregateValue,
+  isNumericStatisticValue,
   isNumericValue,
+  selectStatisticAggregate,
 } from '@quent/utils';
-import type { StatValue, StatisticField, QuantitySpec, ContinuousPaletteName } from '@quent/utils';
+import type {
+  StatValue,
+  StatisticAggregationMode,
+  StatisticField,
+  QuantitySpec,
+  ContinuousPaletteName,
+} from '@quent/utils';
 import { scaleColor, type ScaleRange, type ScaleType } from '@quent/utils';
 import type { GroupedDataTableSortFn } from './GroupedDataTable';
 
@@ -19,7 +26,6 @@ import type {
   GroupKeyEntry,
   PivotedRow,
   PivotedRowAgg,
-  AggMode,
   PivotedStatTableSchema,
 } from './types';
 
@@ -91,7 +97,7 @@ export function getNumericCellValue(
   if (statistics?.length !== 1) {
     return null;
   }
-  return isNumericValue(statistics[0].value) ? statistics[0].value : null;
+  return isNumericStatisticValue(statistics[0].value) ? statistics[0].value : null;
 }
 
 // --- color gradient ---
@@ -217,7 +223,7 @@ export function getSortValue(
   row: PivotedRow,
   stat: string,
   isAgg: boolean,
-  aggMode: AggMode
+  aggMode: StatisticAggregationMode
 ): number | bigint | null {
   if (!isAgg) {
     return getNumericCellValue(row.values.get(stat));
@@ -226,7 +232,7 @@ export function getSortValue(
   if (!agg || !agg.isNumeric) {
     return null;
   }
-  return getAggregateValue(agg, aggMode);
+  return selectStatisticAggregate(agg, aggMode);
 }
 
 type Accumulator = {
@@ -236,11 +242,8 @@ type Accumulator = {
   aggBuckets: Map<
     string,
     {
-      nums: number[];
-      bigints: bigint[];
-      count: number;
+      fields: Array<Pick<StatisticField, 'value' | 'quantity'>>;
       itemIds: Set<string>;
-      quantities: Set<string | undefined>;
       repeated: boolean;
     }
   >;
@@ -308,24 +311,18 @@ export function buildPivotedRows(
       let bucket = group.aggBuckets.get(row.statisticName);
       if (!bucket) {
         bucket = {
-          nums: [],
-          bigints: [],
-          count: 0,
+          fields: [],
           itemIds: new Set(),
-          quantities: new Set(),
           repeated: false,
         };
         group.aggBuckets.set(row.statisticName, bucket);
       }
       bucket.repeated ||= bucket.itemIds.has(row.itemId);
       bucket.itemIds.add(row.itemId);
-      bucket.quantities.add(row.quantity);
-      bucket.count++;
-      if (typeof row.value === 'bigint') {
-        bucket.bigints.push(row.value);
-      } else if (typeof row.value === 'number') {
-        bucket.nums.push(row.value);
-      }
+      bucket.fields.push({
+        value: row.value,
+        ...(row.quantity !== undefined ? { quantity: row.quantity } : {}),
+      });
     }
   }
 
@@ -334,21 +331,16 @@ export function buildPivotedRows(
     const aggs = new Map<string, PivotedRowAgg>();
     if (isAggregating) {
       for (const [stat, bucket] of group.aggBuckets) {
-        const aggregates =
-          !bucket.repeated && bucket.quantities.size === 1
-            ? aggregateNumericValues([...bucket.nums, ...bucket.bigints])
-            : null;
+        const aggregates = bucket.repeated ? null : aggregateStatisticFieldValues(bucket.fields);
         aggs.set(stat, {
           sum: aggregates?.sum ?? null,
           mean: aggregates?.mean ?? null,
           min: aggregates?.min ?? null,
           max: aggregates?.max ?? null,
           stdev: aggregates?.stdev ?? null,
-          count: bucket.count,
+          count: bucket.fields.length,
           isNumeric: aggregates !== null,
-          ...(bucket.quantities.size === 1 && bucket.quantities.has(undefined) === false
-            ? { quantity: [...bucket.quantities][0] }
-            : {}),
+          ...(aggregates?.quantity !== undefined ? { quantity: aggregates.quantity } : {}),
         });
       }
     }

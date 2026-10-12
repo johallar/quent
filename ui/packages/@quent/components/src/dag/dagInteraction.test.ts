@@ -16,13 +16,16 @@ const NODES: DAGNode[] = [
   },
 ];
 
-function hoveredStat(values: Record<string, number>): HoveredStatInfo {
+function hoveredStat(
+  values: Record<string, number>,
+  aggMode: HoveredStatInfo['aggMode'] = 'sum'
+): HoveredStatInfo {
   return {
     name: statisticFieldId([['duration_s', 0]]),
     values: new Map(Object.entries(values)),
     min: 0,
     max: 100,
-    aggMode: 'sum',
+    aggMode,
   };
 }
 
@@ -41,6 +44,11 @@ describe('resolveDagHeatmap', () => {
 
   it('returns null when the hovered stat has no value in this DAG', () => {
     expect(resolveDagHeatmap(hoveredStat({ unrelated: 1 }), NODES)).toBeNull();
+  });
+
+  it('uses the hovered column aggregation mode for grouped nodes', () => {
+    const heatmap = resolveDagHeatmap(hoveredStat({ plain: 1, a: 4, b: 8 }, 'mean'), NODES);
+    expect(heatmap?.values.get('grouped')).toBe(6);
   });
 });
 

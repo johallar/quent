@@ -8,6 +8,7 @@
 import type { PrefixSystem, QuantitySpec, CapacityKind } from './types/index';
 import { isStatStruct, type StatValue } from './dagTypes';
 import { resolveStatisticFieldPresentation, type StatisticField } from './statisticFields';
+import { isNumericStatisticValue } from './statAggregation';
 
 const MS_PER_SECOND = 1000;
 const MS_PER_MINUTE = 60 * MS_PER_SECOND;
@@ -316,7 +317,7 @@ export function isBytesStat(name: string): boolean {
 }
 
 export function isNumericValue(v: StatValue): v is number | bigint {
-  return typeof v === 'number' || typeof v === 'bigint';
+  return isNumericStatisticValue(v);
 }
 
 function isAttribute(value: unknown): value is { key: string; value: unknown } {

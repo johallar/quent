@@ -13,7 +13,7 @@ import type {
   DagLayoutDirection,
   ScaleType,
   SelectedOperatorGroupData,
-  AggMode,
+  StatisticAggregationMode,
   StatisticFieldId,
 } from '@quent/utils';
 import { NODE_LABEL_FIELD, DAG_LAYOUT_DIRECTION, SCALE_TYPE } from '@quent/utils';
@@ -31,7 +31,7 @@ export interface HoveredStatInfo {
   min: number;
   max: number;
   /** How to combine related items' values for a node with no entry of its own. */
-  aggMode: AggMode;
+  aggMode: StatisticAggregationMode;
 }
 
 export interface HighlightedNodeIdsState {

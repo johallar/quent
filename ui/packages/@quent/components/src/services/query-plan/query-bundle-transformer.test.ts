@@ -701,6 +701,14 @@ describe('getPlanDAG', () => {
       { key: 'rows', value: 10, quantity: 'rows' },
     ]);
 
+    physicalB.statistics = normalizeOperatorStatistics({
+      custom_statistics: [{ value: { key: 'rows', value: 6 }, quantity: 'bytes' }],
+    });
+    const logicalNodeWithConflictingQuantity = getPlanDAG(bundle, 'logical-plan').nodes.find(
+      node => node.id === 'logical'
+    );
+    expect(logicalNodeWithConflictingQuantity?.metadata?.aggregatedStatistics).toEqual([]);
+
     logical.statistics = normalizeOperatorStatistics({
       custom_statistics: [{ value: { key: 'rows', value: 2 }, quantity: 'rows' }],
     });

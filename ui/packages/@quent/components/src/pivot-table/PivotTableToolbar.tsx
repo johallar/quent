@@ -2,11 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { useCallback, useMemo } from 'react';
-import { cn, AGG_MODES } from '@quent/utils';
+import { cn, STATISTIC_AGGREGATION_MODES, type StatisticAggregationMode } from '@quent/utils';
 import { useColumnDragDrop } from '@quent/hooks';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import { OptionMultiSelect } from '../ui/option-multi-select';
-import type { AggMode } from './types';
 
 export interface IndexConfigEntry {
   key: string;
@@ -17,12 +16,12 @@ export interface IndexConfigEntry {
 export interface PivotTableToolbarProps {
   indexConfig: IndexConfigEntry[];
   isAggregating: boolean;
-  aggMode: AggMode;
+  aggMode: StatisticAggregationMode;
   orderedStats: string[];
   selectedStats: Set<string> | null;
   onToggleIndex: (key: string) => void;
   onReorderIndex: (fromKey: string, toKey: string) => void;
-  onSetAggMode: (mode: AggMode) => void;
+  onSetAggMode: (mode: StatisticAggregationMode) => void;
   onToggleStat: (stat: string) => void;
   onSelectAllStats: () => void;
   onSelectNoStats: () => void;
@@ -124,7 +123,7 @@ export function PivotTableToolbar({
           <span className="text-xs text-muted-foreground shrink-0">Aggregate:</span>
           <Select
             value={isAggregating ? aggMode : '--'}
-            onValueChange={value => onSetAggMode(value as AggMode)}
+            onValueChange={value => onSetAggMode(value as StatisticAggregationMode)}
             disabled={!isAggregating}
           >
             <SelectTrigger className="h-7 w-[110px] rounded border border-input px-2 py-0 text-xs">
@@ -136,7 +135,7 @@ export function PivotTableToolbar({
                   --
                 </SelectItem>
               )}
-              {AGG_MODES.filter(mode => mode !== 'value').map(mode => (
+              {STATISTIC_AGGREGATION_MODES.map(mode => (
                 <SelectItem key={mode} value={mode} className="text-xs">
                   {mode}
                 </SelectItem>

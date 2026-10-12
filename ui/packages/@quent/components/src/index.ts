@@ -269,6 +269,7 @@ export { PivotTableToolbar } from './pivot-table/PivotTableToolbar';
 export type { IndexConfigEntry, PivotTableToolbarProps } from './pivot-table/PivotTableToolbar';
 export type {
   AggMode,
+  StatisticAggregationMode,
   HoveredStatInfo,
   GroupedDataTableRowBase,
   GroupedDataTableSortInfo,

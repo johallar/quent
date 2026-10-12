@@ -7,9 +7,9 @@
 import { atom } from 'jotai';
 import { atomFamily } from 'jotai-family';
 import type { SortingState } from '@tanstack/react-table';
-import type { AggMode } from '@quent/utils';
+import type { AggMode, StatisticAggregationMode } from '@quent/utils';
 
-export type { AggMode };
+export type { AggMode, StatisticAggregationMode };
 
 /**
  * Per-pivot-table controls state, keyed by a stable `persistKey` string.
@@ -25,6 +25,6 @@ export const enabledIndicesAtomFamily = atomFamily(() =>
 );
 export const selectedStatsAtomFamily = atomFamily(() => atom<Set<string> | null>(null));
 export const statOrderAtomFamily = atomFamily(() => atom<string[] | null>(null));
-export const aggModeAtomFamily = atomFamily(() => atom<AggMode | null>(null));
+export const aggModeAtomFamily = atomFamily(() => atom<StatisticAggregationMode | null>(null));
 export const appliedDefaultKeyAtomFamily = atomFamily(() => atom<string | null>(null));
 export const sortingAtomFamily = atomFamily(() => atom<SortingState | null>(null));

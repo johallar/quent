@@ -3,9 +3,9 @@
 
 import type { DAGNode, DAGEdge, QueryPlanDataItem } from './types';
 import {
-  aggregateNumericValues,
+  aggregateStatisticFields,
   buildRelatedOperatorIdsById,
-  isNumericValue,
+  DEFAULT_STATISTIC_AGGREGATION_MODE,
   operatorWorkerLabel,
   statisticFieldLabel,
   workerDisplayName,
@@ -26,33 +26,24 @@ interface PlanTreeNode extends PlanTree {
 }
 
 function sumStatisticSets(statisticSets: readonly StatisticSet[]): Statistic[] {
-  const buckets = new Map<
-    string,
-    { field: StatisticField; values: Array<number | bigint>; fields: StatisticField[] }
-  >();
+  const buckets = new Map<string, StatisticField[]>();
   for (const statisticSet of statisticSets) {
     for (const field of statisticSet.fields) {
-      if (!isNumericValue(field.value)) {
-        continue;
-      }
-      const bucket = buckets.get(field.id) ?? { field, values: [], fields: [] };
-      bucket.values.push(field.value);
-      bucket.fields.push(field);
+      const bucket = buckets.get(field.id) ?? [];
+      bucket.push(field);
       buckets.set(field.id, bucket);
     }
   }
-  return [...buckets.values()].flatMap(({ field, values, fields }) => {
-    const sum = aggregateNumericValues(values)?.sum;
-    if (sum == null) {
+  return [...buckets.values()].flatMap(fields => {
+    const field = aggregateStatisticFields(fields, DEFAULT_STATISTIC_AGGREGATION_MODE);
+    if (!field) {
       return [];
     }
-    const quantity = fields[0].quantity;
-    const hasConsistentQuantity = fields.every(candidate => candidate.quantity === quantity);
     return [
       {
         key: statisticFieldLabel(field),
-        value: sum,
-        ...(hasConsistentQuantity && quantity !== undefined ? { quantity } : {}),
+        value: field.value,
+        ...(field.quantity !== undefined ? { quantity: field.quantity } : {}),
       },
     ];
   });

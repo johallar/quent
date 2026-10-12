@@ -9,7 +9,8 @@ function expanded(
   groups: Record<string, { id: string; label?: string }>,
   itemId: string,
   statisticName: string,
-  value: number | bigint | string | null
+  value: number | bigint | string | null,
+  quantity?: string
 ): StatGroupExpandedRow {
   const normalized: Record<string, { id: string; label: string }> = {};
   for (const [k, v] of Object.entries(groups)) {
@@ -22,6 +23,7 @@ function expanded(
     scopeId: groups.partition?.id ?? '-',
     statisticName,
     value,
+    ...(quantity !== undefined ? { quantity } : {}),
   };
 }
 
@@ -171,6 +173,23 @@ describe('buildPivotedRows row clustering', () => {
     expect(agg?.max).toBe(3000n);
     expect(agg?.count).toBe(2);
     expect(agg?.isNumeric).toBe(true);
+  });
+
+  it('rejects aggregation when values or quantities are incompatible', () => {
+    const groups = { brand: { id: 'Ford' }, fuel: { id: 'Hybrid' } };
+    const mixedValues = buildPivotedRows(
+      [expanded(groups, 'car-1', 'price', 1), expanded(groups, 'car-2', 'price', '2')],
+      [brandIdx, fuelIdx],
+      true
+    );
+    const mixedQuantities = buildPivotedRows(
+      [expanded(groups, 'car-1', 'size', 1, 'bytes'), expanded(groups, 'car-2', 'size', 2, 'rows')],
+      [brandIdx, fuelIdx],
+      true
+    );
+
+    expect(mixedValues[0]?.aggs.get('price')?.isNumeric).toBe(false);
+    expect(mixedQuantities[0]?.aggs.get('size')?.isNumeric).toBe(false);
   });
 
   it('preserves first-appearance order across both columns of the hierarchy', () => {

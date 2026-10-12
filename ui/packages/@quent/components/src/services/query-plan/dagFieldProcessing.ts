@@ -7,7 +7,7 @@ import {
   buildDeterministicColorMap,
   computeScaleRange,
   createDeterministicColorResolver,
-  isNumericValue,
+  isNumericStatisticValue,
 } from '@quent/utils';
 
 export function computeNodeColoring(nodes: DAGNode[], field: string | null): NodeColoring {
@@ -36,7 +36,7 @@ export function computeNodeColoring(nodes: DAGNode[], field: string | null): Nod
   }
 
   // handle potential bigints
-  if (entries.every(e => isNumericValue(e.value))) {
+  if (entries.every(e => isNumericStatisticValue(e.value))) {
     const nums = entries.map(e => Number(e.value));
     return {
       type: 'continuous',
@@ -72,7 +72,7 @@ export function computeEdgeColoring(edges: DAGEdge[], field: string | null): Edg
   }
 
   // handle potential bigints
-  if (entries.every(e => isNumericValue(e.value))) {
+  if (entries.every(e => isNumericStatisticValue(e.value))) {
     const nums = entries.map(e => Number(e.value));
     return {
       type: 'continuous',
@@ -101,7 +101,7 @@ export function computeEdgeWidthConfig(edges: DAGEdge[], field: string | null): 
     const stat = edge.statisticFields?.find(statistic => statistic.id === field);
     if (
       stat?.value == null ||
-      !isNumericValue(stat.value) ||
+      !isNumericStatisticValue(stat.value) ||
       !Number.isFinite(Number(stat.value)) ||
       Number(stat.value) < 0
     ) {

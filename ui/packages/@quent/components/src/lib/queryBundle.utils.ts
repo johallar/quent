@@ -2,10 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import {
-  aggregateToNumber,
-  isNumericValue,
+  aggregateStatisticFields,
+  DEFAULT_STATISTIC_AGGREGATION_MODE,
   unwrapTaggedValue,
-  type AggMode,
+  type StatisticAggregationMode,
   type EntityRefKey,
   type QueryEntities,
   type Operator,
@@ -57,7 +57,7 @@ export function resolveStatisticFields(
   ownFields: readonly StatisticField[],
   relatedFields: readonly (readonly StatisticField[])[],
   field: string,
-  aggMode: AggMode = 'sum'
+  aggMode: StatisticAggregationMode = DEFAULT_STATISTIC_AGGREGATION_MODE
 ): StatisticField | undefined {
   const own = ownFields.find(statistic => statistic.id === field);
   if (own?.value != null) {
@@ -65,24 +65,10 @@ export function resolveStatisticFields(
   }
 
   const related = relatedFields.flatMap(fields => {
-    const stat = fields.find(statistic => statistic.id === field);
-    return stat?.value != null && isNumericValue(stat.value) ? [stat] : [];
+    const statistic = fields.find(candidate => candidate.id === field);
+    return statistic ? [statistic] : [];
   });
-  const value = aggregateToNumber(
-    related.map(s => s.value as number | bigint),
-    aggMode
-  );
-  if (value === undefined || related.length === 0) {
-    return undefined;
-  }
-
-  const { quantity, ...base } = related[0];
-  const hasConsistentQuantity = related.every(stat => stat.quantity === quantity);
-  return {
-    ...base,
-    value,
-    ...(hasConsistentQuantity && quantity !== undefined ? { quantity } : {}),
-  };
+  return aggregateStatisticFields(related, aggMode);
 }
 
 /** @deprecated Query bundle consumers receive normalized port statistics. */

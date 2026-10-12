@@ -5,7 +5,9 @@ import { useCallback } from 'react';
 import { useStore } from 'jotai';
 import type { SortingState } from '@tanstack/react-table';
 import {
+  normalizeStatisticAggregationMode,
   resolveSelectedOperatorSelections,
+  type AggMode,
   type ContinuousPaletteName,
   type DagLayoutDirection,
   type ScaleType,
@@ -44,7 +46,6 @@ import {
   selectedStatsAtomFamily,
   sortingAtomFamily,
   statOrderAtomFamily,
-  type AggMode,
 } from '../atoms/pivotTable';
 
 export interface SerializableDagControls {
@@ -234,7 +235,10 @@ export function useSerializableViewState({
         store.set(statOrderAtomFamily(operatorTablePersistKey), table.visibleStats);
       }
       if (table?.aggregation !== undefined) {
-        store.set(aggModeAtomFamily(operatorTablePersistKey), table.aggregation);
+        store.set(
+          aggModeAtomFamily(operatorTablePersistKey),
+          normalizeStatisticAggregationMode(table.aggregation)
+        );
       }
       if (table?.sort !== undefined) {
         store.set(sortingAtomFamily(operatorTablePersistKey), table.sort);

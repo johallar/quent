@@ -8,12 +8,13 @@ import type {
   ContinuousPaletteName,
   QuantitySpec,
   ScaleType,
+  StatisticAggregationMode,
 } from '@quent/utils';
 import type { AggMode, HoveredStatInfo } from '@quent/hooks';
 
 // Re-exports of pivot-table-related types that originate in @quent/hooks but
 // are commonly imported alongside the table-specific types defined below.
-export type { AggMode, HoveredStatInfo } from '@quent/hooks';
+export type { AggMode, StatisticAggregationMode, HoveredStatInfo };
 
 /**
  * Minimal row contract for GroupedDataTable: group columns (with rowSpan) + rowKey for identity.
@@ -95,7 +96,7 @@ export interface PivotTableDnDConfig {
 
 export interface PivotTableDisplayConfig {
   isAggregating: boolean;
-  aggMode: AggMode;
+  aggMode: StatisticAggregationMode;
   colorPalette: ContinuousPaletteName;
   scaleType: ScaleType;
   darkMode: boolean;

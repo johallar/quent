@@ -7,12 +7,15 @@ import { GroupedDataTable } from './GroupedDataTable';
 import {
   cn,
   computeScaleRange,
+  DEFAULT_STATISTIC_AGGREGATION_MODE,
   formatStatisticValue,
+  isNumericStatisticValue,
   type ScaleRange,
+  type StatisticAggregationMode,
   type StatisticFieldId,
   type StatValue,
 } from '@quent/utils';
-import type { AggMode, PivotedRow, HoveredStatInfo, PivotedStatTableSchema } from './types';
+import type { PivotedRow, HoveredStatInfo, PivotedStatTableSchema } from './types';
 import type {
   DataHeaderProps,
   GroupCellProps,
@@ -243,7 +246,7 @@ interface PivotedStatTableProps<TRow> {
   activeIndices: string[];
   visibleStats?: string[];
   isAggregating?: boolean;
-  aggMode?: AggMode;
+  aggMode?: StatisticAggregationMode;
   indexLabels?: Record<string, React.ReactNode>;
   /**
    * If true, rows with no value for any visible stat (e.g. an operator/plan
@@ -275,7 +278,7 @@ export function PivotedStatTable<TRow>({
   activeIndices,
   visibleStats,
   isAggregating = false,
-  aggMode = 'sum',
+  aggMode = DEFAULT_STATISTIC_AGGREGATION_MODE,
   indexLabels,
   hideEmptyRows = true,
   isDark = false,
@@ -351,7 +354,7 @@ export function PivotedStatTable<TRow>({
       // Repeated names have no single numeric value for hover linkage.
       items.set(
         row.itemId,
-        items.has(row.itemId) || typeof row.value !== 'number' ? null : row.value
+        items.has(row.itemId) || !isNumericStatisticValue(row.value) ? null : Number(row.value)
       );
     }
     return new Map(
@@ -383,7 +386,7 @@ export function PivotedStatTable<TRow>({
         values,
         min,
         max,
-        aggMode: isAggregating ? aggMode : 'sum',
+        aggMode: isAggregating ? aggMode : DEFAULT_STATISTIC_AGGREGATION_MODE,
       };
     },
     [statsByItem, isAggregating, aggMode]

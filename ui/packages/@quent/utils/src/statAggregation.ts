@@ -1,7 +1,14 @@
 // SPDX-FileCopyrightText: Copyright (c) 2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-import type { AggMode } from './aggMode';
+import {
+  normalizeStatisticAggregationMode,
+  type AggMode,
+  type StatisticAggregationMode,
+} from './aggMode';
+import type { StatisticField } from './statisticFields';
+
+export type NumericStatisticValue = number | bigint;
 
 export interface NumericAggregates {
   sum: number | bigint | null;
@@ -11,9 +18,24 @@ export interface NumericAggregates {
   stdev: number | null;
 }
 
+export interface StatisticFieldAggregates extends NumericAggregates {
+  quantity?: string;
+}
+
+export function isNumericStatisticValue(value: unknown): value is NumericStatisticValue {
+  return typeof value === 'number' || typeof value === 'bigint';
+}
+
+export function haveConsistentStatisticQuantities(
+  fields: readonly Pick<StatisticField, 'quantity'>[]
+): boolean {
+  const quantity = fields[0]?.quantity;
+  return fields.every(field => field.quantity === quantity);
+}
+
 /** Computes numeric aggregates, preserving bigint sum/min/max when every value is bigint. */
 export function aggregateNumericValues(
-  values: Iterable<number | bigint>
+  values: Iterable<NumericStatisticValue>
 ): NumericAggregates | null {
   const numbers: number[] = [];
   const bigints: bigint[] = [];
@@ -71,7 +93,7 @@ export function getAggregateValue(
   aggregates: NumericAggregates,
   mode: AggMode
 ): number | bigint | null {
-  switch (mode) {
+  switch (normalizeStatisticAggregationMode(mode)) {
     case 'mean':
       return aggregates.mean;
     case 'min':
@@ -81,10 +103,64 @@ export function getAggregateValue(
     case 'stdev':
       return aggregates.stdev;
     case 'sum':
-    case 'value':
     default:
       return aggregates.sum;
   }
+}
+
+/** Selects one aggregate using a canonical runtime mode. */
+export function selectStatisticAggregate(
+  aggregates: NumericAggregates,
+  mode: StatisticAggregationMode
+): NumericStatisticValue | null {
+  return getAggregateValue(aggregates, mode);
+}
+
+/**
+ * Aggregates fields only when every value is numeric and every quantity agrees.
+ */
+export function aggregateStatisticFieldValues(
+  fields: readonly Pick<StatisticField, 'value' | 'quantity'>[]
+): StatisticFieldAggregates | null {
+  if (
+    fields.length === 0 ||
+    !fields.every(field => isNumericStatisticValue(field.value)) ||
+    !haveConsistentStatisticQuantities(fields)
+  ) {
+    return null;
+  }
+  const aggregates = aggregateNumericValues(
+    fields.map(field => field.value as NumericStatisticValue)
+  );
+  if (!aggregates) {
+    return null;
+  }
+  const quantity = fields[0]?.quantity;
+  return {
+    ...aggregates,
+    ...(quantity !== undefined ? { quantity } : {}),
+  };
+}
+
+/** Aggregates compatible fields while preserving the first field's identity and quantity. */
+export function aggregateStatisticFields(
+  fields: readonly StatisticField[],
+  mode: StatisticAggregationMode
+): StatisticField | undefined {
+  const aggregates = aggregateStatisticFieldValues(fields);
+  if (!aggregates) {
+    return undefined;
+  }
+  const value = selectStatisticAggregate(aggregates, mode);
+  if (value === null) {
+    return undefined;
+  }
+  const { quantity: _quantity, ...field } = fields[0];
+  return {
+    ...field,
+    value,
+    ...(aggregates.quantity !== undefined ? { quantity: aggregates.quantity } : {}),
+  };
 }
 
 /**
@@ -93,7 +169,7 @@ export function getAggregateValue(
  * standard deviation of a single value).
  */
 export function aggregateToNumber(
-  values: Iterable<number | bigint>,
+  values: Iterable<NumericStatisticValue>,
   mode: AggMode
 ): number | undefined {
   const aggregates = aggregateNumericValues(values);

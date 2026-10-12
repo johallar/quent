@@ -155,4 +155,4 @@ export type {
 export { useColumnDragDrop } from './pivot-table/useColumnDragDrop';
 export type { DropPosition } from './pivot-table/useColumnDragDrop';
 export { useStatGroupTableControls } from './pivot-table/useStatGroupTableControls';
-export type { AggMode } from './atoms/pivotTable';
+export type { AggMode, StatisticAggregationMode } from './atoms/pivotTable';

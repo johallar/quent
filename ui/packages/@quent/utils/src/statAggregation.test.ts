@@ -2,7 +2,71 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { describe, expect, it } from 'vitest';
-import { aggregateNumericValues, aggregateToNumber, getAggregateValue } from './statAggregation';
+import {
+  AGG_MODES,
+  DEFAULT_STATISTIC_AGGREGATION_MODE,
+  STATISTIC_AGGREGATION_MODES,
+  normalizeStatisticAggregationMode,
+} from './aggMode';
+import {
+  aggregateNumericValues,
+  aggregateStatisticFields,
+  aggregateStatisticFieldValues,
+  aggregateToNumber,
+  getAggregateValue,
+  isNumericStatisticValue,
+} from './statAggregation';
+import { statisticFieldId, type StatisticField } from './statisticFields';
+
+function field(value: StatisticField['value'], quantity?: string): StatisticField {
+  const path = [['rows', 0]] as const;
+  return {
+    id: statisticFieldId(path),
+    path,
+    value,
+    ...(quantity !== undefined ? { quantity } : {}),
+  };
+}
+
+describe('statistic aggregation modes', () => {
+  it('keeps serialized modes ordered while excluding legacy value from runtime modes', () => {
+    expect(AGG_MODES).toEqual(['value', 'sum', 'mean', 'min', 'max', 'stdev']);
+    expect(STATISTIC_AGGREGATION_MODES).toEqual(['sum', 'mean', 'min', 'max', 'stdev']);
+    expect(DEFAULT_STATISTIC_AGGREGATION_MODE).toBe('sum');
+  });
+
+  it('normalizes legacy value and absent modes to the current fallback', () => {
+    expect(normalizeStatisticAggregationMode('value')).toBe('sum');
+    expect(normalizeStatisticAggregationMode(undefined, 'max')).toBe('max');
+    expect(normalizeStatisticAggregationMode('mean')).toBe('mean');
+  });
+});
+
+describe('statistic field aggregation policy', () => {
+  it('recognizes only number and bigint values as numeric', () => {
+    expect(isNumericStatisticValue(1)).toBe(true);
+    expect(isNumericStatisticValue(1n)).toBe(true);
+    expect(isNumericStatisticValue('1')).toBe(false);
+    expect(isNumericStatisticValue(null)).toBe(false);
+  });
+
+  it('aggregates numeric fields with a consistent quantity', () => {
+    expect(aggregateStatisticFieldValues([field(2, 'rows'), field(4, 'rows')])).toMatchObject({
+      sum: 6,
+      mean: 3,
+      quantity: 'rows',
+    });
+    expect(aggregateStatisticFields([field(2, 'rows'), field(4, 'rows')], 'max')).toMatchObject({
+      value: 4,
+      quantity: 'rows',
+    });
+  });
+
+  it('rejects mixed value kinds and inconsistent quantities', () => {
+    expect(aggregateStatisticFieldValues([field(2), field('4')])).toBeNull();
+    expect(aggregateStatisticFieldValues([field(2, 'rows'), field(4, 'bytes')])).toBeNull();
+  });
+});
 
 describe('aggregateNumericValues', () => {
   it('computes number aggregates with sample standard deviation', () => {
