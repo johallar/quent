@@ -12,10 +12,10 @@ describe('TransitionAttributes', () => {
     render(
       <TransitionAttributes
         attributes={[
-          { key: 'operator_id', value: 'operator-1' },
-          { key: 'attempt', value: 2 },
+          { key: 'operator_id', value: { String: 'operator-1' } },
+          { key: 'attempt', value: { U32: 2 } },
         ]}
-        derivedAttributes={[{ key: 'output_bytes', value: 2048n }]}
+        derivedAttributes={[{ key: 'output_bytes', value: { U64: 2048n } }]}
         operatorLabel={operatorLabel}
       />
     );

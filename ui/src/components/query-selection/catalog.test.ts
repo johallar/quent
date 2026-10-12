@@ -16,14 +16,14 @@ const items: CatalogEntity[] = [
     id: 'query-1',
     instance_name: 'Scan orders',
     custom_attributes: [
-      { key: 'workload', value: 'nightly' },
-      { key: 'rows', value: 42 },
+      { key: 'workload', value: { String: 'nightly' } },
+      { key: 'rows', value: { U32: 42 } },
     ],
   },
   {
     id: 'query-2',
     instance_name: 'Aggregate sales',
-    custom_attributes: [{ key: 'workload', value: 'interactive' }],
+    custom_attributes: [{ key: 'workload', value: { String: 'interactive' } }],
   },
   {
     id: 'query-3',
@@ -57,7 +57,7 @@ describe('catalog helpers', () => {
       {
         id: 'query-present',
         instance_name: null,
-        custom_attributes: [{ key: 'workload', value: '__other__' }],
+        custom_attributes: [{ key: 'workload', value: { String: '__other__' } }],
       },
       {
         id: 'query-missing',

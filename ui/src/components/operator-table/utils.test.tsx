@@ -119,38 +119,59 @@ const structuredStatistics = {
     {
       value: {
         key: 'Execution profile',
-        value: [
-          {
-            key: 'Data volume',
-            value: [{ key: 'Input', value: [{ key: 'batches', value: 5 }] }],
-          },
-        ],
+        value: {
+          Struct: [
+            {
+              key: 'Data volume',
+              value: {
+                Struct: [
+                  {
+                    key: 'Input',
+                    value: { Struct: [{ key: 'batches', value: { U32: 5 } }] },
+                  },
+                ],
+              },
+            },
+          ],
+        },
       },
       quantity: null,
     },
     {
       value: {
         key: 'device',
-        value: [
-          { key: 'name', value: 'GPU' },
-          { key: 'count', value: 0 },
-          { key: 'count', value: 3 },
-          { key: 'details', value: [{ key: 'bytes', value: 2048n }] },
-        ],
+        value: {
+          Struct: [
+            { key: 'name', value: { String: 'GPU' } },
+            { key: 'count', value: { U32: 0 } },
+            { key: 'count', value: { U32: 3 } },
+            {
+              key: 'details',
+              value: { Struct: [{ key: 'bytes', value: { U64: 2048n } }] },
+            },
+          ],
+        },
       },
       quantity: null,
     },
     {
       value: {
         key: 'devices',
-        value: [[{ key: 'name', value: 'GPU' }], [{ key: 'name', value: ['CPU', 'Disk'] }]],
+        value: {
+          List: {
+            Struct: [
+              [{ key: 'name', value: { String: 'GPU' } }],
+              [{ key: 'name', value: { List: { String: ['CPU', 'Disk'] } } }],
+            ],
+          },
+        },
       },
       quantity: null,
     },
-    { value: { key: 'rows', value: 0 }, quantity: null },
-    { value: { key: 'rows', value: 7 }, quantity: null },
-    { value: { key: 'batches', value: 6 }, quantity: null },
-    { value: { key: 'input_bytes', value: 1024 }, quantity: 'bytes' },
+    { value: { key: 'rows', value: { U32: 0 } }, quantity: null },
+    { value: { key: 'rows', value: { U32: 7 } }, quantity: null },
+    { value: { key: 'batches', value: { U32: 6 } }, quantity: null },
+    { value: { key: 'input_bytes', value: { U32: 1024 } }, quantity: 'bytes' },
   ],
 } satisfies NonNullable<Operator['statistics']>;
 
@@ -203,9 +224,12 @@ describe('operator table structured statistics', () => {
     const rows = buildOperatorRows(
       makeEntities({
         custom_statistics: [
-          { value: { key: 'work', value: 1024n }, quantity: 'bytes' },
-          { value: { key: 'work', value: 2 }, quantity: 'seconds' },
-          { value: { key: 'sizes', value: [1024n, 2048n] }, quantity: 'bytes' },
+          { value: { key: 'work', value: { U64: 1024n } }, quantity: 'bytes' },
+          { value: { key: 'work', value: { U32: 2 } }, quantity: 'seconds' },
+          {
+            value: { key: 'sizes', value: { List: { U64: [1024n, 2048n] } } },
+            quantity: 'bytes',
+          },
         ],
       }),
       new Set(['plan'])
@@ -226,13 +250,13 @@ describe('operator table structured statistics', () => {
     ['bytes', 'seconds', '-'],
   ])('aggregates quantities %s and %s as %s', (first, second, expected) => {
     const entities = makeEntities({
-      custom_statistics: [{ value: { key: 'work', value: 1024 }, quantity: first }],
+      custom_statistics: [{ value: { key: 'work', value: { U32: 1024 } }, quantity: first }],
     });
     entities.operators.other = {
       ...entities.operators.scan,
       id: 'other',
       statistics: {
-        custom_statistics: [{ value: { key: 'work', value: 1024 }, quantity: second }],
+        custom_statistics: [{ value: { key: 'work', value: { U32: 1024 } }, quantity: second }],
       },
     };
     renderRows(buildOperatorRows(entities, new Set(['plan'])), true, []);

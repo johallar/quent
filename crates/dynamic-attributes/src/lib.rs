@@ -16,7 +16,7 @@ pub struct DynamicStruct(pub Vec<DynamicAttribute>);
 
 /// A sequence of [`DynamicValue`]s.
 #[cfg_attr(feature = "serde", derive(Deserialize, Serialize))]
-#[cfg_attr(feature = "ts", derive(TS), ts(untagged))]
+#[cfg_attr(feature = "ts", derive(TS))]
 #[derive(Clone, Debug, PartialEq)]
 pub enum DynamicList {
     U8(Vec<u8>),
@@ -36,7 +36,7 @@ pub enum DynamicList {
 
 /// A [`DynamicAttribute`] value.
 #[cfg_attr(feature = "serde", derive(Deserialize, Serialize))]
-#[cfg_attr(feature = "ts", derive(TS), ts(untagged))]
+#[cfg_attr(feature = "ts", derive(TS))]
 #[derive(Clone, Debug, PartialEq)]
 pub enum DynamicValue {
     U8(u8),
@@ -320,6 +320,42 @@ impl From<DynamicAttributes> for Vec<DynamicAttribute> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[cfg(feature = "serde")]
+    #[test]
+    fn values_serialize_as_externally_tagged_enums() {
+        let value = DynamicValue::Struct(DynamicStruct(vec![
+            DynamicAttribute::u64("count", 42),
+            DynamicAttribute::list(
+                "matrix",
+                DynamicList::List(vec![DynamicList::I32(vec![1, 2])]),
+            ),
+        ]));
+
+        assert_eq!(
+            serde_json::to_value(value).unwrap(),
+            serde_json::json!({
+                "Struct": [
+                    {"key": "count", "value": {"U64": 42}},
+                    {"key": "matrix", "value": {"List": {"List": [{"I32": [1, 2]}]}}}
+                ]
+            })
+        );
+    }
+
+    #[cfg(feature = "ts")]
+    #[test]
+    fn typescript_declarations_preserve_external_tags() {
+        let config = ts_rs::Config::default();
+        assert_eq!(
+            <DynamicValue as TS>::decl(&config),
+            "type DynamicValue = { \"U8\": number } | { \"U16\": number } | { \"U32\": number } | { \"U64\": bigint } | { \"I8\": number } | { \"I16\": number } | { \"I32\": number } | { \"I64\": bigint } | { \"F32\": number } | { \"F64\": number } | { \"String\": string } | { \"Struct\": DynamicStruct } | { \"List\": DynamicList };"
+        );
+        assert_eq!(
+            <DynamicList as TS>::decl(&config),
+            "type DynamicList = { \"U8\": Array<number> } | { \"U16\": Array<number> } | { \"U32\": Array<number> } | { \"U64\": Array<bigint> } | { \"I8\": Array<number> } | { \"I16\": Array<number> } | { \"I32\": Array<number> } | { \"I64\": Array<bigint> } | { \"F32\": Array<number> } | { \"F64\": Array<number> } | { \"String\": Array<string> } | { \"Struct\": Array<DynamicStruct> } | { \"List\": Array<DynamicList> };"
+        );
+    }
 
     #[test]
     fn nested_lists_are_supported() {

@@ -4,11 +4,6 @@
 import { describe, it, expect } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { EntityTooltipContent, TooltipContent, type ActiveMark } from './TimelineTooltip';
-import type { DynamicValue } from '@quent/utils';
-
-// The Rust `DynamicValue` enum serializes externally tagged. This is the shape the
-// server actually sends, even though the generated TS type is untagged.
-const tagged = (v: object) => v as unknown as DynamicValue;
 
 describe('TooltipContent active marks', () => {
   const series = [{ color: '#8884d8', name: 'computing', value: 1 }];
@@ -31,10 +26,10 @@ describe('TooltipContent active marks', () => {
         color: '#ff0000',
         durationMs: 750,
         attributes: [
-          { key: 'input_bytes', value: tagged({ U64: 1_500_000_000 }) },
-          { key: 'current_operator_id', value: tagged({ U32: 11 }) },
+          { key: 'input_bytes', value: { U64: 1_500_000_000n } },
+          { key: 'current_operator_id', value: { U32: 11 } },
         ],
-        derivedAttributes: [{ key: 'bytes_per_sec', value: tagged({ F64: 2_000_000_000 }) }],
+        derivedAttributes: [{ key: 'bytes_per_sec', value: { F64: 2_000_000_000 } }],
       },
     ]);
 
@@ -59,7 +54,7 @@ describe('TooltipContent active marks', () => {
         derivedAttributes: [
           {
             key: 'pipeline',
-            value: tagged({ String: 'GPU_SCAN(11) -> PROJECTION(6) -> HASH_GROUP_BY(8)' }),
+            value: { String: 'GPU_SCAN(11) -> PROJECTION(6) -> HASH_GROUP_BY(8)' },
           },
         ],
       },
@@ -83,7 +78,7 @@ describe('TooltipContent active marks', () => {
         label: 'Consolidated block',
         stateName: '8 ranges',
         color: '#0000ff',
-        attributes: [{ key: 'source domain ID', value: '172' }],
+        attributes: [{ key: 'source domain ID', value: { String: '172' } }],
         compact: true,
       },
     ]);

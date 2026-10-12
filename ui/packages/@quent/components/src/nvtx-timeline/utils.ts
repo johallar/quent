@@ -428,7 +428,7 @@ export function nvtxItemsAtTimestamp(
 }
 
 function stringAttr(key: string, value: string): DynamicAttribute {
-  return { key, value };
+  return { key, value: { String: value } };
 }
 
 function countLabel(count: number, singular: string, plural: string): string {

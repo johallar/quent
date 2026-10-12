@@ -159,22 +159,22 @@ describe('NVTX Gantt tooltip', () => {
     expect(tooltip.marks.map(mark => mark.stateName)).toEqual(['', '', '']);
     expect(tooltip.marks[0]?.attributes).toContainEqual({
       key: 'thread',
-      value: 'worker 42',
+      value: { String: 'worker 42' },
     });
     expect(tooltip.marks[0]?.attributes).toContainEqual({
       key: 'thread ID',
-      value: '42',
+      value: { String: '42' },
     });
     expect(tooltip.marks[0]?.attributes).toContainEqual({
       key: 'source domain ID',
-      value: '5',
+      value: { String: '5' },
     });
   });
 
   it('shows a mark raw-source diagnostic', () => {
     expect(nvtxTooltipModel([markDatum('checkpoint')]).marks[0]?.attributes).toContainEqual({
       key: 'source domain ID',
-      value: '5',
+      value: { String: '5' },
     });
   });
 
@@ -202,7 +202,7 @@ describe('NVTX Gantt tooltip', () => {
 
     for (const datum of [mergedRange, mergedMark]) {
       expect(nvtxTooltipModel([datum]).marks[0]?.attributes).toEqual([
-        { key: 'source domain ID', value: '5' },
+        { key: 'source domain ID', value: { String: '5' } },
       ]);
     }
   });
@@ -221,14 +221,14 @@ describe('NVTX Gantt tooltip', () => {
         label: 'type A',
         stateName: '3 ranges',
         color: '#76b900',
-        attributes: [{ key: 'source domain ID', value: '5' }],
+        attributes: [{ key: 'source domain ID', value: { String: '5' } }],
         compact: true,
       },
       {
         label: 'type B',
         stateName: '5 ranges',
         color: '#76b900',
-        attributes: [{ key: 'source domain ID', value: '5' }],
+        attributes: [{ key: 'source domain ID', value: { String: '5' } }],
         compact: true,
       },
     ]);
@@ -248,14 +248,14 @@ describe('NVTX Gantt tooltip', () => {
         label: 'type A',
         stateName: '3 marks',
         color: '#76b900',
-        attributes: [{ key: 'source domain ID', value: '5' }],
+        attributes: [{ key: 'source domain ID', value: { String: '5' } }],
         compact: true,
       },
       {
         label: 'type B',
         stateName: '5 marks',
         color: '#76b900',
-        attributes: [{ key: 'source domain ID', value: '5' }],
+        attributes: [{ key: 'source domain ID', value: { String: '5' } }],
         compact: true,
       },
     ]);

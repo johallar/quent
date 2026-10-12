@@ -12,3 +12,6 @@ ts = ["serde", "dep:ts-rs"]
 [dependencies]
 serde = { workspace = true, optional = true }
 ts-rs = {workspace = true, optional = true, features = ["uuid-impl", "serde-json-impl"] }
+
+[dev-dependencies]
+serde_json.workspace = true

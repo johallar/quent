@@ -147,7 +147,7 @@ describe('buildLongEntityEntries', () => {
   it('carries transition attributes onto segments', () => {
     const fsm = makeFsm('e1', [
       transition('a', 0, {
-        attributes: [{ key: 'bytes', value: { Int: 42 } } as unknown as never],
+        attributes: [{ key: 'bytes', value: { I32: 42 } }],
       }),
       transition('exit', 1),
     ]);
