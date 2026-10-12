@@ -78,13 +78,12 @@ vi.mock('@xyflow/react', async importOriginal => {
 const data: DAGData = {
   nodes: [],
   edges: [0, 3, 15, 63].map((value, index) => {
-    const portStats = [{ key: 'bytes', value, quantity: 'rows' }];
+    const sourceStatistics = [{ key: 'bytes', value, quantity: 'rows' }];
     return {
       id: `edge-${index}`,
       source: `node-${index}`,
       target: `node-${index + 1}`,
-      portStats,
-      statisticFields: flattenStatistics(portStats),
+      statisticFields: flattenStatistics(sourceStatistics),
     };
   }),
   queryData: [],

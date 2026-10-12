@@ -881,11 +881,13 @@ describe('getPlanDAG', () => {
   });
 });
 
-it('hydrates sending and receiving port evidence separately for parallel pipes', () => {
+it('carries only source fields while preserving source and target port metadata', () => {
   const source = makeOperator('op1');
   const target = makeOperator('op2');
   const port1 = makePort('port1', 'op1');
   const port2 = makePort('port2', 'op2');
+  port1.instance_name = 'sender';
+  port2.instance_name = 'receiver';
   port1.statistics = normalizePortStatistics({
     custom_statistics: [{ key: 'Volume', value: [{ key: 'bytes', value: 100 }] }],
   });
@@ -909,19 +911,20 @@ it('hydrates sending and receiving port evidence separately for parallel pipes',
     ['port1', 'port2'],
     ['port3', 'port4'],
   ]);
-  expect(edges[0].portStats).toEqual([
-    { key: 'Volume', value: { kind: 'struct', fields: [{ key: 'bytes', value: 100 }] } },
-  ]);
-  expect(edges[0].statisticFields).toMatchObject([
-    {
+  expect(edges[0]).toMatchObject({
+    sourcePortName: 'sender',
+    targetPortName: 'receiver',
+  });
+  expect(edges[0].statisticFields).toEqual([
+    expect.objectContaining({
       value: 100,
       path: [
         ['Volume', 0],
         ['bytes', 0],
       ],
-    },
+    }),
   ]);
-  expect(edges[0].targetPortStats).toEqual([
-    { key: 'Volume', value: { kind: 'struct', fields: [{ key: 'bytes', value: 80 }] } },
-  ]);
+  expect(edges[0]).not.toHaveProperty('portStats');
+  expect(edges[0]).not.toHaveProperty('targetPortStats');
+  expect(edges[0]).not.toHaveProperty('targetStatisticFields');
 });

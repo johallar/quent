@@ -226,10 +226,10 @@ export const getPlanDAG = (
       return operator ? ([[operatorId, operator.statistics]] as const) : [];
     })
   );
-  const portStatisticsById = new Map(
-    [...new Set(planTree.edges.flatMap(edge => [edge.source, edge.target]))].flatMap(portId => {
-      const port = bundle.entities.ports[portId];
-      return port ? ([[portId, port.statistics]] as const) : [];
+  const sourceStatisticFieldsByPortId = new Map(
+    [...new Set(planTree.edges.map(edge => edge.source))].flatMap(portId => {
+      const fields = bundle.entities.ports[portId]?.statistics.fields;
+      return fields ? ([[portId, fields]] as const) : [];
     })
   );
 
@@ -249,10 +249,9 @@ export const getPlanDAG = (
       operatorStatisticsById,
       nodeMap
     );
-    const sourceStatistics = portStatisticsById.get(edge.source);
-    const targetStatistics = portStatisticsById.get(edge.target);
+    const statisticFields = sourceStatisticFieldsByPortId.get(edge.source);
 
-    if (sourceNode && targetNode && sourceStatistics && targetStatistics) {
+    if (sourceNode && targetNode && statisticFields) {
       nodeMap.set(sourceNode.id, sourceNode);
       nodeMap.set(targetNode.id, targetNode);
       edges.push({
@@ -264,10 +263,7 @@ export const getPlanDAG = (
         targetPortId: edge.target,
         sourcePortName: bundle.entities.ports[edge.source]?.instance_name ?? undefined,
         targetPortName: bundle.entities.ports[edge.target]?.instance_name ?? undefined,
-        portStats: sourceStatistics.statistics,
-        statisticFields: sourceStatistics.fields,
-        targetPortStats: targetStatistics.statistics,
-        targetStatisticFields: targetStatistics.fields,
+        statisticFields,
       });
     }
   });

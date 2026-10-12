@@ -132,8 +132,5 @@ export interface DAGEdge {
   targetPortId?: string;
   sourcePortName?: string;
   targetPortName?: string;
-  targetPortStats?: Statistic[];
-  portStats?: Array<{ key: string; value: StatValue }>; // from source port
   statisticFields?: StatisticField[];
-  targetStatisticFields?: StatisticField[];
 }

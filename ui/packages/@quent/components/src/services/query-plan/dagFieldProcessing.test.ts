@@ -2,7 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { describe, it, expect } from 'vitest';
-import { flattenStatistics, statisticFieldId, type DAGNode, type DAGEdge } from '@quent/utils';
+import {
+  flattenStatistics,
+  statisticFieldId,
+  type DAGNode,
+  type DAGEdge,
+  type Statistic,
+} from '@quent/utils';
 import { parseCustomStatistics } from '../../lib/queryBundle.utils';
 import {
   computeNodeColoring,
@@ -32,14 +38,12 @@ function makeNode(id: string, stats: Record<string, unknown> = {}): DAGNode {
   };
 }
 
-/** Build a DAGEdge with optional portStats. */
-function makeEdge(id: string, portStats: DAGEdge['portStats'] = []): DAGEdge {
+function makeEdge(id: string, statistics: Statistic[] = []): DAGEdge {
   return {
     id,
     source: 's',
     target: 't',
-    portStats,
-    statisticFields: flattenStatistics(portStats),
+    statisticFields: flattenStatistics(statistics),
   };
 }
 
@@ -228,10 +232,7 @@ describe('computeEdgeColoring', () => {
   });
 
   it('edges without the field are excluded from results', () => {
-    const edges = [
-      makeEdge('e1', [{ key: 'rows', value: 10 }]),
-      makeEdge('e2', []), // no portStats for 'rows'
-    ];
+    const edges = [makeEdge('e1', [{ key: 'rows', value: 10 }]), makeEdge('e2', [])];
     const result = computeEdgeColoring(edges, 'rows');
     expect(result?.type).toBe('continuous');
     if (result?.type !== 'continuous') {
