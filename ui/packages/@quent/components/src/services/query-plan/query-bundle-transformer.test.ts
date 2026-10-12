@@ -2,7 +2,16 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { describe, it, expect } from 'vitest';
-import type { QueryBundle, EntityRef, Plan, Operator, Port, PlanTree, Worker } from '@quent/utils';
+import {
+  statisticFieldId,
+  type QueryBundle,
+  type EntityRef,
+  type Plan,
+  type Operator,
+  type Port,
+  type PlanTree,
+  type Worker,
+} from '@quent/utils';
 import {
   getPlanDAG,
   getSelectedOperatorCountsByPlan,
@@ -288,6 +297,49 @@ describe('getPlanDAG', () => {
         },
       ],
     });
+  });
+
+  it('projects nested scalar fields with inherited quantities and omits lists', () => {
+    const op1 = makeOperator('op1', { typeName: 'Scan' });
+    const op2 = makeOperator('op2', { typeName: 'Join' });
+    op1.statistics = {
+      custom_statistics: [
+        {
+          value: {
+            key: 'Profile',
+            value: {
+              Struct: [
+                { key: 'bytes', value: { U64: 2048n } },
+                { key: 'samples', value: { List: { U32: [1, 2] } } },
+              ],
+            },
+          },
+          quantity: 'bytes',
+        },
+      ],
+    };
+    const port1 = makePort('port1', 'op1');
+    const port2 = makePort('port2', 'op2');
+    const plan = makePlan('p1', { edges: [{ source: 'port1', target: 'port2' }] });
+    const bundle = makeBundle({ p1: plan }, { operators: { op1, op2 }, ports: { port1, port2 } });
+
+    const fields = getPlanDAG(bundle, 'p1').nodes.find(node => node.id === 'op1')?.metadata
+      ?.operatorStatistics?.fields;
+
+    expect(fields).toEqual([
+      {
+        id: statisticFieldId([
+          ['Profile', 0],
+          ['bytes', 0],
+        ]),
+        path: [
+          ['Profile', 0],
+          ['bytes', 0],
+        ],
+        value: 2048n,
+        quantity: 'bytes',
+      },
+    ]);
   });
 
   it('deduplicates nodes when the same operator appears in multiple edges', () => {

@@ -5,6 +5,7 @@ import { describe, expect, it } from 'vitest';
 import {
   buildStatisticFieldPresentations,
   flattenStatistics,
+  projectStatisticScalarFields,
   statisticFieldId,
   statisticFieldLabel,
   statisticFieldName,
@@ -126,5 +127,78 @@ describe('statistic fields', () => {
     ]);
     expect(new Set(fields.map(field => field.id)).size).toBe(4);
     expect(new Set(fields.map(statisticFieldLabel)).size).toBe(4);
+  });
+
+  it('projects scalar leaves with inherited and overridden nested quantities', () => {
+    const statistics = [
+      {
+        key: 'profile',
+        quantity: 'bytes',
+        value: {
+          kind: 'struct' as const,
+          fields: [
+            { key: 'inherited', value: 1 },
+            {
+              key: 'work',
+              quantity: 'rows',
+              value: {
+                kind: 'struct' as const,
+                fields: [
+                  { key: 'inherited_override', value: 2 },
+                  { key: 'child_override', value: 3, quantity: 'seconds' },
+                ],
+              },
+            },
+            { key: 'samples', value: [4, 5], quantity: 'items' },
+          ],
+        },
+      },
+    ];
+
+    const fields = projectStatisticScalarFields(statistics);
+
+    expect(fields).toEqual([
+      {
+        id: statisticFieldId([
+          ['profile', 0],
+          ['inherited', 0],
+        ]),
+        path: [
+          ['profile', 0],
+          ['inherited', 0],
+        ],
+        value: 1,
+        quantity: 'bytes',
+      },
+      {
+        id: statisticFieldId([
+          ['profile', 0],
+          ['work', 0],
+          ['inherited_override', 0],
+        ]),
+        path: [
+          ['profile', 0],
+          ['work', 0],
+          ['inherited_override', 0],
+        ],
+        value: 2,
+        quantity: 'rows',
+      },
+      {
+        id: statisticFieldId([
+          ['profile', 0],
+          ['work', 0],
+          ['child_override', 0],
+        ]),
+        path: [
+          ['profile', 0],
+          ['work', 0],
+          ['child_override', 0],
+        ],
+        value: 3,
+        quantity: 'seconds',
+      },
+    ]);
+    expect(flattenStatistics(statistics)).toEqual(fields);
   });
 });

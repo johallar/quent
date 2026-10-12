@@ -221,6 +221,49 @@ describe('operator table structured statistics', () => {
     expect(screen.getByRole('columnheader', { name: 'rows [2]' })).toBeInTheDocument();
   });
 
+  it('inherits a struct quantity for scalar columns and omits nested lists', () => {
+    const rows = buildOperatorRows(
+      makeEntities({
+        custom_statistics: [
+          {
+            value: {
+              key: 'Profile',
+              value: {
+                Struct: [
+                  { key: 'bytes', value: { U64: 2048n } },
+                  { key: 'samples', value: { List: { U32: [1, 2] } } },
+                ],
+              },
+            },
+            quantity: 'bytes',
+          },
+        ],
+      }),
+      new Set(['plan'])
+    );
+    renderRows(rows);
+
+    expect(rows[0].stats.slice(1)).toEqual([
+      {
+        id: statisticFieldId([
+          ['Profile', 0],
+          ['bytes', 0],
+        ]),
+        path: [
+          ['Profile', 0],
+          ['bytes', 0],
+        ],
+        value: 2048n,
+        quantity: 'bytes',
+      },
+    ]);
+    expect(screen.getByRole('columnheader', { name: 'Profile › bytes' })).toBeInTheDocument();
+    expect(screen.getByRole('cell', { name: '2.00 KiB' })).toBeInTheDocument();
+    expect(
+      screen.queryByRole('columnheader', { name: 'Profile › samples' })
+    ).not.toBeInTheDocument();
+  });
+
   it('retains repeated scalar leaves with their own quantities and omits lists', () => {
     const rows = buildOperatorRows(
       makeEntities({

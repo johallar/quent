@@ -7,9 +7,9 @@ import type { QueryBundle, EntityRef } from '@quent/utils';
 import {
   aggregateNumericValues,
   buildRelatedOperatorIdsById,
-  flattenStatistics,
   isNumericValue,
   operatorWorkerLabel,
+  projectStatisticScalarFields,
   statisticFieldLabel,
   workerDisplayName,
   Operator,
@@ -27,7 +27,7 @@ interface PlanTreeNode extends PlanTree {
 }
 
 function processStatistics(statistics: DAGStatisticSet['statistics']): DAGStatisticSet {
-  return { statistics, fields: flattenStatistics(statistics) };
+  return { statistics, fields: projectStatisticScalarFields(statistics) };
 }
 
 function sumStatisticSets(statisticSets: readonly DAGStatisticSet[]): Statistic[] {

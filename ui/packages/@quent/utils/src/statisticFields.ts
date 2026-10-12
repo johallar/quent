@@ -117,18 +117,19 @@ export function buildStatisticFieldPresentations(
   return result;
 }
 
-/** Scalar metric projection only; the inspection tree stays ordered and intact. */
-export function flattenStatistics(
+function projectStatisticScalarFieldsAt(
   statistics: readonly Statistic[],
-  parent: StatisticFieldPath = []
+  parent: StatisticFieldPath,
+  inheritedQuantity: string | undefined
 ): StatisticField[] {
   const occurrences = new Map<string, number>();
   return statistics.flatMap(statistic => {
     const occurrence = occurrences.get(statistic.key) ?? 0;
     occurrences.set(statistic.key, occurrence + 1);
     const path: StatisticFieldPath = [...parent, [statistic.key, occurrence]];
+    const quantity = statistic.quantity !== undefined ? statistic.quantity : inheritedQuantity;
     if (isStatStruct(statistic.value)) {
-      return flattenStatistics(statistic.value.fields, path);
+      return projectStatisticScalarFieldsAt(statistic.value.fields, path, quantity);
     }
     if (Array.isArray(statistic.value)) {
       return [];
@@ -138,8 +139,24 @@ export function flattenStatistics(
         id: statisticFieldId(path),
         path,
         value: statistic.value,
-        ...(statistic.quantity !== undefined ? { quantity: statistic.quantity } : {}),
+        ...(quantity !== undefined ? { quantity } : {}),
       },
     ];
   });
+}
+
+/** Recurse through structs, omit lists, and inherit the nearest quantity for scalar leaves. */
+export function projectStatisticScalarFields(
+  statistics: readonly Statistic[],
+  parent: StatisticFieldPath = []
+): StatisticField[] {
+  return projectStatisticScalarFieldsAt(statistics, parent, undefined);
+}
+
+/** @deprecated Use projectStatisticScalarFields to make the projection policy explicit. */
+export function flattenStatistics(
+  statistics: readonly Statistic[],
+  parent: StatisticFieldPath = []
+): StatisticField[] {
+  return projectStatisticScalarFields(statistics, parent);
 }

@@ -147,6 +147,7 @@ export type { Statistic, StatStruct } from './dagTypes';
 export {
   buildStatisticFieldPresentations,
   flattenStatistics,
+  projectStatisticScalarFields,
   statisticFieldId,
   statisticFieldLabel,
   statisticFieldName,
