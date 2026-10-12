@@ -54,7 +54,7 @@ import { resolveDagHeatmap, resolveDagHighlightedNodeIds } from './dagInteractio
 import {
   scaleColor,
   inferFieldFormatter,
-  statisticFieldName,
+  resolveStatisticFieldPresentation,
   toggleOperatorSelection,
   type NormalizedOperator,
   type StatisticField,
@@ -151,11 +151,16 @@ const VariableWidthEdge = ({
 
   const fields = data?.statisticFields as StatisticField[] | undefined;
   let edgeLabelValue: string | undefined;
+  let edgeLabelTitle: string | undefined;
   if (edgeColoring) {
+    const presentation = edgeColorField
+      ? resolveStatisticFieldPresentation(edgeColorField, fields)
+      : undefined;
+    edgeLabelTitle = presentation?.title;
     if (edgeColoring.type === 'continuous') {
       const v = edgeColoring.values.get(id);
       if (v !== undefined) {
-        edgeLabelValue = inferFieldFormatter(statisticFieldName(edgeColorField, fields))(v);
+        edgeLabelValue = inferFieldFormatter(presentation?.fieldName ?? '')(v);
       }
     } else {
       const v = edgeColoring.labelMap.get(id);
@@ -164,9 +169,13 @@ const VariableWidthEdge = ({
       }
     }
   } else if (edgeWidthConfig) {
+    const presentation = edgeWidthField
+      ? resolveStatisticFieldPresentation(edgeWidthField, fields)
+      : undefined;
+    edgeLabelTitle = presentation?.title;
     const v = edgeWidthConfig.values.get(id);
     if (v !== undefined) {
-      edgeLabelValue = inferFieldFormatter(statisticFieldName(edgeWidthField, fields))(v);
+      edgeLabelValue = inferFieldFormatter(presentation?.fieldName ?? '')(v);
     }
   }
 
@@ -225,6 +234,7 @@ const VariableWidthEdge = ({
               transition: `opacity ${EDGE_TRANSITION_MS}ms`,
             }}
             className="text-[10px] font-medium px-1 py-0.5 rounded bg-background/80 text-muted-foreground border border-border/50"
+            title={edgeLabelTitle}
           >
             {edgeLabelValue}
           </div>

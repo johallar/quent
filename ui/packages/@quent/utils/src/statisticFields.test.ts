@@ -6,6 +6,7 @@ import {
   buildStatisticFieldPresentations,
   flattenStatistics,
   projectStatisticScalarFields,
+  resolveStatisticFieldPresentation,
   statisticFieldId,
   statisticFieldLabel,
   statisticFieldName,
@@ -56,6 +57,7 @@ describe('statistic fields', () => {
       { key: 'Volume', value: { kind: 'struct', fields: [{ key: 'bytes', value: 1 }] } },
     ]);
     expect(statisticFieldLabel(fields[0].id)).toBe('Volume › bytes');
+    expect(statisticFieldName(fields[0].id)).toBe('bytes');
     expect(statisticFieldName(fields[0].id, fields)).toBe('bytes');
     expect(statisticFieldName('unknown', fields)).toBe('unknown');
     expect(statisticFieldName(null, fields)).toBe('');
@@ -81,6 +83,21 @@ describe('statistic fields', () => {
       { fieldName: 'rows', label: 'Output › rows', title: 'Output › rows' },
       { fieldName: 'rows', label: 'rows', title: 'rows' },
     ]);
+  });
+
+  it('resolves one field with a leaf name and full-path display metadata', () => {
+    const field = flattenStatistics([
+      { key: 'Input', value: { kind: 'struct', fields: [{ key: 'rows', value: 1 }] } },
+    ])[0];
+    const presentation = {
+      fieldName: 'rows',
+      label: 'Input › rows',
+      title: 'Input › rows',
+    };
+
+    expect(resolveStatisticFieldPresentation(field)).toEqual(presentation);
+    expect(resolveStatisticFieldPresentation(field.id)).toEqual(presentation);
+    expect(buildStatisticFieldPresentations([field]).get(field.id)).toEqual(presentation);
   });
 
   it('retains long field names and explicit structured paths', () => {

@@ -43,6 +43,18 @@ function isStatisticFieldPath(value: unknown): value is StatisticFieldPath {
   );
 }
 
+function statisticFieldPathFromId(id: string): StatisticFieldPath | undefined {
+  if (!id.startsWith(FIELD_PATH_PREFIX)) {
+    return undefined;
+  }
+  try {
+    const path: unknown = JSON.parse(id.slice(FIELD_PATH_PREFIX.length));
+    return isStatisticFieldPath(path) ? path : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 function statisticFieldPathLabel(path: StatisticFieldPath): string {
   return path
     .map(([name, occurrence]) => {
@@ -68,17 +80,8 @@ export function statisticFieldId(path: StatisticFieldPath): StatisticFieldId {
 
 export function statisticFieldLabel(field: StatisticField | string): string {
   if (typeof field === 'string') {
-    if (field.startsWith(FIELD_PATH_PREFIX)) {
-      try {
-        const path: unknown = JSON.parse(field.slice(FIELD_PATH_PREFIX.length));
-        if (isStatisticFieldPath(path)) {
-          return statisticFieldPathLabel(path);
-        }
-      } catch {
-        // Preserve malformed or producer-owned field names verbatim.
-      }
-    }
-    return field;
+    const path = statisticFieldPathFromId(field);
+    return path ? statisticFieldPathLabel(path) : field;
   }
   return statisticFieldPathLabel(field.path);
 }
@@ -94,7 +97,28 @@ export function statisticFieldName(
     return field.path[field.path.length - 1][0];
   }
   const resolvedField = fields?.find(candidate => candidate.id === field);
-  return resolvedField ? statisticFieldName(resolvedField) : field;
+  if (resolvedField) {
+    return statisticFieldName(resolvedField);
+  }
+  const path = statisticFieldPathFromId(field);
+  return path ? path[path.length - 1][0] : field;
+}
+
+/** Resolves leaf-name behavior separately from full-path display metadata. */
+export function resolveStatisticFieldPresentation(
+  field: StatisticField | string,
+  fields?: readonly StatisticField[]
+): StatisticFieldPresentation {
+  const resolvedField =
+    typeof field === 'string' ? fields?.find(candidate => candidate.id === field) : field;
+  const presentedField = resolvedField ?? field;
+  const fieldName = statisticFieldName(presentedField);
+  const title = statisticFieldLabel(presentedField);
+  return {
+    fieldName,
+    label: title,
+    title,
+  };
 }
 
 /** Builds consistent display metadata for an ordered field collection. */
@@ -106,13 +130,7 @@ export function buildStatisticFieldPresentations(
     if (result.has(field.id)) {
       continue;
     }
-    const fieldName = statisticFieldName(field);
-    const title = statisticFieldLabel(field);
-    result.set(field.id, {
-      fieldName,
-      label: title,
-      title,
-    });
+    result.set(field.id, resolveStatisticFieldPresentation(field));
   }
   return result;
 }

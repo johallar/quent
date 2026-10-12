@@ -9,7 +9,7 @@ import {
   scaleColor,
   type ScaleRange,
   formatStatWithQuantity,
-  statisticFieldName,
+  resolveStatisticFieldPresentation,
   isLightColor,
   withOpacity,
   WHITE,
@@ -128,13 +128,16 @@ export const QueryPlanNode = memo(({ data }: { data: QueryPlanNodeData }) => {
       : undefined
     : undefined;
   const colorFieldValue = colorFieldStat?.value ?? null;
+  const colorFieldPresentation = colorField
+    ? resolveStatisticFieldPresentation(colorFieldStat ?? colorField)
+    : null;
   const formattedColorFieldValue =
     colorFieldValue === null
       ? null
       : typeof colorFieldValue === 'number' || typeof colorFieldValue === 'bigint'
         ? formatStatWithQuantity(
             colorFieldValue,
-            statisticFieldName(colorFieldStat ?? colorField!),
+            colorFieldPresentation?.fieldName ?? '',
             colorFieldStat?.quantity && quantitySpecs
               ? quantitySpecs[colorFieldStat.quantity]
               : undefined
@@ -222,6 +225,7 @@ export const QueryPlanNode = memo(({ data }: { data: QueryPlanNodeData }) => {
       {formattedColorFieldValue !== null && (
         <div
           className="text-xs text-center mt-0.5"
+          title={colorFieldPresentation?.title}
           style={{
             color: fieldColor
               ? isLightColor(fieldColor)

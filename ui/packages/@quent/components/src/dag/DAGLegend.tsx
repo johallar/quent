@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: Copyright (c) 2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-import { statisticFieldName, statisticFieldLabel, type StatisticField } from '@quent/utils';
+import { resolveStatisticFieldPresentation, type StatisticField } from '@quent/utils';
 import { useMemo } from 'react';
 import { Panel } from '@xyflow/react';
 import {
@@ -28,6 +28,7 @@ const MAX_CATEGORICAL_ENTRIES = 8;
 
 interface ContinuousLegendProps {
   label: string;
+  title: string;
   min: number;
   max: number;
   palette: ContinuousPaletteName;
@@ -43,6 +44,7 @@ const SCALE_LABELS: Record<ScaleType, string> = {
 
 const ContinuousLegend = ({
   label,
+  title,
   min,
   max,
   palette,
@@ -54,7 +56,7 @@ const ContinuousLegend = ({
     <div className="flex min-w-0 items-center justify-between gap-2">
       <span
         className="min-w-0 flex-1 truncate text-[10px] font-semibold uppercase tracking-wide text-muted-foreground"
-        title={label}
+        title={title}
       >
         {label}
       </span>
@@ -104,14 +106,14 @@ export const CategoricalLegend = ({
 }: CategoricalLegendProps) => {
   const entries = [...categoryMap.entries()].slice(0, MAX_CATEGORICAL_ENTRIES);
   const truncated = categoryMap.size > MAX_CATEGORICAL_ENTRIES;
-  const fieldLabel = statisticFieldLabel(field);
+  const presentation = resolveStatisticFieldPresentation(field);
   return (
     <div className="flex min-w-0 flex-col gap-1">
       <span
         className="truncate text-[10px] font-semibold uppercase tracking-wide text-muted-foreground"
-        title={fieldLabel}
+        title={presentation.title}
       >
-        {fieldLabel}
+        {presentation.label}
       </span>
       <div className="flex flex-col gap-0.5">
         {entries.map(([label, color]) => {
@@ -164,7 +166,7 @@ function resolveFormatter(
   const spec = statQuantitySpecs[typeof field === 'string' ? field : field.id];
   return spec
     ? (v: number) => formatQuantity(v, spec, 'Occupancy')
-    : inferFieldFormatter(statisticFieldName(field));
+    : inferFieldFormatter(resolveStatisticFieldPresentation(field).fieldName);
 }
 
 function NodeLegendContent({
@@ -184,10 +186,12 @@ function NodeLegendContent({
   if (!coloring || !field) {
     return null;
   }
+  const presentation = resolveStatisticFieldPresentation(field);
   if (coloring.type === 'continuous') {
     return (
       <ContinuousLegend
-        label={statisticFieldLabel(field)}
+        label={presentation.label}
+        title={presentation.title}
         min={coloring.min}
         max={coloring.max}
         palette={palette}
@@ -217,10 +221,12 @@ function EdgeLegendContent({
   if (!coloring || !field) {
     return null;
   }
+  const presentation = resolveStatisticFieldPresentation(field);
   if (coloring.type === 'continuous') {
     return (
       <ContinuousLegend
-        label={statisticFieldLabel(field)}
+        label={presentation.label}
+        title={presentation.title}
         min={coloring.min}
         max={coloring.max}
         palette={palette}

@@ -40,7 +40,7 @@ const nestedField = flattenStatistics([
                 key: 'Input',
                 value: {
                   kind: 'struct',
-                  fields: [{ key: 'batches', value: 5115 }],
+                  fields: [{ key: 'input_bytes', value: 5115 }],
                 },
               },
             ],
@@ -124,7 +124,8 @@ describe('DAGLegend node coloring scale', () => {
     );
     act(() => screen.getByRole('button', { name: 'Color by nested field' }).click());
 
-    const label = 'Execution profile › Data volume › Input › batches';
+    const label = 'Execution profile › Data volume › Input › input_bytes';
     expect(screen.getByText(label)).toHaveAttribute('title', label);
+    expect(screen.getByText('63.00 B')).toBeVisible();
   });
 });

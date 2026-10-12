@@ -156,6 +156,7 @@ export {
   buildStatisticFieldPresentations,
   flattenStatistics,
   projectStatisticScalarFields,
+  resolveStatisticFieldPresentation,
   statisticFieldId,
   statisticFieldLabel,
   statisticFieldName,

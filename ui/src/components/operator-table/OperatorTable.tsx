@@ -187,9 +187,10 @@ export function OperatorTable({ queryBundle }: OperatorTableProps) {
     defaultEnabled: DEFAULT_OPERATOR_TABLE_ENABLED,
     allStatNames,
     defaultStatSelector: stats => {
-      const duration = stats.filter(stat => stat === 'duration_s');
-      const inputs = stats.filter(stat => statMetadata.get(stat)?.fieldName.startsWith('input_'));
-      const outputs = stats.filter(stat => statMetadata.get(stat)?.fieldName.startsWith('output_'));
+      const fieldName = (stat: string) => statMetadata.get(stat)?.fieldName ?? stat;
+      const duration = stats.filter(stat => fieldName(stat) === 'duration_s');
+      const inputs = stats.filter(stat => fieldName(stat).startsWith('input_'));
+      const outputs = stats.filter(stat => fieldName(stat).startsWith('output_'));
       return [...duration, ...inputs, ...outputs];
     },
     filterIndexOrder,
