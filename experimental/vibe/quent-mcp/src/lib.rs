@@ -18,7 +18,7 @@ use reqwest::{Client, RequestBuilder};
 use rmcp::{
     ErrorData, ServerHandler, ServiceExt,
     handler::server::{router::tool::ToolRouter, wrapper::Parameters},
-    model::{CallToolResult, Content, Implementation, ServerCapabilities, ServerInfo},
+    model::{CallToolResult, ContentBlock, Implementation, ServerCapabilities, ServerInfo},
     tool, tool_handler, tool_router,
     transport::{
         io::stdio,
@@ -38,7 +38,9 @@ const ENV_ALLOWED_HOSTS: &str = "QUENT_MCP_ALLOWED_HOSTS";
 const INSTRUCTIONS: &str = "\
 Quent exposes query-engine telemetry as raw, typed facts. Typical exploration flow:
 1. `list_engines` to discover telemetry captures.
-2. `list_query_groups` and `list_queries` to find a query.
+2. `list_queries` to find all queries in an engine. When the response names an
+   `initial_group_by_attribute`, group queries by that custom attribute (for
+   example, `workload`).
 3. `get_query` to inspect the query bundle and discover resource/operator ids.
 4. Timeline, data-flow, or entity tools to retrieve scoped evidence.
 These tools mirror the Quent REST API. Use quent-cli for deterministic summaries,
@@ -106,7 +108,7 @@ async fn api_result(request: RequestBuilder) -> Result<CallToolResult, ErrorData
     }
     let value: Value = serde_json::from_str(&body)
         .map_err(|error| internal_error(format!("Quent API returned invalid JSON: {error}")))?;
-    Ok(CallToolResult::success(vec![Content::json(value)?]))
+    Ok(CallToolResult::success(vec![ContentBlock::json(value)?]))
 }
 
 fn parse_uuid(value: &str, field: &str) -> Result<Uuid, ErrorData> {
@@ -125,14 +127,6 @@ struct ListEnginesArgs {
 struct EngineArgs {
     /// Engine UUID.
     engine_id: String,
-}
-
-#[derive(Debug, Deserialize, JsonSchema)]
-struct QueryGroupArgs {
-    /// Engine UUID.
-    engine_id: String,
-    /// Query-group UUID.
-    query_group_id: String,
 }
 
 #[derive(Debug, Deserialize, JsonSchema)]
@@ -197,29 +191,15 @@ impl QuentMcpServer {
         self.api.get(&format!("engines/{engine_id}/contexts")).await
     }
 
-    #[tool(description = "List query groups belonging to one engine.")]
-    async fn list_query_groups(
+    #[tool(
+        description = "List all queries belonging to one engine. The response may recommend grouping via `initial_group_by_attribute` (for example `workload`), whose values are carried in each query's `custom_attributes`."
+    )]
+    async fn list_queries(
         &self,
         Parameters(args): Parameters<EngineArgs>,
     ) -> Result<CallToolResult, ErrorData> {
         let engine_id = parse_uuid(&args.engine_id, "engine_id")?;
-        self.api
-            .get(&format!("engines/{engine_id}/query-groups"))
-            .await
-    }
-
-    #[tool(description = "List queries belonging to one query group.")]
-    async fn list_queries(
-        &self,
-        Parameters(args): Parameters<QueryGroupArgs>,
-    ) -> Result<CallToolResult, ErrorData> {
-        let engine_id = parse_uuid(&args.engine_id, "engine_id")?;
-        let query_group_id = parse_uuid(&args.query_group_id, "query_group_id")?;
-        self.api
-            .get(&format!(
-                "engines/{engine_id}/query_group/{query_group_id}/queries"
-            ))
-            .await
+        self.api.get(&format!("engines/{engine_id}/queries")).await
     }
 
     #[tool(description = "Get one query bundle, including plans, operators, and resources.")]
@@ -386,7 +366,6 @@ mod tests {
     use super::*;
 
     const ENGINE_ID: &str = "018f06d0-7b3a-7cc1-9f5f-0800200c9a66";
-    const QUERY_GROUP_ID: &str = "018f06d0-7b3a-7cc1-9f5f-0800200c9a67";
     const QUERY_ID: &str = "018f06d0-7b3a-7cc1-9f5f-0800200c9a68";
 
     #[derive(Clone, Default)]
@@ -507,15 +486,8 @@ mod tests {
             .await
             .expect("list_engine_contexts should proxy");
         server
-            .list_query_groups(Parameters(EngineArgs {
+            .list_queries(Parameters(EngineArgs {
                 engine_id: ENGINE_ID.to_owned(),
-            }))
-            .await
-            .expect("list_query_groups should proxy");
-        server
-            .list_queries(Parameters(QueryGroupArgs {
-                engine_id: ENGINE_ID.to_owned(),
-                query_group_id: QUERY_GROUP_ID.to_owned(),
             }))
             .await
             .expect("list_queries should proxy");
@@ -557,8 +529,7 @@ mod tests {
                 "GET /api/engines?with_metadata=true".to_owned(),
                 format!("GET /api/engines/{ENGINE_ID}"),
                 format!("GET /api/engines/{ENGINE_ID}/contexts"),
-                format!("GET /api/engines/{ENGINE_ID}/query-groups"),
-                format!("GET /api/engines/{ENGINE_ID}/query_group/{QUERY_GROUP_ID}/queries"),
+                format!("GET /api/engines/{ENGINE_ID}/queries"),
                 format!("GET /api/engines/{ENGINE_ID}/query/{QUERY_ID}"),
                 format!("POST /api/engines/{ENGINE_ID}/timeline/single"),
                 format!("POST /api/engines/{ENGINE_ID}/timeline/bulk"),
@@ -608,7 +579,6 @@ mod tests {
                 "list_engines",
                 "list_entities",
                 "list_queries",
-                "list_query_groups",
                 "single_timeline",
             ]
             .into_iter()

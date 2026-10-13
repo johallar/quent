@@ -12,13 +12,16 @@ The tools mirror REST operations and return raw JSON facts:
 - `list_engines`
 - `get_engine`
 - `list_engine_contexts`
-- `list_query_groups`
 - `list_queries`
 - `get_query`
 - `single_timeline`
 - `bulk_timelines`
 - `data_flow_timeline`
 - `list_entities`
+
+`list_queries` returns every query in an engine. Its
+`initial_group_by_attribute` field identifies the preferred query custom
+attribute for grouping when one is available; the simulator uses `workload`.
 
 Deterministic summaries, rankings, joins, and comparisons belong in
 `quent-cli`; interpretation belongs in the calling agent.
