@@ -22,8 +22,8 @@ function AppNav() {
               mask: `url('${logoUrl}') center / contain no-repeat`,
             }}
           />
-          <h1 className="text-2xl font-semibold text-primary">
-            QUENT <span className="font-light text-foreground">UI</span>
+          <h1 className="text-2xl font-semibold text-foreground">
+            QUENT <span className="font-light text-primary">UI</span>
           </h1>
         </Link>
         <div className="flex min-w-0 flex-1 items-center justify-center overflow-hidden px-4 sm:px-6">
