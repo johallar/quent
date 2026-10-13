@@ -70,7 +70,7 @@ interface OperatorTableProps {
 }
 
 export function OperatorTable({ queryBundle }: OperatorTableProps) {
-  const selectedPlanId = useSelectedPlanId() || queryBundle.plan_tree.id;
+  const selectedPlanId = useSelectedPlanId();
   const selectedOperatorIds = useSelectedOperatorIds();
   const [highlightState, setHighlightState] = useHighlightedNodeIds();
   const [hoveredStat, setHoveredStat] = useHoveredStat();
