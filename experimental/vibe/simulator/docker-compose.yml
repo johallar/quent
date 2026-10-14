@@ -9,6 +9,7 @@ services:
     restart: unless-stopped
     environment:
       QUENT_MCP_ALLOWED_HOSTS: "${QUENT_MCP_ALLOWED_HOSTS:-}"
+      QUENT_MCP_ALLOWED_ORIGINS: "${QUENT_MCP_ALLOWED_ORIGINS:-}"
     command: "/quent/quent-simulator-server --log-level debug"
 
   simulator:
