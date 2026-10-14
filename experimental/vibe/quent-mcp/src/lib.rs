@@ -11,6 +11,7 @@ use std::{
     fmt::Display,
     net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr},
     sync::Arc,
+    time::Duration,
 };
 
 use axum::Router;
@@ -35,6 +36,7 @@ use uuid::Uuid;
 
 const SERVER_NAME: &str = "quent-mcp";
 const ENV_ALLOWED_HOSTS: &str = "QUENT_MCP_ALLOWED_HOSTS";
+const API_REQUEST_TIMEOUT: Duration = Duration::from_secs(120);
 const INSTRUCTIONS: &str = "\
 Quent exposes query-engine telemetry as raw, typed facts. Typical exploration flow:
 1. `list_engines` to discover telemetry captures.
@@ -62,7 +64,10 @@ impl QuentRestClient {
             .map_err(|error| format!("invalid Quent API base URL: {error}"))?;
         Ok(Self {
             base_url: base_url.to_owned(),
-            client: Client::new(),
+            client: Client::builder()
+                .timeout(API_REQUEST_TIMEOUT)
+                .build()
+                .map_err(|error| format!("failed to build Quent API client: {error}"))?,
         })
     }
 
@@ -101,10 +106,10 @@ async fn api_result(request: RequestBuilder) -> Result<CallToolResult, ErrorData
     let status = response.status();
     let body = response.text().await.map_err(internal_error)?;
     if !status.is_success() {
-        return Err(internal_error(format!(
+        return Ok(CallToolResult::error(vec![ContentBlock::text(format!(
             "Quent API returned {status}: {}",
             body.trim()
-        )));
+        ))]));
     }
     let value: Value = serde_json::from_str(&body)
         .map_err(|error| internal_error(format!("Quent API returned invalid JSON: {error}")))?;
@@ -358,6 +363,7 @@ mod tests {
     use axum::{
         Json, Router,
         extract::{Request, State},
+        http::StatusCode,
         routing::any,
     };
     use serde_json::json;
@@ -406,6 +412,27 @@ mod tests {
                 .expect("mock API should serve requests");
         });
         (format!("http://{address}/api"), requests)
+    }
+
+    async fn failing_api() -> String {
+        let app = Router::new().fallback(|| async {
+            (
+                StatusCode::UNPROCESSABLE_ENTITY,
+                "missing required request fields",
+            )
+        });
+        let listener = TcpListener::bind("127.0.0.1:0")
+            .await
+            .expect("mock API should bind");
+        let address = listener
+            .local_addr()
+            .expect("mock API should have an address");
+        tokio::spawn(async move {
+            axum::serve(listener, app)
+                .await
+                .expect("mock API should serve requests");
+        });
+        format!("http://{address}/api")
     }
 
     #[test]
@@ -460,6 +487,20 @@ mod tests {
                 .expect("request log mutex should not be poisoned")
                 .is_empty()
         );
+    }
+
+    #[tokio::test]
+    async fn reports_api_failures_as_tool_errors() {
+        let server = QuentMcpServer::new(&failing_api().await).expect("server should initialize");
+        let result = server
+            .single_timeline(Parameters(EngineRequestArgs {
+                engine_id: ENGINE_ID.to_owned(),
+                request: json!({}),
+            }))
+            .await
+            .expect("API failure should remain an MCP tool result");
+        assert_eq!(result.is_error, Some(true));
+        assert!(format!("{:?}", result.content).contains("422"));
     }
 
     #[tokio::test]
