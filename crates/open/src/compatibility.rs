@@ -31,8 +31,8 @@ const NVTX_ROUTES_BOUNDARY: &str = "f40e69c2d4405c765c6270221e2a58e58ef704a6";
 ///
 /// Introduced after [commit `cee18e0`](https://github.com/rapidsai/quent/commit/cee18e047c5407dc91b8d9e6e150892444775bd1).
 const CONTEXT_INVENTORY_PREDECESSOR: &str = "cee18e047c5407dc91b8d9e6e150892444775bd1";
-/// Temporary phase-1 head; replace with its final `upstream/main` merge commit.
-const MCP_ROUTES_BOUNDARY: &str = "589dff5faaa1bfff7a0eab2ee827fb539c25c466";
+/// First `upstream/main` revision containing the MCP routes.
+const MCP_ROUTES_BOUNDARY: &str = "abec68ec57be4132708d85bb48e8f736d5e9f57e";
 
 pub(crate) fn nvtx_code(enabled: bool) -> NvtxCode {
     if enabled {
