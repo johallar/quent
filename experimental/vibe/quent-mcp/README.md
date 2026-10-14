@@ -51,21 +51,6 @@ configuration.
 The endpoint does not add authentication; do not expose it or the Quent API to
 untrusted networks.
 
-## Quent Open
-
-`quent-open` mounts one MCP endpoint on each generated viewer and prints both
-URLs:
-
-```text
-ready: MODEL — 1 context(s)  http://127.0.0.1:49152/
-mcp: MODEL — 1 context(s)  http://127.0.0.1:49152/mcp
-```
-
-`quent-open` includes MCP only when the artifact's pinned Quent revision
-contains the `quent-mcp` package, ensuring its tools match that revision's REST
-contract. Older revisions still build and start the viewer without an `mcp:`
-URL; the host checkout is not used as a fallback.
-
 ## Validation
 
 ```sh
