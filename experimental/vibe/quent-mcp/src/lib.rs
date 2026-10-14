@@ -36,7 +36,6 @@ use uuid::Uuid;
 
 const SERVER_NAME: &str = "quent-mcp";
 const ENV_ALLOWED_HOSTS: &str = "QUENT_MCP_ALLOWED_HOSTS";
-const ENV_ALLOWED_ORIGINS: &str = "QUENT_MCP_ALLOWED_ORIGINS";
 const API_REQUEST_TIMEOUT: Duration = Duration::from_secs(120);
 const INSTRUCTIONS: &str = "\
 Quent exposes query-engine telemetry as raw, typed facts. Typical exploration flow:
@@ -327,47 +326,14 @@ fn allowed_hosts(value: Option<&str>) -> AllowedHosts {
     )
 }
 
-fn origin(value: &str) -> Result<String, String> {
-    let url = reqwest::Url::parse(value)
-        .map_err(|error| format!("invalid MCP allowed origin: {error}"))?;
-    if !matches!(url.scheme(), "http" | "https") {
-        return Err(format!("MCP allowed origin must be HTTP(S): {value}"));
-    }
-    let origin = url.origin().ascii_serialization();
-    Ok(origin)
-}
-
-fn allowed_origins(api_base: &str, value: Option<&str>) -> Result<Vec<String>, String> {
-    let mut origins = vec![origin(api_base)?];
-    if let Some(value) = value.map(str::trim).filter(|value| !value.is_empty()) {
-        for configured in value
-            .split(',')
-            .map(str::trim)
-            .filter(|item| !item.is_empty())
-        {
-            let configured = origin(configured)?;
-            if !origins.contains(&configured) {
-                origins.push(configured);
-            }
-        }
-    }
-    Ok(origins)
-}
-
-fn http_config(
-    api_base: &str,
-    allowed_hosts_value: Option<&str>,
-    allowed_origins_value: Option<&str>,
-) -> Result<StreamableHttpServerConfig, String> {
-    let mut config = StreamableHttpServerConfig::default()
-        .with_stateful_mode(false)
-        .with_allowed_origins(allowed_origins(api_base, allowed_origins_value)?);
+fn http_config(allowed_hosts_value: Option<&str>) -> StreamableHttpServerConfig {
+    let mut config = StreamableHttpServerConfig::default().with_stateful_mode(false);
     match allowed_hosts(allowed_hosts_value) {
         AllowedHosts::Default => {}
         AllowedHosts::Disabled => config = config.disable_allowed_hosts(),
         AllowedHosts::Explicit(hosts) => config = config.with_allowed_hosts(hosts),
     }
-    Ok(config)
+    config
 }
 
 /// Build a streamable-HTTP MCP service for mounting at `/mcp`.
@@ -376,15 +342,10 @@ pub fn http_service(
 ) -> Result<StreamableHttpService<QuentMcpServer, NeverSessionManager>, String> {
     let server = QuentMcpServer::new(api_base)?;
     let allowed_hosts = std::env::var(ENV_ALLOWED_HOSTS).ok();
-    let allowed_origins = std::env::var(ENV_ALLOWED_ORIGINS).ok();
     Ok(StreamableHttpService::new(
         move || Ok(server.clone()),
         Arc::new(NeverSessionManager::default()),
-        http_config(
-            api_base,
-            allowed_hosts.as_deref(),
-            allowed_origins.as_deref(),
-        )?,
+        http_config(allowed_hosts.as_deref()),
     ))
 }
 
@@ -529,24 +490,9 @@ mod tests {
     }
 
     #[test]
-    fn builds_stateless_http_policy_with_explicit_origins() {
-        let config = http_config(
-            "http://127.0.0.1:8080/api",
-            None,
-            Some("http://localhost:5173, https://quent.test/path"),
-        )
-        .expect("valid HTTP policy");
+    fn builds_stateless_http_policy() {
+        let config = http_config(None);
         assert!(!config.stateful_mode);
-        assert_eq!(
-            config.allowed_origins,
-            vec![
-                "http://127.0.0.1:8080",
-                "http://localhost:5173",
-                "https://quent.test",
-            ]
-        );
-        assert!(allowed_origins("http://localhost:8080/api", Some("not a URL")).is_err());
-        assert!(allowed_origins("http://localhost:8080/api", Some("ftp://quent.test")).is_err());
     }
 
     #[test]
@@ -752,20 +698,8 @@ mod tests {
             .expect("disallowed Host request should complete");
         assert!(!rejected.status().is_success());
 
-        let rejected = client
-            .post(format!("http://{address}/mcp"))
-            .header("Origin", "https://untrusted.example")
-            .header("Content-Type", "application/json")
-            .header("Accept", "application/json, text/event-stream")
-            .body(initialize)
-            .send()
-            .await
-            .expect("disallowed Origin request should complete");
-        assert_eq!(rejected.status(), reqwest::StatusCode::FORBIDDEN);
-
         let response = client
             .post(format!("http://{address}/mcp"))
-            .header("Origin", "http://localhost:8080")
             .header("Content-Type", "application/json")
             .header("Accept", "application/json, text/event-stream")
             .body(initialize)

@@ -45,12 +45,8 @@ Start the normal analyzer server. Its MCP endpoint shares the analyzer listener:
 The underlying MCP transport keeps its loopback-only Host allowlist by default.
 For a non-local deployment, set `QUENT_MCP_ALLOWED_HOSTS` to a comma-separated
 allowlist. Setting it to `*` disables the check and should only be used behind
-an authenticating proxy.
-
-Browser requests are restricted to the REST API's origin by default. Add
-trusted browser origins with `QUENT_MCP_ALLOWED_ORIGINS` as a comma-separated
-list including each origin's scheme, such as `http://localhost:5173`. Browser
-origins must also be permitted by the analyzer's existing CORS configuration.
+an authenticating proxy. Browser clients use the analyzer's existing CORS
+configuration.
 
 The endpoint does not add authentication; do not expose it or the Quent API to
 untrusted networks.
