@@ -36,8 +36,6 @@ Run these commands inside `pixi shell`, or prefix each `cargo` command with
 The simulator uses the same workspace package names and commands as the
 upstream simulator. For the frontend development and bundled-UI workflows, see
 [`DEVELOPMENT.md`](../../../DEVELOPMENT.md).
-See the [simulator documentation](../../../docs/domains/query_engine/examples/simulator.md)
-for the query-engine model.
 
 The complete Docker example can be started from the repository root:
 

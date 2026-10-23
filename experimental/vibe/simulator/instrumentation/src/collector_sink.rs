@@ -67,7 +67,7 @@ mod tests {
         let bytes = bitcode::serialize(&event).unwrap();
         {
             let sink = SimulatorCollectorSink::try_new(id, provider).unwrap();
-            sink.ingest(NvtxEventEntity::NAME, &bytes).unwrap();
+            sink.ingest(NvtxEvent::NAME, &bytes).unwrap();
         }
         let ndjson: Vec<_> =
             std::fs::read_dir(dir.path().join(id.to_string()).join(NvtxEvent::NAME))

@@ -1763,16 +1763,7 @@ impl Engine {
         }
     }
 
-    fn spawn(
-        &mut self,
-        context: &SimulatorContext,
-        nvtx: &NvtxCapture,
-        num_workers: usize,
-        num_threads: usize,
-        num_gpus: usize,
-        num_workloads: usize,
-        num_queries_per_workload: usize,
-    ) {
+    fn spawn(&mut self, context: &SimulatorContext, nvtx: &NvtxCapture, config: SimulationConfig) {
         info!("Simulating Engine {}", self.handle.id());
         self.handle
             .init(
@@ -1783,26 +1774,26 @@ impl Engine {
                 },
                 Some(format!("holodeck-{:04x}", rng().random::<u32>())),
                 instr::EngineConfiguration {
-                    workers: num_workers as u64,
-                    threads_per_worker: num_threads as u64,
-                    gpus_per_worker: num_gpus as u64,
-                    num_workloads: num_workloads as u64,
-                    num_queries: num_workloads as u64 * num_queries_per_workload as u64,
+                    workers: config.num_workers as u64,
+                    threads_per_worker: config.num_threads as u64,
+                    gpus_per_worker: config.num_gpus as u64,
+                    num_workloads: config.num_workloads as u64,
+                    num_queries: config.num_workloads as u64 * config.num_queries as u64,
                 },
             )
             .unwrap();
 
         // Workers
         let worker_ids = std::iter::repeat_with(Uuid::now_v7)
-            .take(num_workers)
+            .take(config.num_workers)
             .collect::<Vec<_>>();
 
         for (worker_index, worker_id) in worker_ids.iter().enumerate() {
             let mut worker = Worker::new(
                 *worker_id,
                 format!("worker-{worker_index}"),
-                num_threads,
-                num_gpus,
+                config.num_threads,
+                config.num_gpus,
                 nvtx,
             );
             worker.spawn(context, self.handle.id());
@@ -1903,15 +1894,7 @@ fn simulate_with_nvtx(
     let simulation_resource = nvtx.resource(nvtx.domain_at(0), "simulated CUDA execution context");
 
     let mut engine = Engine::new(&context, engine_id);
-    engine.spawn(
-        &context,
-        &nvtx,
-        config.num_workers,
-        config.num_threads,
-        config.num_gpus,
-        config.num_workloads,
-        config.num_queries,
-    );
+    engine.spawn(&context, &nvtx, config);
 
     for workload_index in 0..config.num_workloads {
         let workload_name = format!("Simulated workload (run {workload_index})");
