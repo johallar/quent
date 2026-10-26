@@ -130,6 +130,16 @@ async function humanPointClick(page: Page, point: { x: number; y: number }) {
   }
 }
 
+async function smoothWheel(page: Page, deltaY: number) {
+  const steps = IS_RECORDING ? 10 : 1;
+  for (let step = 0; step < steps; step += 1) {
+    await page.mouse.wheel(0, deltaY / steps);
+    if (IS_RECORDING) {
+      await page.waitForTimeout(110);
+    }
+  }
+}
+
 async function drag(page: Page, from: { x: number; y: number }, to: { x: number; y: number }) {
   const steps = IS_RECORDING ? 24 : 4;
   await page.mouse.move(from.x, from.y, { steps: IS_RECORDING ? 12 : 2 });
@@ -164,7 +174,7 @@ async function zoomDagAndPanUp(page: Page) {
   };
   await page.mouse.move(focus.x, focus.y);
   await beat(page, 300);
-  await page.mouse.wheel(0, -900);
+  await smoothWheel(page, -900);
   await beat(page);
 
   await drag(
@@ -173,7 +183,7 @@ async function zoomDagAndPanUp(page: Page) {
     { x: box!.x + box!.width * 0.45, y: box!.y + box!.height * 0.35 }
   );
   await beat(page, 300);
-  await page.mouse.wheel(0, -500);
+  await smoothWheel(page, -500);
   await beat(page, 900);
 }
 
@@ -243,69 +253,27 @@ async function openTimelineEntity(page: Page) {
   await expect(gantts.first()).toBeVisible();
   const close = page.getByRole('button', { name: 'Close' });
 
-  const tryOpen = async () => {
-    for (let ganttIndex = 0; ganttIndex < (await gantts.count()); ganttIndex += 1) {
-      const gantt = gantts.nth(ganttIndex);
-      const box = await gantt.boundingBox();
-      if (!box) {
-        continue;
-      }
-      const probe = async (point: { x: number; y: number }) => {
-        const cursor = page.getByTestId('demo-cursor');
-        await cursor.evaluate(element => {
-          element.dataset.probing = 'true';
-        });
-        await page.mouse.click(point.x, point.y);
-        await cursor.evaluate(element => {
-          element.dataset.probing = 'false';
-        });
-        if (!(await close.isVisible())) {
-          return false;
-        }
-
-        await close.dispatchEvent('click');
-        await expect(close).not.toBeVisible();
-        await humanPointClick(page, point);
-        await expect(close).toBeVisible();
-        return true;
-      };
-
-      const shapes = gantt.locator('svg path, svg rect');
-      for (let index = 0; index < Math.min(await shapes.count(), 80); index += 1) {
-        const shapeBox = await shapes.nth(index).boundingBox();
-        if (shapeBox && shapeBox.width > 3 && shapeBox.height > 3) {
-          const point = {
-            x: shapeBox.x + shapeBox.width / 2,
-            y: shapeBox.y + shapeBox.height / 2,
-          };
-          if (await probe(point)) {
-            return true;
-          }
+  for (let ganttIndex = 0; ganttIndex < (await gantts.count()); ganttIndex += 1) {
+    const point = await gantts.nth(ganttIndex).evaluate(element => {
+      const shapes = element.querySelectorAll(
+        '.echarts-for-react svg path, .echarts-for-react svg rect'
+      );
+      for (const shape of shapes) {
+        const rect = shape.getBoundingClientRect();
+        if (rect.width > 3 && rect.height >= 8 && rect.height <= 18) {
+          return { x: rect.x + rect.width / 2, y: rect.y + rect.height / 2 };
         }
       }
-      for (const yFraction of [0.25, 0.45, 0.65]) {
-        for (const xFraction of [0.42, 0.3, 0.55, 0.7, 0.18, 0.82]) {
-          const point = {
-            x: box.x + box.width * xFraction,
-            y: box.y + Math.min(box.height - 4, box.height * yFraction),
-          };
-          if (await probe(point)) {
-            return true;
-          }
-        }
-      }
-    }
-    return false;
-  };
-
-  if (!(await tryOpen())) {
-    await humanClick(page, page.getByRole('button', { name: 'Reset zoom' }));
-    await beat(page);
-    if (!(await tryOpen())) {
-      throw new Error('No entity segment was clickable in the generated simulator run');
+      return null;
+    });
+    if (point) {
+      await humanPointClick(page, point);
+      await expect(close).toBeVisible();
+      return close;
     }
   }
-  return close;
+
+  throw new Error('No visible entity segment was found in the generated simulator run');
 }
 
 async function selectOperatorType(page: Page, type: string) {
@@ -375,16 +343,6 @@ test('exercises and records the README demo flow with generated simulator data',
     .toBeGreaterThan(0);
   await beat(page, 1_800);
 
-  const pane = page.locator('.react-flow__pane');
-  const paneBox = await pane.boundingBox();
-  expect(paneBox).not.toBeNull();
-  await drag(
-    page,
-    { x: paneBox!.x + paneBox!.width * 0.5, y: paneBox!.y + paneBox!.height * 0.7 },
-    { x: paneBox!.x + paneBox!.width * 0.5, y: paneBox!.y + paneBox!.height * 0.35 }
-  );
-  await beat(page, 1_200);
-
   await humanClick(page, page.getByRole('button', { name: 'Pause data flow' }));
   await expect(play).toBeVisible();
   await scrubPlayhead(page);
@@ -403,7 +361,7 @@ test('exercises and records the README demo flow with generated simulator data',
   const details = page.locator('[role="tabpanel"][data-state="active"]');
   await details.hover();
   await beat(page, 300);
-  await page.mouse.wheel(0, 500);
+  await smoothWheel(page, 500);
   await beat(page, 1_200);
 
   await beat(page, 600);
@@ -467,5 +425,5 @@ test('exercises and records the README demo flow with generated simulator data',
   await expect(entityRow).toBeVisible();
   await humanClick(page, entityRow);
   await expect(page.getByRole('button', { name: 'Copy ID' })).toBeVisible();
-  await beat(page, 1_500);
+  await beat(page, 2_000);
 });
