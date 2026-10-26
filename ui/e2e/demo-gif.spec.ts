@@ -7,6 +7,7 @@ const ENGINE_ID = '01a07b4c-86ab-7971-97c1-24879c41910e';
 const QUERY_ID = '01a07b4c-86ab-7971-97c1-28ffb10dde0d';
 const QUERY_PATH = `/#/profile/engine/${ENGINE_ID}/query/${QUERY_ID}`;
 const IS_RECORDING = process.env.PLAYWRIGHT_DEMO_RECORD === '1';
+const MIN_USAGE_SECONDS = 0.005;
 
 async function beat(page: Page, recordingMs = 800) {
   await page.waitForTimeout(IS_RECORDING ? recordingMs : 50);
@@ -163,7 +164,7 @@ async function zoomDagAndPanUp(page: Page) {
   };
   await page.mouse.move(focus.x, focus.y);
   await beat(page, 300);
-  await page.mouse.wheel(0, -700);
+  await page.mouse.wheel(0, -900);
   await beat(page);
 
   await drag(
@@ -172,7 +173,7 @@ async function zoomDagAndPanUp(page: Page) {
     { x: box!.x + box!.width * 0.45, y: box!.y + box!.height * 0.35 }
   );
   await beat(page, 300);
-  await page.mouse.wheel(0, -250);
+  await page.mouse.wheel(0, -500);
   await beat(page, 900);
 }
 
@@ -223,7 +224,7 @@ async function zoomTimeline(page: Page, targetFraction: number) {
       break;
     }
     await page.mouse.wheel(0, -420);
-    await page.waitForTimeout(IS_RECORDING ? 90 : 20);
+    await page.waitForTimeout(IS_RECORDING ? 45 : 20);
   }
 
   await expect
@@ -314,6 +315,11 @@ async function selectOperatorType(page: Page, type: string) {
     .first();
   await expect(node).toBeAttached();
   await humanClick(page, node, { force: true });
+  const removeFilter = page.getByRole('button', { name: new RegExp(`Remove .*${type}`, 'i') });
+  if (!(await removeFilter.isVisible())) {
+    await node.dispatchEvent('click');
+  }
+  await expect(removeFilter).toBeVisible();
   await beat(page);
 }
 
@@ -390,9 +396,9 @@ test('exercises and records the README demo flow with generated simulator data',
 
   await selectOperatorType(page, 'Join');
   await selectOperatorType(page, 'Project');
-  const detailsToggle = page.getByRole('button', { name: 'Toggle operator details' });
+  const detailsToggle = page.getByRole('button', { name: 'Toggle details' });
   await expect(detailsToggle).toBeEnabled();
-  await expect(page.getByRole('tab', { name: 'Stats' })).toBeVisible();
+  await expect(page.getByRole('tab', { name: 'Operators' })).toBeVisible();
 
   const details = page.locator('[role="tabpanel"][data-state="active"]');
   await details.hover();
@@ -400,6 +406,7 @@ test('exercises and records the README demo flow with generated simulator data',
   await page.mouse.wheel(0, 500);
   await beat(page, 1_200);
 
+  await beat(page, 600);
   await humanClick(page, page.getByRole('button', { name: 'Clear all filters' }));
   await expect(page.getByRole('button', { name: 'Clear all filters' })).toHaveCount(0);
   await beat(page);
@@ -435,14 +442,16 @@ test('exercises and records the README demo flow with generated simulator data',
   const minUsage = page.getByRole('spinbutton', { name: 'Min usage (s)' });
   await humanClick(page, minUsage);
   await minUsage.selectText();
-  await minUsage.pressSequentially('0.021', { delay: IS_RECORDING ? 110 : 0 });
+  await minUsage.pressSequentially(String(MIN_USAGE_SECONDS), {
+    delay: IS_RECORDING ? 110 : 0,
+  });
   await minUsage.press('Enter');
   await beat(page);
   const minUsageSlider = page
     .getByRole('group', { name: 'Min usage (s) slider' })
     .getByRole('slider');
   const maxUsage = Number(await minUsageSlider.getAttribute('aria-valuemax'));
-  if (maxUsage < 0.021) {
+  if (maxUsage < MIN_USAGE_SECONDS) {
     await minUsage.fill((maxUsage * 0.8).toFixed(4));
     await minUsage.press('Enter');
   }
