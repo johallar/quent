@@ -117,6 +117,9 @@ view snapshots through the **Copy Link** action. See
 [Deep links](./docs/deep-links.md) for the stored state, compatibility policy,
 and command-line creation and decoding examples.
 
+The agent-authored question and query-diff CLI is maintained separately under
+[`experimental/vibe/quent-cli`](../experimental/vibe/quent-cli/).
+
 ## API Integration
 
 The application includes stub API functions in `src/services/api.ts`. These
