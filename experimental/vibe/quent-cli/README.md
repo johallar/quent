@@ -37,8 +37,10 @@ Compare query bundles:
 pixi run pnpm --dir experimental/vibe/quent-cli ask query-diff
 ```
 
-Pass explicit IDs and `--json` for non-interactive automation. Discovery
-commands are available for engines, query groups, and queries:
+`--json` controls the output format; question commands still open the selector
+when IDs are omitted. Pass explicit IDs with `--json` for non-interactive
+automation. Discovery commands are available for engines, query groups, and
+queries:
 
 ```sh
 pixi run pnpm --silent --dir experimental/vibe/quent-cli ask engines --json

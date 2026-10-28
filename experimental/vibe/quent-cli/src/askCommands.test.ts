@@ -40,10 +40,12 @@ describe('ask command dispatcher', () => {
     expect(getAskCommand('query-diff').usage).toContain('pnpm ask query-diff');
   });
 
-  it('requires question selections explicitly in JSON mode', async () => {
-    await expect(getAskCommand('longest-resource-users').run(['--json'])).rejects.toThrow(
-      'JSON mode requires explicit --engine, --query, --resource'
-    );
+  it('allows interactive selection with JSON output', () => {
+    const usage = getAskCommand('operator-facts').usage;
+
+    expect(usage).toContain('--json');
+    expect(usage).toContain('selection may still be interactive');
+    expect(usage).not.toContain('never open interactive prompts');
   });
 
   it('rejects unknown commands with the supported command list', () => {

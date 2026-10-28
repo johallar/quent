@@ -12,11 +12,7 @@ import {
 } from '@quent/client';
 import type { RegisteredQuestion } from './questions/question.types';
 import type { AskCommand } from './askCommand.types';
-import {
-  createNonInteractiveSelector,
-  createTerminalSelector,
-  resolveAskSelections,
-} from './askSelection';
+import { createTerminalSelector, resolveAskSelections } from './askSelection';
 import { machineResult, serializeMachineOutput } from './machineOutput';
 
 function usage(question: RegisteredQuestion): string {
@@ -34,7 +30,7 @@ Options:
   --limit COUNT          Maximum results, 1-500 (default: 10)
   --api-base URL         API base (default: QUENT_API_BASE_URL or http://localhost:8080/api)
   --base URL             Quent UI base for an absolute deep link
-  --json                 Emit versioned JSON; never open interactive prompts`;
+  --json                 Emit versioned JSON output (selection may still be interactive)`;
 }
 
 export function createQuestionCommand(question: RegisteredQuestion): AskCommand {
@@ -67,18 +63,6 @@ export function createQuestionCommand(question: RegisteredQuestion): AskCommand 
       const requireResource = question.metadata.parameters.some(
         parameter => parameter.name === 'resource' && parameter.required
       );
-      if (values.json) {
-        const missing = [
-          !values.engine && '--engine',
-          !values.query && '--query',
-          requireResource && !values.resource && '--resource',
-        ].filter((option): option is string => Boolean(option));
-        if (missing.length > 0) {
-          throw new Error(
-            `JSON mode requires explicit ${missing.join(', ')}. Use the discovery commands to find IDs.`
-          );
-        }
-      }
       const selections = await resolveAskSelections({
         values,
         api: {
@@ -86,7 +70,7 @@ export function createQuestionCommand(question: RegisteredQuestion): AskCommand 
           fetchListQueries,
           fetchQueryBundle,
         },
-        select: values.json ? createNonInteractiveSelector() : createTerminalSelector(),
+        select: createTerminalSelector(),
         requireResource,
       });
       const result = await question.run(
