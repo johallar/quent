@@ -88,6 +88,7 @@ describe('question registry', () => {
     expect([...questionRegistry.keys()]).toEqual([
       'query-lifecycle',
       'query-structure',
+      'operator-facts',
       'longest-resource-users',
     ]);
     expect(getQuestion('query-lifecycle').metadata).toMatchObject({
@@ -98,12 +99,16 @@ describe('question registry', () => {
       id: 'query-structure',
       version: 1,
     });
+    expect(getQuestion('operator-facts').metadata).toMatchObject({
+      id: 'operator-facts',
+      version: 1,
+    });
     expect(getQuestion('longest-resource-users').metadata).toMatchObject({
       id: 'longest-resource-users',
       version: 1,
     });
     expect(() => getQuestion('resource-magic')).toThrow(
-      'Supported questions: query-lifecycle, query-structure, longest-resource-users'
+      'Supported questions: query-lifecycle, query-structure, operator-facts, longest-resource-users'
     );
   });
 

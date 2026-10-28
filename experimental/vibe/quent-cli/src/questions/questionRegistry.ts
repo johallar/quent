@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { longestResourceUsersQuestion } from './longestResourceUsers';
+import { operatorFactsQuestion } from './operatorFacts';
 import { registerQuestion, type RegisteredQuestion } from './question.types';
 import { queryLifecycleQuestion } from './queryLifecycle';
 import { queryStructureQuestion } from './queryStructure';
@@ -9,6 +10,7 @@ import { queryStructureQuestion } from './queryStructure';
 const questions: RegisteredQuestion[] = [
   registerQuestion(queryLifecycleQuestion),
   registerQuestion(queryStructureQuestion),
+  registerQuestion(operatorFactsQuestion),
   registerQuestion(longestResourceUsersQuestion),
 ];
 
