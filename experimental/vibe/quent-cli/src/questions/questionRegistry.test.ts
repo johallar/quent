@@ -4,13 +4,13 @@
 import { describe, expect, it, vi } from 'vitest';
 import { gunzipSync } from 'node:zlib';
 import type { EntityRef, QueryBundle } from '@quent/utils';
-import type { EvidenceDeepLinkState } from '../deepLink';
+import type { EntityEvidenceDeepLinkState } from '../deepLink';
 import type { LongestResourceUsersResult } from './longestResourceUsers';
 import { getQuestion, questionRegistry } from './questionRegistry';
 
 function decodeDeepLinkState(encoded: string): {
   version: string;
-  data: EvidenceDeepLinkState;
+  data: EntityEvidenceDeepLinkState;
 } {
   const [version, payload] = encoded.split('.', 2);
   if (!version || !payload) {
@@ -20,7 +20,7 @@ function decodeDeepLinkState(encoded: string): {
     version,
     data: JSON.parse(
       gunzipSync(Buffer.from(payload, 'base64url')).toString('utf8')
-    ) as EvidenceDeepLinkState,
+    ) as EntityEvidenceDeepLinkState,
   };
 }
 
@@ -85,13 +85,17 @@ function context(fetchEntityList = vi.fn()) {
 
 describe('question registry', () => {
   it('registers stable question metadata and rejects unknown questions', () => {
-    expect([...questionRegistry.keys()]).toEqual(['longest-resource-users']);
+    expect([...questionRegistry.keys()]).toEqual(['query-lifecycle', 'longest-resource-users']);
+    expect(getQuestion('query-lifecycle').metadata).toMatchObject({
+      id: 'query-lifecycle',
+      version: 1,
+    });
     expect(getQuestion('longest-resource-users').metadata).toMatchObject({
       id: 'longest-resource-users',
       version: 1,
     });
     expect(() => getQuestion('resource-magic')).toThrow(
-      'Supported questions: longest-resource-users'
+      'Supported questions: query-lifecycle, longest-resource-users'
     );
   });
 

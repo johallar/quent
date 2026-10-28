@@ -59,7 +59,7 @@ export interface QuestionResult {
     confidence?: number;
   };
   resolution: {
-    source: 'entity-list' | 'binned-timeline';
+    source: 'query-bundle' | 'entity-list' | 'binned-timeline';
     binCount: number | null;
     binDurationSeconds: number | null;
     explanation: string;

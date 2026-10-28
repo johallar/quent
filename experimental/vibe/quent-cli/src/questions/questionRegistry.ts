@@ -3,14 +3,15 @@
 
 import { longestResourceUsersQuestion } from './longestResourceUsers';
 import { registerQuestion, type RegisteredQuestion } from './question.types';
+import { queryLifecycleQuestion } from './queryLifecycle';
 
-const definitions = [longestResourceUsersQuestion] as const;
+const questions: RegisteredQuestion[] = [
+  registerQuestion(queryLifecycleQuestion),
+  registerQuestion(longestResourceUsersQuestion),
+];
 
 export const questionRegistry: ReadonlyMap<string, RegisteredQuestion> = new Map(
-  definitions.map(definition => {
-    const question = registerQuestion(definition);
-    return [question.metadata.id, question];
-  })
+  questions.map(question => [question.metadata.id, question])
 );
 
 export function getQuestion(questionId: string): RegisteredQuestion {

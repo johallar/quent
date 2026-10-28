@@ -5,10 +5,15 @@ import { gzipSync } from 'node:zlib';
 
 const MAX_DEEP_LINK_URL_LENGTH = 2048;
 
-export interface EvidenceDeepLinkState {
+interface EvidenceDeepLinkRoute {
+  engineId: string;
+  queryId: string;
+}
+
+export interface EntityEvidenceDeepLinkState {
   route: {
-    engineId: string;
-    queryId: string;
+    engineId: EvidenceDeepLinkRoute['engineId'];
+    queryId: EvidenceDeepLinkRoute['queryId'];
     tab: 'entities';
   };
   selection?: {
@@ -27,6 +32,24 @@ export interface EvidenceDeepLinkState {
     selectedEntityId?: string;
   };
 }
+
+export interface QueryEvidenceDeepLinkState {
+  route: EvidenceDeepLinkRoute & {
+    tab: 'timeline' | 'operators';
+  };
+  timeline: {
+    zoomRange: {
+      start: number;
+      end: number;
+    };
+  };
+  selection?: {
+    planId?: string;
+    operatorNodeIds?: string[];
+  };
+}
+
+export type EvidenceDeepLinkState = EntityEvidenceDeepLinkState | QueryEvidenceDeepLinkState;
 
 export function buildEvidenceDeepLink(currentUrl: string, state: EvidenceDeepLinkState): string {
   const encoded = gzipSync(JSON.stringify(state), { level: 9 }).toString('base64url');
