@@ -85,9 +85,17 @@ function context(fetchEntityList = vi.fn()) {
 
 describe('question registry', () => {
   it('registers stable question metadata and rejects unknown questions', () => {
-    expect([...questionRegistry.keys()]).toEqual(['query-lifecycle', 'longest-resource-users']);
+    expect([...questionRegistry.keys()]).toEqual([
+      'query-lifecycle',
+      'query-structure',
+      'longest-resource-users',
+    ]);
     expect(getQuestion('query-lifecycle').metadata).toMatchObject({
       id: 'query-lifecycle',
+      version: 1,
+    });
+    expect(getQuestion('query-structure').metadata).toMatchObject({
+      id: 'query-structure',
       version: 1,
     });
     expect(getQuestion('longest-resource-users').metadata).toMatchObject({
@@ -95,7 +103,7 @@ describe('question registry', () => {
       version: 1,
     });
     expect(() => getQuestion('resource-magic')).toThrow(
-      'Supported questions: query-lifecycle, longest-resource-users'
+      'Supported questions: query-lifecycle, query-structure, longest-resource-users'
     );
   });
 

@@ -4,9 +4,11 @@
 import { longestResourceUsersQuestion } from './longestResourceUsers';
 import { registerQuestion, type RegisteredQuestion } from './question.types';
 import { queryLifecycleQuestion } from './queryLifecycle';
+import { queryStructureQuestion } from './queryStructure';
 
 const questions: RegisteredQuestion[] = [
   registerQuestion(queryLifecycleQuestion),
+  registerQuestion(queryStructureQuestion),
   registerQuestion(longestResourceUsersQuestion),
 ];
 
