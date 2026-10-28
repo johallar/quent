@@ -21,6 +21,11 @@ const BINNED: DataFlowTimelineBinned = {
   },
 };
 
+const BINNED_RESPONSE = {
+  ...BINNED,
+  config: { ...BINNED.config, num_bins: 4 },
+};
+
 function stubFetch(response: Response) {
   const fetchMock = vi.fn().mockResolvedValue(response);
   vi.stubGlobal('fetch', fetchMock);
@@ -61,7 +66,7 @@ describe('fetchDataFlow', () => {
   });
 
   it('resolves the binned timeline on a 200 response', async () => {
-    stubFetch(new Response(JSON.stringify(BINNED), { status: 200 }));
+    stubFetch(new Response(JSON.stringify(BINNED_RESPONSE), { status: 200 }));
     await expect(fetchDataFlow('e-1', 'q-1', CONFIG)).resolves.toEqual(BINNED);
   });
 
@@ -78,7 +83,7 @@ describe('fetchDataFlow', () => {
   });
 
   it('POSTs a CategoricalTimelineRequest to the data-flow endpoint', async () => {
-    const fetchMock = stubFetch(new Response(JSON.stringify(BINNED), { status: 200 }));
+    const fetchMock = stubFetch(new Response(JSON.stringify(BINNED_RESPONSE), { status: 200 }));
     await fetchDataFlow('e-1', 'q-1', CONFIG, ['tasks']);
     expect(fetchMock).toHaveBeenCalledWith(
       expect.stringContaining('/engines/e-1/timeline/data-flow'),
