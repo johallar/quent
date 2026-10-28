@@ -282,16 +282,20 @@ async function httpFetchDataFlow(
 }
 
 const httpClient: ApiClient = {
-  fetchQueryBundle: httpFetchQueryBundle,
-  fetchListEngines: httpFetchListEngines,
-  fetchEngineContexts: httpFetchEngineContexts,
-  fetchNvtxCatalog: httpFetchNvtxCatalog,
-  fetchNvtxViewport: httpFetchNvtxViewport,
-  fetchListQueries: httpFetchListQueries,
-  fetchSingleTimeline: httpFetchSingleTimeline,
-  fetchBulkTimelines: httpFetchBulkTimelines,
-  fetchEntityList: httpFetchEntityList,
-  fetchDataFlow: httpFetchDataFlow,
+  fetchQueryBundle: (engineId, queryId) => httpFetchQueryBundle(engineId, queryId),
+  fetchListEngines: () => httpFetchListEngines(),
+  fetchEngineContexts: engineId => httpFetchEngineContexts(engineId),
+  fetchNvtxCatalog: (contextId, queryStartUnixNs) =>
+    httpFetchNvtxCatalog(contextId, queryStartUnixNs),
+  fetchNvtxViewport: (contextId, queryStartUnixNs, request) =>
+    httpFetchNvtxViewport(contextId, queryStartUnixNs, request),
+  fetchListQueries: engineId => httpFetchListQueries(engineId),
+  fetchSingleTimeline: (engineId, request, durationSeconds) =>
+    httpFetchSingleTimeline(engineId, request, durationSeconds),
+  fetchBulkTimelines: (engineId, request) => httpFetchBulkTimelines(engineId, request),
+  fetchEntityList: (engineId, request) => httpFetchEntityList(engineId, request),
+  fetchDataFlow: (engineId, queryId, config, measures) =>
+    httpFetchDataFlow(engineId, queryId, config, measures),
 };
 
 /** Creates an HTTP client pinned to one API base without mutating global config. */
