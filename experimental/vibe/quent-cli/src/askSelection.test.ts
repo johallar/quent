@@ -11,6 +11,7 @@ import {
   querySelectionKey,
   resolveAskSelections,
   selectQueriesFromTree,
+  selectQuery,
   type SelectFromList,
   type SelectFromQueryTree,
 } from './askSelection';
@@ -193,6 +194,17 @@ describe('ask CLI selections', () => {
       ]),
       false
     );
+  });
+
+  it('supports a custom query prompt and excluded query IDs', async () => {
+    const api = discoveryApi();
+    const select = vi.fn<SelectFromList>().mockResolvedValue('query-2');
+
+    await selectQuery(api, select, 'engine-2', 'Select the candidate query', new Set(['query-1']));
+
+    expect(select).toHaveBeenCalledWith('Select the candidate query', [
+      { value: 'query-2', label: 'Query Z (query-2)' },
+    ]);
   });
 
   it('builds an all-engine query tree and returns multiple selections', async () => {
