@@ -89,6 +89,7 @@ describe('question registry', () => {
       'query-lifecycle',
       'query-structure',
       'operator-facts',
+      'operator-statistics-summary',
       'longest-resource-users',
     ]);
     expect(getQuestion('query-lifecycle').metadata).toMatchObject({
@@ -103,12 +104,16 @@ describe('question registry', () => {
       id: 'operator-facts',
       version: 1,
     });
+    expect(getQuestion('operator-statistics-summary').metadata).toMatchObject({
+      id: 'operator-statistics-summary',
+      version: 1,
+    });
     expect(getQuestion('longest-resource-users').metadata).toMatchObject({
       id: 'longest-resource-users',
       version: 1,
     });
     expect(() => getQuestion('resource-magic')).toThrow(
-      'Supported questions: query-lifecycle, query-structure, operator-facts, longest-resource-users'
+      'Supported questions: query-lifecycle, query-structure, operator-facts, operator-statistics-summary, longest-resource-users'
     );
   });
 

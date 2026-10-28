@@ -13,6 +13,7 @@ describe('ask command dispatcher', () => {
       'query-lifecycle',
       'query-structure',
       'operator-facts',
+      'operator-statistics-summary',
       'longest-resource-users',
       'query-diff',
     ]);
@@ -21,6 +22,7 @@ describe('ask command dispatcher', () => {
     expect(askUsage).toContain('query-lifecycle');
     expect(askUsage).toContain('query-structure');
     expect(askUsage).toContain('operator-facts');
+    expect(askUsage).toContain('operator-statistics-summary');
     expect(askUsage).toContain('longest-resource-users');
     expect(askUsage).toContain('query-diff');
   });
@@ -29,6 +31,9 @@ describe('ask command dispatcher', () => {
     expect(getAskCommand('query-lifecycle').usage).toContain('pnpm ask query-lifecycle');
     expect(getAskCommand('query-structure').usage).toContain('pnpm ask query-structure');
     expect(getAskCommand('operator-facts').usage).toContain('pnpm ask operator-facts');
+    expect(getAskCommand('operator-statistics-summary').usage).toContain(
+      'pnpm ask operator-statistics-summary'
+    );
     expect(getAskCommand('longest-resource-users').usage).toContain(
       'pnpm ask longest-resource-users'
     );
@@ -43,7 +48,7 @@ describe('ask command dispatcher', () => {
 
   it('rejects unknown commands with the supported command list', () => {
     expect(() => getAskCommand('unknown')).toThrow(
-      'Supported commands: engines, query-groups, queries, query-lifecycle, query-structure, operator-facts, longest-resource-users, query-diff'
+      'Supported commands: engines, query-groups, queries, query-lifecycle, query-structure, operator-facts, operator-statistics-summary, longest-resource-users, query-diff'
     );
   });
 });

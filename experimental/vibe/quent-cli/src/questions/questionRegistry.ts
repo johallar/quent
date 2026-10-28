@@ -3,6 +3,7 @@
 
 import { longestResourceUsersQuestion } from './longestResourceUsers';
 import { operatorFactsQuestion } from './operatorFacts';
+import { operatorStatisticsSummaryQuestion } from './operatorStatisticsSummary';
 import { registerQuestion, type RegisteredQuestion } from './question.types';
 import { queryLifecycleQuestion } from './queryLifecycle';
 import { queryStructureQuestion } from './queryStructure';
@@ -11,6 +12,7 @@ const questions: RegisteredQuestion[] = [
   registerQuestion(queryLifecycleQuestion),
   registerQuestion(queryStructureQuestion),
   registerQuestion(operatorFactsQuestion),
+  registerQuestion(operatorStatisticsSummaryQuestion),
   registerQuestion(longestResourceUsersQuestion),
 ];
 
