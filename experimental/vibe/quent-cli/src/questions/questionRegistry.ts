@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: Copyright (c) 2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 // SPDX-License-Identifier: Apache-2.0
 
+import { longestResourceUsersQuestion } from './longestResourceUsers';
 import { operatorFactsQuestion } from './operatorFacts';
 import { operatorStatisticsSummaryQuestion } from './operatorStatisticsSummary';
 import { registerQuestion, type RegisteredQuestion } from './question.types';
@@ -12,6 +13,7 @@ const questions: RegisteredQuestion[] = [
   registerQuestion(queryStructureQuestion),
   registerQuestion(operatorFactsQuestion),
   registerQuestion(operatorStatisticsSummaryQuestion),
+  registerQuestion(longestResourceUsersQuestion),
 ];
 
 export const questionRegistry: ReadonlyMap<string, RegisteredQuestion> = new Map(
