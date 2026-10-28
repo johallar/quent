@@ -6,7 +6,7 @@ import type { ApiClient } from '@quent/client';
 import { formatAttributeValue } from '@quent/utils';
 import type { EntityRef, Query, QueryBundle, QueryListResponse } from '@quent/utils';
 import type { QuestionCliValues } from './questions/question.types';
-import { selectWithInk } from './inkSelectorRunner';
+import { selectFromQueryTreeWithInk, selectWithInk } from './inkSelectorRunner';
 
 type TerminalReadable = Readable & { isTTY?: boolean };
 type TerminalWritable = Writable & { isTTY?: boolean };
@@ -56,6 +56,7 @@ interface ResolveAskSelectionsOptions {
   values: QuestionCliValues;
   api: DiscoveryApi;
   select: SelectFromList;
+  selectTree?: SelectFromQueryTree;
   requireResource: boolean;
 }
 
@@ -187,16 +188,21 @@ export function querySelectionKey(engineId: string, queryId: string): string {
   return `${engineId}\0${queryId}`;
 }
 
-export async function discoverQueryTreeChoices(api: DiscoveryApi): Promise<QueryTreeChoice[]> {
+export async function discoverQueryTreeChoices(
+  api: DiscoveryApi,
+  engineIds?: ReadonlySet<string>
+): Promise<QueryTreeChoice[]> {
   const { items: engines } = await api.fetchListEngines();
   const engineBranches = await Promise.all(
-    engines.map(async engine => {
-      const groupBranches = (await fetchQueryCatalogGroups(api, engine.id)).map(group => ({
-        group,
-        queries: group.queries,
-      }));
-      return { engine, groupBranches };
-    })
+    engines
+      .filter(engine => !engineIds || engineIds.has(engine.id))
+      .map(async engine => {
+        const groupBranches = (await fetchQueryCatalogGroups(api, engine.id)).map(group => ({
+          group,
+          queries: group.queries,
+        }));
+        return { engine, groupBranches };
+      })
   );
   return engineBranches
     .flatMap(({ engine, groupBranches }) =>
@@ -272,10 +278,28 @@ export async function resolveAskSelections({
   values,
   api,
   select,
+  selectTree = selectFromQueryTreeWithInk,
   requireResource,
 }: ResolveAskSelectionsOptions): Promise<ResolvedAskSelections> {
-  const engineId = optionalId(values.engine) ?? (await selectEngine(api, select));
-  const queryId = optionalId(values.query) ?? (await selectQuery(api, select, engineId));
+  const requestedEngineId = optionalId(values.engine);
+  const requestedQueryId = optionalId(values.query);
+  let engineId = requestedEngineId;
+  let queryId = requestedQueryId;
+  if (!engineId || !queryId) {
+    const choices = (
+      await discoverQueryTreeChoices(api, engineId ? new Set([engineId]) : undefined)
+    ).filter(choice => !queryId || choice.queryId === queryId);
+    const [selection] = await selectQueriesFromTree(
+      api,
+      selectTree,
+      'Select a query',
+      false,
+      new Set(),
+      choices
+    );
+    engineId = selection.engineId;
+    queryId = selection.queryId;
+  }
   const queryBundle = await api.fetchQueryBundle(engineId, queryId);
   const resourceId =
     optionalId(values.resource) ??

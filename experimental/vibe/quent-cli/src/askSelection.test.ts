@@ -91,41 +91,37 @@ function discoveryApi() {
 describe('ask CLI selections', () => {
   it('discovers and presents missing engine, query, and resource IDs', async () => {
     const api = discoveryApi();
-    const select: SelectFromList = vi.fn(async (prompt, _choices) => {
-      if (prompt === 'Select an engine') {
-        return 'engine-2';
-      }
-      if (prompt === 'Select a query group') {
-        return 'value:Warehouse';
-      }
-      if (prompt === 'Select a query') {
-        return 'query-2';
-      }
+    const select: SelectFromList = vi.fn(async prompt => {
       expect(prompt).toBe('Select a resource');
       return 'resource-2';
     });
+    const selectTree = vi
+      .fn<SelectFromQueryTree>()
+      .mockResolvedValue([querySelectionKey('engine-2', 'query-2')]);
 
     const resolved = await resolveAskSelections({
       values: {},
       api,
       select,
+      selectTree,
       requireResource: true,
     });
 
+    expect(api.fetchListQueries).toHaveBeenCalledWith('engine-1');
     expect(api.fetchListQueries).toHaveBeenCalledWith('engine-2');
     expect(api.fetchQueryBundle).toHaveBeenCalledWith('engine-2', 'query-2');
-    expect(select).toHaveBeenNthCalledWith(1, 'Select an engine', [
-      { value: 'engine-1', label: 'Alpha Engine (engine-1)' },
-      { value: 'engine-2', label: 'Zeta Engine (engine-2)' },
-    ]);
-    expect(select).toHaveBeenNthCalledWith(2, 'Select a query group', [
-      { value: 'value:Ad hoc', label: 'Ad hoc (value:Ad hoc) · 1 query' },
-      { value: 'value:Warehouse', label: 'Warehouse (value:Warehouse) · 1 query' },
-    ]);
-    expect(select).toHaveBeenNthCalledWith(3, 'Select a query', [
-      { value: 'query-2', label: 'Query Z (query-2)' },
-    ]);
-    expect(select).toHaveBeenNthCalledWith(4, 'Select a resource', [
+    expect(selectTree).toHaveBeenCalledWith(
+      'Select a query',
+      expect.arrayContaining([
+        expect.objectContaining({
+          engineId: 'engine-2',
+          engineLabel: 'Zeta Engine (engine-2)',
+          queryId: 'query-2',
+        }),
+      ]),
+      false
+    );
+    expect(select).toHaveBeenCalledWith('Select a resource', [
       { value: 'resource-2', label: 'GPU Memory (Memory, resource-2)' },
       { value: 'resource-1', label: 'Host Memory (Memory, resource-1)' },
     ]);
@@ -144,6 +140,7 @@ describe('ask CLI selections', () => {
   it('does not issue list requests for IDs supplied by the caller', async () => {
     const api = discoveryApi();
     const select = vi.fn<SelectFromList>();
+    const selectTree = vi.fn<SelectFromQueryTree>();
 
     const resolved = await resolveAskSelections({
       values: {
@@ -153,18 +150,51 @@ describe('ask CLI selections', () => {
       },
       api,
       select,
+      selectTree,
       requireResource: true,
     });
 
     expect(api.fetchListEngines).not.toHaveBeenCalled();
     expect(api.fetchListQueries).not.toHaveBeenCalled();
     expect(select).not.toHaveBeenCalled();
+    expect(selectTree).not.toHaveBeenCalled();
     expect(api.fetchQueryBundle).toHaveBeenCalledWith('engine-2', 'query-2');
     expect(resolved.values).toMatchObject({
       engine: 'engine-2',
       query: 'query-2',
       resource: 'resource-1',
     });
+  });
+
+  it('scopes the query tree when only the engine ID is supplied', async () => {
+    const api = discoveryApi();
+    const select = vi.fn<SelectFromList>();
+    const selectTree = vi
+      .fn<SelectFromQueryTree>()
+      .mockResolvedValue([querySelectionKey('engine-2', 'query-2')]);
+
+    await expect(
+      resolveAskSelections({
+        values: { engine: 'engine-2' },
+        api,
+        select,
+        selectTree,
+        requireResource: false,
+      })
+    ).resolves.toMatchObject({
+      engineId: 'engine-2',
+      queryId: 'query-2',
+    });
+
+    expect(api.fetchListQueries).toHaveBeenCalledTimes(1);
+    expect(api.fetchListQueries).toHaveBeenCalledWith('engine-2');
+    expect(selectTree).toHaveBeenCalledWith(
+      'Select a query',
+      expect.arrayContaining([
+        expect.objectContaining({ engineId: 'engine-2', queryId: 'query-2' }),
+      ]),
+      false
+    );
   });
 
   it('supports a custom query prompt and excluded query IDs', async () => {
