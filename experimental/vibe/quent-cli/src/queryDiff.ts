@@ -4,7 +4,6 @@
 import { parseArgs } from 'node:util';
 import {
   createHttpApiClient,
-  fetchListCoordinators,
   fetchListEngines,
   fetchListQueries,
   fetchQueryBundle,
@@ -535,7 +534,6 @@ export async function resolveDatabaseRunIds(
 function globalDiscoveryApi(): DiscoveryApi {
   return {
     fetchListEngines,
-    fetchListCoordinators,
     fetchListQueries,
     fetchQueryBundle,
   };
@@ -545,7 +543,6 @@ function clientDiscoveryApi(baseUrl: string): DiscoveryApi {
   const client = createHttpApiClient(baseUrl);
   return {
     fetchListEngines: client.fetchListEngines,
-    fetchListCoordinators: client.fetchListCoordinators,
     fetchListQueries: client.fetchListQueries,
     fetchQueryBundle: client.fetchQueryBundle,
   };

@@ -176,15 +176,13 @@ function aggregateBundle(bundle: QueryBundle<EntityRef>): Map<string, Aggregated
       addForGroups(ACTIVE_SPAN_METRIC, 'seconds', duration);
     }
 
-    for (const [metric, statistic] of Object.entries(
-      operator.statistics?.custom_statistics ?? {}
-    )) {
-      if (statistic?.value === null || statistic?.value === undefined) {
+    for (const statistic of operator.statistics?.custom_statistics ?? []) {
+      if (statistic.value.value === null || statistic.value.value === undefined) {
         continue;
       }
-      const value = unwrapTaggedValue(statistic.value);
+      const value = unwrapTaggedValue(statistic.value.value);
       if (isNumericValue(value)) {
-        addForGroups(metric, statistic.quantity, value);
+        addForGroups(statistic.value.key, statistic.quantity, value);
       }
     }
   }

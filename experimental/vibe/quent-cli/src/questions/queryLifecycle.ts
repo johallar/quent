@@ -19,7 +19,6 @@ type LifecycleOffset = 'planning_s' | 'executing_s' | 'completed_s';
 export interface QueryLifecycleResult extends QuestionResult {
   scope: {
     engineId: string;
-    queryGroupId: string;
     queryId: string;
     queryName: string | null;
   };
@@ -119,7 +118,6 @@ async function run(context: QuestionContext): Promise<QueryLifecycleResult> {
     resolution: queryBundleResolution(),
     scope: {
       engineId: context.engineId,
-      queryGroupId: query.query_group_id,
       queryId: context.queryId,
       queryName: query.instance_name,
     },

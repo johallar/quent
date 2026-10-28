@@ -4,7 +4,6 @@
 import { parseArgs } from 'node:util';
 import {
   fetchEntityList,
-  fetchListCoordinators,
   fetchListEngines,
   fetchListQueries,
   fetchQueryBundle,
@@ -84,7 +83,6 @@ export function createQuestionCommand(question: RegisteredQuestion): AskCommand 
         values,
         api: {
           fetchListEngines,
-          fetchListCoordinators,
           fetchListQueries,
           fetchQueryBundle,
         },

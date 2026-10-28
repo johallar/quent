@@ -64,7 +64,6 @@ describe('query-lifecycle', () => {
       resolution: { source: 'query-bundle', binCount: null },
       scope: {
         engineId: 'engine-1',
-        queryGroupId: 'group-1',
         queryId: 'query-1',
         queryName: 'Query 1',
       },

@@ -19,10 +19,13 @@ function captureStdout() {
 describe('agent discovery commands', () => {
   it('lists engines in a versioned, deterministic JSON envelope', async () => {
     setApiClient({
-      fetchListEngines: vi.fn().mockResolvedValue([
-        { id: 'engine-z', instance_name: 'Zeta' },
-        { id: 'engine-a', instance_name: 'Alpha' },
-      ]),
+      fetchListEngines: vi.fn().mockResolvedValue({
+        items: [
+          { id: 'engine-z', instance_name: 'Zeta' },
+          { id: 'engine-a', instance_name: 'Alpha' },
+        ],
+        initial_group_by_attribute: null,
+      }),
     } as unknown as ApiClient);
     const write = captureStdout();
 
@@ -40,33 +43,49 @@ describe('agent discovery commands', () => {
 
   it('lists query groups and queries with their parent IDs', async () => {
     setApiClient({
-      fetchListCoordinators: vi
-        .fn()
-        .mockResolvedValue([{ id: 'group-1', instance_name: 'Warehouse' }]),
-      fetchListQueries: vi
-        .fn()
-        .mockResolvedValue([{ id: 'query-1', instance_name: 'Daily report' }]),
+      fetchListQueries: vi.fn().mockResolvedValue({
+        items: [
+          {
+            id: 'query-1',
+            instance_name: 'Daily report',
+            custom_attributes: [{ key: 'workload', value: { String: 'Warehouse' } }],
+          },
+        ],
+        initial_group_by_attribute: 'workload',
+      }),
     } as unknown as ApiClient);
     const write = captureStdout();
 
     await queryGroupsCommand.run(['--engine', 'engine-1', '--json']);
-    await queriesCommand.run(['--engine', 'engine-1', '--query-group', 'group-1', '--json']);
+    await queriesCommand.run([
+      '--engine',
+      'engine-1',
+      '--query-group',
+      'value:Warehouse',
+      '--json',
+    ]);
 
     expect(JSON.parse(String(write.mock.calls[0]![0])).data).toEqual({
       engineId: 'engine-1',
-      queryGroups: [{ id: 'group-1', instance_name: 'Warehouse' }],
+      queryGroups: [{ id: 'value:Warehouse', instance_name: 'Warehouse' }],
     });
     expect(JSON.parse(String(write.mock.calls[1]![0])).data).toEqual({
       engineId: 'engine-1',
-      queryGroupId: 'group-1',
-      queries: [{ id: 'query-1', instance_name: 'Daily report' }],
+      queryGroupId: 'value:Warehouse',
+      queries: [
+        {
+          id: 'query-1',
+          instance_name: 'Daily report',
+          custom_attributes: [{ key: 'workload', value: { String: 'Warehouse' } }],
+        },
+      ],
     });
   });
 
   it('requires explicit parent IDs before issuing JSON discovery requests', async () => {
     setApiClient({
       fetchListEngines: vi.fn(),
-      fetchListCoordinators: vi.fn(),
+      fetchListQueries: vi.fn(),
     } as unknown as ApiClient);
 
     await expect(queryGroupsCommand.run(['--json'])).rejects.toThrow(
@@ -76,6 +95,6 @@ describe('agent discovery commands', () => {
       'JSON mode requires explicit --query-group'
     );
     expect(getApiClient().fetchListEngines).not.toHaveBeenCalled();
-    expect(getApiClient().fetchListCoordinators).not.toHaveBeenCalled();
+    expect(getApiClient().fetchListQueries).not.toHaveBeenCalled();
   });
 });

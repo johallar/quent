@@ -185,21 +185,26 @@ function resolveEntityType(
   if (!declaration) {
     throw new Error(`Resource type "${resource.type_name}" is not declared in the query bundle.`);
   }
+  const entityTypes = [
+    ...new Set(
+      declaration.display_order.flatMap(selection => (selection === 'All' ? [] : [selection.Type]))
+    ),
+  ];
   if (requested) {
     if (!bundle.entities.fsm_types[requested]) {
       throw new Error(`FSM entity type "${requested}" is not declared in the query bundle.`);
     }
-    if (!declaration.used_by.includes(requested)) {
+    if (!entityTypes.includes(requested)) {
       throw new Error(
         `FSM entity type "${requested}" is not declared as a user of resource type "${resource.type_name}".`
       );
     }
     return requested;
   }
-  if (declaration.used_by.length !== 1) {
+  if (entityTypes.length !== 1) {
     return null;
   }
-  const entityType = declaration.used_by[0]!;
+  const entityType = entityTypes[0]!;
   if (!bundle.entities.fsm_types[entityType]) {
     throw new Error(
       `Resource type "${resource.type_name}" references undeclared FSM type "${entityType}".`

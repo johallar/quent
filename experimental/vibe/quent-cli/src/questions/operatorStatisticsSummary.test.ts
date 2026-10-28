@@ -16,10 +16,15 @@ function operator(
     parent_operator_ids: ['logical-join'],
     instance_name: id,
     operator_type_name: 'HashJoin',
-    custom_attributes: {},
-    statistics: { custom_statistics: statistics },
+    custom_attributes: [],
+    statistics: {
+      custom_statistics: Object.entries(statistics).map(([key, statistic]) => ({
+        value: { key, value: statistic.value },
+        quantity: statistic.quantity,
+      })),
+    },
     active_span: null,
-  } as Operator;
+  } as unknown as Operator;
 }
 
 function bundle(operators: Operator[]): QueryBundle<EntityRef> {
@@ -29,14 +34,17 @@ function bundle(operators: Operator[]): QueryBundle<EntityRef> {
     parent_operator_ids: [],
     instance_name: 'Logical join',
     operator_type_name: 'Join',
-    custom_attributes: {},
+    custom_attributes: [],
     statistics: {
-      custom_statistics: {
-        rows: { value: 999n, quantity: 'rows' },
-      },
+      custom_statistics: [
+        {
+          value: { key: 'rows', value: 999n },
+          quantity: 'rows',
+        },
+      ],
     },
     active_span: null,
-  } as Operator;
+  } as unknown as Operator;
   return {
     query_id: 'query-1',
     start_time_unix_ns: 0n,

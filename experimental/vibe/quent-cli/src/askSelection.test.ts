@@ -40,56 +40,52 @@ const queryBundle = {
 
 function discoveryApi() {
   return {
-    fetchListEngines: vi.fn().mockResolvedValue([
-      {
-        id: 'engine-2',
-        instance_name: 'Zeta Engine',
-        start_time_unix_ns: null,
-        duration_s: null,
-        implementation: null,
-      },
-      {
-        id: 'engine-1',
-        instance_name: 'Alpha Engine',
-        start_time_unix_ns: null,
-        duration_s: null,
-        implementation: null,
-      },
-    ]),
-    fetchListCoordinators: vi.fn().mockResolvedValue([
-      { id: 'group-1', instance_name: 'Warehouse', engine_id: 'engine-2' },
-      { id: 'group-2', instance_name: null, engine_id: 'engine-2' },
-    ]),
-    fetchListQueries: vi.fn().mockImplementation(async (_engineId, groupId) =>
-      groupId === 'group-1'
-        ? [
-            {
-              id: 'query-2',
-              query_group_id: groupId,
-              instance_name: 'Query Z',
-              start_unix_ns: null,
-              planning_s: null,
-              executing_s: null,
-              completed_s: null,
-            },
-          ]
-        : [
-            {
-              id: 'query-1',
-              query_group_id: groupId,
-              instance_name: 'Query A',
-              start_unix_ns: null,
-              planning_s: null,
-              executing_s: null,
-              completed_s: null,
-            },
-          ]
-    ),
+    fetchListEngines: vi.fn().mockResolvedValue({
+      items: [
+        {
+          id: 'engine-2',
+          instance_name: 'Zeta Engine',
+          start_time_unix_ns: null,
+          duration_s: null,
+          custom_attributes: [],
+          implementation: null,
+        },
+        {
+          id: 'engine-1',
+          instance_name: 'Alpha Engine',
+          start_time_unix_ns: null,
+          duration_s: null,
+          custom_attributes: [],
+          implementation: null,
+        },
+      ],
+      initial_group_by_attribute: null,
+    }),
+    fetchListQueries: vi.fn().mockResolvedValue({
+      items: [
+        {
+          id: 'query-2',
+          instance_name: 'Query Z',
+          custom_attributes: [{ key: 'workload', value: { String: 'Warehouse' } }],
+          start_unix_ns: null,
+          planning_s: null,
+          executing_s: null,
+          completed_s: null,
+        },
+        {
+          id: 'query-1',
+          instance_name: 'Query A',
+          custom_attributes: [{ key: 'workload', value: { String: 'Ad hoc' } }],
+          start_unix_ns: null,
+          planning_s: null,
+          executing_s: null,
+          completed_s: null,
+        },
+      ],
+      initial_group_by_attribute: 'workload',
+    }),
     fetchQueryBundle: vi.fn().mockResolvedValue(queryBundle),
-  } satisfies Pick<
-    ApiClient,
-    'fetchListEngines' | 'fetchListCoordinators' | 'fetchListQueries' | 'fetchQueryBundle'
-  >;
+  } satisfies Pick<ApiClient, 'fetchListEngines' | 'fetchListQueries' | 'fetchQueryBundle'>;
 }
 
 describe('ask CLI selections', () => {
@@ -100,7 +96,7 @@ describe('ask CLI selections', () => {
         return 'engine-2';
       }
       if (prompt === 'Select a query group') {
-        return 'group-1';
+        return 'value:Warehouse';
       }
       if (prompt === 'Select a query') {
         return 'query-2';
@@ -116,17 +112,15 @@ describe('ask CLI selections', () => {
       requireResource: true,
     });
 
-    expect(api.fetchListCoordinators).toHaveBeenCalledWith('engine-2');
-    expect(api.fetchListQueries).toHaveBeenCalledWith('engine-2', 'group-1');
-    expect(api.fetchListQueries).toHaveBeenCalledWith('engine-2', 'group-2');
+    expect(api.fetchListQueries).toHaveBeenCalledWith('engine-2');
     expect(api.fetchQueryBundle).toHaveBeenCalledWith('engine-2', 'query-2');
     expect(select).toHaveBeenNthCalledWith(1, 'Select an engine', [
       { value: 'engine-1', label: 'Alpha Engine (engine-1)' },
       { value: 'engine-2', label: 'Zeta Engine (engine-2)' },
     ]);
     expect(select).toHaveBeenNthCalledWith(2, 'Select a query group', [
-      { value: 'group-2', label: 'group-2 · 1 query' },
-      { value: 'group-1', label: 'Warehouse (group-1) · 1 query' },
+      { value: 'value:Ad hoc', label: 'Ad hoc (value:Ad hoc) · 1 query' },
+      { value: 'value:Warehouse', label: 'Warehouse (value:Warehouse) · 1 query' },
     ]);
     expect(select).toHaveBeenNthCalledWith(3, 'Select a query', [
       { value: 'query-2', label: 'Query Z (query-2)' },
@@ -163,7 +157,6 @@ describe('ask CLI selections', () => {
     });
 
     expect(api.fetchListEngines).not.toHaveBeenCalled();
-    expect(api.fetchListCoordinators).not.toHaveBeenCalled();
     expect(api.fetchListQueries).not.toHaveBeenCalled();
     expect(select).not.toHaveBeenCalled();
     expect(api.fetchQueryBundle).toHaveBeenCalledWith('engine-2', 'query-2');
@@ -178,13 +171,13 @@ describe('ask CLI selections', () => {
     const api = discoveryApi();
     const select = vi
       .fn<SelectFromList>()
-      .mockResolvedValueOnce('group-1')
+      .mockResolvedValueOnce('value:Warehouse')
       .mockResolvedValueOnce('query-2');
 
     await selectQuery(api, select, 'engine-2', 'Select the candidate query', new Set(['query-1']));
 
     expect(select).toHaveBeenNthCalledWith(1, 'Select the candidate query group', [
-      { value: 'group-1', label: 'Warehouse (group-1) · 1 query' },
+      { value: 'value:Warehouse', label: 'Warehouse (value:Warehouse) · 1 query' },
     ]);
     expect(select).toHaveBeenNthCalledWith(2, 'Select the candidate query', [
       { value: 'query-2', label: 'Query Z (query-2)' },
@@ -193,12 +186,12 @@ describe('ask CLI selections', () => {
 
   it('selects query groups independently for discovery commands', async () => {
     const api = discoveryApi();
-    const select = vi.fn<SelectFromList>().mockResolvedValue('group-1');
+    const select = vi.fn<SelectFromList>().mockResolvedValue('value:Warehouse');
 
-    await expect(selectQueryGroup(api, select, 'engine-2')).resolves.toBe('group-1');
+    await expect(selectQueryGroup(api, select, 'engine-2')).resolves.toBe('value:Warehouse');
     expect(select).toHaveBeenCalledWith('Select a query group', [
-      { value: 'group-2', label: 'group-2' },
-      { value: 'group-1', label: 'Warehouse (group-1)' },
+      { value: 'value:Ad hoc', label: 'Ad hoc (value:Ad hoc)' },
+      { value: 'value:Warehouse', label: 'Warehouse (value:Warehouse)' },
     ]);
   });
 
@@ -223,8 +216,8 @@ describe('ask CLI selections', () => {
         expect.objectContaining({
           engineId: 'engine-2',
           engineLabel: 'Zeta Engine (engine-2)',
-          queryGroupId: 'group-1',
-          queryGroupLabel: 'Warehouse (group-1)',
+          queryGroupId: 'value:Warehouse',
+          queryGroupLabel: 'Warehouse (value:Warehouse)',
           queryId: 'query-2',
         }),
       ]),

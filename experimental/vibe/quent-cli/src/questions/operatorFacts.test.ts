@@ -48,7 +48,7 @@ function bundle(): QueryBundle<EntityRef> {
           parent_operator_ids: [],
           instance_name: 'Logical scan',
           operator_type_name: 'LogicalScan',
-          custom_attributes: {},
+          custom_attributes: [],
           statistics: null,
           active_span: null,
         },
@@ -58,15 +58,21 @@ function bundle(): QueryBundle<EntityRef> {
           parent_operator_ids: ['logical-scan'],
           instance_name: 'Physical scan',
           operator_type_name: 'PhysicalScan',
-          custom_attributes: {
-            label: { String: 'orders' },
-            parallelism: { U64: 4 },
-          },
+          custom_attributes: [
+            { key: 'label', value: { String: 'orders' } },
+            { key: 'parallelism', value: { U64: 4 } },
+          ],
           statistics: {
-            custom_statistics: {
-              label: { value: { String: 'scan' }, quantity: null },
-              rows: { value: { U64: 100 }, quantity: 'rows' },
-            },
+            custom_statistics: [
+              {
+                value: { key: 'label', value: { String: 'scan' } },
+                quantity: null,
+              },
+              {
+                value: { key: 'rows', value: { U64: 100 } },
+                quantity: 'rows',
+              },
+            ],
           },
           active_span: { start: 1.5, end: 8 },
         },
@@ -77,9 +83,7 @@ function bundle(): QueryBundle<EntityRef> {
           operator_id: 'physical-scan',
           instance_name: 'output',
           statistics: {
-            custom_statistics: {
-              bytes: { U64: 1024 },
-            },
+            custom_statistics: [{ key: 'bytes', value: { U64: 1024 } }],
           },
         },
       },

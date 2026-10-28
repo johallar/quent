@@ -23,19 +23,23 @@ afterEach(() => {
 
 function discoveryApi(): DiscoveryApi {
   return {
-    fetchListEngines: vi.fn().mockResolvedValue([
-      { id: 'engine-1', instance_name: 'Baseline' },
-      { id: 'engine-2', instance_name: 'Candidate' },
-    ]),
-    fetchListCoordinators: vi.fn(async engineId => [
-      { id: `group-${engineId}`, instance_name: `Group ${engineId}` },
-    ]),
-    fetchListQueries: vi.fn(async engineId => [
-      {
-        id: engineId === 'engine-1' ? 'query-1' : 'query-2',
-        instance_name: engineId === 'engine-1' ? 'Old query' : 'New query',
-      },
-    ]),
+    fetchListEngines: vi.fn().mockResolvedValue({
+      items: [
+        { id: 'engine-1', instance_name: 'Baseline' },
+        { id: 'engine-2', instance_name: 'Candidate' },
+      ],
+      initial_group_by_attribute: null,
+    }),
+    fetchListQueries: vi.fn(async engineId => ({
+      items: [
+        {
+          id: engineId === 'engine-1' ? 'query-1' : 'query-2',
+          instance_name: engineId === 'engine-1' ? 'Old query' : 'New query',
+          custom_attributes: [],
+        },
+      ],
+      initial_group_by_attribute: null,
+    })),
     fetchQueryBundle: vi.fn(),
   } as unknown as DiscoveryApi;
 }
@@ -54,9 +58,10 @@ function metricBundle(queryId: string, metrics: string[]): QueryBundle<EntityRef
           operator_type_name: 'Scan',
           active_span: null,
           statistics: {
-            custom_statistics: Object.fromEntries(
-              metrics.map(metric => [metric, { value: 1, quantity: null }])
-            ),
+            custom_statistics: metrics.map(metric => ({
+              value: { key: metric, value: { U64: 1 } },
+              quantity: null,
+            })),
           },
         },
       },
@@ -166,7 +171,7 @@ describe('query diff selections', () => {
               parent_operator_ids: [],
               operator_type_name: 'Scan',
               active_span: { start: 0, end: 1 },
-              statistics: { custom_statistics: {} },
+              statistics: { custom_statistics: [] },
             },
           },
         },

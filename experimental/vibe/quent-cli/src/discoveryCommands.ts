@@ -2,17 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { parseArgs } from 'node:util';
-import {
-  fetchListCoordinators,
-  fetchListEngines,
-  fetchListQueries,
-  fetchQueryBundle,
-  setApiBaseUrl,
-} from '@quent/client';
+import { fetchListEngines, fetchListQueries, fetchQueryBundle, setApiBaseUrl } from '@quent/client';
 import type { AskCommand } from './askCommand.types';
 import {
   createNonInteractiveSelector,
   createTerminalSelector,
+  fetchQueryCatalogGroups,
   selectEngine,
   selectQueryGroup,
   type DiscoveryApi,
@@ -23,7 +18,6 @@ type NamedEntity = { id: string; instance_name: string | null };
 
 const api: DiscoveryApi = {
   fetchListEngines,
-  fetchListCoordinators,
   fetchListQueries,
   fetchQueryBundle,
 };
@@ -75,7 +69,7 @@ Options:
       },
     });
     configureApi(values['api-base']);
-    const engines = sorted(await api.fetchListEngines());
+    const engines = sorted((await api.fetchListEngines()).items);
     process.stdout.write(
       values.json
         ? serializeMachineOutput(machineResult('engines', engines))
@@ -110,7 +104,12 @@ Options:
     }
     const engineId =
       values.engine ?? (await selectEngine(api, selector(values.json), 'Select an engine'));
-    const groups = sorted(await api.fetchListCoordinators(engineId));
+    const groups = sorted(
+      (await fetchQueryCatalogGroups(api, engineId)).map(({ id, instance_name }) => ({
+        id,
+        instance_name,
+      }))
+    );
     const data = { engineId, queryGroups: groups };
     process.stdout.write(
       values.json
@@ -157,7 +156,13 @@ Options:
     const queryGroupId =
       values['query-group'] ??
       (await selectQueryGroup(api, select, engineId, 'Select a query group'));
-    const queries = sorted(await api.fetchListQueries(engineId, queryGroupId));
+    const group = (await fetchQueryCatalogGroups(api, engineId)).find(
+      candidate => candidate.id === queryGroupId
+    );
+    if (!group) {
+      throw new Error(`Query group "${queryGroupId}" is unavailable for engine "${engineId}".`);
+    }
+    const queries = sorted(group.queries);
     const data = { engineId, queryGroupId, queries };
     process.stdout.write(
       values.json

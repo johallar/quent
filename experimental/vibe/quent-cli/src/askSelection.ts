@@ -3,7 +3,8 @@
 
 import type { Readable, Writable } from 'node:stream';
 import type { ApiClient } from '@quent/client';
-import type { EntityRef, QueryBundle } from '@quent/utils';
+import { formatAttributeValue } from '@quent/utils';
+import type { EntityRef, Query, QueryBundle, QueryListResponse } from '@quent/utils';
 import type { QuestionCliValues } from './questions/question.types';
 import { selectWithInk } from './inkSelectorRunner';
 
@@ -42,8 +43,14 @@ export type SelectFromQueryTree = (
 
 export type DiscoveryApi = Pick<
   ApiClient,
-  'fetchListEngines' | 'fetchListCoordinators' | 'fetchListQueries' | 'fetchQueryBundle'
+  'fetchListEngines' | 'fetchListQueries' | 'fetchQueryBundle'
 >;
+
+export interface QueryCatalogGroup {
+  id: string;
+  instance_name: string | null;
+  queries: Query[];
+}
 
 interface ResolveAskSelectionsOptions {
   values: QuestionCliValues;
@@ -78,7 +85,7 @@ export async function selectEngine(
   select: SelectFromList,
   prompt = 'Select an engine'
 ): Promise<string> {
-  const engines = await api.fetchListEngines();
+  const { items: engines } = await api.fetchListEngines();
   const choices = stableChoices(
     engines.map(engine => ({
       value: engine.id,
@@ -91,13 +98,41 @@ export async function selectEngine(
   return select(prompt, choices);
 }
 
+export function groupQueryCatalog(response: QueryListResponse): QueryCatalogGroup[] {
+  const groupBy = response.initial_group_by_attribute;
+  if (!groupBy) {
+    return [{ id: 'all', instance_name: 'All queries', queries: response.items }];
+  }
+
+  const groups = new Map<string, QueryCatalogGroup>();
+  for (const query of response.items) {
+    const value = query.custom_attributes.find(attribute => attribute.key === groupBy)?.value;
+    const instanceName = value == null ? 'Other' : formatAttributeValue(groupBy, value);
+    const id = value == null ? 'missing' : `value:${instanceName}`;
+    const group = groups.get(id);
+    if (group) {
+      group.queries.push(query);
+    } else {
+      groups.set(id, { id, instance_name: instanceName, queries: [query] });
+    }
+  }
+  return [...groups.values()];
+}
+
+export async function fetchQueryCatalogGroups(
+  api: DiscoveryApi,
+  engineId: string
+): Promise<QueryCatalogGroup[]> {
+  return groupQueryCatalog(await api.fetchListQueries(engineId));
+}
+
 export async function selectQueryGroup(
   api: DiscoveryApi,
   select: SelectFromList,
   engineId: string,
   prompt = 'Select a query group'
 ): Promise<string> {
-  const groups = await api.fetchListCoordinators(engineId);
+  const groups = await fetchQueryCatalogGroups(api, engineId);
   const choices = stableChoices(
     groups.map(group => ({
       value: group.id,
@@ -117,15 +152,10 @@ export async function selectQuery(
   prompt = 'Select a query',
   excludedQueryIds: ReadonlySet<string> = new Set()
 ): Promise<string> {
-  const groups = await api.fetchListCoordinators(engineId);
-  const groupedQueries = await Promise.all(
-    groups.map(async group => ({
-      group,
-      queries: (await api.fetchListQueries(engineId, group.id)).filter(
-        query => !excludedQueryIds.has(query.id)
-      ),
-    }))
-  );
+  const groupedQueries = (await fetchQueryCatalogGroups(api, engineId)).map(group => ({
+    group,
+    queries: group.queries.filter(query => !excludedQueryIds.has(query.id)),
+  }));
   const availableGroups = groupedQueries.filter(({ queries }) => queries.length > 0);
   const groupPrompt = prompt.replace(/\bquery\b/u, 'query group');
   const groupChoices = stableChoices(
@@ -158,16 +188,13 @@ export function querySelectionKey(engineId: string, queryId: string): string {
 }
 
 export async function discoverQueryTreeChoices(api: DiscoveryApi): Promise<QueryTreeChoice[]> {
-  const engines = await api.fetchListEngines();
+  const { items: engines } = await api.fetchListEngines();
   const engineBranches = await Promise.all(
     engines.map(async engine => {
-      const groups = await api.fetchListCoordinators(engine.id);
-      const groupBranches = await Promise.all(
-        groups.map(async group => ({
-          group,
-          queries: await api.fetchListQueries(engine.id, group.id),
-        }))
-      );
+      const groupBranches = (await fetchQueryCatalogGroups(api, engine.id)).map(group => ({
+        group,
+        queries: group.queries,
+      }));
       return { engine, groupBranches };
     })
   );

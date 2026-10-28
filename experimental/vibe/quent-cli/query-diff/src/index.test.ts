@@ -19,10 +19,15 @@ function operator(
     parent_operator_ids: parentOperatorIds,
     instance_name: id,
     operator_type_name: type,
-    custom_attributes: {},
-    statistics: { custom_statistics: statistics },
+    custom_attributes: [],
+    statistics: {
+      custom_statistics: Object.entries(statistics).map(([key, statistic]) => ({
+        value: { key, value: statistic.value },
+        quantity: statistic.quantity,
+      })),
+    },
     active_span: duration === null ? null : { start: 1, end: 1 + duration },
-  } as Operator;
+  } as unknown as Operator;
 }
 
 function bundle(

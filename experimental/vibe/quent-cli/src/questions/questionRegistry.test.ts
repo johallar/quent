@@ -52,7 +52,7 @@ const bundle = {
       Memory: {
         name: 'Memory',
         capacities: [{ name: 'bytes', kind: 'Occupancy', quantity: 'bytes' }],
-        used_by: ['Task'],
+        display_order: [{ Type: 'Task' }],
       },
     },
     resource_group_types: {},

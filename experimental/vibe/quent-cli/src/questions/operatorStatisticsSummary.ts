@@ -339,13 +339,14 @@ async function run(context: QuestionContext): Promise<OperatorStatisticsSummaryR
   );
 
   for (const operator of operators) {
-    for (const [statisticName, statistic] of Object.entries(
-      operator.statistics?.custom_statistics ?? {}
-    ).sort(([left], [right]) => left.localeCompare(right))) {
+    for (const statistic of [...(operator.statistics?.custom_statistics ?? [])].sort(
+      (left, right) => left.value.key.localeCompare(right.value.key)
+    )) {
+      const statisticName = statistic.value.key;
       if (statistic.quantity && !context.queryBundle.quantity_specs[statistic.quantity]) {
         undeclaredQuantities.add(statistic.quantity);
       }
-      flattenStatistic(statistic.value, [[statisticName, 0]], (path, value, reason) => {
+      flattenStatistic(statistic.value.value, [[statisticName, 0]], (path, value, reason) => {
         for (const group of memberships.get(operator.id) ?? []) {
           observations.push({
             operator,

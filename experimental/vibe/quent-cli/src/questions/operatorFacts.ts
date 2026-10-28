@@ -1,7 +1,12 @@
 // SPDX-FileCopyrightText: Copyright (c) 2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-import type { DynamicValue, OperatorStatistic, PortStatistics } from '@quent/utils';
+import type {
+  DynamicAttribute,
+  DynamicValue,
+  OperatorStatistic,
+  PortStatistics,
+} from '@quent/utils';
 import type {
   QuestionCliValues,
   QuestionContext,
@@ -127,18 +132,18 @@ function parseInput(values: QuestionCliValues): OperatorFactsInput {
   return { operatorIds: parseOperatorIds(values.operator) };
 }
 
-function dynamicValues(values: Record<string, DynamicValue | null>): NamedDynamicValue[] {
-  return Object.entries(values)
-    .sort(([left], [right]) => left.localeCompare(right))
-    .map(([name, value]) => ({ path: [name], value }));
+function dynamicValues(values: DynamicAttribute[]): NamedDynamicValue[] {
+  return [...values]
+    .sort((left, right) => left.key.localeCompare(right.key))
+    .map(attribute => ({ path: [attribute.key], value: attribute.value }));
 }
 
-function operatorStatistics(values: Record<string, OperatorStatistic>): NamedOperatorStatistic[] {
-  return Object.entries(values)
-    .sort(([left], [right]) => left.localeCompare(right))
-    .map(([name, statistic]) => ({
-      path: [name],
-      value: statistic.value,
+function operatorStatistics(values: OperatorStatistic[]): NamedOperatorStatistic[] {
+  return [...values]
+    .sort((left, right) => left.value.key.localeCompare(right.value.key))
+    .map(statistic => ({
+      path: [statistic.value.key],
+      value: statistic.value.value,
       quantity: statistic.quantity,
     }));
 }
