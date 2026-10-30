@@ -20,6 +20,8 @@ import type {
   SimulatorWorkerMessage,
 } from './simulatorProtocol';
 
+const demoDataUrl = `${import.meta.env.BASE_URL}simulator-demo.postcard`;
+
 /** Start the simulator worker and install its typed operations as the UI API client. */
 export async function installSimulatorClient(): Promise<void> {
   const worker = new Worker(new URL('./simulator.worker.ts', import.meta.url), { type: 'module' });
@@ -65,8 +67,7 @@ export async function installSimulatorClient(): Promise<void> {
   const call = async <T>(operation: SimulatorOperation): Promise<T> =>
     parseJsonWithBigInt<T>(await send({ type: 'operation', ...operation }));
 
-  const dataUrl = new URL('../../generated/simulator-demo.postcard', import.meta.url).href;
-  await send({ type: 'init', dataUrl });
+  await send({ type: 'init', dataUrl: demoDataUrl });
 
   const client: ApiClient = {
     fetchListEngines: () => call<EngineListResponse>({ operation: 'listEngines' }),
