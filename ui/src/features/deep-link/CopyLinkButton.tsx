@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Check, Share2 } from 'lucide-react';
 import { Button, toast } from '@quent/components';
 import { useDeepLink } from './deepLink.context';
+import { DeepLinkErrorList } from './DeepLinkErrorList';
 
 type CopyFeedback =
   | { kind: 'idle'; message: '' }
@@ -42,7 +43,7 @@ export function CopyLinkButton() {
         id: 'deep-link-copy-error',
         type: 'error',
         title: 'Could not copy link',
-        description: result.message,
+        description: <DeepLinkErrorList messages={result.messages} />,
         priority: 'high',
       });
     }
