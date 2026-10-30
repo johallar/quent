@@ -573,24 +573,30 @@ describe('DeepLinkBoundary', () => {
         debounced: { start: 0, end: 0 },
       })
     );
-    await waitFor(() =>
-      expect(toastSpy).toHaveBeenCalledWith(
-        expect.objectContaining({
-          id: 'deep-link-intake',
-          type: 'error',
-          title: 'Could not restore shared view',
-        })
-      )
+    await waitFor(() => expect(toastSpy).toHaveBeenCalledTimes(2));
+    expect(toastSpy).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({
+        id: 'deep-link-intake-0',
+        type: 'error',
+        title: 'Could not restore shared view',
+        description: expect.stringContaining(selectedMessage),
+      })
     );
-    expect(toastSpy).toHaveBeenCalledTimes(1);
+    expect(toastSpy).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({
+        id: 'deep-link-intake-1',
+        type: 'error',
+        title: 'Could not restore shared view',
+        description: expect.stringContaining(expandedMessage),
+      })
+    );
     await waitFor(() =>
       expect(document.querySelector('[data-slot="toast-title"]')).toHaveTextContent(
         'Could not restore shared view'
       )
     );
-    const description = document.querySelector('[data-slot="toast-description"]');
-    expect(description).toHaveTextContent(selectedMessage);
-    expect(description).toHaveTextContent(expandedMessage);
   });
 
   it('copies the current viewport without changing the address bar', async () => {
@@ -777,7 +783,7 @@ describe('DeepLinkBoundary', () => {
     await waitFor(() =>
       expect(toastSpy).toHaveBeenCalledWith(
         expect.objectContaining({
-          id: 'deep-link-copy-error',
+          id: 'deep-link-copy-error-0',
           type: 'error',
           title: 'Could not copy link',
         })
@@ -785,7 +791,7 @@ describe('DeepLinkBoundary', () => {
     );
   });
 
-  it('shows every generation error in one toast', async () => {
+  it('shows each generation error in a separate toast', async () => {
     const selectedMessage = `Shared links support at most ${MAX_SELECTED_NODE_IDS} selected operators.`;
     const expandedMessage = `Shared links support at most ${MAX_EXPANDED_RESOURCE_IDS} expanded resources.`;
     const selectedIds = Array.from(
@@ -819,20 +825,26 @@ describe('DeepLinkBoundary', () => {
 
     await userEvent.click(await screen.findByRole('button', { name: 'Copy Link' }));
 
-    await waitFor(() =>
-      expect(toastSpy).toHaveBeenCalledWith(
-        expect.objectContaining({
-          id: 'deep-link-copy-error',
-          type: 'error',
-          title: 'Could not copy link',
-        })
-      )
+    await waitFor(() => expect(toastSpy).toHaveBeenCalledTimes(2));
+    expect(toastSpy).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({
+        id: 'deep-link-copy-error-0',
+        type: 'error',
+        title: 'Could not copy link',
+        description: expect.stringContaining(selectedMessage),
+      })
     );
-    expect(toastSpy).toHaveBeenCalledTimes(1);
+    expect(toastSpy).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({
+        id: 'deep-link-copy-error-1',
+        type: 'error',
+        title: 'Could not copy link',
+        description: expect.stringContaining(expandedMessage),
+      })
+    );
     expect(writeText).not.toHaveBeenCalled();
-    const description = document.querySelector('[data-slot="toast-description"]');
-    expect(description).toHaveTextContent(selectedMessage);
-    expect(description).toHaveTextContent(expandedMessage);
   });
 });
 

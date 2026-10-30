@@ -46,8 +46,22 @@ function failure(
   return { ok: false, code, message: messages.join(' '), messages };
 }
 
+function formatIssuePath(path: PropertyKey[]): string {
+  return path.reduce<string>((result, segment) => {
+    if (typeof segment === 'number') {
+      return `${result}[${segment}]`;
+    }
+    const key = String(segment);
+    return result ? `${result}.${key}` : key;
+  }, '');
+}
+
 function invalidState(error: ZodError, fallback: string): DeepLinkResult<never> {
-  const messages = error.issues.map(issue => issue.message);
+  const messages = error.issues.map(issue => {
+    const path =
+      issue.code === 'too_big' || issue.code === 'custom' ? '' : formatIssuePath(issue.path);
+    return path ? `${issue.message} (${path})` : issue.message;
+  });
   return failure('invalid-state', messages.length > 0 ? messages : fallback);
 }
 

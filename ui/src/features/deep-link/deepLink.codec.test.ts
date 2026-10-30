@@ -286,6 +286,29 @@ describe('deep-link codec', () => {
     expect(encodeDeepLinkState(invalidState)).toEqual(expected);
     expect(decodeDeepLinkState(encodeRawState('v3', invalidState))).toEqual(expected);
   });
+
+  it('includes nested fields and array indexes in validation errors', () => {
+    const invalidState = {
+      ...state,
+      timeline: { zoomRange: { start: -1, end: 0 } },
+      resources: {
+        ...state.resources,
+        resourceTypeSelections: [{ rowId: 'resource-a', resourceType: '' }],
+      },
+      entities: { ...state.entities, window: { start: 20, end: 10 } },
+    };
+
+    expect(encodeDeepLinkState(invalidState)).toMatchObject({
+      ok: false,
+      code: 'invalid-state',
+      messages: [
+        'Too small: expected number to be >=0 (timeline.zoomRange.start)',
+        'Too small: expected number to be >0 (timeline.zoomRange.end)',
+        'Too small: expected string to have >=1 characters (resources.resourceTypeSelections[0].resourceType)',
+        'Entity window end must not precede its start',
+      ],
+    });
+  });
 });
 
 describe('deep-link search validation', () => {
