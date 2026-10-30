@@ -59,6 +59,7 @@ import {
 } from './deepLink.context';
 import { readDeepLinkFields, type DeepLinkFields } from './deepLink.fields';
 import { normalizeZoomRange, resolveCapturedZoomRange } from './deepLink.normalize';
+import { showDeepLinkErrorToasts } from './deepLink.toasts';
 import {
   OperatorGroupSchema,
   type DeepLinkEntitiesState,
@@ -294,14 +295,10 @@ export function DeepLinkBoundary({
         return;
       }
       if (intake.status.kind === 'error') {
-        intake.status.messages.forEach((description, index) => {
-          toast.add({
-            id: `deep-link-intake-${index}`,
-            type: 'error',
-            title: 'Could not restore shared view',
-            description,
-            priority: 'high',
-          });
+        showDeepLinkErrorToasts({
+          id: 'deep-link-intake',
+          title: 'Could not restore shared view',
+          messages: intake.status.messages,
         });
       } else if (intake.status.kind === 'warning') {
         toast.add({

@@ -100,7 +100,7 @@ function ToastDescription({ className, ...props }: ToastPrimitive.Description.Pr
 
 function ToastAction({
   className,
-  render = <Button variant="outline" size="sm" />,
+  render = <Button variant="ghost" size="sm" className="h-7 px-2 text-xs" />,
   ...props
 }: ToastPrimitive.Action.Props) {
   return (
@@ -177,13 +177,15 @@ function ToastList() {
 
   return toasts.map(toastItem => (
     <Toast key={toastItem.id} toast={toastItem}>
-      <ToastContent>
+      <ToastContent className={toastItem.description ? undefined : 'items-center'}>
         <ToastIcon type={toastItem.type} />
         <div className="flex min-w-0 flex-1 flex-col gap-1">
-          <ToastTitle />
-          <ToastDescription />
+          <div className="flex min-w-0 items-center justify-between gap-3">
+            <ToastTitle />
+            <ToastAction />
+          </div>
+          {toastItem.description && <ToastDescription />}
         </div>
-        <ToastAction />
         <ToastClose />
       </ToastContent>
     </Toast>

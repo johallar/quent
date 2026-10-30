@@ -3,8 +3,9 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { Check, Share2 } from 'lucide-react';
-import { Button, toast } from '@quent/components';
+import { Button } from '@quent/components';
 import { useDeepLink } from './deepLink.context';
+import { showDeepLinkErrorToasts } from './deepLink.toasts';
 
 type CopyFeedback =
   | { kind: 'idle'; message: '' }
@@ -38,14 +39,10 @@ export function CopyLinkButton() {
         : { kind: 'error', message: result.message }
     );
     if (!result.ok) {
-      result.messages.forEach((description, index) => {
-        toast.add({
-          id: `deep-link-copy-error-${index}`,
-          type: 'error',
-          title: 'Could not copy link',
-          description,
-          priority: 'high',
-        });
+      showDeepLinkErrorToasts({
+        id: 'deep-link-copy-error',
+        title: 'Could not copy link',
+        messages: result.messages,
       });
     }
 

@@ -599,6 +599,51 @@ describe('DeepLinkBoundary', () => {
     );
   });
 
+  it('groups more than three incoming errors in an expandable summary toast', async () => {
+    const encoded = encodeRawState({
+      route: { engineId: 'e', queryId: 'q', tab: 'timeline' },
+      timeline: { zoomRange: { start: -1, end: 0 } },
+      selection: { planId: 'p'.repeat(129) },
+      resources: {
+        expandedRowIds: Array.from(
+          { length: MAX_EXPANDED_RESOURCE_IDS + 1 },
+          (_, index) => `resource-${index}`
+        ),
+      },
+    });
+    const toastSpy = vi.spyOn(toast, 'add');
+
+    render(
+      <>
+        <JotaiProvider>
+          <DeepLinkBoundary {...BOUNDARY_PROPS} encodedState={encoded}>
+            <IntakeStatusProbe />
+          </DeepLinkBoundary>
+        </JotaiProvider>
+        <Toaster />
+      </>
+    );
+
+    await waitFor(() => expect(toastSpy).toHaveBeenCalledTimes(1));
+    expect(toastSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: 'deep-link-intake-summary',
+        type: 'error',
+        title: 'Could not restore shared view',
+        description: null,
+      })
+    );
+
+    const expand = await screen.findByText('4 errors, click to expand', { selector: 'button' });
+    expect(expand).toHaveAttribute('aria-expanded', 'false');
+    await userEvent.click(expand);
+    const collapse = await screen.findByText('Hide details', { selector: 'button' });
+    expect(collapse).toHaveAttribute('aria-expanded', 'true');
+    expect(
+      screen.getAllByText('Too small: expected number to be >=0 (timeline.zoomRange.start)')[0]
+    ).toBeVisible();
+  });
+
   it('copies the current viewport without changing the address bar', async () => {
     const writeText = vi.fn().mockResolvedValue(undefined);
     Object.defineProperty(navigator, 'clipboard', {
