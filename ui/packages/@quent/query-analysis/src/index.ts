@@ -27,6 +27,8 @@ export type {
   QueryDiffSummary,
   SerializedQueryDiffValue,
 } from './queryDiff';
+export { prepareLongestResourceUsers } from './resourceUsers';
+export type { LongestResourceUsersInput, LongestResourceUsersPreparation } from './resourceUsers';
 export { analyzeQueryLifecycle } from './queryLifecycle';
 export type { LifecycleOffset, QueryLifecycleAnalysis } from './queryLifecycle';
 export { analyzeQueryStructure } from './queryStructure';
