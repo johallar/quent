@@ -240,6 +240,13 @@ export {
 } from './timeline/types';
 export type { TimelineMark, TimelineSeries, TimelineSeriesEntry } from './timeline/types';
 export { ResourceTimeline } from './timeline/ResourceTimeline';
+export type { ResourceTimelineProps } from './timeline/ResourceTimeline';
+export { ResourceTimelineView } from './quent-views/resource-timeline/ResourceTimelineView';
+export type {
+  ResourceTimelineViewProps,
+  ResourceTimelineViewStatus,
+} from './quent-views/resource-timeline/ResourceTimelineView';
+export type { ResourceTimelineViewData } from './quent-views/resource-timeline/resourceTimelineViewModel';
 
 // ─── DAG components ───────────────────────────────────────────────────────────
 export { DAGChart } from './dag/DAGChart';
@@ -269,6 +276,9 @@ export { ResourceGroupRow } from './resource-tree/ResourceGroupRow';
 export { ResourceRow } from './resource-tree/ResourceRow';
 export type { TreeTableItem } from './resource-tree/types';
 export { UsageColumn } from './resource-tree/UsageColumn';
+export type { UsageColumnProps } from './resource-tree/UsageColumn';
+export { UsageColumnView } from './quent-views/resource-timeline/UsageColumnView';
+export type { UsageColumnViewProps } from './quent-views/resource-timeline/UsageColumnView';
 
 // ─── Pivot-table components ──────────────────────────────────────────────────
 export { GroupedDataTable } from './ui/grouped-data-table/GroupedDataTable';

@@ -1,27 +1,16 @@
 // SPDX-FileCopyrightText: Copyright (c) 2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-import { TimelineSeries, TimelineMark } from '../timeline/types';
+import { TimelineMark } from '../timeline/types';
 import { TreeTableItem } from '../resource-tree/types';
-import {
-  formatQuantity,
-  WHITE,
-  withOpacity,
-  unpackEntityRef,
-  resolveResourceFsmType,
-  type ColorResolver,
-} from '@quent/utils';
+import { unpackEntityRef, resolveResourceFsmType, type ColorResolver } from '@quent/utils';
 import type {
   ResourceTimeline,
   EntityRef,
-  QuantitySpec,
-  BinnedSpanSec,
-  SingleTimelineResponse,
   FiniteStateMachine,
   TimelineRequest,
   OperatorFilter,
   TimelineConfig,
-  ResourceTypeDecl,
 } from '@quent/utils';
 import { QueryEntities, ResourceTree } from '@quent/utils';
 import { entityRefToEntitiesKey } from './queryBundle.utils';
@@ -66,125 +55,12 @@ export function getLongEntitiesThreshold(
   );
 }
 
-/** Fixed slate-blue for the "All FSMs" aggregate series, per theme. */
-export const ALL_FSMS_COLORS = {
-  light: '#4F6D8F',
-  dark: '#7F9CBF',
-} as const;
-
-export function buildBinnedTimelineSeries(
-  data: ResourceTimeline,
-  config: BinnedSpanSec,
-  colorFsmState: ColorResolver,
-  allFsmsColor: string,
-  resourceTypeDecl?: ResourceTypeDecl,
-  quantitySpecs?: { [key in string]?: QuantitySpec }
-): {
-  timestamps: number[];
-  series: TimelineSeries;
-  yAxisLabel: string | undefined;
-} {
-  const { bin_duration, num_bins, span } = config;
-
-  const numBinsNumber = Number(num_bins);
-  // x-domain is relative to query start (ms); span.start is already relative
-  // seconds, so no absolute epoch base is added — keeps values float64-exact.
-  const firstBinMs = span.start * 1_000;
-  const binDurationMs = bin_duration * 1_000;
-
-  const timestamps = new Array<number>(numBinsNumber);
-  for (let i = 0; i < numBinsNumber; i++) {
-    timestamps[i] = firstBinMs + i * binDurationMs;
-  }
-
-  const capacities = resourceTypeDecl?.capacities;
-
-  const getFormatter = (capacityName: string): ((value: number) => string) => {
-    const capDecl = capacities?.find(c => c.name === capacityName);
-    const spec = capDecl ? quantitySpecs?.[capDecl.quantity] : undefined;
-    if (spec && capDecl) {
-      return (value: number, decimals: number = 2) =>
-        formatQuantity(value, spec, capDecl.kind, decimals);
-    }
-    return (value: number) => String(value);
-  };
-
-  // Build series based on data type
-  const series: TimelineSeries = {};
-
-  if ('Binned' in data) {
-    // ResourceTimelineBinned: capacities_values (flat: capacity → values).
-    // This is the aggregate over all FSMs, so it uses the fixed "All" FSMs colour.
-    const { capacities_values } = data.Binned;
-    for (const [capacity, values] of Object.entries(capacities_values)) {
-      const formatter = getFormatter(capacity);
-      series[capacity] = {
-        color: allFsmsColor,
-        formatter,
-        values: values ?? [],
-        binDuration: bin_duration,
-      };
-    }
-  } else if ('BinnedByState' in data) {
-    const { capacities_states_values } = data.BinnedByState;
-    for (const capacityType of Object.keys(capacities_states_values)) {
-      const capacityStateValues = capacities_states_values[capacityType] ?? {};
-      for (const [state, values] of Object.entries(capacityStateValues)) {
-        const formatter = getFormatter(capacityType);
-        if (values) {
-          series[state] = {
-            color: colorFsmState(state),
-            binDuration: bin_duration,
-            formatter,
-            values,
-          };
-        }
-      }
-    }
-  }
-
-  // Ensures the timeline is cleared when new "all 0" or "no series" data is received
-  if (Object.keys(series).length === 0) {
-    series['empty'] = {
-      color: withOpacity(WHITE, 0),
-      binDuration: bin_duration,
-      formatter: (value: number) => String(value),
-      values: [],
-    };
-  }
-
-  return { timestamps, series, yAxisLabel: deriveCapacityLabel(resourceTypeDecl, quantitySpecs) };
-}
-
-/**
- * Derive a display label for the y-axis from a resource type's capacity metadata.
- * Considers all non-unit capacities declared on the type. Returns undefined when
- * no meaningful capacity exists (missing decl or unit-only).
- */
-export function deriveCapacityLabel(
-  resourceTypeDecl: ResourceTypeDecl | undefined,
-  quantitySpecs: { [key in string]?: QuantitySpec } | undefined
-): string | undefined {
-  const meaningful = resourceTypeDecl?.capacities.filter(c => c.name !== 'unit') ?? [];
-  if (meaningful.length === 0) {
-    return undefined;
-  }
-  if (meaningful.length === 1) {
-    const cap = meaningful[0]!;
-    const spec = quantitySpecs?.[cap.quantity];
-    return spec?.symbol ? `${cap.name} (${spec.symbol})` : cap.name;
-  }
-  // Multiple capacities: use a shared unit symbol when all agree, otherwise names only.
-  const symbols = new Set(meaningful.map(c => quantitySpecs?.[c.quantity]?.symbol));
-  const names = meaningful.map(c => c.name).join(' + ');
-  const commonSymbol = symbols.size === 1 ? [...symbols][0] : undefined;
-  return commonSymbol ? `${names} (${commonSymbol})` : names;
-}
-
-/** Extract the config from a SingleTimelineResponse */
-export function getTimelineConfig(response: SingleTimelineResponse): BinnedSpanSec {
-  return response.config;
-}
+export { ALL_FSMS_COLORS } from '../quent-views/resource-timeline/resourceTimelineViewModel';
+export {
+  buildBinnedTimelineSeries,
+  deriveCapacityLabel,
+  getTimelineConfig,
+} from '../query-engine/resource-timeline/resourceTimelineAdapter';
 
 /** Extract long_fsms from a ResourceTimeline response. */
 export function getLongFsms(data: ResourceTimeline): FiniteStateMachine[] {
@@ -255,44 +131,10 @@ export function buildTimelineMarks(
   return marks.length > 0 ? marks : undefined;
 }
 
-/**
- * Mark every entry in a TimelineSeries as dimmed. Used both as the background
- * layer when an operator overlay is rendered and as a placeholder while the
- * overlay data for a freshly selected operator is still in flight (so the
- * chart doesn't flash to full color in the gap).
- */
-export function dimSeries(series: TimelineSeries): TimelineSeries {
-  const dimmed: TimelineSeries = {};
-  for (const [state, entry] of Object.entries(series)) {
-    dimmed[state] = { ...entry, isDimmed: true };
-  }
-  return dimmed;
-}
-
-/**
- * Merge overlay series into base series for overlay rendering.
- * Base series are dimmed; overlay series keep original colors so the
- * selected operator stands out clearly against the background.
- */
-export function mergeOverlaySeries(
-  baseSeries: TimelineSeries,
-  overlaySeries: TimelineSeries,
-  overlayLabel: string
-): TimelineSeries {
-  // Dim all base series to push them into the background.
-  const merged: TimelineSeries = dimSeries(baseSeries);
-  // Add overlay series at full intensity with original colors.
-  for (const [state, overlayEntry] of Object.entries(overlaySeries)) {
-    const baseEntry = baseSeries[state];
-    const overlayName = `${state} (${overlayLabel})`;
-    merged[overlayName] = {
-      ...overlayEntry,
-      color: baseEntry?.color ?? overlayEntry.color,
-      isOverlay: true,
-    };
-  }
-  return merged;
-}
+export {
+  dimTimelineSeries as dimSeries,
+  mergeTimelineOverlaySeries as mergeOverlaySeries,
+} from '../ui/charts/timelineSeries';
 
 /** Extract the resource_type_name from a TimelineRequest (empty string for Resource requests) */
 export function getResourceTypeName(params: TimelineRequest<OperatorFilter> | undefined): string {
