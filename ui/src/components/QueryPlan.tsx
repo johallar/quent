@@ -4,10 +4,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState, lazy, Suspense } from 'react';
 import type { PanelImperativeHandle } from 'react-resizable-panels';
 import { useQueryBundle, useDataFlow } from '@quent/client';
-import { useQueryPlanVisualization } from '@/hooks/useQueryPlanVisualization';
 import {
   Badge,
   getSelectedOperatorCountsByPlan,
+  useQueryPlanVisualization,
   LoadingOverlay,
   TreeSelect,
 } from '@quent/components';
