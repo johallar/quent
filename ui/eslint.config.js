@@ -187,7 +187,13 @@ export default tseslint.config(
             // Keep compatibility-barrel wire types out of reusable views.
             {
               name: '@quent/utils',
-              allowImportNames: ['bigintToChartNumber', 'formatBytes', 'formatQuantity'],
+              allowImportNames: [
+                'bigintToChartNumber',
+                'DAGEdge',
+                'DAGNode',
+                'formatBytes',
+                'formatQuantity',
+              ],
               message: 'Quent views may import only explicitly view-safe utilities.',
             },
             {

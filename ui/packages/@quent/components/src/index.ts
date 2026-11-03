@@ -205,6 +205,11 @@ export type {
   QueryPlanNodeData,
 } from './query-engine/query-plan/types';
 // DAGNode, DAGEdge, StatValue come from query-engine/query-plan/types.
+export {
+  buildQueryPlanVisualization,
+  useQueryPlanVisualization,
+} from './query-engine/query-plan/useQueryPlanVisualization';
+export type { QueryPlanVisualizationResult } from './query-engine/query-plan/useQueryPlanVisualization';
 
 // ─── Timeline components ──────────────────────────────────────────────────────
 export { TimelineController } from './timeline/TimelineController';
@@ -255,9 +260,27 @@ export { DAGSettingsPopover } from './dag/DAGSettingsPopover';
 export { DAGLegend } from './dag/DAGLegend';
 export { DAGNodeInfoPanel } from './dag/DAGNodeInfoPanel';
 export { DagPlayhead } from './dag/DagPlayhead';
+export { DAGGraphView, DAGEdgeView } from './quent-views/query-plan/DAGGraphView';
+export type { DAGGraphViewProps } from './quent-views/query-plan/DAGGraphView';
+export { DAGLegendView } from './quent-views/query-plan/DAGLegendView';
+export type {
+  DAGCategoricalLegendSection,
+  DAGContinuousLegendSection,
+  DAGLegendSection,
+  DAGLegendViewProps,
+} from './quent-views/query-plan/DAGLegendView';
 
 // ─── Query-plan components ────────────────────────────────────────────────────
 export { QueryPlanNode } from './query-plan/QueryPlanNode';
+export { QueryPlanNodeView } from './quent-views/query-plan/QueryPlanNodeView';
+export type {
+  DAGEdgePresentation,
+  DAGEdgeViewData,
+  DAGGraphData,
+  DAGNodeOpacity,
+  QueryPlanNodePresentation,
+  QueryPlanNodeViewData,
+} from './quent-views/query-plan/types';
 export { NodeFlowBar } from './query-plan/NodeFlowBar';
 
 // ─── Segmented-bar components ─────────────────────────────────────────────────
