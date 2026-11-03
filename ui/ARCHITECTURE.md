@@ -47,10 +47,10 @@ props. They may use stable Quent concepts, but cannot import domain contracts,
 generated wire bindings, clients, hooks, or domain integration source.
 The currently enforced restrictions name the query-engine contract and
 integration explicitly. `quent-views/fsm-chart/**` and
-`quent-views/resource-timeline/**`, and `quent-views/query-plan/**` are migrated
-slices. The resource timeline and query-plan views consume only feature-scoped
-rendering data, status, presentation, and controlled interaction props; they do
-not require Quent providers or global stores.
+`quent-views/resource-timeline/**`, `quent-views/query-plan/**`, and
+`quent-views/pivot-table/**` are migrated slices. These views consume only
+feature-scoped rendering data, status, presentation, and controlled interaction
+props; they do not require Quent providers or global stores.
 
 ## Query-engine integration adapters
 
@@ -63,11 +63,12 @@ packages/@quent/components/src/query-engine/**
 These adapters own QueryBundle interpretation, query-engine API and hook
 integration, and conversion into feature-scoped view models. They may import
 `quent-views/**` and generic UI. `query-engine/query-plan/**` and
-`query-engine/resource-timeline/**` are migrated slices. Query-plan controllers
-own QueryBundle adaptation, React Flow state, global selection, coloring,
-palettes, data-flow synchronization, and compatibility widgets. The resource
-timeline widget owns fetching, cache identities, operator overlays, shared
-timeline state, request construction, and QueryBundle declaration adaptation.
+`query-engine/resource-timeline/**`, and `query-engine/pivot-table/**` are
+migrated slices. Query-plan controllers own QueryBundle adaptation, React Flow
+state, global selection, coloring, palettes, data-flow synchronization, and
+compatibility widgets. The resource timeline widget owns fetching, cache
+identities, operator overlays, shared timeline state, request construction, and
+QueryBundle declaration adaptation.
 
 Generated QueryBundle and wire contracts have the explicit import surface
 `@quent/utils/query-engine`. Existing `@quent/utils` root exports remain for
@@ -99,7 +100,7 @@ bindings or `@quent/*/src/**` paths directly.
 
 New code belongs in `ui/**`, `quent-views/**`, or `query-engine/**` according to
 its contract. The legacy `dag/**`, `query-plan/**`, `timeline/**`,
-`resource-tree/**`, `pivot-table/**`, `operator-timeline/**`,
+`resource-tree/**`, `operator-timeline/**`,
 `long-entities/**`, `gantt-chart/**`, and `nvtx-timeline/**` directories remain
 mixed while later phases split their rendering and integration responsibilities.
 The Phase 4a `ResourceTimeline` and `UsageColumn` exports and Phase 4b DAG and
@@ -126,6 +127,19 @@ query-engine integration adapter, while application `QueryPlan.tsx` remains in
 place for Phase 5. Existing public component exports continue through
 compatibility facades; no table or other application product code moved in this
 phase.
+
+## Phase 4c status
+
+Phase 4c is complete for the pivot-table vertical slice. Provider-free
+`PivotedStatTableView` and `PivotTableToolbarView` components, pivot contracts,
+and pivot utilities live under `quent-views/pivot-table/**`. They receive
+display, palette, scale, drag/drop, hover, selection, and action state through
+props. Query-engine adapters own `@quent/hooks` and Jotai-backed palette, scale,
+and drag/drop integration while preserving the existing `PivotedStatTable` and
+`PivotTableToolbar` APIs through compatibility facades. `GroupedDataTable`
+remains generic UI. `EntityResults` remains in `src/**` because it still depends on
+application-local row types, controls, and product policy; the broader entities
+move remains Phase 5 scope.
 
 ## Enforcement
 
