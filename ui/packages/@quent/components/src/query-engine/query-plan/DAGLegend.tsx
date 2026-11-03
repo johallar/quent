@@ -93,7 +93,7 @@ export interface DAGLegendProps {
   statisticFields?: ReadonlyMap<string, StatisticField>;
 }
 
-/** Query-engine-aware legend adapter over the provider-free legend view. */
+/** Query-engine integration adapter over the provider-free legend view. */
 export function DAGLegend({ isDark, statQuantitySpecs = {}, statisticFields }: DAGLegendProps) {
   const nodeColoring = useNodeColoringValue();
   const edgeColoring = useEdgeColoring();

@@ -66,7 +66,7 @@ export interface ResourceTimelineProps {
   showPlayheadIndicator?: boolean;
 }
 
-/** Query-engine-aware controller for a single resource timeline. */
+/** Query-engine integration controller for a single resource timeline. */
 export function ResourceTimeline({
   engineId,
   queryId,

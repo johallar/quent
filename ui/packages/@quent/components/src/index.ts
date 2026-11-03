@@ -313,8 +313,13 @@ export type {
   GroupedDataTableSortFn,
 } from './ui/grouped-data-table/GroupedDataTable';
 export { PivotedStatTable } from './pivot-table/PivotedStatTable';
+export type { PivotedStatTableProps } from './pivot-table/PivotedStatTable';
 export { PivotTableToolbar } from './pivot-table/PivotTableToolbar';
 export type { IndexConfigEntry, PivotTableToolbarProps } from './pivot-table/PivotTableToolbar';
+export { PivotedStatTableView } from './quent-views/pivot-table/PivotedStatTableView';
+export type { PivotedStatTableViewProps } from './quent-views/pivot-table/PivotedStatTableView';
+export { PivotTableToolbarView } from './quent-views/pivot-table/PivotTableToolbarView';
+export type { PivotTableToolbarViewProps } from './quent-views/pivot-table/PivotTableToolbarView';
 export type {
   AggMode,
   HoveredStatInfo,
@@ -329,6 +334,8 @@ export type {
   PivotTableRenderConfig,
   PivotTableDisplayConfig,
   PivotTableDnDConfig,
+  PivotTableDragDropConfig,
+  PivotTableDropPosition,
   PivotTableGroupCellHoverHandlers,
 } from './pivot-table/types';
 export {

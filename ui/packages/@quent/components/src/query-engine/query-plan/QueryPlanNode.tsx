@@ -58,7 +58,7 @@ export interface QueryPlanNodeData extends Record<string, unknown> {
   highlightedNodeIds?: ReadonlySet<string> | null;
 }
 
-/** Query-engine-aware node adapter over the provider-free node view. */
+/** Query-engine integration adapter over the provider-free node view. */
 export const QueryPlanNode = memo(({ data }: { data: QueryPlanNodeData }) => {
   const setHighlightState = useSetHighlightedNodeIds();
   const [nodePalette] = useNodeColorPalette();
