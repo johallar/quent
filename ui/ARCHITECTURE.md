@@ -45,8 +45,11 @@ packages/@quent/components/src/quent-views/**
 These views receive feature-scoped data, controlled state, and actions through
 props. They may use stable Quent concepts, but cannot import domain contracts,
 generated wire bindings, clients, hooks, or domain integration source.
-`quent-views/fsm-chart/**` is the first migrated slice. The currently enforced
-restrictions name the query-engine contract and integration explicitly.
+The currently enforced restrictions name the query-engine contract and
+integration explicitly. `quent-views/fsm-chart/**` and
+`quent-views/resource-timeline/**` are migrated slices. The resource timeline
+view owns only feature-scoped rendering data, status, and controlled interaction
+props; it does not require Quent providers or global stores.
 
 ## Query-engine integration adapters
 
@@ -58,8 +61,10 @@ packages/@quent/components/src/query-engine/**
 
 These adapters own QueryBundle interpretation, query-engine API and hook
 integration, and conversion into feature-scoped view models. They may import
-`quent-views/**` and generic UI. `query-engine/query-plan/**` is the first
-migrated slice.
+`quent-views/**` and generic UI. `query-engine/query-plan/**` and
+`query-engine/resource-timeline/**` are migrated slices. The resource timeline
+widget owns fetching, cache identities, operator overlays, shared timeline state,
+request construction, and QueryBundle declaration adaptation.
 
 Generated QueryBundle and wire contracts have the explicit import surface
 `@quent/utils/query-engine`. Existing `@quent/utils` root exports remain for
@@ -94,6 +99,18 @@ its contract. The legacy `dag/**`, `query-plan/**`, `timeline/**`,
 `resource-tree/**`, `pivot-table/**`, `operator-timeline/**`,
 `long-entities/**`, `gantt-chart/**`, and `nvtx-timeline/**` directories remain
 mixed while later phases split their rendering and integration responsibilities.
+The Phase 4a `ResourceTimeline` and `UsageColumn` exports are compatibility
+facades over the migrated resource-timeline zones; the remaining timeline and
+resource-tree products are still mixed.
+
+## Phase 4a status
+
+Phase 4a is complete for the Resource Timeline vertical slice.
+`ResourceTimelineView` and `UsageColumnView` are provider-free, prop-driven
+views. Their query-engine counterparts own API requests, React Query options,
+cache keys, Jotai-backed synchronization, operator overlays, and QueryBundle
+resolution. Existing `@quent/components` exports remain available through
+facades, and no DAG, table, or application composition was moved in this phase.
 
 ## Enforcement
 
